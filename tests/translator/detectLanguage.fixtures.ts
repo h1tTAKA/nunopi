@@ -21,6 +21,12 @@ const fixtures: DetectLanguageFixture[] = [
     expectedSecondary: ["tailwindcss"],
   },
   {
+    name: "react + tailwind className in braces",
+    code: "export function Card(){ return <div className={\"flex gap-2 md:grid bg-zinc-900\"}>ok</div>; }",
+    expectedPrimary: "react",
+    expectedSecondary: ["tailwindcss"],
+  },
+  {
     name: "typescript interface",
     code: "interface User { id: string; age: number } const user: User = { id: 'u1', age: 1 };",
     expectedPrimary: "typescript",
@@ -33,6 +39,11 @@ const fixtures: DetectLanguageFixture[] = [
   {
     name: "plain javascript",
     code: "const items = [1,2,3]; const doubled = items.map((n) => n * 2);",
+    expectedPrimary: "javascript",
+  },
+  {
+    name: "plain javascript object literal should not be ts",
+    code: "const user = { id: userId, name: fullName }; const next = { ...user, active: true };",
     expectedPrimary: "javascript",
   },
   {

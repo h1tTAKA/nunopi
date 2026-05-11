@@ -41,7 +41,9 @@ export function detectLanguage(code: string): DetectLanguageResult {
   };
 
   const jsxTagCount = countMatches(input, /<\s*[A-Za-z][\w-]*(?:\s|>|\/)/g);
-  const classNameCount = countMatches(input, /className\s*=\s*["'`]/g);
+  const classNameCount =
+    countMatches(input, /className\s*=\s*["'`]/g) +
+    countMatches(input, /className\s*=\s*\{/g);
   const reactHookCount = countMatches(input, /\buse(?:State|Effect|Memo|Callback|Ref)\s*\(/g);
 
   if (jsxTagCount > 0) score.react += jsxTagCount * 3;
@@ -51,7 +53,10 @@ export function detectLanguage(code: string): DetectLanguageResult {
   const tsSignals =
     countMatches(input, /\binterface\s+[A-Z]\w*/g) +
     countMatches(input, /\btype\s+[A-Z]\w*\s*=\s*/g) +
-    countMatches(input, /:\s*(?:string|number|boolean|unknown|any|void|never|\w+(?:\[\])?)/g) +
+    countMatches(input, /\b(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*:\s*[A-Za-z_$][\w$<>\[\]\s|&,.]*/g) +
+    countMatches(input, /\(\s*[A-Za-z_$][\w$]*\s*:\s*[A-Za-z_$][\w$<>\[\]\s|&,.]*/g) +
+    countMatches(input, /\)\s*:\s*[A-Za-z_$][\w$<>\[\]\s|&,.]*/g) +
+    countMatches(input, /\b(?:as|implements|enum)\b/g) +
     countMatches(input, /<\s*[A-Z]\w*\s*>/g);
 
   if (tsSignals > 0) score.typescript += tsSignals * 2;
@@ -107,6 +112,9 @@ function extractTailwindSignals(code: string): number {
     ...matchAll(code, /className\s*=\s*"([^"]+)"/g),
     ...matchAll(code, /className\s*=\s*'([^']+)'/g),
     ...matchAll(code, /className\s*=\s*`([^`]+)`/g),
+    ...matchAll(code, /className\s*=\s*\{\s*"([^"]+)"\s*\}/g),
+    ...matchAll(code, /className\s*=\s*\{\s*'([^']+)'\s*\}/g),
+    ...matchAll(code, /className\s*=\s*\{\s*`([^`]+)`\s*\}/g),
   ];
 
   let signalCount = 0;
