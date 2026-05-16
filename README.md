@@ -18,17 +18,42 @@ Nunopi is built for moments like these:
 
 ## Product Direction
 
-Nunopi is designed as an agent-backed code learning UI.
+Nunopi is designed as a local-first, agent-backed code learning app.
+
+The core product is not a hosted SaaS. The main path is:
+
+```txt
+Local web app first
+  ↓
+Desktop app next
+  ↓
+Hosted deployment only for demo, landing, and PR previews
+```
+
+Users should be able to connect the AI tools they already use:
+
+- Claude Code or Claude Agent SDK from their own local/authenticated environment
+- Codex or an OpenAI app-server style local bridge
+- OpenAI API with their own API key
+- Hermes, Ollama, LM Studio, vLLM, LiteLLM, or another local/OpenAI-compatible endpoint
+- Nunopi's local rules provider as a no-network fallback
+
+High-level architecture:
 
 ```txt
 User code input
+  ↓
+Nunopi local web app / desktop app
+  ↓
+Local Agent Bridge
   ↓
 Translator Orchestrator
   ↓
 Agent Provider Adapter
   ├─ local-rules
   ├─ Claude Agent SDK / Claude Code
-  ├─ Codex server
+  ├─ Codex / OpenAI app-server
+  ├─ OpenAI API key provider
   ├─ Hermes / local LLM
   └─ OpenAI-compatible endpoint
   ↓
@@ -38,11 +63,13 @@ Line explanations + token dictionary + concept notes
 Core direction:
 
 - Connect AI agents and local rules through the same provider interface.
-- Support swappable providers such as Claude, Codex, Hermes, and local LLMs.
+- Prioritize local execution through a local bridge or desktop shell.
+- Support swappable providers such as Claude, Codex, OpenAI app-server/API, Hermes, and local LLMs.
 - Keep the existing rule-based translator as a local fallback provider.
 - Normalize every provider result into the same learning UI.
 - Keep source-code storage off by default.
-- Clearly show when code may be sent to a remote provider.
+- Clearly show whether code stays local or is sent to a remote API/provider.
+- Use Vercel only for public demo, landing, and PR preview deployments.
 
 ## Current Status
 
@@ -52,7 +79,7 @@ Nunopi is currently in the early MVP stage.
 - AppShell layout implemented
 - Core translator types defined
 - Language detection heuristics implemented and review fixes applied
-- Product direction pivoted to an agent-backed architecture on 2026-05-16
+- Product direction pivoted to a local-first agent-backed architecture on 2026-05-16
 
 Next implementation target:
 
@@ -70,7 +97,9 @@ Issue 005 — Define agent provider types and normalized response schema
 - Local-rules fallback analysis
 - Claude Agent SDK adapter PoC
 - Codex agent provider PoC
+- OpenAI app-server/API key provider
 - Hermes/local LLM or OpenAI-compatible endpoint integration
+- Desktop app shell, likely Tauri first
 - Optional local history and bookmarks
 
 ## Getting Started
