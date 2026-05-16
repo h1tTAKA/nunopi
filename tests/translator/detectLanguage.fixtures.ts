@@ -103,6 +103,5 @@ export function runDetectLanguageFixtures(): void {
 
 if (process.env.RUN_TRANSLATOR_FIXTURES === "1") {
   runDetectLanguageFixtures();
-  // eslint-disable-next-line no-console
   console.log("detectLanguage fixtures passed");
 }
