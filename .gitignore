@@ -44,6 +44,7 @@ test-results/
 *.pid.lock
 .tmp/
 tmp/
+.sna/
 
 # TypeScript
 *.tsbuildinfo
