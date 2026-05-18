@@ -1,8 +1,3 @@
-import type {
-  AgentAnalyzeRequest,
-  AgentAnalyzeResponse,
-} from "./schema";
-
 export type AgentProviderKind =
   | "local-rules"
   | "claude-agent"
@@ -44,5 +39,7 @@ export interface AgentProviderMetadata {
 
 export interface AgentProvider {
   metadata: AgentProviderMetadata;
-  analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse>;
+  analyze(
+    request: import("./schema").AgentAnalyzeRequest,
+  ): Promise<import("./schema").AgentAnalyzeResponse>;
 }
