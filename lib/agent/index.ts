@@ -1,14 +1,16 @@
 export type {
-  AgentAnalyzeOptions,
-  AgentAnalyzeRequest,
-  AgentAnalyzeResponse,
   AgentDataHandling,
   AgentExecutionLocation,
-  AgentLineExplanation,
   AgentProvider,
   AgentProviderCapability,
   AgentProviderKind,
   AgentProviderMetadata,
+} from "./types";
+export type {
+  AgentAnalyzeOptions,
+  AgentAnalyzeRequest,
+  AgentAnalyzeResponse,
+  AgentLineExplanation,
   AgentToTranslateMapping,
   AgentUsage,
-} from "./types";
+} from "./schema";
