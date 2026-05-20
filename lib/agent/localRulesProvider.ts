@@ -17,8 +17,8 @@ const FUNCTION_NAME_PATTERN = /^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/;
 const VARIABLE_NAME_PATTERN = /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)/;
 const HOOK_NAME_PATTERN = /\b(useState|useEffect|useMemo|useCallback|useRef)\b/;
 const JSX_TAG_NAME_PATTERN = /<\s*([A-Za-z][\w-]*)/;
-const CLASS_NAME_VALUE_PATTERN =
-  /className\s*=\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`|\{\s*"([^"]+)"\s*\}|\{\s*'([^']+)'\s*\}|\{\s*`([^`]+)`\s*\})/;
+const CLASS_NAME_DIRECT_VALUE_PATTERN = /className\s*=\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/;
+const CLASS_NAME_EXPRESSION_PATTERN = /className\s*=\s*\{([^}]*)\}/;
 const TAILWIND_UTILITY_PATTERN =
   /\b(?:flex|grid|items-center|justify-center|gap-\d+|p[trblxy]?-[\d.]+|m[trblxy]?-[\d.]+|bg-[\w-]+|text-[\w-]+|rounded(?:-[\w]+)?|w-\d+|h-\d+|sm:[\w-]+|md:[\w-]+|lg:[\w-]+|xl:[\w-]+|hover:[\w-]+|focus:[\w-]+|disabled:[\w-]+)\b/g;
 
@@ -98,7 +98,7 @@ function buildLineExplanation(
   if (HOOK_PATTERN.test(line) && VARIABLE_PATTERN.test(line)) {
     return {
       text: "React hook 값을 변수에 담아, 이후 화면 상태나 참조 값을 계속 사용할 준비를 하는 줄이다.",
-      tokenIds: ["react-hook", "variable-declaration"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["react-hook", "state-or-reference"],
       confidence: 0.96,
     };
@@ -107,7 +107,7 @@ function buildLineExplanation(
   if (HOOK_PATTERN.test(line)) {
     return {
       text: "React hook을 호출해서 상태, 효과, 메모이제이션 같은 React 기능을 연결하는 줄이다.",
-      tokenIds: ["react-hook"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["react-hook"],
       confidence: 0.94,
     };
@@ -116,7 +116,7 @@ function buildLineExplanation(
   if (FUNCTION_PATTERN.test(line)) {
     return {
       text: "이름이 있는 함수를 선언해서, 나중에 같은 로직을 여러 번 호출할 수 있게 만드는 줄이다.",
-      tokenIds: ["function-declaration"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["function"],
       confidence: 0.93,
     };
@@ -125,7 +125,7 @@ function buildLineExplanation(
   if (VARIABLE_PATTERN.test(line) && ARROW_FUNCTION_PATTERN.test(line)) {
     return {
       text: "변수에 화살표 함수를 저장해서, 나중에 함수처럼 호출할 수 있게 준비하는 줄이다.",
-      tokenIds: ["variable-declaration", "arrow-function"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["function", "arrow-function"],
       confidence: 0.91,
     };
@@ -134,7 +134,7 @@ function buildLineExplanation(
   if (VARIABLE_PATTERN.test(line)) {
     return {
       text: "값을 저장할 변수를 선언하는 줄이다. 이후 다른 줄에서 이 이름을 다시 사용하게 된다.",
-      tokenIds: ["variable-declaration"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["variable"],
       confidence: 0.88,
     };
@@ -143,7 +143,7 @@ function buildLineExplanation(
   if (RETURN_PATTERN.test(line) && JSX_PATTERN.test(line)) {
     return {
       text: "JSX 화면 조각을 return 해서, 이 컴포넌트가 실제로 어떤 UI를 그릴지 돌려주는 줄이다.",
-      tokenIds: ["return", "jsx"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["return", "jsx-rendering"],
       confidence: 0.96,
     };
@@ -152,7 +152,7 @@ function buildLineExplanation(
   if (RETURN_PATTERN.test(line)) {
     return {
       text: "함수 실행 결과를 바깥으로 돌려주는 return 줄이다.",
-      tokenIds: ["return"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["return"],
       confidence: 0.9,
     };
@@ -161,7 +161,7 @@ function buildLineExplanation(
   if (CLASS_NAME_PATTERN.test(line) && JSX_PATTERN.test(line)) {
     return {
       text: "JSX 요소에 className을 붙여서, 이 화면 조각의 스타일 규칙을 연결하는 줄이다.",
-      tokenIds: ["jsx", "className"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["jsx", "styling"],
       confidence: 0.9,
     };
@@ -170,7 +170,7 @@ function buildLineExplanation(
   if (JSX_PATTERN.test(line)) {
     return {
       text: "JSX 태그를 사용해서 화면에 렌더링될 요소 구조를 적는 줄이다.",
-      tokenIds: ["jsx"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["jsx", "ui-structure"],
       confidence: 0.87,
     };
@@ -179,7 +179,7 @@ function buildLineExplanation(
   if (ARROW_FUNCTION_PATTERN.test(line)) {
     return {
       text: "화살표 함수 문법을 사용해서 짧은 함수 로직을 표현하는 줄이다.",
-      tokenIds: ["arrow-function"],
+      tokenIds: collectLineTokenIds(line),
       conceptIds: ["arrow-function"],
       confidence: 0.84,
     };
@@ -220,6 +220,67 @@ function buildWarnings(totalNonEmptyLines: number, matchedLineCount: number) {
 
 function countNonEmptyLines(code: string): number {
   return code.split(/\r?\n/).filter((line) => line.trim().length > 0).length;
+}
+
+function collectLineTokenIds(line: string): string[] {
+  const tokenIds = new Set<string>();
+
+  const keywordMatch = line.match(/^\s*(const|let|var|function|return)\b/);
+
+  if (keywordMatch) {
+    tokenIds.add(`keyword:${keywordMatch[1]}`);
+  }
+
+  const functionMatch = line.match(FUNCTION_NAME_PATTERN);
+
+  if (functionMatch) {
+    tokenIds.add(`function:${functionMatch[1]}`);
+  }
+
+  const hookStateMatch = line.match(
+    /^\s*(?:const|let|var)\s*\[\s*([A-Za-z_$][\w$]*)\s*,\s*([A-Za-z_$][\w$]*)\s*\]\s*=\s*(useState|useReducer|useRef)\b/,
+  );
+
+  if (hookStateMatch) {
+    tokenIds.add(`state:${hookStateMatch[1]}`);
+    tokenIds.add(`setter:${hookStateMatch[2]}`);
+  } else {
+    const variableMatch = line.match(VARIABLE_NAME_PATTERN);
+
+    if (variableMatch) {
+      tokenIds.add(`variable:${variableMatch[1]}`);
+    }
+  }
+
+  const hookMatch = line.match(HOOK_NAME_PATTERN);
+
+  if (hookMatch) {
+    tokenIds.add(`hook:${hookMatch[1]}`);
+  }
+
+  if (RETURN_PATTERN.test(line)) {
+    tokenIds.add("operator:return");
+  }
+
+  if (ARROW_FUNCTION_PATTERN.test(line)) {
+    tokenIds.add("operator:arrow-function");
+  }
+
+  const jsxMatch = line.match(JSX_TAG_NAME_PATTERN);
+
+  if (jsxMatch) {
+    tokenIds.add(`jsx:${jsxMatch[1]}`);
+  }
+
+  if (CLASS_NAME_PATTERN.test(line)) {
+    tokenIds.add("jsx:className");
+  }
+
+  for (const utility of extractTailwindUtilities(line)) {
+    tokenIds.add(`tailwind:${utility}`);
+  }
+
+  return [...tokenIds];
 }
 
 function buildTokens(code: string, lineExplanations: AgentLineExplanation[]): CodeToken[] {
@@ -505,16 +566,7 @@ function registerClassNameToken(tokens: Map<string, CodeToken>, line: string, li
 }
 
 function registerTailwindTokens(tokens: Map<string, CodeToken>, line: string, lineNumber: number) {
-  const classNameMatch = line.match(CLASS_NAME_VALUE_PATTERN);
-  const classValue = classNameMatch?.slice(1).find(Boolean);
-
-  if (!classValue) {
-    return;
-  }
-
-  const utilityMatches = classValue.match(TAILWIND_UTILITY_PATTERN) ?? [];
-
-  for (const utility of utilityMatches) {
+  for (const utility of extractTailwindUtilities(line)) {
     upsertToken(tokens, {
       id: `tailwind:${utility}`,
       token: utility,
@@ -526,6 +578,29 @@ function registerTailwindTokens(tokens: Map<string, CodeToken>, line: string, li
       bookmarkable: true,
     });
   }
+}
+
+function extractTailwindUtilities(line: string): string[] {
+  const chunks: string[] = [];
+  const directValue = line.match(CLASS_NAME_DIRECT_VALUE_PATTERN)?.slice(1).find(Boolean);
+
+  if (directValue) {
+    chunks.push(directValue);
+  }
+
+  const expressionValue = line.match(CLASS_NAME_EXPRESSION_PATTERN)?.[1];
+
+  if (expressionValue) {
+    for (const match of expressionValue.matchAll(/"([^"]+)"|'([^']+)'|`([^`]+)`/g)) {
+      const value = match[1] ?? match[2] ?? match[3];
+
+      if (value) {
+        chunks.push(value);
+      }
+    }
+  }
+
+  return chunks.flatMap((chunk) => chunk.match(TAILWIND_UTILITY_PATTERN) ?? []);
 }
 
 function classifyTailwindUtility(utility: string): TokenCategory {
