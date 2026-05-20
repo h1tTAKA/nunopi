@@ -45,6 +45,7 @@ test-results/
 .tmp/
 tmp/
 .sna/
+.antigravitycli/
 
 # TypeScript
 *.tsbuildinfo
