@@ -14,3 +14,6 @@ export type {
   AgentToTranslateMapping,
   AgentUsage,
 } from "./schema";
+export { localRulesProvider } from "./localRulesProvider";
+export { createAgentRegistry } from "./registry";
+export type { CreateAgentRegistryOptions } from "./registry";
