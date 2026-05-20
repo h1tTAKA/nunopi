@@ -14,3 +14,4 @@ export type {
   AgentToTranslateMapping,
   AgentUsage,
 } from "./schema";
+export { localRulesProvider } from "./localRulesProvider";
