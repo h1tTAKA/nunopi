@@ -42,6 +42,7 @@ const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
 ];
 
 const PROVIDER_TIMEOUT_MS = 8_000;
+const ALLOW_HEADER = "POST, OPTIONS";
 
 class ProviderTimeoutError extends Error {
   constructor(timeoutMs: number) {
@@ -56,46 +57,27 @@ export async function POST(
   const body = await safeReadJson(request);
 
   if (!body.ok) {
-    return Response.json(
-      {
-        ok: false,
-        error: {
-          code: "INVALID_REQUEST",
-          message: body.message,
-        },
-      } satisfies AgentAnalyzeErrorResponse,
-      { status: 400 },
-    );
+    return jsonError(400, "INVALID_REQUEST", body.message);
   }
 
   const parsedRequest = parseAnalyzeHttpRequest(body.value);
 
   if (!parsedRequest) {
-    return Response.json(
-      {
-        ok: false,
-        error: {
-          code: "INVALID_REQUEST",
-          message: "Request body must include providerId and a valid analyze request.",
-        },
-      } satisfies AgentAnalyzeErrorResponse,
-      { status: 400 },
+    return jsonError(
+      400,
+      "INVALID_REQUEST",
+      "Request body must include providerId and a valid analyze request.",
     );
   }
 
   const provider = resolveProvider(parsedRequest.providerId);
 
   if (!provider.ok) {
-    return Response.json(
-      {
-        ok: false,
-        error: {
-          code: "PROVIDER_NOT_FOUND",
-          message: provider.message,
-          providerId: parsedRequest.providerId,
-        },
-      } satisfies AgentAnalyzeErrorResponse,
-      { status: 404 },
+    return jsonError(
+      404,
+      "PROVIDER_NOT_FOUND",
+      provider.message,
+      parsedRequest.providerId,
     );
   }
 
@@ -109,38 +91,33 @@ export async function POST(
       PROVIDER_TIMEOUT_MS,
     );
 
-    return Response.json({
-      ok: true,
-      providerId: parsedRequest.providerId,
-      response,
-    } satisfies AgentAnalyzeSuccessResponse);
+    return jsonSuccess(parsedRequest.providerId, response);
   } catch (error) {
     if (error instanceof ProviderTimeoutError) {
-      return Response.json(
-        {
-          ok: false,
-          error: {
-            code: "PROVIDER_TIMEOUT",
-            message: error.message,
-            providerId: parsedRequest.providerId,
-          },
-        } satisfies AgentAnalyzeErrorResponse,
-        { status: 504 },
+      return jsonError(
+        504,
+        "PROVIDER_TIMEOUT",
+        error.message,
+        parsedRequest.providerId,
       );
     }
 
-    return Response.json(
-      {
-        ok: false,
-        error: {
-          code: "PROVIDER_FAILED",
-          message: formatErrorMessage(error),
-          providerId: parsedRequest.providerId,
-        },
-      } satisfies AgentAnalyzeErrorResponse,
-      { status: 500 },
+    return jsonError(
+      500,
+      "PROVIDER_FAILED",
+      formatErrorMessage(error),
+      parsedRequest.providerId,
     );
   }
+}
+
+export function OPTIONS(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      Allow: ALLOW_HEADER,
+    },
+  });
 }
 
 async function safeReadJson(
@@ -248,6 +225,41 @@ async function runWithTimeout<T>(
       clearTimeout(timeoutId);
     }
   }
+}
+
+function jsonSuccess(
+  providerId: AgentProviderKind,
+  response: AgentAnalyzeResponse,
+): Response {
+  return Response.json({
+    ok: true,
+    providerId,
+    response,
+  } satisfies AgentAnalyzeSuccessResponse);
+}
+
+function jsonError(
+  status: number,
+  code: AgentAnalyzeErrorResponse["error"]["code"],
+  message: string,
+  providerId?: string,
+): Response {
+  return Response.json(
+    {
+      ok: false,
+      error: {
+        code,
+        message,
+        providerId,
+      },
+    } satisfies AgentAnalyzeErrorResponse,
+    {
+      status,
+      headers: {
+        Allow: ALLOW_HEADER,
+      },
+    },
+  );
 }
 
 function formatErrorMessage(error: unknown): string {
