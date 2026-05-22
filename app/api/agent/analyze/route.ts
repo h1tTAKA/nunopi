@@ -150,30 +150,41 @@ function parseAnalyzeHttpRequest(value: unknown): AgentAnalyzeHttpRequest | null
   if (
     typeof providerId !== "string" ||
     !isAgentProviderKind(providerId) ||
-    !isRecord(request)
-  ) {
-    return null;
-  }
-
-  if (
-    typeof request.code !== "string" ||
-    request.code.trim().length === 0 ||
-    request.locale !== "ko"
-  ) {
-    return null;
-  }
-
-  if (
-    request.providerId !== undefined &&
-    request.providerId !== providerId
+    !isValidAnalyzeRequestPayload(request, providerId)
   ) {
     return null;
   }
 
   return {
     providerId,
-    request: request as AgentAnalyzeRequest,
+    request,
   };
+}
+
+function isValidAnalyzeRequestPayload(
+  value: unknown,
+  providerId: AgentProviderKind,
+): value is AgentAnalyzeRequest {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (
+    typeof value.code !== "string" ||
+    value.code.trim().length === 0 ||
+    value.locale !== "ko"
+  ) {
+    return false;
+  }
+
+  if (
+    value.providerId !== undefined &&
+    value.providerId !== providerId
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
