@@ -2,6 +2,7 @@ import {
   createAgentRegistry,
   type AgentAnalyzeRequest,
   type AgentAnalyzeResponse,
+  type AgentProvider,
   type AgentProviderKind,
 } from "@/lib/agent";
 
@@ -24,6 +25,17 @@ interface AgentAnalyzeErrorResponse {
     providerId?: string;
   };
 }
+
+const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
+  "local-rules",
+  "claude-agent",
+  "codex-agent",
+  "openai-app-server",
+  "openai-api-key",
+  "hermes-local",
+  "openai-compatible",
+  "mock",
+];
 
 export async function POST(
   request: Request,
@@ -58,16 +70,15 @@ export async function POST(
     );
   }
 
-  const registry = createAgentRegistry();
-  const provider = registry.getProvider(parsedRequest.providerId);
+  const provider = resolveProvider(parsedRequest.providerId);
 
-  if (!provider) {
+  if (!provider.ok) {
     return Response.json(
       {
         ok: false,
         error: {
           code: "PROVIDER_NOT_FOUND",
-          message: `Provider not found: ${parsedRequest.providerId}`,
+          message: provider.message,
           providerId: parsedRequest.providerId,
         },
       } satisfies AgentAnalyzeErrorResponse,
@@ -80,7 +91,7 @@ export async function POST(
       ...parsedRequest.request,
       providerId: parsedRequest.providerId,
     };
-    const response = await provider.analyze(providerRequest);
+    const response = await provider.provider.analyze(providerRequest);
 
     return Response.json({
       ok: true,
@@ -129,7 +140,11 @@ function parseAnalyzeHttpRequest(value: unknown): AgentAnalyzeHttpRequest | null
   const providerId = value.providerId;
   const request = value.request;
 
-  if (typeof providerId !== "string" || !isRecord(request)) {
+  if (
+    typeof providerId !== "string" ||
+    !isAgentProviderKind(providerId) ||
+    !isRecord(request)
+  ) {
     return null;
   }
 
@@ -141,14 +156,46 @@ function parseAnalyzeHttpRequest(value: unknown): AgentAnalyzeHttpRequest | null
     return null;
   }
 
+  if (
+    request.providerId !== undefined &&
+    request.providerId !== providerId
+  ) {
+    return null;
+  }
+
   return {
-    providerId: providerId as AgentProviderKind,
+    providerId,
     request: request as AgentAnalyzeRequest,
   };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isAgentProviderKind(value: string): value is AgentProviderKind {
+  return ALLOWED_PROVIDER_IDS.includes(value as AgentProviderKind);
+}
+
+function resolveProvider(
+  providerId: AgentProviderKind,
+):
+  | { ok: true; provider: AgentProvider }
+  | { ok: false; message: string } {
+  const registry = createAgentRegistry();
+  const provider = registry.getProvider(providerId);
+
+  if (!provider) {
+    return {
+      ok: false,
+      message: `Provider not found: ${providerId}`,
+    };
+  }
+
+  return {
+    ok: true,
+    provider,
+  };
 }
 
 function formatErrorMessage(error: unknown): string {
