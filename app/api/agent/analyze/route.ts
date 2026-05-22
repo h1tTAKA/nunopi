@@ -20,7 +20,11 @@ interface AgentAnalyzeSuccessResponse {
 interface AgentAnalyzeErrorResponse {
   ok: false;
   error: {
-    code: "INVALID_REQUEST" | "PROVIDER_NOT_FOUND" | "PROVIDER_FAILED";
+    code:
+      | "INVALID_REQUEST"
+      | "PROVIDER_NOT_FOUND"
+      | "PROVIDER_TIMEOUT"
+      | "PROVIDER_FAILED";
     message: string;
     providerId?: string;
   };
@@ -36,6 +40,15 @@ const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
   "openai-compatible",
   "mock",
 ];
+
+const PROVIDER_TIMEOUT_MS = 8_000;
+
+class ProviderTimeoutError extends Error {
+  constructor(timeoutMs: number) {
+    super(`Provider did not respond within ${timeoutMs}ms.`);
+    this.name = "ProviderTimeoutError";
+  }
+}
 
 export async function POST(
   request: Request,
@@ -91,7 +104,10 @@ export async function POST(
       ...parsedRequest.request,
       providerId: parsedRequest.providerId,
     };
-    const response = await provider.provider.analyze(providerRequest);
+    const response = await runWithTimeout(
+      provider.provider.analyze(providerRequest),
+      PROVIDER_TIMEOUT_MS,
+    );
 
     return Response.json({
       ok: true,
@@ -99,6 +115,20 @@ export async function POST(
       response,
     } satisfies AgentAnalyzeSuccessResponse);
   } catch (error) {
+    if (error instanceof ProviderTimeoutError) {
+      return Response.json(
+        {
+          ok: false,
+          error: {
+            code: "PROVIDER_TIMEOUT",
+            message: error.message,
+            providerId: parsedRequest.providerId,
+          },
+        } satisfies AgentAnalyzeErrorResponse,
+        { status: 504 },
+      );
+    }
+
     return Response.json(
       {
         ok: false,
@@ -196,6 +226,28 @@ function resolveProvider(
     ok: true,
     provider,
   };
+}
+
+async function runWithTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new ProviderTimeoutError(timeoutMs));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+  }
 }
 
 function formatErrorMessage(error: unknown): string {
