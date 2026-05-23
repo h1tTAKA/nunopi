@@ -38,12 +38,30 @@ export default function Home() {
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
 
+  function handleCodeChange(nextCode: string) {
+    setCode(nextCode);
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+  }
+
+  function handleProviderChange(nextProviderId: AgentProviderKind) {
+    setProviderId(nextProviderId);
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
+  }
+
   async function handleAnalyze() {
     const nextCode = code.trim();
 
     if (!nextCode) {
       setErrorMessage("분석할 코드를 먼저 입력해야 한다.");
       setAnalysisResult(null);
+      return;
+    }
+
+    if (isLoading) {
       return;
     }
 
@@ -102,8 +120,8 @@ export default function Home() {
         providerId={providerId}
         isLoading={isLoading}
         errorMessage={errorMessage}
-        onCodeChange={setCode}
-        onProviderChange={setProviderId}
+        onCodeChange={handleCodeChange}
+        onProviderChange={handleProviderChange}
         onAnalyze={handleAnalyze}
       />
     </AppShell>

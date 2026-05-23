@@ -19,6 +19,8 @@ export default function CodeInputArea({
   onProviderChange,
   onAnalyze,
 }: CodeInputAreaProps) {
+  const isAnalyzeDisabled = isLoading || code.trim().length === 0;
+
   return (
     <div className="h-full p-8 flex flex-col gap-6 bg-zinc-50 dark:bg-black">
       <div className="space-y-2">
@@ -39,7 +41,8 @@ export default function CodeInputArea({
             value={code}
             onChange={(event) => onCodeChange(event.target.value)}
             placeholder="설명받고 싶은 코드를 붙여넣으세요."
-            className="min-h-[320px] w-full rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-700"
+            disabled={isLoading}
+            className="min-h-[320px] w-full rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-700"
           />
         </label>
 
@@ -50,10 +53,11 @@ export default function CodeInputArea({
             </span>
             <select
               value={providerId}
+              disabled={isLoading}
               onChange={(event) =>
                 onProviderChange(event.target.value as AgentProviderKind)
               }
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
             >
               <option value="local-rules">local-rules</option>
             </select>
@@ -64,7 +68,7 @@ export default function CodeInputArea({
             onClick={() => {
               void onAnalyze();
             }}
-            disabled={isLoading || code.trim().length === 0}
+            disabled={isAnalyzeDisabled}
             className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
           >
             {isLoading ? "분석 요청 중..." : "분석 요청하기"}
