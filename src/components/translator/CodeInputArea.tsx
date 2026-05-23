@@ -7,7 +7,7 @@ interface CodeInputAreaProps {
   errorMessage: string | null;
   onCodeChange: (nextCode: string) => void;
   onProviderChange: (providerId: AgentProviderKind) => void;
-  onAnalyze: () => void;
+  onAnalyze: () => void | Promise<void>;
 }
 
 export default function CodeInputArea({
@@ -26,7 +26,7 @@ export default function CodeInputArea({
           Nunopi
         </h2>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          코드를 붙여넣고, 어떤 provider로 분석할지 고른 뒤 설명을 요청할 준비를 하는 화면이다.
+          코드를 붙여넣고, 어떤 provider로 분석할지 고른 뒤 실제 agent bridge API에 분석을 요청한다.
         </p>
       </div>
 
@@ -61,15 +61,17 @@ export default function CodeInputArea({
 
           <button
             type="button"
-            onClick={onAnalyze}
+            onClick={() => {
+              void onAnalyze();
+            }}
             disabled={isLoading || code.trim().length === 0}
             className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
           >
-            {isLoading ? "분석 준비 중..." : "분석 요청 준비"}
+            {isLoading ? "분석 요청 중..." : "분석 요청하기"}
           </button>
 
           <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            현재 커밋에서는 상태 그릇만 먼저 연결한다. 실제 API 호출은 다음 커밋에서 붙인다.
+            현재는 `local-rules` provider를 route를 통해 호출한다. 이후 이 자리에 다른 agent provider도 추가된다.
           </div>
 
           {errorMessage ? (
