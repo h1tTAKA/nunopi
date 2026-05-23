@@ -5,6 +5,7 @@ interface LearningPanelProps {
   isLoading: boolean;
   errorMessage: string | null;
   result: AgentAnalyzeResponse | null;
+  code: string;
 }
 
 export default function LearningPanel({
@@ -12,9 +13,11 @@ export default function LearningPanel({
   isLoading,
   errorMessage,
   result,
+  code,
 }: LearningPanelProps) {
   const firstExplanation = result?.lineExplanations[0];
   const firstWarning = result?.warnings[0];
+  const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
   return (
     <div className="h-full p-6 space-y-4">
@@ -25,6 +28,15 @@ export default function LearningPanel({
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           현재 provider: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
         </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+          현재 입력 코드 {nonEmptyLineCount}줄
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+          상태: {isLoading ? "분석 중" : result ? "결과 도착" : errorMessage ? "오류" : "대기 중"}
+        </div>
       </div>
 
       {isLoading ? (

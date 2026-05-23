@@ -5,6 +5,7 @@ interface CodeInputAreaProps {
   providerId: AgentProviderKind;
   isLoading: boolean;
   errorMessage: string | null;
+  hasResult: boolean;
   onCodeChange: (nextCode: string) => void;
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
@@ -15,6 +16,7 @@ export default function CodeInputArea({
   providerId,
   isLoading,
   errorMessage,
+  hasResult,
   onCodeChange,
   onProviderChange,
   onAnalyze,
@@ -34,9 +36,14 @@ export default function CodeInputArea({
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
         <label className="space-y-2">
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            코드 입력
-          </span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              코드 입력
+            </span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {code.trim().split(/\r?\n/).filter(Boolean).length} lines
+            </span>
+          </div>
           <textarea
             value={code}
             onChange={(event) => onCodeChange(event.target.value)}
@@ -77,6 +84,12 @@ export default function CodeInputArea({
           <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
             현재는 `local-rules` provider를 route를 통해 호출한다. 이후 이 자리에 다른 agent provider도 추가된다.
           </div>
+
+          {hasResult ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300">
+              현재 결과는 지금 입력한 코드 기준이다. 코드를 수정하거나 provider를 바꾸면 이전 결과는 지워진다.
+            </div>
+          ) : null}
 
           {errorMessage ? (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-950 dark:bg-red-950/30 dark:text-red-300">

@@ -43,12 +43,18 @@ export default function Home() {
     if (errorMessage) {
       setErrorMessage(null);
     }
+    if (analysisResult) {
+      setAnalysisResult(null);
+    }
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
     setProviderId(nextProviderId);
     if (errorMessage) {
       setErrorMessage(null);
+    }
+    if (analysisResult) {
+      setAnalysisResult(null);
     }
   }
 
@@ -112,6 +118,7 @@ export default function Home() {
           isLoading={isLoading}
           errorMessage={errorMessage}
           result={analysisResult}
+          code={code}
         />
       }
     >
@@ -120,6 +127,7 @@ export default function Home() {
         providerId={providerId}
         isLoading={isLoading}
         errorMessage={errorMessage}
+        hasResult={analysisResult !== null}
         onCodeChange={handleCodeChange}
         onProviderChange={handleProviderChange}
         onAnalyze={handleAnalyze}
