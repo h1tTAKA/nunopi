@@ -41,6 +41,14 @@ const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
   "mock",
 ];
 
+const ALLOWED_LANGUAGES = [
+  "react",
+  "typescript",
+  "javascript",
+  "css",
+  "tailwindcss",
+  "unknown",
+] as const;
 const PROVIDER_TIMEOUT_MS = 8_000;
 const ALLOW_HEADER = "POST, OPTIONS";
 
@@ -177,10 +185,19 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
-  if (
-    value.providerId !== undefined &&
-    value.providerId !== providerId
-  ) {
+  if (!isOptionalProviderId(value.providerId, providerId)) {
+    return false;
+  }
+
+  if (!isOptionalDetectedLanguage(value.detectedLanguage)) {
+    return false;
+  }
+
+  if (!isOptionalUserIntent(value.userIntent)) {
+    return false;
+  }
+
+  if (!isOptionalAnalyzeOptions(value.options)) {
     return false;
   }
 
@@ -189,6 +206,62 @@ function isValidAnalyzeRequestPayload(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isOptionalProviderId(
+  value: unknown,
+  providerId: AgentProviderKind,
+): boolean {
+  return value === undefined || value === providerId;
+}
+
+function isOptionalDetectedLanguage(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (typeof value === "string" && isSupportedLanguage(value))
+  );
+}
+
+function isOptionalUserIntent(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function isOptionalAnalyzeOptions(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.maxLines !== undefined && !isPositiveInteger(value.maxLines)) {
+    return false;
+  }
+
+  if (value.timeoutMs !== undefined && !isPositiveInteger(value.timeoutMs)) {
+    return false;
+  }
+
+  if (
+    (value.includeTokens !== undefined && typeof value.includeTokens !== "boolean") ||
+    (value.includeConcepts !== undefined && typeof value.includeConcepts !== "boolean") ||
+    (value.includeRawOutput !== undefined && typeof value.includeRawOutput !== "boolean")
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function isPositiveInteger(value: unknown): boolean {
+  return typeof value === "number" && Number.isInteger(value) && value > 0;
+}
+
+function isSupportedLanguage(value: string): boolean {
+  return ALLOWED_LANGUAGES.includes(
+    value as (typeof ALLOWED_LANGUAGES)[number],
+  );
 }
 
 function isAgentProviderKind(value: string): value is AgentProviderKind {
