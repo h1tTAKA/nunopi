@@ -4,13 +4,22 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProvider } from "./types";
+import type { TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
+const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
 interface ClaudeAvailabilityResult {
   available: boolean;
   commandPath?: string;
   message: string;
+}
+
+interface ClaudeNormalizedPayload {
+  summary?: string;
+  language?: string;
+  lineExplanations?: AgentAnalyzeResponse["lineExplanations"];
+  warnings?: TranslateWarning[];
 }
 
 export const claudeAgentProvider: AgentProvider = {
@@ -52,24 +61,229 @@ export const claudeAgentProvider: AgentProvider = {
       };
     }
 
+    const prompt = buildClaudePrompt(request);
+    const rawText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
+
+    if (!rawText) {
+      return buildPendingClaudeResponse(request, availability, prompt);
+    }
+
+    return normalizeClaudeOutput(rawText, request, availability, prompt);
+  },
+};
+
+function buildClaudePrompt(request: AgentAnalyzeRequest): string {
+  return [
+    "You are Nunopi's Claude analysis provider.",
+    "Explain unfamiliar code for a beginner in Korean.",
+    "Return JSON only.",
+    "",
+    "Output JSON shape:",
+    "{",
+    '  "summary": "string",',
+    '  "language": "string",',
+    '  "lineExplanations": [',
+    "    {",
+    '      "line": number,',
+    '      "code": "string",',
+    '      "explanation": "string",',
+    '      "tokenIds": string[],',
+    '      "conceptIds": string[],',
+    '      "confidence": number',
+    "    }",
+    "  ],",
+    '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
+    "}",
+    "",
+    `Locale: ${request.locale}`,
+    `Requested provider: ${request.providerId}`,
+    `Detected language: ${request.detectedLanguage ?? "unknown"}`,
+    `User intent: ${request.userIntent ?? "Explain the code in beginner-friendly Korean."}`,
+    "",
+    "Code to analyze:",
+    "```",
+    request.code,
+    "```",
+  ].join("\n");
+}
+
+function buildPendingClaudeResponse(
+  request: AgentAnalyzeRequest,
+  availability: ClaudeAvailabilityResult,
+  prompt: string,
+): AgentAnalyzeResponse {
+  return {
+    providerId: "claude-agent",
+    language: request.detectedLanguage ?? "unknown",
+    summary: `Claude runtime detected at ${availability.commandPath}, and Nunopi prepared a prompt/response contract for live Claude analysis.`,
+    lineExplanations: [],
+    tokens: [],
+    concepts: [],
+    warnings: [
+      {
+        code: "PARTIAL_PARSE",
+        message:
+          "Claude runtime is available, but the live Claude Agent SDK or Claude Code bridge is not implemented yet.",
+      },
+    ],
+    rawText: prompt,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function normalizeClaudeOutput(
+  rawText: string,
+  request: AgentAnalyzeRequest,
+  availability: ClaudeAvailabilityResult,
+  prompt: string,
+): AgentAnalyzeResponse {
+  const parsed = parseClaudePayload(rawText);
+
+  if (!parsed) {
     return {
-      providerId: this.metadata.id,
+      providerId: "claude-agent",
       language: request.detectedLanguage ?? "unknown",
-      summary: `Claude runtime detected at ${availability.commandPath}, but the live Claude bridge is not connected yet.`,
+      summary: `Claude runtime detected at ${availability.commandPath}, but the returned payload did not match Nunopi's expected JSON schema.`,
       lineExplanations: [],
       tokens: [],
       concepts: [],
       warnings: [
         {
-          code: "PARTIAL_PARSE",
+          code: "PARSE_FAILED",
           message:
-            "Claude runtime is available, but the live Claude Agent SDK or Claude Code bridge is not implemented yet.",
+            "Claude output could not be normalized into AgentAnalyzeResponse. Check the prompt contract or raw payload shape.",
         },
       ],
+      rawText: `${prompt}\n\n--- RAW RESPONSE ---\n${rawText}`,
       createdAt: new Date().toISOString(),
     };
-  },
-};
+  }
+
+  return {
+    providerId: "claude-agent",
+    language: parsed.language ?? request.detectedLanguage ?? "unknown",
+    summary:
+      parsed.summary ??
+      `Claude runtime detected at ${availability.commandPath}, and a normalized Claude payload was returned.`,
+    lineExplanations: parsed.lineExplanations ?? [],
+    tokens: [],
+    concepts: [],
+    warnings: parsed.warnings ?? [],
+    rawText,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function parseClaudePayload(rawText: string): ClaudeNormalizedPayload | null {
+  const jsonCandidate = extractJsonCandidate(rawText);
+
+  if (!jsonCandidate) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonCandidate);
+
+    if (!isClaudeNormalizedPayload(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonCandidate(rawText: string): string | null {
+  const blockMatch = rawText.match(JSON_CODE_BLOCK_PATTERN);
+
+  if (blockMatch?.[1]) {
+    return blockMatch[1].trim();
+  }
+
+  const trimmed = rawText.trim();
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+function isClaudeNormalizedPayload(value: unknown): value is ClaudeNormalizedPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.summary !== undefined && typeof value.summary !== "string") {
+    return false;
+  }
+
+  if (value.language !== undefined && typeof value.language !== "string") {
+    return false;
+  }
+
+  if (value.lineExplanations !== undefined && !isLineExplanationList(value.lineExplanations)) {
+    return false;
+  }
+
+  if (value.warnings !== undefined && !isWarningList(value.warnings)) {
+    return false;
+  }
+
+  return true;
+}
+
+function isLineExplanationList(
+  value: unknown,
+): value is AgentAnalyzeResponse["lineExplanations"] {
+  return Array.isArray(value) && value.every(isLineExplanation);
+}
+
+function isLineExplanation(value: unknown): value is AgentAnalyzeResponse["lineExplanations"][number] {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.line === "number" &&
+    typeof value.code === "string" &&
+    typeof value.explanation === "string" &&
+    Array.isArray(value.tokenIds) &&
+    value.tokenIds.every((item) => typeof item === "string") &&
+    Array.isArray(value.conceptIds) &&
+    value.conceptIds.every((item) => typeof item === "string") &&
+    (value.confidence === undefined || typeof value.confidence === "number")
+  );
+}
+
+function isWarningList(value: unknown): value is TranslateWarning[] {
+  return Array.isArray(value) && value.every(isWarning);
+}
+
+function isWarning(value: unknown): value is TranslateWarning {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isWarningCode(value.code) &&
+    typeof value.message === "string"
+  );
+}
+
+function isWarningCode(value: unknown): value is TranslateWarning["code"] {
+  return (
+    value === "TOO_LONG" ||
+    value === "PARSE_FAILED" ||
+    value === "PARTIAL_PARSE" ||
+    value === "UNKNOWN_LANGUAGE"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 async function detectClaudeAvailability(): Promise<ClaudeAvailabilityResult> {
   const explicitCommand = process.env.NUNOPI_CLAUDE_COMMAND?.trim();
