@@ -152,7 +152,7 @@ function normalizeOpenAICompatibleResponse(
     tokens: [],
     concepts: [],
     warnings: parsed.warnings ?? [],
-    rawText,
+    rawText: rawResponse,
     createdAt: new Date().toISOString(),
   };
 }
