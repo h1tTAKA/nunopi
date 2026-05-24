@@ -6,7 +6,6 @@ interface OpenAICompatibleConfig {
   baseUrl: string;
   model: string;
   apiKey?: string;
-  timeoutMs: number;
 }
 
 interface OpenAICompatibleMessage {
@@ -18,9 +17,6 @@ interface OpenAICompatibleRequestBody {
   model: string;
   messages: OpenAICompatibleMessage[];
   temperature: number;
-  response_format: {
-    type: "json_object";
-  };
 }
 
 interface OpenAICompatibleNormalizedPayload {
@@ -56,7 +52,7 @@ export const openAICompatibleProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
-    const config = resolveOpenAICompatibleConfig(request);
+    const config = resolveOpenAICompatibleConfig();
     const requestBody = buildOpenAICompatibleRequestBody(request, config);
     const rawResponse = process.env.NUNOPI_OPENAI_COMPAT_MOCK_RESPONSE?.trim();
 
@@ -157,9 +153,7 @@ function normalizeOpenAICompatibleResponse(
   };
 }
 
-function resolveOpenAICompatibleConfig(
-  request: AgentAnalyzeRequest,
-): OpenAICompatibleConfig {
+function resolveOpenAICompatibleConfig(): OpenAICompatibleConfig {
   return {
     baseUrl: normalizeBaseUrl(
       process.env.NUNOPI_OPENAI_COMPAT_BASE_URL?.trim() || "http://localhost:11434/v1",
@@ -167,7 +161,6 @@ function resolveOpenAICompatibleConfig(
     model:
       process.env.NUNOPI_OPENAI_COMPAT_MODEL?.trim() || "hermes-3",
     apiKey: process.env.NUNOPI_OPENAI_COMPAT_API_KEY?.trim() || undefined,
-    timeoutMs: request.options?.timeoutMs ?? 20_000,
   };
 }
 
@@ -179,9 +172,6 @@ function buildOpenAICompatibleRequestBody(
     model: config.model,
     messages: buildOpenAICompatibleMessages(request),
     temperature: 0.2,
-    response_format: {
-      type: "json_object",
-    },
   };
 }
 
