@@ -16,5 +16,6 @@ export type {
 } from "./schema";
 export { claudeAgentProvider } from "./claudeAgentProvider";
 export { localRulesProvider } from "./localRulesProvider";
+export { openAICompatibleProvider } from "./openAICompatibleProvider";
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
