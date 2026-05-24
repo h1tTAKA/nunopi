@@ -26,7 +26,7 @@ export interface AgentAnalyzeOptions {
 
 export interface AgentAnalyzeResponse {
   providerId: AgentProviderKind;
-  language: SupportedLanguage;
+  language: string;
   summary: string;
   lineExplanations: AgentLineExplanation[];
   tokens: CodeToken[];

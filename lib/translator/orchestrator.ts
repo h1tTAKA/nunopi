@@ -9,6 +9,7 @@ import type {
   ExplanationBlock,
   ExplanationSegment,
   LineResult,
+  SupportedLanguage,
   TranslateRequest,
   TranslateResponse,
   TranslateWarning,
@@ -181,7 +182,7 @@ function buildTranslateResponse(
   ];
 
   return {
-    language: agentResponse.language,
+    language: normalizeResponseLanguage(agentResponse.language, detectedLanguage.primary),
     secondaryLanguages: detectedLanguage.secondary,
     totalLines: lineResults.length,
     matchedLines: countLineResults(lineResults, "matched"),
@@ -194,6 +195,32 @@ function buildTranslateResponse(
     warnings,
     createdAt: agentResponse.createdAt,
   };
+}
+
+function normalizeResponseLanguage(
+  value: string,
+  fallback: SupportedLanguage,
+): SupportedLanguage {
+  if (isSupportedLanguage(value)) {
+    return value;
+  }
+
+  if (fallback !== "unknown") {
+    return fallback;
+  }
+
+  return "unknown";
+}
+
+function isSupportedLanguage(value: string): value is SupportedLanguage {
+  return (
+    value === "react" ||
+    value === "typescript" ||
+    value === "javascript" ||
+    value === "css" ||
+    value === "tailwindcss" ||
+    value === "unknown"
+  );
 }
 
 function mapLineResults(code: string, agentResponse: AgentAnalyzeResponse): LineResult[] {
