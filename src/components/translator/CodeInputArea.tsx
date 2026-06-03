@@ -1,4 +1,4 @@
-import { PROVIDER_CATALOG, type AgentProviderKind } from "@/lib/agent";
+import { PROVIDER_CATALOG, type AgentProviderKind, type AgentProviderMetadata } from "@/lib/agent";
 
 interface CodeInputAreaProps {
   code: string;
@@ -22,6 +22,9 @@ export default function CodeInputArea({
   onAnalyze,
 }: CodeInputAreaProps) {
   const isAnalyzeDisabled = isLoading || code.trim().length === 0;
+  const providerMeta = PROVIDER_CATALOG.find(
+    (p) => p.metadata.id === providerId,
+  )?.metadata;
 
   return (
     <div className="h-full p-8 flex flex-col gap-6 bg-zinc-50 dark:bg-black">
@@ -85,6 +88,10 @@ export default function CodeInputArea({
             {isLoading ? "분석 요청 중..." : "분석 요청하기"}
           </button>
 
+          {providerMeta ? (
+            <ProviderInfoBadges providerMeta={providerMeta} />
+          ) : null}
+
           {hasResult ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300">
               현재 결과는 지금 입력한 코드 기준이다. 코드를 수정하거나 provider를 바꾸면 이전 결과는 지워진다.
@@ -98,6 +105,44 @@ export default function CodeInputArea({
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProviderInfoBadges({
+  providerMeta,
+}: {
+  providerMeta: AgentProviderMetadata;
+}) {
+  const isRemote =
+    providerMeta.dataHandling === "remote-provider" ||
+    providerMeta.dataHandling === "user-configured-endpoint";
+
+  const dataHandlingLabel =
+    providerMeta.dataHandling === "local-only"
+      ? "코드가 외부로 전송되지 않음"
+      : providerMeta.dataHandling === "remote-provider"
+        ? "코드가 AI provider 서버로 전송될 수 있음"
+        : "설정한 endpoint로 코드가 전송될 수 있음";
+
+  return (
+    <div className="space-y-2">
+      <div
+        className={
+          isRemote
+            ? "rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-300"
+            : "rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+        }
+      >
+        {isRemote ? "⚠ " : "✓ "}
+        {dataHandlingLabel}
+      </div>
+
+      {providerMeta.capabilities.requiresLocalProcess ? (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          이 provider는 로컬 CLI 설치가 필요함
+        </div>
+      ) : null}
     </div>
   );
 }
