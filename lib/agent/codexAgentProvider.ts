@@ -44,7 +44,7 @@ export const codexAgentProvider: AgentProvider = {
 
     if (!availability.available) {
       return {
-        providerId: this.metadata.id,
+        providerId: "codex-agent",
         language: request.detectedLanguage ?? "unknown",
         summary:
           "Codex Agent provider is registered, but a local Codex runtime was not detected in this environment.",
