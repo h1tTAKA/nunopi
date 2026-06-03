@@ -15,6 +15,7 @@ export type {
   AgentUsage,
 } from "./schema";
 export { claudeAgentProvider } from "./claudeAgentProvider";
+export { codexAgentProvider } from "./codexAgentProvider";
 export { localRulesProvider } from "./localRulesProvider";
 export { openAICompatibleProvider } from "./openAICompatibleProvider";
 export { createAgentRegistry } from "./registry";
