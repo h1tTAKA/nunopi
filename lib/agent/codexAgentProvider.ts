@@ -4,13 +4,22 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProvider } from "./types";
+import type { TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
+const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
 interface CodexAvailabilityResult {
   available: boolean;
   commandPath?: string;
   message: string;
+}
+
+interface CodexNormalizedPayload {
+  summary?: string;
+  language?: string;
+  lineExplanations?: AgentAnalyzeResponse["lineExplanations"];
+  warnings?: TranslateWarning[];
 }
 
 export const codexAgentProvider: AgentProvider = {
@@ -59,7 +68,7 @@ export const codexAgentProvider: AgentProvider = {
       return buildPendingCodexResponse(request, availability, prompt);
     }
 
-    return buildPendingCodexResponse(request, availability, prompt);
+    return normalizeCodexOutput(rawText, request, availability, prompt);
   },
 };
 
@@ -120,6 +129,159 @@ function buildPendingCodexResponse(
     rawText: prompt,
     createdAt: new Date().toISOString(),
   };
+}
+
+function normalizeCodexOutput(
+  rawText: string,
+  request: AgentAnalyzeRequest,
+  availability: CodexAvailabilityResult,
+  prompt: string,
+): AgentAnalyzeResponse {
+  const parsed = parseCodexPayload(rawText);
+
+  if (!parsed) {
+    return {
+      providerId: "codex-agent",
+      language: request.detectedLanguage ?? "unknown",
+      summary: `Codex runtime detected at ${availability.commandPath}, but the returned payload did not match Nunopi's expected JSON schema.`,
+      lineExplanations: [],
+      tokens: [],
+      concepts: [],
+      warnings: [
+        {
+          code: "PARSE_FAILED",
+          message:
+            "Codex output could not be normalized into AgentAnalyzeResponse. Check the prompt contract or raw payload shape.",
+        },
+      ],
+      rawText: `${prompt}\n\n--- RAW RESPONSE ---\n${rawText}`,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return {
+    providerId: "codex-agent",
+    language: parsed.language ?? request.detectedLanguage ?? "unknown",
+    summary:
+      parsed.summary ??
+      `Codex runtime detected at ${availability.commandPath}, and a normalized Codex payload was returned.`,
+    lineExplanations: parsed.lineExplanations ?? [],
+    tokens: [],
+    concepts: [],
+    warnings: parsed.warnings ?? [],
+    rawText,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function parseCodexPayload(rawText: string): CodexNormalizedPayload | null {
+  const jsonCandidate = extractJsonCandidate(rawText);
+
+  if (!jsonCandidate) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonCandidate);
+
+    if (!isCodexNormalizedPayload(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonCandidate(rawText: string): string | null {
+  const blockMatch = rawText.match(JSON_CODE_BLOCK_PATTERN);
+
+  if (blockMatch?.[1]) {
+    return blockMatch[1].trim();
+  }
+
+  const trimmed = rawText.trim();
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+function isCodexNormalizedPayload(value: unknown): value is CodexNormalizedPayload {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  if (value.summary !== undefined && typeof value.summary !== "string") {
+    return false;
+  }
+
+  if (value.language !== undefined && typeof value.language !== "string") {
+    return false;
+  }
+
+  if (value.lineExplanations !== undefined && !isLineExplanationList(value.lineExplanations)) {
+    return false;
+  }
+
+  if (value.warnings !== undefined && !isWarningList(value.warnings)) {
+    return false;
+  }
+
+  return true;
+}
+
+function isLineExplanationList(
+  value: unknown,
+): value is AgentAnalyzeResponse["lineExplanations"] {
+  return Array.isArray(value) && value.every(isLineExplanation);
+}
+
+function isLineExplanation(
+  value: unknown,
+): value is AgentAnalyzeResponse["lineExplanations"][number] {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.line === "number" &&
+    typeof value.code === "string" &&
+    typeof value.explanation === "string" &&
+    Array.isArray(value.tokenIds) &&
+    value.tokenIds.every((item) => typeof item === "string") &&
+    Array.isArray(value.conceptIds) &&
+    value.conceptIds.every((item) => typeof item === "string") &&
+    (value.confidence === undefined || typeof value.confidence === "number")
+  );
+}
+
+function isWarningList(value: unknown): value is TranslateWarning[] {
+  return Array.isArray(value) && value.every(isWarning);
+}
+
+function isWarning(value: unknown): value is TranslateWarning {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return isWarningCode(value.code) && typeof value.message === "string";
+}
+
+function isWarningCode(value: unknown): value is TranslateWarning["code"] {
+  return (
+    value === "TOO_LONG" ||
+    value === "PARSE_FAILED" ||
+    value === "PARTIAL_PARSE" ||
+    value === "UNKNOWN_LANGUAGE"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 async function detectCodexAvailability(): Promise<CodexAvailabilityResult> {
