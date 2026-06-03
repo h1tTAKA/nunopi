@@ -52,24 +52,75 @@ export const codexAgentProvider: AgentProvider = {
       };
     }
 
-    return {
-      providerId: this.metadata.id,
-      language: request.detectedLanguage ?? "unknown",
-      summary: `Codex runtime detected at ${availability.commandPath}, but the live Codex bridge is not implemented yet.`,
-      lineExplanations: [],
-      tokens: [],
-      concepts: [],
-      warnings: [
-        {
-          code: "PARTIAL_PARSE",
-          message:
-            "Codex runtime is available, but the live Codex CLI or app-server bridge is not implemented yet.",
-        },
-      ],
-      createdAt: new Date().toISOString(),
-    };
+    const prompt = buildCodexPrompt(request);
+    const rawText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
+
+    if (!rawText) {
+      return buildPendingCodexResponse(request, availability, prompt);
+    }
+
+    return buildPendingCodexResponse(request, availability, prompt);
   },
 };
+
+function buildCodexPrompt(request: AgentAnalyzeRequest): string {
+  return [
+    "You are Nunopi's Codex analysis provider.",
+    "Explain unfamiliar code for a beginner in Korean.",
+    "Return JSON only.",
+    "",
+    "Output JSON shape:",
+    "{",
+    '  "summary": "string",',
+    '  "language": "string",',
+    '  "lineExplanations": [',
+    "    {",
+    '      "line": number,',
+    '      "code": "string",',
+    '      "explanation": "string",',
+    '      "tokenIds": string[],',
+    '      "conceptIds": string[],',
+    '      "confidence": number',
+    "    }",
+    "  ],",
+    '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
+    "}",
+    "",
+    `Locale: ${request.locale}`,
+    `Requested provider: ${request.providerId}`,
+    `Detected language: ${request.detectedLanguage ?? "unknown"}`,
+    `User intent: ${request.userIntent ?? "Explain the code in beginner-friendly Korean."}`,
+    "",
+    "Code to analyze:",
+    "```",
+    request.code,
+    "```",
+  ].join("\n");
+}
+
+function buildPendingCodexResponse(
+  request: AgentAnalyzeRequest,
+  availability: CodexAvailabilityResult,
+  prompt: string,
+): AgentAnalyzeResponse {
+  return {
+    providerId: "codex-agent",
+    language: request.detectedLanguage ?? "unknown",
+    summary: `Codex runtime detected at ${availability.commandPath}, and Nunopi prepared a prompt/response contract for live Codex analysis.`,
+    lineExplanations: [],
+    tokens: [],
+    concepts: [],
+    warnings: [
+      {
+        code: "PARTIAL_PARSE",
+        message:
+          "Codex runtime is available, but the live Codex CLI or app-server bridge is not implemented yet.",
+      },
+    ],
+    rawText: prompt,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 async function detectCodexAvailability(): Promise<CodexAvailabilityResult> {
   const explicitCommand = process.env.NUNOPI_CODEX_COMMAND?.trim();
