@@ -20,3 +20,15 @@ export { localRulesProvider } from "./localRulesProvider";
 export { openAICompatibleProvider } from "./openAICompatibleProvider";
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
+
+import { claudeAgentProvider } from "./claudeAgentProvider";
+import { codexAgentProvider } from "./codexAgentProvider";
+import { localRulesProvider } from "./localRulesProvider";
+import { openAICompatibleProvider } from "./openAICompatibleProvider";
+
+export const PROVIDER_CATALOG = [
+  localRulesProvider,
+  claudeAgentProvider,
+  codexAgentProvider,
+  openAICompatibleProvider,
+] as const;
