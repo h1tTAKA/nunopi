@@ -1,4 +1,4 @@
-import type { AgentProviderKind } from "@/lib/agent";
+import { PROVIDER_CATALOG, type AgentProviderKind } from "@/lib/agent";
 
 interface CodeInputAreaProps {
   code: string;
@@ -66,7 +66,11 @@ export default function CodeInputArea({
               }
               className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
             >
-              <option value="local-rules">local-rules</option>
+              {PROVIDER_CATALOG.map((p) => (
+                <option key={p.metadata.id} value={p.metadata.id}>
+                  {p.metadata.label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -80,10 +84,6 @@ export default function CodeInputArea({
           >
             {isLoading ? "분석 요청 중..." : "분석 요청하기"}
           </button>
-
-          <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            현재는 `local-rules` provider를 route를 통해 호출한다. 이후 이 자리에 다른 agent provider도 추가된다.
-          </div>
 
           {hasResult ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300">
