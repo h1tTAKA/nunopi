@@ -14,10 +14,6 @@ export type {
   AgentToTranslateMapping,
   AgentUsage,
 } from "./schema";
-export { claudeAgentProvider } from "./claudeAgentProvider";
-export { codexAgentProvider } from "./codexAgentProvider";
-export { localRulesProvider } from "./localRulesProvider";
-export { openAICompatibleProvider } from "./openAICompatibleProvider";
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
 
@@ -25,6 +21,8 @@ import { claudeAgentProvider } from "./claudeAgentProvider";
 import { codexAgentProvider } from "./codexAgentProvider";
 import { localRulesProvider } from "./localRulesProvider";
 import { openAICompatibleProvider } from "./openAICompatibleProvider";
+
+export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
 
 export const PROVIDER_CATALOG = [
   localRulesProvider,
