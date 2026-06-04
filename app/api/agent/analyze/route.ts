@@ -1,5 +1,9 @@
 import {
+  claudeAgentProvider,
+  codexAgentProvider,
   createAgentRegistry,
+  localRulesProvider,
+  openAICompatibleProvider,
   type AgentAnalyzeRequest,
   type AgentAnalyzeResponse,
   type AgentProvider,
@@ -273,7 +277,9 @@ function resolveProvider(
 ):
   | { ok: true; provider: AgentProvider }
   | { ok: false; message: string } {
-  const registry = createAgentRegistry();
+  const registry = createAgentRegistry({
+    providers: [localRulesProvider, claudeAgentProvider, codexAgentProvider, openAICompatibleProvider],
+  });
   const provider = registry.getProvider(providerId);
 
   if (!provider) {

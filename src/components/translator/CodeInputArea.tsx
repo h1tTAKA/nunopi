@@ -1,4 +1,5 @@
-import type { AgentProviderKind } from "@/lib/agent";
+import type { AgentProviderKind, AgentProviderMetadata } from "@/lib/agent";
+import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 
 interface CodeInputAreaProps {
   code: string;
@@ -22,6 +23,7 @@ export default function CodeInputArea({
   onAnalyze,
 }: CodeInputAreaProps) {
   const isAnalyzeDisabled = isLoading || code.trim().length === 0;
+  const providerMeta = PROVIDER_CATALOG.find((p) => p.id === providerId);
 
   return (
     <div className="h-full p-8 flex flex-col gap-6 bg-zinc-50 dark:bg-black">
@@ -66,7 +68,11 @@ export default function CodeInputArea({
               }
               className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
             >
-              <option value="local-rules">local-rules</option>
+              {PROVIDER_CATALOG.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
             </select>
           </label>
 
@@ -81,9 +87,9 @@ export default function CodeInputArea({
             {isLoading ? "분석 요청 중..." : "분석 요청하기"}
           </button>
 
-          <div className="rounded-xl bg-zinc-50 p-3 text-xs text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-            현재는 `local-rules` provider를 route를 통해 호출한다. 이후 이 자리에 다른 agent provider도 추가된다.
-          </div>
+          {providerMeta ? (
+            <ProviderInfoBadges providerMeta={providerMeta} />
+          ) : null}
 
           {hasResult ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300">
@@ -98,6 +104,44 @@ export default function CodeInputArea({
           ) : null}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProviderInfoBadges({
+  providerMeta,
+}: {
+  providerMeta: AgentProviderMetadata;
+}) {
+  const isRemote =
+    providerMeta.dataHandling === "remote-provider" ||
+    providerMeta.dataHandling === "user-configured-endpoint";
+
+  const dataHandlingLabel =
+    providerMeta.dataHandling === "local-only"
+      ? "코드가 외부로 전송되지 않음"
+      : providerMeta.dataHandling === "remote-provider"
+        ? "코드가 AI provider 서버로 전송될 수 있음"
+        : "설정한 endpoint로 코드가 전송될 수 있음";
+
+  return (
+    <div className="space-y-2">
+      <div
+        className={
+          isRemote
+            ? "rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-300"
+            : "rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+        }
+      >
+        {isRemote ? "⚠ " : "✓ "}
+        {dataHandlingLabel}
+      </div>
+
+      {providerMeta.capabilities.requiresLocalProcess ? (
+        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          이 provider는 로컬 CLI 설치가 필요함
+        </div>
+      ) : null}
     </div>
   );
 }
