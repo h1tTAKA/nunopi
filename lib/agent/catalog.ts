@@ -1,5 +1,8 @@
 import type { AgentProviderMetadata } from "./types";
 
+// NOTE: Metadata here duplicates what's defined in each provider file.
+// This is intentional — provider files use node:fs and cannot be imported
+// by client components. Keep this in sync when provider metadata changes.
 export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   {
     id: "local-rules",

@@ -1,3 +1,8 @@
+import { claudeAgentProvider } from "./claudeAgentProvider";
+import { codexAgentProvider } from "./codexAgentProvider";
+import { localRulesProvider } from "./localRulesProvider";
+import { openAICompatibleProvider } from "./openAICompatibleProvider";
+
 export type {
   AgentDataHandling,
   AgentExecutionLocation,
@@ -14,12 +19,6 @@ export type {
   AgentToTranslateMapping,
   AgentUsage,
 } from "./schema";
+export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
-
-import { claudeAgentProvider } from "./claudeAgentProvider";
-import { codexAgentProvider } from "./codexAgentProvider";
-import { localRulesProvider } from "./localRulesProvider";
-import { openAICompatibleProvider } from "./openAICompatibleProvider";
-
-export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
