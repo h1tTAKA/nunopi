@@ -23,10 +23,3 @@ import { localRulesProvider } from "./localRulesProvider";
 import { openAICompatibleProvider } from "./openAICompatibleProvider";
 
 export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
-
-export const PROVIDER_CATALOG = [
-  localRulesProvider,
-  claudeAgentProvider,
-  codexAgentProvider,
-  openAICompatibleProvider,
-] as const;

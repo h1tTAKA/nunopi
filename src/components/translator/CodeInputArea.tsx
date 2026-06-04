@@ -1,4 +1,5 @@
-import { PROVIDER_CATALOG, type AgentProviderKind, type AgentProviderMetadata } from "@/lib/agent";
+import type { AgentProviderKind, AgentProviderMetadata } from "@/lib/agent";
+import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 
 interface CodeInputAreaProps {
   code: string;
@@ -22,9 +23,7 @@ export default function CodeInputArea({
   onAnalyze,
 }: CodeInputAreaProps) {
   const isAnalyzeDisabled = isLoading || code.trim().length === 0;
-  const providerMeta = PROVIDER_CATALOG.find(
-    (p) => p.metadata.id === providerId,
-  )?.metadata;
+  const providerMeta = PROVIDER_CATALOG.find((p) => p.id === providerId);
 
   return (
     <div className="h-full p-8 flex flex-col gap-6 bg-zinc-50 dark:bg-black">
@@ -70,8 +69,8 @@ export default function CodeInputArea({
               className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
             >
               {PROVIDER_CATALOG.map((p) => (
-                <option key={p.metadata.id} value={p.metadata.id}>
-                  {p.metadata.label}
+                <option key={p.id} value={p.id}>
+                  {p.label}
                 </option>
               ))}
             </select>
