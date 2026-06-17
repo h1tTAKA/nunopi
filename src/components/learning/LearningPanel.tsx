@@ -185,17 +185,30 @@ export default function LearningPanel({
                       토큰 사전
                     </p>
                     {visibleBookmarkCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setFilterBookmarked((v) => !v)}
-                        className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
-                          filterBookmarked
-                            ? "bg-amber-400 text-white dark:bg-amber-500"
-                            : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
-                        }`}
-                      >
-                        북마크 {visibleBookmarkCount}
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setFilterBookmarked((v) => !v)}
+                          className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
+                            filterBookmarked
+                              ? "bg-amber-400 text-white dark:bg-amber-500"
+                              : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
+                          }`}
+                        >
+                          북마크 {visibleBookmarkCount}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBookmarkedTokenIds([]);
+                            setFilterBookmarked(false);
+                            try { localStorage.removeItem(BOOKMARKS_KEY); } catch { /* ignore */ }
+                          }}
+                          className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                        >
+                          모두 해제
+                        </button>
+                      </>
                     )}
                   </div>
                   <TokenSection
