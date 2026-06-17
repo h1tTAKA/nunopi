@@ -10,6 +10,7 @@ interface CodeInputAreaProps {
   onCodeChange: (nextCode: string) => void;
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
+  onSettingsOpen: () => void;
 }
 
 export default function CodeInputArea({
@@ -21,6 +22,7 @@ export default function CodeInputArea({
   onCodeChange,
   onProviderChange,
   onAnalyze,
+  onSettingsOpen,
 }: CodeInputAreaProps) {
   const isAnalyzeDisabled = isLoading || code.trim().length === 0;
   const providerMeta = PROVIDER_CATALOG.find((p) => p.id === providerId);
@@ -57,9 +59,19 @@ export default function CodeInputArea({
 
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              분석 provider
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                분석 provider
+              </span>
+              <button
+                type="button"
+                onClick={onSettingsOpen}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                title="Provider 설정"
+              >
+                ⚙
+              </button>
+            </div>
             <select
               value={providerId}
               disabled={isLoading}

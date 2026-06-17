@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import LearningPanel from "@/components/learning/LearningPanel";
+import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea from "@/components/translator/CodeInputArea";
-import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, ProviderSettings } from "@/lib/agent";
+
+const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
 interface AnalyzeApiSuccessResponse {
   ok: true;
@@ -37,6 +40,26 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
+  const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (raw) setProviderSettings(JSON.parse(raw) as ProviderSettings);
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
+  function handleSettingsSave(next: ProviderSettings) {
+    setProviderSettings(next);
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   function handleCodeChange(nextCode: string) {
     setCode(nextCode);
@@ -87,6 +110,7 @@ export default function Home() {
             code: nextCode,
             locale: "ko",
             providerId,
+            providerSettings,
           },
         }),
       });
@@ -157,8 +181,15 @@ export default function Home() {
         onCodeChange={handleCodeChange}
         onProviderChange={handleProviderChange}
         onAnalyze={handleAnalyze}
+        onSettingsOpen={() => setIsSettingsOpen(true)}
       />
       </AppShell>
+      <SettingsDrawer
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={providerSettings}
+        onSave={handleSettingsSave}
+      />
     </>
   );
 }
