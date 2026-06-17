@@ -97,8 +97,9 @@ export default function LearningPanel({
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          agent bridge API에 분석 요청을 보내는 중이다. 로딩 중에는 입력과 provider 선택이 잠깐 잠긴다.
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
+          <span className="text-sm text-zinc-600 dark:text-zinc-300">분석 중…</span>
         </div>
       ) : null}
 
