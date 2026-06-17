@@ -68,6 +68,7 @@ export default function CodeInputArea({
                 onClick={onSettingsOpen}
                 className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
                 title="Provider 설정"
+                aria-label="Provider 설정 열기"
               >
                 ⚙
               </button>
