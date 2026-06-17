@@ -1,10 +1,10 @@
-import type { CodeToken } from "@/lib/translator/types";
+import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
+const CATEGORY_LABEL: Record<TokenCategory, string> = {
   react_hook: "훅",
   state_variable: "상태 변수",
   state_setter: "상태 세터",

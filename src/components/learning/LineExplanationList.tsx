@@ -17,9 +17,9 @@ export default function LineExplanationList({
 
   return (
     <div className="space-y-3">
-      {lineExplanations.map((item) => (
+      {lineExplanations.map((item, i) => (
         <div
-          key={item.line}
+          key={`${i}-${item.line}`}
           className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900"
         >
           <div className="mb-2 flex items-center justify-between">
