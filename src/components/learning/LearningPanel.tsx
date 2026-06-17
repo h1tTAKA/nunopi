@@ -22,16 +22,16 @@ export default function LearningPanel({
   code,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
-  const [activeTokenId, setActiveTokenId] = useState<string | null>(null);
+  const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
 
   useEffect(() => {
-    setActiveTokenId(null);
+    setActiveTokenIds([]);
     setActiveConceptId(null);
   }, [result]);
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
-    setActiveTokenId(tokenId);
+    setActiveTokenIds([tokenId]);
     setActiveConceptId(conceptId ?? null);
   }
 
@@ -134,7 +134,7 @@ export default function LearningPanel({
             </p>
             <TokenSection
               tokens={result.tokens}
-              activeTokenId={activeTokenId}
+              activeTokenIds={activeTokenIds}
               onTokenClick={handleTokenClick}
             />
           </div>

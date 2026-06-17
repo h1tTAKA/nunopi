@@ -2,7 +2,7 @@ import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
-  activeTokenId?: string | null;
+  activeTokenIds?: string[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
 }
 
@@ -30,7 +30,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenId, onTokenClick }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick }: TokenSectionProps) {
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -47,7 +47,7 @@ export default function TokenSection({ tokens, activeTokenId, onTokenClick }: To
           type="button"
           onClick={() => onTokenClick?.(token.id, token.conceptId)}
           className={`w-full rounded-2xl border p-4 text-left transition ${
-            activeTokenId === token.id
+            (activeTokenIds?.includes(token.id) ?? false)
               ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
               : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           }`}
