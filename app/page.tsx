@@ -111,8 +111,34 @@ export default function Home() {
   }
 
   return (
-    <AppShell
-      learningPanel={
+    <>
+      <section className="bg-zinc-50 dark:bg-black border-b border-zinc-200 dark:border-zinc-800 px-6 py-10 text-center">
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+          Nunopi
+        </h1>
+        <p className="mt-2 text-base text-zinc-600 dark:text-zinc-300">
+          바이브코더를 위한 AI 코드 학습 도구
+        </p>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          코드를 붙여넣으면 줄별 설명, 토큰 사전, 개념 정리를 만들어준다.
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+            로컬 AI 연결
+          </span>
+          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+            줄별 설명
+          </span>
+          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+            토큰 사전
+          </span>
+          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
+            개념 정리
+          </span>
+        </div>
+      </section>
+      <AppShell
+        learningPanel={
         <LearningPanel
           providerId={providerId}
           isLoading={isLoading}
@@ -132,7 +158,8 @@ export default function Home() {
         onProviderChange={handleProviderChange}
         onAnalyze={handleAnalyze}
       />
-    </AppShell>
+      </AppShell>
+    </>
   );
 }
 
