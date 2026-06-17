@@ -6,6 +6,8 @@ import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 
+const BOOKMARKS_KEY = "nunopi:bookmarks";
+
 interface LearningPanelProps {
   providerId: AgentProviderKind;
   isLoading: boolean;
@@ -24,11 +26,29 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+  const [bookmarkedTokenIds, setBookmarkedTokenIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BOOKMARKS_KEY);
+      if (raw) setBookmarkedTokenIds(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     setActiveTokenIds([]);
     setActiveConceptId(null);
   }, [result]);
+
+  function handleBookmarkToggle(tokenId: string) {
+    setBookmarkedTokenIds((prev) => {
+      const next = prev.includes(tokenId)
+        ? prev.filter((id) => id !== tokenId)
+        : [...prev, tokenId];
+      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
     if (activeTokenIds.length === 1 && activeTokenIds[0] === tokenId) {
@@ -147,13 +167,27 @@ export default function LearningPanel({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              토큰 사전
-            </p>
+            <div className="mb-2 flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                토큰 사전
+              </p>
+              {(() => {
+                const visibleBookmarkCount = result.tokens.filter((t) =>
+                  bookmarkedTokenIds.includes(t.id),
+                ).length;
+                return visibleBookmarkCount > 0 ? (
+                  <span className="inline-flex items-center rounded-lg bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    북마크 {visibleBookmarkCount}
+                  </span>
+                ) : null;
+              })()}
+            </div>
             <TokenSection
               tokens={result.tokens}
               activeTokenIds={activeTokenIds}
               onTokenClick={handleTokenClick}
+              bookmarkedTokenIds={bookmarkedTokenIds}
+              onBookmarkToggle={handleBookmarkToggle}
             />
           </div>
 
