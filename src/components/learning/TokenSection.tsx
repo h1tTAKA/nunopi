@@ -73,6 +73,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                 onClick={() => onBookmarkToggle?.(token.token)}
                 className="absolute right-2.5 top-2.5 text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
                 title={isBookmarked ? "북마크 해제" : "북마크"}
+                aria-label={isBookmarked ? `${token.token} 북마크 해제` : `${token.token} 북마크 추가`}
               >
                 {isBookmarked ? "★" : "☆"}
               </button>
@@ -81,6 +82,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
               type="button"
               onClick={() => onTokenClick?.(token.id, token.conceptId)}
               className={`w-full p-4 text-left ${token.bookmarkable ? "pr-8" : ""}`}
+              aria-label={`${token.token} 토큰 선택`}
             >
               <div className="flex items-center gap-2">
                 <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
