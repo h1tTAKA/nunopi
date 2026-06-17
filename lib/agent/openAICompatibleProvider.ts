@@ -64,43 +64,6 @@ export const openAICompatibleProvider: AgentProvider = {
   },
 };
 
-function buildPendingOpenAICompatibleResponse(
-  request: AgentAnalyzeRequest,
-  config: OpenAICompatibleConfig,
-  requestBody: OpenAICompatibleRequestBody,
-): AgentAnalyzeResponse {
-  return {
-    providerId: "openai-compatible",
-    language: request.detectedLanguage ?? "unknown",
-    summary:
-      `OpenAI-compatible request contract is prepared for ${config.model} at ${config.baseUrl}, but the live endpoint call is not connected yet.`,
-    lineExplanations: [],
-    tokens: [],
-    concepts: [],
-    warnings: [
-      {
-        code: "PARTIAL_PARSE",
-        message:
-          "OpenAI-compatible request building is connected, but the live endpoint request/response bridge is not implemented yet.",
-      },
-    ],
-    rawText: JSON.stringify(
-      {
-        endpoint: `${config.baseUrl}/chat/completions`,
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: config.apiKey ? "Bearer ***" : undefined,
-        },
-        body: requestBody,
-      },
-      null,
-      2,
-    ),
-    createdAt: new Date().toISOString(),
-  };
-}
-
 function normalizeOpenAICompatibleResponse(
   rawResponse: string,
   request: AgentAnalyzeRequest,
@@ -189,6 +152,19 @@ async function fetchOpenAICompatibleResponse(
       body: JSON.stringify(requestBody),
     });
     rawText = await res.text();
+    if (!res.ok) {
+      return {
+        providerId: "openai-compatible",
+        language: request.detectedLanguage ?? "unknown",
+        summary: `OpenAI-compatible endpoint at ${endpoint} returned HTTP ${res.status}.`,
+        lineExplanations: [],
+        tokens: [],
+        concepts: [],
+        warnings: [{ code: "PARSE_FAILED", message: `HTTP ${res.status} ${res.statusText}: ${rawText.slice(0, 200)}` }],
+        rawText,
+        createdAt: new Date().toISOString(),
+      };
+    }
   } catch (err) {
     return {
       providerId: "openai-compatible",
