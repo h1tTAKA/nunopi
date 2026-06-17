@@ -267,15 +267,26 @@ function isOptionalProviderSettings(value: unknown): boolean {
   if (!isRecord(value)) return false;
 
   const oaic = value["openai-compatible"];
-  if (oaic === undefined) return true;
-  if (!isRecord(oaic)) return false;
+  if (oaic !== undefined) {
+    if (!isRecord(oaic)) return false;
+    const { baseUrl, model, apiKey } = oaic;
+    if (
+      (baseUrl !== undefined && typeof baseUrl !== "string") ||
+      (model !== undefined && typeof model !== "string") ||
+      (apiKey !== undefined && typeof apiKey !== "string")
+    ) return false;
+  }
 
-  const { baseUrl, model, apiKey } = oaic;
-  return (
-    (baseUrl === undefined || typeof baseUrl === "string") &&
-    (model === undefined || typeof model === "string") &&
-    (apiKey === undefined || typeof apiKey === "string")
-  );
+  for (const key of ["claude-agent", "codex-agent"] as const) {
+    const agent = value[key];
+    if (agent !== undefined) {
+      if (!isRecord(agent)) return false;
+      const { cliPath } = agent as Record<string, unknown>;
+      if (cliPath !== undefined && typeof cliPath !== "string") return false;
+    }
+  }
+
+  return true;
 }
 
 function isPositiveInteger(value: unknown): boolean {

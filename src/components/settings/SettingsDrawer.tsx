@@ -23,6 +23,12 @@ export default function SettingsDrawer({
   const [apiKey, setApiKey] = useState(
     settings["openai-compatible"]?.apiKey ?? "",
   );
+  const [claudeCliPath, setClaudeCliPath] = useState(
+    settings["claude-agent"]?.cliPath ?? "",
+  );
+  const [codexCliPath, setCodexCliPath] = useState(
+    settings["codex-agent"]?.cliPath ?? "",
+  );
 
   if (!isOpen) return null;
 
@@ -32,6 +38,12 @@ export default function SettingsDrawer({
         baseUrl: baseUrl.trim() || undefined,
         model: model.trim() || undefined,
         apiKey: apiKey.trim() || undefined,
+      },
+      "claude-agent": {
+        cliPath: claudeCliPath.trim() || undefined,
+      },
+      "codex-agent": {
+        cliPath: codexCliPath.trim() || undefined,
       },
     });
     onClose();
@@ -107,14 +119,48 @@ export default function SettingsDrawer({
             </label>
           </section>
 
-          <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              다른 Provider
-            </p>
-            <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Claude Agent, Codex Agent는 환경변수로 설정한다.
-              (NUNOPI_CLAUDE_COMMAND, NUNOPI_CODEX_COMMAND)
-            </p>
+          <section className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Claude Agent
+            </h3>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                CLI 경로{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">(선택)</span>
+              </span>
+              <input
+                type="text"
+                value={claudeCliPath}
+                onChange={(e) => setClaudeCliPath(e.target.value)}
+                placeholder="/usr/local/bin/claude"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              />
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                비워두면 PATH에서 자동 탐색
+              </p>
+            </label>
+          </section>
+
+          <section className="space-y-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Codex Agent
+            </h3>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                CLI 경로{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">(선택)</span>
+              </span>
+              <input
+                type="text"
+                value={codexCliPath}
+                onChange={(e) => setCodexCliPath(e.target.value)}
+                placeholder="/usr/local/bin/codex"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              />
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                비워두면 PATH에서 자동 탐색
+              </p>
+            </label>
           </section>
 
           <p className="text-xs text-zinc-400 dark:text-zinc-500">

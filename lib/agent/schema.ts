@@ -13,6 +13,12 @@ export interface ProviderSettings {
     model?: string;
     apiKey?: string;
   };
+  "claude-agent"?: {
+    cliPath?: string;
+  };
+  "codex-agent"?: {
+    cliPath?: string;
+  };
 }
 
 export interface AgentAnalyzeRequest {

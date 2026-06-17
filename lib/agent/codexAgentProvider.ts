@@ -40,7 +40,7 @@ export const codexAgentProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
-    const availability = await detectCodexAvailability();
+    const availability = await detectCodexAvailability(request);
 
     if (!availability.available) {
       return {
@@ -284,8 +284,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function detectCodexAvailability(): Promise<CodexAvailabilityResult> {
-  const explicitCommand = process.env.NUNOPI_CODEX_COMMAND?.trim();
+async function detectCodexAvailability(request?: AgentAnalyzeRequest): Promise<CodexAvailabilityResult> {
+  const explicitCommand =
+    request?.providerSettings?.["codex-agent"]?.cliPath?.trim() ||
+    process.env.NUNOPI_CODEX_COMMAND?.trim();
 
   if (explicitCommand) {
     const exists = await isExecutableFile(explicitCommand);
