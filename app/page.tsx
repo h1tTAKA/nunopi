@@ -61,6 +61,18 @@ export default function Home() {
     }
   }
 
+  useEffect(() => {
+    if (isLoading) {
+      document.title = "분석 중… — Nunopi";
+    } else if (errorMessage) {
+      document.title = "오류 — Nunopi";
+    } else if (analysisResult) {
+      document.title = "결과 도착 — Nunopi";
+    } else {
+      document.title = "Nunopi";
+    }
+  }, [isLoading, errorMessage, analysisResult]);
+
   function handleCodeChange(nextCode: string) {
     setCode(nextCode);
     if (errorMessage) {
