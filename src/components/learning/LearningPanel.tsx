@@ -48,6 +48,7 @@ export default function LearningPanel({
         ? prev.filter((id) => id !== tokenId)
         : [...prev, tokenId];
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
   }
