@@ -4,6 +4,11 @@ import { useEffect } from "react";
 import type { ConceptOccurrence } from "@/lib/translator/types";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 
+const LEVEL_LABEL: Record<"beginner" | "intermediate", string> = {
+  beginner: "초급",
+  intermediate: "중급",
+};
+
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
   activeConceptId?: string | null;
@@ -41,13 +46,29 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
                 : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             }`}
           >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
                 {concept.title}
               </p>
-              <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
-                ×{concept.count}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {(() => {
+                  const desc = CONCEPT_DESCRIPTIONS[concept.conceptId];
+                  if (!desc) return null;
+                  const isIntermediate = desc.level === "intermediate";
+                  return (
+                    <span className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium ${
+                      isIntermediate
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                    }`}>
+                      {LEVEL_LABEL[desc.level]}
+                    </span>
+                  );
+                })()}
+                <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                  ×{concept.count}
+                </span>
+              </div>
             </div>
             {concept.lines.length > 0 && (
               <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
