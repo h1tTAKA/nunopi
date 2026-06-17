@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
@@ -24,6 +24,11 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTokenId, setActiveTokenId] = useState<string | null>(null);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveTokenId(null);
+    setActiveConceptId(null);
+  }, [result]);
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
     setActiveTokenId(tokenId);
