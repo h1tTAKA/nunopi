@@ -167,9 +167,16 @@ export default function LearningPanel({
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              토큰 사전
-            </p>
+            <div className="mb-2 flex items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                토큰 사전
+              </p>
+              {bookmarkedTokenIds.length > 0 && (
+                <span className="inline-flex items-center rounded-lg bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                  북마크 {bookmarkedTokenIds.length}
+                </span>
+              )}
+            </div>
             <TokenSection
               tokens={result.tokens}
               activeTokenIds={activeTokenIds}
