@@ -6,6 +6,8 @@ import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 
+const BOOKMARKS_KEY = "nunopi:bookmarks";
+
 interface LearningPanelProps {
   providerId: AgentProviderKind;
   isLoading: boolean;
@@ -24,11 +26,29 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+  const [bookmarkedTokenIds, setBookmarkedTokenIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BOOKMARKS_KEY);
+      if (raw) setBookmarkedTokenIds(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     setActiveTokenIds([]);
     setActiveConceptId(null);
   }, [result]);
+
+  function handleBookmarkToggle(tokenId: string) {
+    setBookmarkedTokenIds((prev) => {
+      const next = prev.includes(tokenId)
+        ? prev.filter((id) => id !== tokenId)
+        : [...prev, tokenId];
+      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
     if (activeTokenIds.length === 1 && activeTokenIds[0] === tokenId) {
@@ -154,6 +174,8 @@ export default function LearningPanel({
               tokens={result.tokens}
               activeTokenIds={activeTokenIds}
               onTokenClick={handleTokenClick}
+              bookmarkedTokenIds={bookmarkedTokenIds}
+              onBookmarkToggle={handleBookmarkToggle}
             />
           </div>
 
