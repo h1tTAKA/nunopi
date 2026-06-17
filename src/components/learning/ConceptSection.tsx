@@ -40,6 +40,7 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
             type="button"
             id={`concept-${concept.conceptId}`}
             onClick={() => onConceptClick?.(concept.conceptId)}
+            aria-label={`${concept.title} 개념 선택`}
             className={`w-full rounded-2xl border p-4 text-left transition ${
               isActive
                 ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"

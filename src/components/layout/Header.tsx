@@ -31,6 +31,7 @@ export default function Header() {
           onClick={toggleDark}
           className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           title={dark ? "라이트 모드" : "다크 모드"}
+          aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
         >
           {dark ? "☀" : "☾"}
         </button>

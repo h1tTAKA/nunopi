@@ -73,6 +73,7 @@ export default function LineExplanationList({
                     type="button"
                     onClick={() => onTokenClick?.(token.id, token.conceptId)}
                     className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-mono font-medium text-zinc-700 transition hover:bg-blue-100 hover:text-blue-700 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
+                    aria-label={`${token.token} 토큰으로 이동`}
                   >
                     {token.token}
                   </button>
@@ -87,6 +88,7 @@ export default function LineExplanationList({
                     type="button"
                     onClick={() => onConceptClick?.(concept.conceptId)}
                     className="inline-flex items-center rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 transition hover:bg-violet-200 hover:text-violet-900 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40 dark:hover:text-violet-200"
+                    aria-label={`${concept.title} 개념으로 이동`}
                   >
                     {concept.title}
                   </button>
