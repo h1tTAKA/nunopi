@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
@@ -19,6 +22,13 @@ export default function LearningPanel({
   code,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+  const [activeTokenId, setActiveTokenId] = useState<string | null>(null);
+  const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+
+  function handleTokenClick(tokenId: string, conceptId: string | undefined) {
+    setActiveTokenId(tokenId);
+    setActiveConceptId(conceptId ?? null);
+  }
 
   return (
     <div className="h-full p-6 space-y-4">
@@ -106,21 +116,32 @@ export default function LearningPanel({
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               줄별 설명
             </p>
-            <LineExplanationList lineExplanations={result.lineExplanations} />
+            <LineExplanationList
+              lineExplanations={result.lineExplanations}
+              tokens={result.tokens}
+              onTokenClick={handleTokenClick}
+            />
           </div>
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               토큰 사전
             </p>
-            <TokenSection tokens={result.tokens} />
+            <TokenSection
+              tokens={result.tokens}
+              activeTokenId={activeTokenId}
+              onTokenClick={handleTokenClick}
+            />
           </div>
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               개념
             </p>
-            <ConceptSection concepts={result.concepts} />
+            <ConceptSection
+              concepts={result.concepts}
+              activeConceptId={activeConceptId}
+            />
           </div>
         </div>
       ) : (
