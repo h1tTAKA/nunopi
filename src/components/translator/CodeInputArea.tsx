@@ -111,7 +111,14 @@ export default function CodeInputArea({
 
           {errorMessage ? (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-950 dark:bg-red-950/30 dark:text-red-300">
-              {errorMessage}
+              <p>{errorMessage}</p>
+              <button
+                type="button"
+                onClick={() => { void onAnalyze(); }}
+                className="mt-2 font-medium underline hover:no-underline"
+              >
+                다시 시도
+              </button>
             </div>
           ) : null}
         </div>
