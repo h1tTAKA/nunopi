@@ -215,6 +215,7 @@ export default function LearningPanel({
                     )}
                   </div>
                   <TokenSection
+                    key={result.createdAt}
                     tokens={displayTokens}
                     activeTokenIds={activeTokenIds}
                     onTokenClick={handleTokenClick}

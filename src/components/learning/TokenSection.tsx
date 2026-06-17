@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import type { CodeToken, TokenCategory } from "@/lib/translator/types";
+
+const DEFAULT_VISIBLE = 6;
 
 interface TokenSectionProps {
   tokens: CodeToken[];
@@ -33,6 +38,10 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
 };
 
 export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle }: TokenSectionProps) {
+  const [showAll, setShowAll] = useState(false);
+  const visibleTokens = showAll ? tokens : tokens.slice(0, DEFAULT_VISIBLE);
+  const hiddenCount = tokens.length - DEFAULT_VISIBLE;
+
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -42,8 +51,9 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {tokens.map((token) => {
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+      {visibleTokens.map((token) => {
         const isActive = activeTokenIds?.includes(token.id) ?? false;
         const isBookmarked = bookmarkedTokenTexts?.includes(token.token) ?? false;
         return (
@@ -100,6 +110,25 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
           </div>
         );
       })}
+      </div>
+      {!showAll && hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll(true)}
+          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          더 보기 ({hiddenCount}개 더)
+        </button>
+      )}
+      {showAll && tokens.length > DEFAULT_VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          접기
+        </button>
+      )}
     </div>
   );
 }
