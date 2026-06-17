@@ -16,7 +16,6 @@ export default function LearningPanel({
   result,
   code,
 }: LearningPanelProps) {
-  const firstWarning = result?.warnings[0];
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
   return (
@@ -54,22 +53,52 @@ export default function LearningPanel({
       {result ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-              감지 언어: {result.language}
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+                {result.language}
+              </span>
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                요약
+              </p>
+            </div>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              provider 응답 요약: {result.summary}
+              {result.summary}
             </p>
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400 dark:text-zinc-500">
+              <span>{new Date(result.createdAt).toLocaleString("ko-KR")}</span>
+              {result.usage?.inputTokens != null && (
+                <span>입력 {result.usage.inputTokens}토큰</span>
+              )}
+              {result.usage?.outputTokens != null && (
+                <span>출력 {result.usage.outputTokens}토큰</span>
+              )}
+              {result.usage?.estimatedCostUsd != null && (
+                <span>${result.usage.estimatedCostUsd.toFixed(4)}</span>
+              )}
+            </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-              줄 설명 {result.lineExplanations.length}개
+          {result.warnings.length > 0 && (
+            <div className="space-y-2">
+              {result.warnings.map((warning, i) => {
+                const colorClass =
+                  warning.code === "PARSE_FAILED"
+                    ? "border-red-200 bg-red-50 text-red-700 dark:border-red-950 dark:bg-red-950/30 dark:text-red-300"
+                    : warning.code === "TOO_LONG"
+                      ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-950 dark:bg-blue-950/30 dark:text-blue-300"
+                      : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-950 dark:bg-amber-950/30 dark:text-amber-300";
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-2xl border p-4 text-sm ${colorClass}`}
+                  >
+                    <span className="font-medium">[{warning.code}]</span>{" "}
+                    {warning.message}
+                  </div>
+                );
+              })}
             </div>
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-              토큰 {result.tokens.length}개 / 개념 {result.concepts.length}개
-            </div>
-          </div>
+          )}
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -78,23 +107,18 @@ export default function LearningPanel({
             <LineExplanationList lineExplanations={result.lineExplanations} />
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            경고 {result.warnings.length}개 / 생성 시각 {new Date(result.createdAt).toLocaleString("ko-KR")}
-            {firstWarning ? (
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                첫 경고: {firstWarning.message}
-              </p>
-            ) : null}
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+              토큰 {result.tokens.length}개
+            </div>
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+              개념 {result.concepts.length}개
+            </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            아직 분석 결과가 없다. 버튼을 누르면 route 응답이 이 패널로 들어오고, 성공 시 요약과 첫 줄 설명 미리보기가 뜬다.
-          </div>
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            실패하면 이전 결과 대신 에러 메시지를 먼저 보여줘서 상태가 섞이지 않게 유지한다.
-          </div>
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+          아직 분석 결과가 없다. 버튼을 누르면 분석이 시작되고 결과가 이 패널에 표시된다.
         </div>
       )}
     </div>
