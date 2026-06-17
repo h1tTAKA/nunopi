@@ -205,6 +205,10 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
+  if (!isOptionalProviderSettings(value.providerSettings)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -256,6 +260,22 @@ function isOptionalAnalyzeOptions(value: unknown): boolean {
   }
 
   return true;
+}
+
+function isOptionalProviderSettings(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isRecord(value)) return false;
+
+  const oaic = value["openai-compatible"];
+  if (oaic === undefined) return true;
+  if (!isRecord(oaic)) return false;
+
+  const { baseUrl, model, apiKey } = oaic;
+  return (
+    (baseUrl === undefined || typeof baseUrl === "string") &&
+    (model === undefined || typeof model === "string") &&
+    (apiKey === undefined || typeof apiKey === "string")
+  );
 }
 
 function isPositiveInteger(value: unknown): boolean {
