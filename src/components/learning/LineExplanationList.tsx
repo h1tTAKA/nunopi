@@ -1,16 +1,20 @@
 import type { AgentLineExplanation } from "@/lib/agent";
-import type { CodeToken } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 
 interface LineExplanationListProps {
   lineExplanations: AgentLineExplanation[];
   tokens?: CodeToken[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
+  concepts?: ConceptOccurrence[];
+  onConceptClick?: (conceptId: string) => void;
 }
 
 export default function LineExplanationList({
   lineExplanations,
   tokens = [],
   onTokenClick,
+  concepts = [],
+  onConceptClick,
 }: LineExplanationListProps) {
   if (lineExplanations.length === 0) {
     return (
@@ -26,6 +30,10 @@ export default function LineExplanationList({
         const lineTokens = item.tokenIds
           .map((id) => tokens.find((t) => t.id === id))
           .filter((t): t is CodeToken => t !== undefined);
+
+        const lineConcepts = item.conceptIds
+          .map((id) => concepts.find((c) => c.conceptId === id))
+          .filter((c): c is ConceptOccurrence => c !== undefined);
 
         return (
           <div
@@ -58,6 +66,20 @@ export default function LineExplanationList({
                     className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-mono font-medium text-zinc-700 transition hover:bg-blue-100 hover:text-blue-700 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
                   >
                     {token.token}
+                  </button>
+                ))}
+              </div>
+            )}
+            {lineConcepts.length > 0 && (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {lineConcepts.map((concept) => (
+                  <button
+                    key={concept.conceptId}
+                    type="button"
+                    onClick={() => onConceptClick?.(concept.conceptId)}
+                    className="inline-flex items-center rounded-lg bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 transition hover:bg-violet-200 hover:text-violet-900 dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-800/40 dark:hover:text-violet-200"
+                  >
+                    {concept.title}
                   </button>
                 ))}
               </div>
