@@ -174,10 +174,10 @@ export default function LearningPanel({
           <div>
             {(() => {
               const visibleBookmarkCount = result.tokens.filter((t) =>
-                bookmarkedTokenTexts.includes(t.id),
+                bookmarkedTokenTexts.includes(t.token),
               ).length;
               const displayTokens = filterBookmarked
-                ? result.tokens.filter((t) => bookmarkedTokenTexts.includes(t.id))
+                ? result.tokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
                 : result.tokens;
               return (
                 <>
