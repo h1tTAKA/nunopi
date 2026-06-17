@@ -1,4 +1,5 @@
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import LineExplanationList from "./LineExplanationList";
 
 interface LearningPanelProps {
   providerId: AgentProviderKind;
@@ -15,7 +16,6 @@ export default function LearningPanel({
   result,
   code,
 }: LearningPanelProps) {
-  const firstExplanation = result?.lineExplanations[0];
   const firstWarning = result?.warnings[0];
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
@@ -71,22 +71,12 @@ export default function LearningPanel({
             </div>
           </div>
 
-          {firstExplanation ? (
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                첫 줄 설명 미리보기
-              </p>
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                {firstExplanation.line}번 줄
-              </p>
-              <pre className="mt-2 overflow-x-auto rounded-xl bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
-                {firstExplanation.code}
-              </pre>
-              <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
-                {firstExplanation.explanation}
-              </p>
-            </div>
-          ) : null}
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              줄별 설명
+            </p>
+            <LineExplanationList lineExplanations={result.lineExplanations} />
+          </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
             경고 {result.warnings.length}개 / 생성 시각 {new Date(result.createdAt).toLocaleString("ko-KR")}
