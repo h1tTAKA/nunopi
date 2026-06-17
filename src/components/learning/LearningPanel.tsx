@@ -27,6 +27,7 @@ export default function LearningPanel({
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenIds, setBookmarkedTokenIds] = useState<string[]>([]);
+  const [filterBookmarked, setFilterBookmarked] = useState(false);
 
   useEffect(() => {
     try {
@@ -38,6 +39,7 @@ export default function LearningPanel({
   useEffect(() => {
     setActiveTokenIds([]);
     setActiveConceptId(null);
+    setFilterBookmarked(false);
   }, [result]);
 
   function handleBookmarkToggle(tokenId: string) {
@@ -46,6 +48,7 @@ export default function LearningPanel({
         ? prev.filter((id) => id !== tokenId)
         : [...prev, tokenId];
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
   }
@@ -169,28 +172,56 @@ export default function LearningPanel({
           </div>
 
           <div>
-            <div className="mb-2 flex items-center gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                토큰 사전
-              </p>
-              {(() => {
-                const visibleBookmarkCount = result.tokens.filter((t) =>
-                  bookmarkedTokenIds.includes(t.id),
-                ).length;
-                return visibleBookmarkCount > 0 ? (
-                  <span className="inline-flex items-center rounded-lg bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                    북마크 {visibleBookmarkCount}
-                  </span>
-                ) : null;
-              })()}
-            </div>
-            <TokenSection
-              tokens={result.tokens}
-              activeTokenIds={activeTokenIds}
-              onTokenClick={handleTokenClick}
-              bookmarkedTokenIds={bookmarkedTokenIds}
-              onBookmarkToggle={handleBookmarkToggle}
-            />
+            {(() => {
+              const visibleBookmarkCount = result.tokens.filter((t) =>
+                bookmarkedTokenIds.includes(t.id),
+              ).length;
+              const displayTokens = filterBookmarked
+                ? result.tokens.filter((t) => bookmarkedTokenIds.includes(t.id))
+                : result.tokens;
+              return (
+                <>
+                  <div className="mb-2 flex items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                      토큰 사전
+                    </p>
+                    {visibleBookmarkCount > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setFilterBookmarked((v) => !v)}
+                          className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
+                            filterBookmarked
+                              ? "bg-amber-400 text-white dark:bg-amber-500"
+                              : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
+                          }`}
+                        >
+                          북마크 {visibleBookmarkCount}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBookmarkedTokenIds([]);
+                            setFilterBookmarked(false);
+                            try { localStorage.removeItem(BOOKMARKS_KEY); } catch { /* ignore */ }
+                          }}
+                          className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                        >
+                          모두 해제
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <TokenSection
+                    tokens={displayTokens}
+                    activeTokenIds={activeTokenIds}
+                    onTokenClick={handleTokenClick}
+                    bookmarkedTokenIds={bookmarkedTokenIds}
+                    onBookmarkToggle={handleBookmarkToggle}
+                  />
+                </>
+              );
+            })()}
           </div>
 
           <div>
