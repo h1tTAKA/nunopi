@@ -1,142 +1,106 @@
 # Nunopi
 
-An AI-powered code learning tool for vibe coders who want code explained at their level.
-
-Nunopi helps beginners understand unfamiliar code by turning AI agent analysis into line-by-line explanations, token dictionaries, and concept notes.  
-The goal is not just to "translate" code, but to help users learn how to read code.
+An AI-powered code learning tool for vibe coders — paste code, get line-by-line explanations, a token dictionary, and concept notes.
 
 ## Why
 
-Vibe coding can produce working code quickly, but it often leaves users with code they do not fully understand.
+Vibe coding produces working code fast, but often leaves you with code you don't fully understand.
 
-Nunopi is built for moments like these:
+Nunopi is built for those moments:
 
-- You want to understand what each line of code does.
+- You want to know what each line does.
 - You want quick explanations for tokens like `useState`, `props`, `async`, or `className`.
 - You want AI-generated code explained in beginner-friendly language.
-- You want to know where to start when reading an unfamiliar codebase.
 
 ## Product Direction
 
-Nunopi is designed as a local-first, agent-backed code learning app.
-
-The core product is not a hosted SaaS. The main path is:
+Nunopi is a local-first, agent-backed code learning app.
 
 ```txt
-Local web app first
-  ↓
-Desktop app next
-  ↓
-Hosted deployment only for demo, landing, and PR previews
+Local web app  →  Desktop app  →  Vercel for demo/landing/PR preview
 ```
 
-Users should be able to connect the AI tools they already use:
+Users connect the AI tools they already have:
 
-- Claude Code or Claude Agent SDK from their own local/authenticated environment
-- Codex or an OpenAI app-server style local bridge
-- OpenAI API with their own API key
-- Hermes, Ollama, LM Studio, vLLM, LiteLLM, or another local/OpenAI-compatible endpoint
-- Nunopi's local rules provider as a no-network fallback
+| Provider | Type |
+|---|---|
+| Claude Agent SDK | Local process (remote API) |
+| Codex / OpenAI app-server | Local process (remote API) |
+| OpenAI API key | Remote API |
+| Hermes / Ollama / LM Studio / LiteLLM | Local LLM |
+| OpenAI-compatible endpoint | User-configured |
+| local-rules | Local fallback (no network required) |
 
-High-level architecture:
+## Current Status
+
+MVP feature-complete on the web app layer.
+
+| Feature | Status |
+|---|---|
+| AppShell layout | ✅ |
+| Language detection | ✅ |
+| Agent provider contract + orchestrator | ✅ |
+| Local rules provider (fallback) | ✅ |
+| Agent bridge API route | ✅ |
+| UI → agent analyze API connection | ✅ |
+| Claude Agent SDK adapter (PoC) | ✅ |
+| OpenAI-compatible adapter (PoC) | ✅ |
+| Codex provider scaffold | ✅ |
+| Provider selector UI | ✅ |
+| LearningPanel — line explanations | ✅ |
+| LearningPanel — token dictionary cards | ✅ |
+| LearningPanel — concept cards | ✅ |
+| Desktop shell (Tauri) | 🔜 M3A |
+
+## Architecture
 
 ```txt
 User code input
   ↓
-Nunopi local web app / desktop app
+Provider selector UI
   ↓
-Local Agent Bridge
+POST /api/agent/analyze
   ↓
 Translator Orchestrator
   ↓
 Agent Provider Adapter
-  ├─ local-rules
-  ├─ Claude Agent SDK / Claude Code
-  ├─ Codex / OpenAI app-server
-  ├─ OpenAI API key provider
-  ├─ Hermes / local LLM
-  └─ OpenAI-compatible endpoint
+  ├─ local-rules (default fallback)
+  ├─ claude-agent (PoC)
+  ├─ codex-agent (scaffold)
+  └─ openai-compatible (PoC)
   ↓
-Line explanations + token dictionary + concept notes
+AgentAnalyzeResponse
+  ↓
+LearningPanel
+  ├─ LineExplanationList
+  ├─ TokenSection
+  └─ ConceptSection
 ```
-
-Core direction:
-
-- Connect AI agents and local rules through the same provider interface.
-- Prioritize local execution through a local bridge or desktop shell.
-- Support swappable providers such as Claude, Codex, OpenAI app-server/API, Hermes, and local LLMs.
-- Keep the existing rule-based translator as a local fallback provider.
-- Normalize every provider result into the same learning UI.
-- Keep source-code storage off by default.
-- Clearly show whether code stays local or is sent to a remote API/provider.
-- Use Vercel only for public demo, landing, and PR preview deployments.
-
-## Current Status
-
-Nunopi is currently in the early MVP stage.
-
-- Next.js app initialized
-- AppShell layout implemented
-- Core translator types defined
-- Language detection heuristics implemented and review fixes applied
-- Product direction pivoted to a local-first agent-backed architecture on 2026-05-16
-
-Next implementation target:
-
-```txt
-Issue 005 — Define agent provider types and normalized response schema
-```
-
-## Planned Features
-
-- Code input area
-- Line-by-line code explanations
-- Code token dictionary
-- Beginner-friendly concept dictionary
-- Provider selector UI
-- Local-rules fallback analysis
-- Claude Agent SDK adapter PoC
-- Codex agent provider PoC
-- OpenAI app-server/API key provider
-- Hermes/local LLM or OpenAI-compatible endpoint integration
-- Desktop app shell, likely Tauri first
-- Optional local history and bookmarks
 
 ## Getting Started
 
-Run the development server:
-
 ```bash
+npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Scripts
 
 ```bash
-npm run dev
-npm run lint
-npm run build
-```
-
-## Docs
-
-Project documents are maintained locally at:
-
-```txt
-/Users/hong/projects/docs/nunopi
+npm run dev     # development server
+npm run build   # production build
+npm run lint    # ESLint
 ```
 
 ## Stack
 
-- Next.js
+- Next.js (App Router)
 - React
 - TypeScript
 - Tailwind CSS
 
 ## Repository
 
-```txt
-https://github.com/h1tTAKA/nunopi
-```
+[https://github.com/h1tTAKA/nunopi](https://github.com/h1tTAKA/nunopi)
