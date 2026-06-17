@@ -52,15 +52,15 @@ export const openAICompatibleProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
-    const config = resolveOpenAICompatibleConfig();
+    const config = resolveOpenAICompatibleConfig(request);
     const requestBody = buildOpenAICompatibleRequestBody(request, config);
-    const rawResponse = process.env.NUNOPI_OPENAI_COMPAT_MOCK_RESPONSE?.trim();
+    const mockResponse = process.env.NUNOPI_OPENAI_COMPAT_MOCK_RESPONSE?.trim();
 
-    if (!rawResponse) {
-      return buildPendingOpenAICompatibleResponse(request, config, requestBody);
+    if (mockResponse) {
+      return normalizeOpenAICompatibleResponse(mockResponse, request, config, requestBody);
     }
 
-    return normalizeOpenAICompatibleResponse(rawResponse, request, config, requestBody);
+    return fetchOpenAICompatibleResponse(request, config, requestBody);
   },
 };
 
@@ -153,15 +153,56 @@ function normalizeOpenAICompatibleResponse(
   };
 }
 
-function resolveOpenAICompatibleConfig(): OpenAICompatibleConfig {
+function resolveOpenAICompatibleConfig(request: AgentAnalyzeRequest): OpenAICompatibleConfig {
+  const userSettings = request.providerSettings?.["openai-compatible"];
   return {
     baseUrl: normalizeBaseUrl(
-      process.env.NUNOPI_OPENAI_COMPAT_BASE_URL?.trim() || "http://localhost:11434/v1",
+      userSettings?.baseUrl?.trim() ||
+      process.env.NUNOPI_OPENAI_COMPAT_BASE_URL?.trim() ||
+      "http://localhost:11434/v1",
     ),
     model:
-      process.env.NUNOPI_OPENAI_COMPAT_MODEL?.trim() || "hermes-3",
-    apiKey: process.env.NUNOPI_OPENAI_COMPAT_API_KEY?.trim() || undefined,
+      userSettings?.model?.trim() ||
+      process.env.NUNOPI_OPENAI_COMPAT_MODEL?.trim() ||
+      "hermes-3",
+    apiKey:
+      userSettings?.apiKey?.trim() ||
+      process.env.NUNOPI_OPENAI_COMPAT_API_KEY?.trim() ||
+      undefined,
   };
+}
+
+async function fetchOpenAICompatibleResponse(
+  request: AgentAnalyzeRequest,
+  config: OpenAICompatibleConfig,
+  requestBody: OpenAICompatibleRequestBody,
+): Promise<AgentAnalyzeResponse> {
+  const endpoint = `${config.baseUrl}/chat/completions`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
+
+  let rawText: string;
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+    rawText = await res.text();
+  } catch (err) {
+    return {
+      providerId: "openai-compatible",
+      language: request.detectedLanguage ?? "unknown",
+      summary: `Failed to reach OpenAI-compatible endpoint at ${endpoint}.`,
+      lineExplanations: [],
+      tokens: [],
+      concepts: [],
+      warnings: [{ code: "PARSE_FAILED", message: err instanceof Error ? err.message : "Network error." }],
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return normalizeOpenAICompatibleResponse(rawText, request, config, requestBody);
 }
 
 function buildOpenAICompatibleRequestBody(
