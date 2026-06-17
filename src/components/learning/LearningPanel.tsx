@@ -22,17 +22,35 @@ export default function LearningPanel({
   code,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
-  const [activeTokenId, setActiveTokenId] = useState<string | null>(null);
+  const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
 
   useEffect(() => {
-    setActiveTokenId(null);
+    setActiveTokenIds([]);
     setActiveConceptId(null);
   }, [result]);
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
-    setActiveTokenId(tokenId);
-    setActiveConceptId(conceptId ?? null);
+    if (activeTokenIds.length === 1 && activeTokenIds[0] === tokenId) {
+      setActiveTokenIds([]);
+      setActiveConceptId(null);
+    } else {
+      setActiveTokenIds([tokenId]);
+      setActiveConceptId(conceptId ?? null);
+    }
+  }
+
+  function handleConceptClick(conceptId: string) {
+    if (activeConceptId === conceptId) {
+      setActiveConceptId(null);
+      setActiveTokenIds([]);
+    } else {
+      const relatedTokenIds = (result?.tokens ?? [])
+        .filter((t) => t.conceptId === conceptId)
+        .map((t) => t.id);
+      setActiveConceptId(conceptId);
+      setActiveTokenIds(relatedTokenIds);
+    }
   }
 
   return (
@@ -134,7 +152,7 @@ export default function LearningPanel({
             </p>
             <TokenSection
               tokens={result.tokens}
-              activeTokenId={activeTokenId}
+              activeTokenIds={activeTokenIds}
               onTokenClick={handleTokenClick}
             />
           </div>
@@ -146,6 +164,7 @@ export default function LearningPanel({
             <ConceptSection
               concepts={result.concepts}
               activeConceptId={activeConceptId}
+              onConceptClick={handleConceptClick}
             />
           </div>
         </div>
