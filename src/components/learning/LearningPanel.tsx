@@ -41,11 +41,16 @@ export default function LearningPanel({
   }
 
   function handleConceptClick(conceptId: string) {
-    const relatedTokenIds = (result?.tokens ?? [])
-      .filter((t) => t.conceptId === conceptId)
-      .map((t) => t.id);
-    setActiveConceptId(conceptId);
-    setActiveTokenIds(relatedTokenIds);
+    if (activeConceptId === conceptId) {
+      setActiveConceptId(null);
+      setActiveTokenIds([]);
+    } else {
+      const relatedTokenIds = (result?.tokens ?? [])
+        .filter((t) => t.conceptId === conceptId)
+        .map((t) => t.id);
+      setActiveConceptId(conceptId);
+      setActiveTokenIds(relatedTokenIds);
+    }
   }
 
   return (
