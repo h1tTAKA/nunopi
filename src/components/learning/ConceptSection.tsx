@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import type { ConceptOccurrence } from "@/lib/translator/types";
+import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
@@ -51,6 +52,11 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
             {concept.lines.length > 0 && (
               <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
                 {concept.lines.join(", ")}번 줄
+              </p>
+            )}
+            {isActive && CONCEPT_DESCRIPTIONS[concept.conceptId] && (
+              <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                {CONCEPT_DESCRIPTIONS[concept.conceptId].short}
               </p>
             )}
           </button>
