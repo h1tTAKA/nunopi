@@ -31,8 +31,13 @@ export default function LearningPanel({
   }, [result]);
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
-    setActiveTokenIds([tokenId]);
-    setActiveConceptId(conceptId ?? null);
+    if (activeTokenIds.length === 1 && activeTokenIds[0] === tokenId) {
+      setActiveTokenIds([]);
+      setActiveConceptId(null);
+    } else {
+      setActiveTokenIds([tokenId]);
+      setActiveConceptId(conceptId ?? null);
+    }
   }
 
   function handleConceptClick(conceptId: string) {
