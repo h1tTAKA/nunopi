@@ -1,5 +1,6 @@
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import LineExplanationList from "./LineExplanationList";
+import TokenSection from "./TokenSection";
 
 interface LearningPanelProps {
   providerId: AgentProviderKind;
@@ -107,13 +108,15 @@ export default function LearningPanel({
             <LineExplanationList lineExplanations={result.lineExplanations} />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-              토큰 {result.tokens.length}개
-            </div>
-            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-              개념 {result.concepts.length}개
-            </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              토큰 사전
+            </p>
+            <TokenSection tokens={result.tokens} />
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
+            개념 {result.concepts.length}개
           </div>
         </div>
       ) : (
