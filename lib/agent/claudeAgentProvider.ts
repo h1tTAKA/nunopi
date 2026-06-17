@@ -40,7 +40,7 @@ export const claudeAgentProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
-    const availability = await detectClaudeAvailability();
+    const availability = await detectClaudeAvailability(request);
 
     if (!availability.available) {
       return {
@@ -285,8 +285,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-async function detectClaudeAvailability(): Promise<ClaudeAvailabilityResult> {
-  const explicitCommand = process.env.NUNOPI_CLAUDE_COMMAND?.trim();
+async function detectClaudeAvailability(request?: AgentAnalyzeRequest): Promise<ClaudeAvailabilityResult> {
+  const explicitCommand =
+    request?.providerSettings?.["claude-agent"]?.cliPath?.trim() ||
+    process.env.NUNOPI_CLAUDE_COMMAND?.trim();
 
   if (explicitCommand) {
     const exists = await isExecutableFile(explicitCommand);
