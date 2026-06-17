@@ -1,4 +1,5 @@
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 
@@ -115,8 +116,11 @@ export default function LearningPanel({
             <TokenSection tokens={result.tokens} />
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-            개념 {result.concepts.length}개
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              개념
+            </p>
+            <ConceptSection concepts={result.concepts} />
           </div>
         </div>
       ) : (
