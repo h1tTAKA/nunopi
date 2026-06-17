@@ -6,7 +6,7 @@ import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 
-const BOOKMARKS_KEY = "nunopi:bookmarks";
+const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
 interface LearningPanelProps {
   providerId: AgentProviderKind;
@@ -26,13 +26,13 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
-  const [bookmarkedTokenIds, setBookmarkedTokenIds] = useState<string[]>([]);
+  const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(BOOKMARKS_KEY);
-      if (raw) setBookmarkedTokenIds(JSON.parse(raw) as string[]);
+      if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
     } catch { /* ignore */ }
   }, []);
 
@@ -42,11 +42,11 @@ export default function LearningPanel({
     setFilterBookmarked(false);
   }, [result]);
 
-  function handleBookmarkToggle(tokenId: string) {
-    setBookmarkedTokenIds((prev) => {
-      const next = prev.includes(tokenId)
-        ? prev.filter((id) => id !== tokenId)
-        : [...prev, tokenId];
+  function handleBookmarkToggle(tokenText: string) {
+    setBookmarkedTokenTexts((prev) => {
+      const next = prev.includes(tokenText)
+        ? prev.filter((t) => t !== tokenText)
+        : [...prev, tokenText];
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
       if (next.length === 0) setFilterBookmarked(false);
       return next;
@@ -174,10 +174,10 @@ export default function LearningPanel({
           <div>
             {(() => {
               const visibleBookmarkCount = result.tokens.filter((t) =>
-                bookmarkedTokenIds.includes(t.id),
+                bookmarkedTokenTexts.includes(t.token),
               ).length;
               const displayTokens = filterBookmarked
-                ? result.tokens.filter((t) => bookmarkedTokenIds.includes(t.id))
+                ? result.tokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
                 : result.tokens;
               return (
                 <>
@@ -201,7 +201,7 @@ export default function LearningPanel({
                         <button
                           type="button"
                           onClick={() => {
-                            setBookmarkedTokenIds([]);
+                            setBookmarkedTokenTexts([]);
                             setFilterBookmarked(false);
                             try { localStorage.removeItem(BOOKMARKS_KEY); } catch { /* ignore */ }
                           }}
@@ -216,7 +216,7 @@ export default function LearningPanel({
                     tokens={displayTokens}
                     activeTokenIds={activeTokenIds}
                     onTokenClick={handleTokenClick}
-                    bookmarkedTokenIds={bookmarkedTokenIds}
+                    bookmarkedTokenTexts={bookmarkedTokenTexts}
                     onBookmarkToggle={handleBookmarkToggle}
                   />
                 </>

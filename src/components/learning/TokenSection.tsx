@@ -4,8 +4,8 @@ interface TokenSectionProps {
   tokens: CodeToken[];
   activeTokenIds?: string[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
-  bookmarkedTokenIds?: string[];
-  onBookmarkToggle?: (tokenId: string) => void;
+  bookmarkedTokenTexts?: string[];
+  onBookmarkToggle?: (tokenText: string) => void;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -32,7 +32,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenIds, onBookmarkToggle }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle }: TokenSectionProps) {
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -45,7 +45,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
     <div className="grid gap-3 sm:grid-cols-2">
       {tokens.map((token) => {
         const isActive = activeTokenIds?.includes(token.id) ?? false;
-        const isBookmarked = bookmarkedTokenIds?.includes(token.id) ?? false;
+        const isBookmarked = bookmarkedTokenTexts?.includes(token.token) ?? false;
         return (
           <div
             key={token.id}
@@ -60,7 +60,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
             {token.bookmarkable && (
               <button
                 type="button"
-                onClick={() => onBookmarkToggle?.(token.id)}
+                onClick={() => onBookmarkToggle?.(token.token)}
                 className="absolute right-2.5 top-2.5 text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
                 title={isBookmarked ? "북마크 해제" : "북마크"}
               >
