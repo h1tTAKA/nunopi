@@ -2,6 +2,8 @@ import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
+  activeTokenId?: string | null;
+  onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -28,7 +30,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenId, onTokenClick }: TokenSectionProps) {
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -40,9 +42,15 @@ export default function TokenSection({ tokens }: TokenSectionProps) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {tokens.map((token) => (
-        <div
+        <button
           key={token.id}
-          className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900"
+          type="button"
+          onClick={() => onTokenClick?.(token.id, token.conceptId)}
+          className={`w-full rounded-2xl border p-4 text-left transition ${
+            activeTokenId === token.id
+              ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+              : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          }`}
         >
           <div className="flex items-center gap-2">
             <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
@@ -68,7 +76,7 @@ export default function TokenSection({ tokens }: TokenSectionProps) {
               등장: {token.lines.join(", ")}번 줄
             </p>
           )}
-        </div>
+        </button>
       ))}
     </div>
   );
