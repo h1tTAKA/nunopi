@@ -35,6 +35,14 @@ export default function LearningPanel({
     setActiveConceptId(conceptId ?? null);
   }
 
+  function handleConceptClick(conceptId: string) {
+    const relatedTokenIds = (result?.tokens ?? [])
+      .filter((t) => t.conceptId === conceptId)
+      .map((t) => t.id);
+    setActiveConceptId(conceptId);
+    setActiveTokenIds(relatedTokenIds);
+  }
+
   return (
     <div className="h-full p-6 space-y-4">
       <div className="space-y-1">
@@ -146,6 +154,7 @@ export default function LearningPanel({
             <ConceptSection
               concepts={result.concepts}
               activeConceptId={activeConceptId}
+              onConceptClick={handleConceptClick}
             />
           </div>
         </div>

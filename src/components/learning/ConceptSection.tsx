@@ -6,9 +6,10 @@ import type { ConceptOccurrence } from "@/lib/translator/types";
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
   activeConceptId?: string | null;
+  onConceptClick?: (conceptId: string) => void;
 }
 
-export default function ConceptSection({ concepts, activeConceptId }: ConceptSectionProps) {
+export default function ConceptSection({ concepts, activeConceptId, onConceptClick }: ConceptSectionProps) {
   useEffect(() => {
     if (!activeConceptId) return;
     const el = document.getElementById(`concept-${activeConceptId}`);
@@ -28,13 +29,15 @@ export default function ConceptSection({ concepts, activeConceptId }: ConceptSec
       {concepts.map((concept) => {
         const isActive = activeConceptId === concept.conceptId;
         return (
-          <div
+          <button
             key={concept.conceptId}
+            type="button"
             id={`concept-${concept.conceptId}`}
-            className={`rounded-2xl border p-4 transition ${
+            onClick={() => onConceptClick?.(concept.conceptId)}
+            className={`w-full rounded-2xl border p-4 text-left transition ${
               isActive
                 ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
-                : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+                : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             }`}
           >
             <div className="flex items-center justify-between">
@@ -50,7 +53,7 @@ export default function ConceptSection({ concepts, activeConceptId }: ConceptSec
                 {concept.lines.join(", ")}번 줄
               </p>
             )}
-          </div>
+          </button>
         );
       })}
     </div>
