@@ -163,6 +163,7 @@ export default function LearningPanel({
               줄별 설명
             </p>
             <LineExplanationList
+              key={result.createdAt}
               lineExplanations={result.lineExplanations}
               tokens={result.tokens}
               onTokenClick={handleTokenClick}
