@@ -163,6 +163,8 @@ export default function LearningPanel({
               lineExplanations={result.lineExplanations}
               tokens={result.tokens}
               onTokenClick={handleTokenClick}
+              concepts={result.concepts}
+              onConceptClick={handleConceptClick}
             />
           </div>
 
