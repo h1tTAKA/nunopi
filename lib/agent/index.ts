@@ -18,6 +18,7 @@ export type {
   AgentLineExplanation,
   AgentToTranslateMapping,
   AgentUsage,
+  ProviderSettings,
 } from "./schema";
 export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
 export { createAgentRegistry } from "./registry";
