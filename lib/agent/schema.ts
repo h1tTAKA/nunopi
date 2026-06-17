@@ -7,6 +7,14 @@ import type {
 } from "@/lib/translator/types";
 import type { AgentProviderKind } from "./types";
 
+export interface ProviderSettings {
+  "openai-compatible"?: {
+    baseUrl?: string;
+    model?: string;
+    apiKey?: string;
+  };
+}
+
 export interface AgentAnalyzeRequest {
   code: string;
   locale: "ko";
@@ -14,6 +22,7 @@ export interface AgentAnalyzeRequest {
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
   options?: AgentAnalyzeOptions;
+  providerSettings?: ProviderSettings;
 }
 
 export interface AgentAnalyzeOptions {
