@@ -117,6 +117,8 @@ export default function Home() {
     if (analysisResult) {
       setAnalysisResult(null);
     }
+    // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
+    setCurrentHistoryId(null);
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
@@ -127,6 +129,7 @@ export default function Home() {
     if (analysisResult) {
       setAnalysisResult(null);
     }
+    setCurrentHistoryId(null);
   }
 
   async function handleAnalyze() {
