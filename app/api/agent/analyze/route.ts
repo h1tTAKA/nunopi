@@ -59,11 +59,13 @@ const DEFAULT_PROVIDER_TIMEOUT_MS = 8_000;
 // provider 내부 타임아웃(60s)보다 약간 위로 둬서, route가 중간에 끊지 않고
 // provider 자신의 타임아웃 처리가 먼저 동작하게 한다(좀비 프로세스 방지).
 const CLI_PROVIDER_TIMEOUT_MS = 65_000;
+// 클라이언트가 보낸 timeoutMs 상한 — 직접 POST로 무한 대기 거는 것 방지.
+const MAX_PROVIDER_TIMEOUT_MS = 300_000;
 const ALLOW_HEADER = "POST, OPTIONS";
 
 function resolveTimeoutMs(provider: AgentProvider, requested?: number): number {
   if (requested && requested > 0) {
-    return requested;
+    return Math.min(requested, MAX_PROVIDER_TIMEOUT_MS);
   }
   return provider.metadata.capabilities.requiresLocalProcess
     ? CLI_PROVIDER_TIMEOUT_MS
