@@ -7,6 +7,7 @@ interface ProviderToolbarProps {
   errorMessage: string | null;
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
+  onCancel: () => void;
   onSettingsOpen: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function ProviderToolbar({
   errorMessage,
   onProviderChange,
   onAnalyze,
+  onCancel,
   onSettingsOpen,
 }: ProviderToolbarProps) {
   const providerMeta = PROVIDER_CATALOG.find((p) => p.id === providerId);
@@ -42,16 +44,25 @@ export default function ProviderToolbar({
         ))}
       </select>
 
-      <button
-        type="button"
-        onClick={() => {
-          void onAnalyze();
-        }}
-        disabled={isLoading}
-        className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
-      >
-        {isLoading ? "분석 요청 중..." : "분석 요청하기"}
-      </button>
+      {isLoading ? (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          ■ 멈추기
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            void onAnalyze();
+          }}
+          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-50 transition hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-900"
+        >
+          분석 요청하기
+        </button>
+      )}
 
       <button
         type="button"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
@@ -66,6 +66,8 @@ export default function Home() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
+  // 진행 중인 분석을 멈추기 위한 AbortController 보관.
+  const abortRef = useRef<AbortController | null>(null);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -146,6 +148,9 @@ export default function Home() {
     setAnalysisResult(null);
     setCurrentHistoryId(null);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const response = await fetch("/api/agent/analyze", {
         method: "POST",
@@ -161,6 +166,7 @@ export default function Home() {
             providerSettings,
           },
         }),
+        signal: controller.signal,
       });
 
       const result = (await response.json()) as
@@ -185,11 +191,21 @@ export default function Home() {
         return getAllHistory();
       }).then(setHistoryEntries).catch(() => {});
     } catch (error) {
-      setAnalysisResult(null);
-      setErrorMessage(formatFetchError(error));
+      // 유저가 멈추기를 누른 경우 — 에러로 띄우지 않고 조용히 종료.
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setAnalysisResult(null);
+      } else {
+        setAnalysisResult(null);
+        setErrorMessage(formatFetchError(error));
+      }
     } finally {
+      abortRef.current = null;
       setIsLoading(false);
     }
+  }
+
+  function handleCancel() {
+    abortRef.current?.abort();
   }
 
   function handleRestoreHistory(entry: HistoryEntry) {
@@ -227,6 +243,7 @@ export default function Home() {
             errorMessage={errorMessage}
             onProviderChange={handleProviderChange}
             onAnalyze={handleAnalyze}
+            onCancel={handleCancel}
             onSettingsOpen={() => setIsSettingsOpen(true)}
           />
         }
