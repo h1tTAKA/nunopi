@@ -6,6 +6,14 @@ import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea from "@/components/translator/CodeInputArea";
 import type { AgentAnalyzeResponse, AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import {
+  type HistoryEntry,
+  saveToHistory,
+  getAllHistory,
+  deleteFromHistory,
+  clearHistory,
+} from "@/lib/historyDB";
+import AnalysisHistory from "@/components/translator/AnalysisHistory";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
@@ -42,6 +50,11 @@ export default function Home() {
     useState<AgentAnalyzeResponse | null>(null);
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    getAllHistory().then(setHistoryEntries).catch(() => {});
+  }, []);
 
   useEffect(() => {
     try {
@@ -138,12 +151,33 @@ export default function Home() {
       }
 
       setAnalysisResult(result.response);
+      saveToHistory({
+        code: nextCode,
+        providerId,
+        result: result.response,
+        createdAt: new Date().toISOString(),
+      }).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
     } catch (error) {
       setAnalysisResult(null);
       setErrorMessage(formatFetchError(error));
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleRestoreHistory(entry: HistoryEntry) {
+    setCode(entry.code);
+    setProviderId(entry.providerId);
+    setAnalysisResult(entry.result);
+    setErrorMessage(null);
+  }
+
+  function handleDeleteHistory(id: string) {
+    deleteFromHistory(id).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
+  }
+
+  function handleClearHistory() {
+    clearHistory().then(() => setHistoryEntries([])).catch(() => {});
   }
 
   return (
@@ -184,17 +218,29 @@ export default function Home() {
         />
       }
     >
-      <CodeInputArea
-        code={code}
-        providerId={providerId}
-        isLoading={isLoading}
-        errorMessage={errorMessage}
-        hasResult={analysisResult !== null}
-        onCodeChange={handleCodeChange}
-        onProviderChange={handleProviderChange}
-        onAnalyze={handleAnalyze}
-        onSettingsOpen={() => setIsSettingsOpen(true)}
-      />
+      <>
+        <CodeInputArea
+          code={code}
+          providerId={providerId}
+          isLoading={isLoading}
+          errorMessage={errorMessage}
+          hasResult={analysisResult !== null}
+          onCodeChange={handleCodeChange}
+          onProviderChange={handleProviderChange}
+          onAnalyze={handleAnalyze}
+          onSettingsOpen={() => setIsSettingsOpen(true)}
+        />
+        {historyEntries.length > 0 && (
+          <div className="px-8 pb-4">
+            <AnalysisHistory
+              entries={historyEntries}
+              onRestore={handleRestoreHistory}
+              onDelete={handleDeleteHistory}
+              onClear={handleClearHistory}
+            />
+          </div>
+        )}
+      </>
       </AppShell>
       <SettingsDrawer
         isOpen={isSettingsOpen}
