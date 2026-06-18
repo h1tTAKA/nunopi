@@ -20,7 +20,8 @@ function formatResultAsMarkdown(result: AgentAnalyzeResponse): string {
   if (result.lineExplanations.length > 0) {
     lines.push("", "## 줄별 설명");
     for (const item of result.lineExplanations) {
-      lines.push("", `### ${item.line}번 줄`, `\`${item.code}\``, item.explanation);
+      const escapedCode = item.code.replaceAll("`", "\\`");
+      lines.push("", `### ${item.line}번 줄`, `\`${escapedCode}\``, item.explanation);
     }
   }
 
@@ -56,12 +57,17 @@ export default function LearningPanel({
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
   async function handleCopyResult() {
     if (!result) return;
     try {
       await navigator.clipboard.writeText(formatResultAsMarkdown(result));
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch { /* ignore — clipboard may be unavailable */ }
   }
 
@@ -80,6 +86,8 @@ export default function LearningPanel({
     setActiveConceptId(null);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCopied(false);
   }, [result]);
 
   function handleBookmarkToggle(tokenText: string) {
