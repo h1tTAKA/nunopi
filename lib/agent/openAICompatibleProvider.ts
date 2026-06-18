@@ -189,6 +189,7 @@ async function fetchOpenAICompatibleResponse(
 
     // SSE 스트림 파싱 — data: {json} 라인마다 delta.content를 누적하고 흘린다.
     let content = "";
+    let rawAll = ""; // 전체 본문 — stream:true를 무시한 엔드포인트 폴백용
     let usage: AgentUsage | undefined;
     if (res.body) {
       const reader = res.body.getReader();
@@ -197,7 +198,9 @@ async function fetchOpenAICompatibleResponse(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        buf += decoder.decode(value, { stream: true });
+        const text = decoder.decode(value, { stream: true });
+        rawAll += text;
+        buf += text;
         const lines = buf.split("\n");
         buf = lines.pop() ?? "";
         for (const line of lines) {
@@ -225,11 +228,18 @@ async function fetchOpenAICompatibleResponse(
         }
       }
     } else {
-      // 스트림 미지원 엔드포인트 폴백 — 본문 통째로 파싱.
-      content = await res.text();
+      rawAll = await res.text();
     }
 
-    return normalizeOpenAICompatibleResponse(content, request, config, requestBody, usage);
+    // SSE delta가 하나도 없으면(엔드포인트가 stream:true 무시 → 일반 JSON 본문)
+    // 전체 본문을 넘긴다. normalize가 chat-completion 형태에서 content를 추출한다.
+    return normalizeOpenAICompatibleResponse(
+      content || rawAll,
+      request,
+      config,
+      requestBody,
+      usage,
+    );
   } catch (err) {
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
