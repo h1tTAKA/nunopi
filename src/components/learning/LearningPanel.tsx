@@ -49,8 +49,9 @@ interface LearningPanelProps {
   onClearHistory?: () => void;
   onUpdateHistory?: (id: string, changes: Partial<Pick<HistoryEntry, "isPinned" | "title">>) => void;
   currentHistoryId?: string | null;
-  currentHistoryTitle?: string;
+  currentHistoryEntry?: HistoryEntry | null;
   onSetCurrentTitle?: (title: string) => void;
+  onToggleCurrentPin?: () => void;
 }
 
 export default function LearningPanel({
@@ -65,8 +66,9 @@ export default function LearningPanel({
   onClearHistory,
   onUpdateHistory,
   currentHistoryId,
-  currentHistoryTitle,
+  currentHistoryEntry,
   onSetCurrentTitle,
+  onToggleCurrentPin,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTab, setActiveTab] = useState<"analysis" | "history">("analysis");
@@ -75,7 +77,7 @@ export default function LearningPanel({
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(currentHistoryTitle ?? "");
+  const [titleDraft, setTitleDraft] = useState(currentHistoryEntry?.title ?? "");
 
   useEffect(() => {
     if (!copied) return;
@@ -111,7 +113,7 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopied(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTitleDraft(currentHistoryTitle ?? "");
+    setTitleDraft(currentHistoryEntry?.title ?? "");
   }, [result]);
 
   function handleBookmarkToggle(tokenText: string) {

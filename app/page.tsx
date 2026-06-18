@@ -246,8 +246,12 @@ export default function Home() {
           onClearHistory={handleClearHistory}
           onUpdateHistory={handleUpdateHistory}
           currentHistoryId={currentHistoryId}
-          currentHistoryTitle={historyEntries.find(e => e.id === currentHistoryId)?.title}
+          currentHistoryEntry={historyEntries.find(e => e.id === currentHistoryId) ?? null}
           onSetCurrentTitle={(title) => { if (currentHistoryId) handleUpdateHistory(currentHistoryId, { title: title || undefined }); }}
+          onToggleCurrentPin={() => {
+            const entry = historyEntries.find(e => e.id === currentHistoryId);
+            if (currentHistoryId && entry) handleUpdateHistory(currentHistoryId, { isPinned: !entry.isPinned });
+          }}
         />
       }
     >
