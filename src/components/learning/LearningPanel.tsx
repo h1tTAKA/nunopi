@@ -119,6 +119,13 @@ export default function LearningPanel({
     setHeaderEditing(false);
   }, [result]);
 
+  useEffect(() => {
+    if (!headerEditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHeaderTitle(currentHistoryEntry?.title ?? "");
+    }
+  }, [currentHistoryEntry?.title, headerEditing]);
+
   function handleBookmarkToggle(tokenText: string) {
     setBookmarkedTokenTexts((prev) => {
       const next = prev.includes(tokenText)
