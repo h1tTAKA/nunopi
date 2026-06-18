@@ -104,6 +104,9 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
         "--ephemeral",
         "--skip-git-repo-check",
         "-s", "read-only",
+        // 학습용 코드 설명엔 high 추론이 과해 60초를 넘긴다. low로 호출 단위
+        // 오버라이드(유저 config.toml은 안 건드림) → 같은 코드 60초+ → ~15초.
+        "-c", "model_reasoning_effort=low",
         "--output-last-message", tmpFile,
         prompt,
       ],
