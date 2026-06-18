@@ -21,6 +21,11 @@ export default function AnalysisHistory({
 
   if (entries.length === 0) return null;
 
+  const codePreview = (code: string) => {
+    const firstLine = code.trim().split(/\r?\n/)[0] ?? "";
+    return firstLine.length > 40 ? firstLine.slice(0, 40) + "…" : firstLine;
+  };
+
   const filteredEntries = query.trim()
     ? entries.filter(
         (e) =>
@@ -28,11 +33,6 @@ export default function AnalysisHistory({
           e.providerId.toLowerCase().includes(query.toLowerCase()),
       )
     : entries;
-
-  const codePreview = (code: string) => {
-    const firstLine = code.trim().split(/\r?\n/)[0] ?? "";
-    return firstLine.length > 40 ? firstLine.slice(0, 40) + "…" : firstLine;
-  };
 
   const dateLabel = (createdAt: string): string => {
     const d = new Date(createdAt);
@@ -54,7 +54,7 @@ export default function AnalysisHistory({
           onClick={() => { setIsOpen((v) => !v); setQuery(""); }}
           className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
-          {isOpen ? "▲" : "▼"} 히스토리 {entries.length}개
+          {isOpen ? "▲" : "▼"} 히스토리 {isOpen && query.trim() ? `${filteredEntries.length}/${entries.length}` : entries.length}개
         </button>
         {isOpen && (
           <button
