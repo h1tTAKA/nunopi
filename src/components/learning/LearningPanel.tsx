@@ -77,7 +77,8 @@ export default function LearningPanel({
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(currentHistoryEntry?.title ?? "");
+  const [headerEditing, setHeaderEditing] = useState(false);
+  const [headerTitle, setHeaderTitle] = useState(currentHistoryEntry?.title ?? "");
 
   useEffect(() => {
     if (!copied) return;
@@ -113,7 +114,9 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopied(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTitleDraft(currentHistoryEntry?.title ?? "");
+    setHeaderTitle(currentHistoryEntry?.title ?? "");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHeaderEditing(false);
   }, [result]);
 
   function handleBookmarkToggle(tokenText: string) {
@@ -150,6 +153,54 @@ export default function LearningPanel({
     }
   }
 
+  function saveHeaderTitle() {
+    setHeaderEditing(false);
+    if (onSetCurrentTitle) onSetCurrentTitle(headerTitle);
+  }
+
+  const entryHeader = currentHistoryId ? (
+    <div className="flex items-center gap-2 min-w-0">
+      <button
+        type="button"
+        onClick={onToggleCurrentPin}
+        className={`shrink-0 text-base leading-none transition ${
+          currentHistoryEntry?.isPinned
+            ? "text-amber-500 dark:text-amber-400"
+            : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+        }`}
+        title={currentHistoryEntry?.isPinned ? "핀 해제" : "핀 고정"}
+        aria-label={currentHistoryEntry?.isPinned ? "핀 해제" : "핀 고정"}
+      >
+        📌
+      </button>
+      {headerEditing ? (
+        <input
+          type="text"
+          autoFocus
+          value={headerTitle}
+          onChange={(e) => setHeaderTitle(e.target.value)}
+          onBlur={saveHeaderTitle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); saveHeaderTitle(); }
+            if (e.key === "Escape") { setHeaderEditing(false); setHeaderTitle(currentHistoryEntry?.title ?? ""); }
+          }}
+          className="flex-1 min-w-0 rounded-lg border border-blue-300 bg-white px-2 py-1 text-sm font-medium text-zinc-800 outline-none dark:border-blue-600 dark:bg-zinc-900 dark:text-zinc-100"
+          aria-label="분석 제목 편집"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => { setHeaderTitle(currentHistoryEntry?.title ?? ""); setHeaderEditing(true); }}
+          className="flex-1 min-w-0 truncate text-left text-sm font-semibold text-zinc-800 hover:text-zinc-600 dark:text-zinc-100 dark:hover:text-zinc-300"
+          title="클릭하여 제목 편집"
+          aria-label="분석 제목 편집"
+        >
+          {currentHistoryEntry?.title || "제목 없음"}
+        </button>
+      )}
+    </div>
+  ) : null;
+
   const tabBar = (
     <div className="flex gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800 dark:bg-zinc-900">
       <button
@@ -180,6 +231,7 @@ export default function LearningPanel({
   if (activeTab === "history") {
     return (
       <div className="h-full p-6 space-y-4 overflow-y-auto">
+        {entryHeader}
         {tabBar}
         {onRestoreHistory && onDeleteHistory && onClearHistory ? (
           <AnalysisHistory
@@ -199,6 +251,7 @@ export default function LearningPanel({
 
   return (
     <div className="h-full p-6 space-y-4">
+      {entryHeader}
       {tabBar}
       <div className="space-y-1">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -264,28 +317,6 @@ export default function LearningPanel({
                 <span>${result.usage.estimatedCostUsd.toFixed(4)}</span>
               )}
             </div>
-            {currentHistoryId && onSetCurrentTitle && (
-              <div className="mt-3 flex items-center gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700">
-                <input
-                  type="text"
-                  value={titleDraft}
-                  onChange={(e) => setTitleDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { e.preventDefault(); onSetCurrentTitle(titleDraft); }
-                  }}
-                  placeholder="이 분석 제목…"
-                  className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-500"
-                  aria-label="현재 분석 제목 입력"
-                />
-                <button
-                  type="button"
-                  onClick={() => onSetCurrentTitle(titleDraft)}
-                  className="shrink-0 rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
-                >
-                  저장
-                </button>
-              </div>
-            )}
           </div>
 
           {result.warnings.length > 0 && (
