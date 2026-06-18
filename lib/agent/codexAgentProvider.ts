@@ -118,7 +118,7 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
     }, TIMEOUT_MS);
 
     proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
-    proc.on("error", (err) => { clearTimeout(timer); reject(err); });
+    proc.on("error", (err) => { clearTimeout(timer); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
       clearTimeout(timer);
       readFile(tmpFile, "utf-8")
