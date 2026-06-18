@@ -39,6 +39,16 @@ interface AnalyzeApiErrorResponse {
 const DEFAULT_PROVIDER_ID: AgentProviderKind = "local-rules";
 const DEFAULT_CODE = `const [count, setCount] = useState(0);\n\nreturn <button className="px-4 py-2">{count}</button>;`;
 
+function generateAutoTitle(result: import("@/lib/agent").AgentAnalyzeResponse, code: string): string {
+  if (result.summary?.trim()) {
+    const s = result.summary.trim();
+    return s.length > 40 ? s.slice(0, 40) + "…" : s;
+  }
+  const firstLine = code.trim().split(/\r?\n/)[0] ?? "";
+  const preview = firstLine.length > 28 ? firstLine.slice(0, 28) + "…" : firstLine;
+  return `${result.language}: ${preview}`;
+}
+
 export default function Home() {
   const [code, setCode] = useState(DEFAULT_CODE);
   const [providerId, setProviderId] = useState<AgentProviderKind>(
@@ -156,6 +166,7 @@ export default function Home() {
         code: nextCode,
         providerId,
         result: result.response,
+        title: generateAutoTitle(result.response, nextCode),
         createdAt: new Date().toISOString(),
       }).then((savedId) => {
         setCurrentHistoryId(savedId);
@@ -236,7 +247,12 @@ export default function Home() {
           onUpdateHistory={handleUpdateHistory}
           currentHistoryId={currentHistoryId}
           currentHistoryTitle={historyEntries.find(e => e.id === currentHistoryId)?.title}
+          currentHistoryIsPinned={historyEntries.find(e => e.id === currentHistoryId)?.isPinned ?? false}
           onSetCurrentTitle={(title) => { if (currentHistoryId) handleUpdateHistory(currentHistoryId, { title: title || undefined }); }}
+          onToggleCurrentPin={() => {
+            const entry = historyEntries.find(e => e.id === currentHistoryId);
+            if (currentHistoryId && entry) handleUpdateHistory(currentHistoryId, { isPinned: !entry.isPinned });
+          }}
         />
       }
     >
