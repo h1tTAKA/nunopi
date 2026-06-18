@@ -17,8 +17,17 @@ export default function AnalysisHistory({
   onClear,
 }: AnalysisHistoryProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   if (entries.length === 0) return null;
+
+  const filteredEntries = query.trim()
+    ? entries.filter(
+        (e) =>
+          codePreview(e.code).toLowerCase().includes(query.toLowerCase()) ||
+          e.providerId.toLowerCase().includes(query.toLowerCase()),
+      )
+    : entries;
 
   const codePreview = (code: string) => {
     const firstLine = code.trim().split(/\r?\n/)[0] ?? "";
@@ -42,7 +51,7 @@ export default function AnalysisHistory({
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setIsOpen((v) => !v)}
+          onClick={() => { setIsOpen((v) => !v); setQuery(""); }}
           className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           {isOpen ? "▲" : "▼"} 히스토리 {entries.length}개
@@ -60,8 +69,21 @@ export default function AnalysisHistory({
       </div>
 
       {isOpen && (
-        <div className="space-y-1.5 max-h-48 overflow-y-auto">
-          {entries.map((entry) => (
+        <div className="space-y-1.5">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="코드 또는 provider 검색…"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-600"
+          />
+          {filteredEntries.length === 0 ? (
+            <p className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
+              검색 결과가 없다.
+            </p>
+          ) : (
+          <div className="max-h-48 overflow-y-auto space-y-1.5">
+          {filteredEntries.map((entry) => (
             <div
               key={entry.id}
               className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
@@ -94,6 +116,8 @@ export default function AnalysisHistory({
               </button>
             </div>
           ))}
+          </div>
+          )}
         </div>
       )}
     </div>
