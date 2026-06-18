@@ -135,20 +135,22 @@ export default function LearningPanel({
 
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
+    // Compute isAdding synchronously before queueing updater
+    const isAdding = !bookmarkedTokenTexts.includes(tokenText);
+    // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
+    if (isAdding) saveTokenDetail(token);
+    else removeTokenDetail(tokenText);
+    // Update details state immediately after localStorage is mutated
+    setBookmarkedTokenDetails(loadTokenDetails());
+    // Queue texts updater (runs later, but localStorage already updated)
     setBookmarkedTokenTexts((prev) => {
-      const isAdding = !prev.includes(tokenText);
       const next = isAdding
         ? [...prev, tokenText]
         : prev.filter((t) => t !== tokenText);
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      // localStorage ops (not setState) — safe inside updater
-      if (isAdding) saveTokenDetail(token);
-      else removeTokenDetail(tokenText);
       if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
-    // setState outside updater to avoid nested setState
-    setBookmarkedTokenDetails(loadTokenDetails());
   }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
