@@ -271,14 +271,15 @@ export default function LearningPanel({
         <TokenDictionary
           details={bookmarkedTokenDetails}
           onUnbookmark={(tokenText) => {
+            // localStorage ops first, then state
+            removeTokenDetail(tokenText);
+            setBookmarkedTokenDetails(loadTokenDetails());
             setBookmarkedTokenTexts((prev) => {
               const next = prev.filter((t) => t !== tokenText);
               try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
               if (next.length === 0) setFilterBookmarked(false);
               return next;
             });
-            removeTokenDetail(tokenText);
-            setBookmarkedTokenDetails(loadTokenDetails());
           }}
         />
       </div>
