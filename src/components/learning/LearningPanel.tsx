@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
 import {
@@ -16,6 +16,7 @@ import TokenDictionary from "./TokenDictionary";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
+import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
@@ -82,6 +83,10 @@ export default function LearningPanel({
   onToggleCurrentPin,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+  // 히스토리(IndexedDB)에서 복원한 옛 결과는 dedupe 이전 데이터라 중복
+  // 토큰/개념을 담고 있을 수 있다 → 렌더 시점에도 방어적으로 중복 제거한다.
+  const safeTokens = useMemo(() => dedupeTokens(result?.tokens ?? []), [result]);
+  const safeConcepts = useMemo(() => dedupeConcepts(result?.concepts ?? []), [result]);
   const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
@@ -406,9 +411,9 @@ export default function LearningPanel({
             <LineExplanationList
               key={result.createdAt}
               lineExplanations={result.lineExplanations}
-              tokens={result.tokens}
+              tokens={safeTokens}
               onTokenClick={handleTokenClick}
-              concepts={result.concepts}
+              concepts={safeConcepts}
               onConceptClick={handleConceptClick}
               language={result.language}
             />
@@ -416,12 +421,12 @@ export default function LearningPanel({
 
           <div>
             {(() => {
-              const visibleBookmarkCount = result.tokens.filter((t) =>
+              const visibleBookmarkCount = safeTokens.filter((t) =>
                 bookmarkedTokenTexts.includes(t.token),
               ).length;
               const displayTokens = filterBookmarked
-                ? result.tokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
-                : result.tokens;
+                ? safeTokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
+                : safeTokens;
               return (
                 <>
                   <div className="mb-2 flex items-center gap-2">
@@ -475,7 +480,7 @@ export default function LearningPanel({
               개념
             </p>
             <ConceptSection
-              concepts={result.concepts}
+              concepts={safeConcepts}
               activeConceptId={activeConceptId}
               onConceptClick={handleConceptClick}
             />

@@ -39,11 +39,13 @@ export default function LineExplanationList({
   return (
     <div className="space-y-3">
       {visibleItems.map((item, i) => {
-        const lineTokens = item.tokenIds
+        // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
+        // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
+        const lineTokens = Array.from(new Set(item.tokenIds))
           .map((id) => tokens.find((t) => t.id === id))
           .filter((t): t is CodeToken => t !== undefined);
 
-        const lineConcepts = item.conceptIds
+        const lineConcepts = Array.from(new Set(item.conceptIds))
           .map((id) => concepts.find((c) => c.conceptId === id))
           .filter((c): c is ConceptOccurrence => c !== undefined);
 
