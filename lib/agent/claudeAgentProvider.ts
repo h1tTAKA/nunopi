@@ -97,7 +97,9 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
     const proc = spawn(
       commandPath,
       ["-p", "--output-format", "text", prompt],
-      { env: { ...process.env } },
+      // prompt는 positional 인자. stdin을 열어두면 CLI가 stdin EOF를
+      // 기다리며 멈출 수 있어 "ignore"로 자식 stdin을 닫는다.
+      { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
     );
 
     let stdout = "";

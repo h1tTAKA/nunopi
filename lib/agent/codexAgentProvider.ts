@@ -105,7 +105,10 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
         "--output-last-message", tmpFile,
         prompt,
       ],
-      { env: { ...process.env } },
+      // prompt는 positional 인자로 넘긴다. stdin을 열어두면 codex exec가
+      // 추가 입력(stdin EOF)을 기다리며 멈춘다("Reading additional input from
+      // stdin...") → "ignore"로 자식 stdin을 닫아 즉시 EOF를 받게 한다.
+      { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
     );
 
     let stderr = "";
