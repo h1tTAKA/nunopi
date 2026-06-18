@@ -109,8 +109,9 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
     const timer = setTimeout(() => { timedOut = true; proc.kill(); }, TIMEOUT_MS);
 
     proc.stdout?.on("data", (chunk: Buffer) => {
-      if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); return; }
-      stdout += chunk.toString();
+      if (stdout.length >= MAX_STDOUT) return;
+      stdout += chunk.toString().slice(0, MAX_STDOUT - stdout.length);
+      if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); }
     });
     proc.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_STDERR) {
