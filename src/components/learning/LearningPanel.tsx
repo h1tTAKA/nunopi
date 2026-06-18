@@ -169,7 +169,7 @@ export default function LearningPanel({
         className={`shrink-0 text-lg leading-none transition ${
           currentHistoryIsPinned
             ? "text-amber-500 dark:text-amber-400"
-            : "text-zinc-300 hover:text-amber-400 dark:text-zinc-600 dark:hover:text-amber-500"
+            : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
         }`}
         title={currentHistoryIsPinned ? "고정 해제" : "고정하기"}
         aria-label={currentHistoryIsPinned ? "고정 해제" : "이 분석 고정하기"}

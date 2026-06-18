@@ -251,7 +251,7 @@ export default function Home() {
           onSetCurrentTitle={(title) => { if (currentHistoryId) handleUpdateHistory(currentHistoryId, { title: title || undefined }); }}
           onToggleCurrentPin={() => {
             const entry = historyEntries.find(e => e.id === currentHistoryId);
-            if (currentHistoryId) handleUpdateHistory(currentHistoryId, { isPinned: !(entry?.isPinned) });
+            if (currentHistoryId && entry) handleUpdateHistory(currentHistoryId, { isPinned: !entry.isPinned });
           }}
         />
       }
