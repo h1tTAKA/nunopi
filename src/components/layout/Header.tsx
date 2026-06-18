@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function Header() {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("nunopi:theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = stored ? stored === "dark" : prefersDark;
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  });
 
   function toggleDark() {
     const next = !dark;
