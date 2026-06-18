@@ -92,6 +92,8 @@ export const codexAgentProvider: AgentProvider = {
 
 async function runCodexExec(commandPath: string, prompt: string): Promise<string> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
+  const TIMEOUT_MS = 60_000;
+
   return new Promise((resolve, reject) => {
     const proc = spawn(
       commandPath,
@@ -103,21 +105,35 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
         "--output-last-message", tmpFile,
         prompt,
       ],
-      { env: { ...process.env }, timeout: 60_000 },
+      { env: { ...process.env } },
     );
 
     let stderr = "";
-    proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    let timedOut = false;
 
-    proc.on("error", (err) => reject(err));
+    // spawn() ignores timeout option — implement manually
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill();
+    }, TIMEOUT_MS);
+
+    proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.on("error", (err) => { clearTimeout(timer); reject(err); });
     proc.on("close", (code) => {
+      clearTimeout(timer);
       readFile(tmpFile, "utf-8")
         .then((text) => {
           unlink(tmpFile).catch(() => {});
           resolve(text.trim());
         })
-        .catch(() => {
-          reject(new Error(`codex exec exited with code ${code ?? "unknown"}. stderr: ${stderr.slice(0, 300)}`));
+        .catch((readErr: NodeJS.ErrnoException) => {
+          unlink(tmpFile).catch(() => {});
+          const reason = timedOut
+            ? `codex exec timed out after ${TIMEOUT_MS / 1000}s`
+            : readErr.code === "ENOENT"
+            ? `codex exec produced no output (exit code: ${code ?? "unknown"})`
+            : `codex exec failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`;
+          reject(new Error(reason));
         });
     });
   });
