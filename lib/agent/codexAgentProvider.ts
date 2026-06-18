@@ -94,7 +94,9 @@ export const codexAgentProvider: AgentProvider = {
 
 async function runCodexExec(commandPath: string, prompt: string): Promise<string> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
-  const TIMEOUT_MS = 60_000;
+  // route의 CLI 타임아웃(95s)보다 낮게 둬서, route가 먼저 끊지 않고
+  // 이 프로세스 정리가 먼저 동작하게 한다(좀비 프로세스 방지).
+  const TIMEOUT_MS = 90_000;
 
   return new Promise((resolve, reject) => {
     const proc = spawn(

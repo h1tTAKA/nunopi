@@ -56,9 +56,9 @@ const ALLOWED_LANGUAGES = [
 // 빠른 provider(local-rules, openai-compatible)는 짧게 끊는다.
 const DEFAULT_PROVIDER_TIMEOUT_MS = 8_000;
 // CLI provider(codex/claude)는 프로세스를 spawn해 LLM 추론을 돌려 수십초 걸린다.
-// provider 내부 타임아웃(60s)보다 약간 위로 둬서, route가 중간에 끊지 않고
+// provider 내부 타임아웃(90s)보다 약간 위로 둬서, route가 중간에 끊지 않고
 // provider 자신의 타임아웃 처리가 먼저 동작하게 한다(좀비 프로세스 방지).
-const CLI_PROVIDER_TIMEOUT_MS = 65_000;
+const CLI_PROVIDER_TIMEOUT_MS = 95_000;
 // 클라이언트가 보낸 timeoutMs 상한 — 직접 POST로 무한 대기 거는 것 방지.
 const MAX_PROVIDER_TIMEOUT_MS = 300_000;
 const ALLOW_HEADER = "POST, OPTIONS";

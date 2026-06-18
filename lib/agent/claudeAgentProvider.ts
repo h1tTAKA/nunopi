@@ -91,7 +91,8 @@ export const claudeAgentProvider: AgentProvider = {
 };
 
 async function runClaudeCli(commandPath: string, prompt: string): Promise<string> {
-  const TIMEOUT_MS = 60_000;
+  // route의 CLI 타임아웃(95s)보다 낮게 유지(provider 자체 정리 우선).
+  const TIMEOUT_MS = 90_000;
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
 
