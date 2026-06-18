@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
+import {
+  type BookmarkedTokenDetail,
+  saveTokenDetail,
+  removeTokenDetail,
+  loadTokenDetails,
+  clearTokenDetails,
+} from "@/lib/bookmarkDetails";
+import type { CodeToken } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
@@ -77,6 +85,7 @@ export default function LearningPanel({
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
+  const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -102,6 +111,8 @@ export default function LearningPanel({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
     } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedTokenDetails(loadTokenDetails());
   }, []);
 
   useEffect(() => {
@@ -121,12 +132,21 @@ export default function LearningPanel({
     setHeaderEditing(false);
   }, [result]);
 
-  function handleBookmarkToggle(tokenText: string) {
+  function handleBookmarkToggle(token: CodeToken) {
+    const tokenText = token.token;
     setBookmarkedTokenTexts((prev) => {
-      const next = prev.includes(tokenText)
-        ? prev.filter((t) => t !== tokenText)
-        : [...prev, tokenText];
+      const isAdding = !prev.includes(tokenText);
+      const next = isAdding
+        ? [...prev, tokenText]
+        : prev.filter((t) => t !== tokenText);
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      if (isAdding) {
+        saveTokenDetail(token);
+        setBookmarkedTokenDetails(loadTokenDetails());
+      } else {
+        removeTokenDetail(tokenText);
+        setBookmarkedTokenDetails(loadTokenDetails());
+      }
       if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
@@ -389,8 +409,10 @@ export default function LearningPanel({
                           type="button"
                           onClick={() => {
                             setBookmarkedTokenTexts([]);
+                            setBookmarkedTokenDetails({});
                             setFilterBookmarked(false);
                             try { localStorage.removeItem(BOOKMARKS_KEY); } catch { /* ignore */ }
+                            clearTokenDetails();
                           }}
                           className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                         >

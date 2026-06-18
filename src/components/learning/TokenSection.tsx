@@ -10,7 +10,7 @@ interface TokenSectionProps {
   activeTokenIds?: string[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
   bookmarkedTokenTexts?: string[];
-  onBookmarkToggle?: (tokenText: string) => void;
+  onBookmarkToggle?: (token: CodeToken) => void;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -70,7 +70,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
             {token.bookmarkable && (
               <button
                 type="button"
-                onClick={() => onBookmarkToggle?.(token.token)}
+                onClick={() => onBookmarkToggle?.(token)}
                 className="absolute right-2.5 top-2.5 text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
                 title={isBookmarked ? "북마크 해제" : "북마크"}
                 aria-label={isBookmarked ? `${token.token} 북마크 해제` : `${token.token} 북마크 추가`}
