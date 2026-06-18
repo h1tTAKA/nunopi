@@ -53,31 +53,7 @@ const ALLOWED_LANGUAGES = [
   "tailwindcss",
   "unknown",
 ] as const;
-// 빠른 provider(local-rules, openai-compatible)는 짧게 끊는다.
-const DEFAULT_PROVIDER_TIMEOUT_MS = 8_000;
-// CLI provider(codex/claude)는 프로세스를 spawn해 LLM 추론을 돌려 수십초 걸린다.
-// provider 내부 타임아웃(90s)보다 약간 위로 둬서, route가 중간에 끊지 않고
-// provider 자신의 타임아웃 처리가 먼저 동작하게 한다(좀비 프로세스 방지).
-const CLI_PROVIDER_TIMEOUT_MS = 95_000;
-// 클라이언트가 보낸 timeoutMs 상한 — 직접 POST로 무한 대기 거는 것 방지.
-const MAX_PROVIDER_TIMEOUT_MS = 300_000;
 const ALLOW_HEADER = "POST, OPTIONS";
-
-function resolveTimeoutMs(provider: AgentProvider, requested?: number): number {
-  if (requested && requested > 0) {
-    return Math.min(requested, MAX_PROVIDER_TIMEOUT_MS);
-  }
-  return provider.metadata.capabilities.requiresLocalProcess
-    ? CLI_PROVIDER_TIMEOUT_MS
-    : DEFAULT_PROVIDER_TIMEOUT_MS;
-}
-
-class ProviderTimeoutError extends Error {
-  constructor(timeoutMs: number) {
-    super(`Provider did not respond within ${timeoutMs}ms.`);
-    this.name = "ProviderTimeoutError";
-  }
-}
 
 export async function POST(
   request: Request,
@@ -114,22 +90,20 @@ export async function POST(
       ...parsedRequest.request,
       providerId: parsedRequest.providerId,
     };
-    const timeoutMs = resolveTimeoutMs(
-      provider.provider,
-      parsedRequest.request.options?.timeoutMs,
-    );
-    const response = await runWithTimeout(
-      provider.provider.analyze(providerRequest),
-      timeoutMs,
-    );
+    // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
+    // provider가 진행 중인 CLI 프로세스/HTTP 요청을 중단한다.
+    const response = await provider.provider.analyze(providerRequest, {
+      signal: request.signal,
+    });
 
     return jsonSuccess(parsedRequest.providerId, response);
   } catch (error) {
-    if (error instanceof ProviderTimeoutError) {
+    // 클라이언트 취소(abort) — 응답은 이미 버려졌으므로 조용히 처리한다.
+    if (request.signal.aborted) {
       return jsonError(
-        504,
-        "PROVIDER_TIMEOUT",
-        error.message,
+        499,
+        "PROVIDER_FAILED",
+        "분석이 취소되었습니다.",
         parsedRequest.providerId,
       );
     }
@@ -344,28 +318,6 @@ function resolveProvider(
     ok: true,
     provider,
   };
-}
-
-async function runWithTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    return await Promise.race([
-      promise,
-      new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new ProviderTimeoutError(timeoutMs));
-        }, timeoutMs);
-      }),
-    ]);
-  } finally {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-    }
-  }
 }
 
 function jsonSuccess(
