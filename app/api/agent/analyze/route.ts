@@ -110,7 +110,12 @@ export async function POST(
           : formatErrorMessage(error);
         send({ type: "error", message });
       } finally {
-        controller.close();
+        // 클라이언트가 이미 끊었으면 controller가 닫힌 상태라 close()도 throw할 수 있다.
+        try {
+          controller.close();
+        } catch {
+          /* already closed/cancelled */
+        }
       }
     },
   });
