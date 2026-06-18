@@ -410,6 +410,7 @@ export default function LearningPanel({
               onTokenClick={handleTokenClick}
               concepts={result.concepts}
               onConceptClick={handleConceptClick}
+              language={result.language}
             />
           </div>
 

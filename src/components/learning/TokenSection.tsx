@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { CodeToken, TokenCategory } from "@/lib/translator/types";
+import CodeBlock from "./CodeBlock";
 
 const DEFAULT_VISIBLE = 6;
 
@@ -99,9 +100,9 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                 {token.description}
               </p>
               {token.example && (
-                <pre className="mt-2 overflow-x-auto rounded-xl bg-white p-2 text-xs text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300">
-                  {token.example}
-                </pre>
+                <div className="mt-2">
+                  <CodeBlock code={token.example} />
+                </div>
               )}
               {token.lines.length > 0 && (
                 <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
