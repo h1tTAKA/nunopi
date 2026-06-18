@@ -14,6 +14,8 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
   language?: string;
   readOnly?: boolean;
+  // true면 부모 컨테이너 높이를 채운다(부모가 높이를 줘야 함). false면 기존 320px 고정.
+  fill?: boolean;
 }
 
 function monacoLanguage(language?: string): string {
@@ -57,6 +59,7 @@ export default function CodeEditor({
   onChange,
   language,
   readOnly = false,
+  fill = false,
 }: CodeEditorProps) {
   const [isDark, setIsDark] = useState(false);
 
@@ -74,9 +77,13 @@ export default function CodeEditor({
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
+    <div
+      className={`overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 ${
+        fill ? "h-full" : ""
+      }`}
+    >
       <MonacoEditor
-        height="320px"
+        height={fill ? "100%" : "320px"}
         language={monacoLanguage(language)}
         value={value}
         onChange={(v) => onChange(v ?? "")}
