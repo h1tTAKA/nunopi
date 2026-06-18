@@ -34,7 +34,7 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function saveToHistory(
   entry: Omit<HistoryEntry, "id">,
-): Promise<void> {
+): Promise<string> {
   const db = await openDB();
   const id = crypto.randomUUID();
   const full: HistoryEntry = { ...entry, id };
@@ -57,6 +57,7 @@ export async function saveToHistory(
       await deleteFromHistory(e.id);
     }
   }
+  return id;
 }
 
 export async function getAllHistory(): Promise<HistoryEntry[]> {

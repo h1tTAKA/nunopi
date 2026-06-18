@@ -51,6 +51,7 @@ export default function Home() {
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
 
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
@@ -121,6 +122,7 @@ export default function Home() {
     setIsLoading(true);
     setErrorMessage(null);
     setAnalysisResult(null);
+    setCurrentHistoryId(null);
 
     try {
       const response = await fetch("/api/agent/analyze", {
@@ -155,7 +157,10 @@ export default function Home() {
         providerId,
         result: result.response,
         createdAt: new Date().toISOString(),
-      }).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
+      }).then((savedId) => {
+        setCurrentHistoryId(savedId);
+        return getAllHistory();
+      }).then(setHistoryEntries).catch(() => {});
     } catch (error) {
       setAnalysisResult(null);
       setErrorMessage(formatFetchError(error));
@@ -229,6 +234,9 @@ export default function Home() {
           onDeleteHistory={handleDeleteHistory}
           onClearHistory={handleClearHistory}
           onUpdateHistory={handleUpdateHistory}
+          currentHistoryId={currentHistoryId}
+          currentHistoryTitle={historyEntries.find(e => e.id === currentHistoryId)?.title}
+          onSetCurrentTitle={(title) => { if (currentHistoryId) handleUpdateHistory(currentHistoryId, { title: title || undefined }); }}
         />
       }
     >
