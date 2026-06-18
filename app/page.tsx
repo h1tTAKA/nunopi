@@ -20,11 +20,10 @@ import {
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
-interface AnalyzeApiSuccessResponse {
-  ok: true;
-  providerId: AgentProviderKind;
-  response: AgentAnalyzeResponse;
-}
+type AnalyzeStreamEvent =
+  | { type: "progress"; line: string }
+  | { type: "result"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
+  | { type: "error"; message: string };
 
 interface AnalyzeApiErrorResponse {
   ok: false;
@@ -67,6 +66,8 @@ export default function Home() {
   const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
   // 진행 중인 분석을 멈추기 위한 AbortController 보관.
   const abortRef = useRef<AbortController | null>(null);
+  // 분석 중 provider가 흘리는 최신 진행 출력 한 줄.
+  const [progressLine, setProgressLine] = useState("");
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -149,6 +150,7 @@ export default function Home() {
     setErrorMessage(null);
     setAnalysisResult(null);
     setCurrentHistoryId(null);
+    setProgressLine("");
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -171,27 +173,66 @@ export default function Home() {
         signal: controller.signal,
       });
 
-      const result = (await response.json()) as
-        | AnalyzeApiSuccessResponse
-        | AnalyzeApiErrorResponse;
-
-      if (!response.ok || !result.ok) {
+      // 요청 검증 실패(4xx)는 JSON 에러. 정상 요청은 NDJSON 스트림으로 응답.
+      if (!response.ok || !response.body) {
+        const result = (await response.json().catch(() => null)) as
+          | AnalyzeApiErrorResponse
+          | null;
         setAnalysisResult(null);
-        setErrorMessage(result.ok ? "분석 요청이 실패했다." : result.error.message);
+        setErrorMessage(result?.ok === false ? result.error.message : "분석 요청이 실패했다.");
         return;
       }
 
-      setAnalysisResult(result.response);
-      saveToHistory({
-        code: nextCode,
-        providerId,
-        result: result.response,
-        title: generateAutoTitle(result.response, nextCode),
-        createdAt: new Date().toISOString(),
-      }).then((savedId) => {
-        setCurrentHistoryId(savedId);
-        return getAllHistory();
-      }).then(setHistoryEntries).catch(() => {});
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let finalResult: AgentAnalyzeResponse | null = null;
+      let streamError: string | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let event: AnalyzeStreamEvent;
+          try {
+            event = JSON.parse(line) as AnalyzeStreamEvent;
+          } catch {
+            continue;
+          }
+          if (event.type === "progress") {
+            setProgressLine(event.line);
+          } else if (event.type === "result") {
+            finalResult = event.response;
+          } else if (event.type === "error") {
+            streamError = event.message;
+          }
+        }
+      }
+
+      if (streamError) {
+        setAnalysisResult(null);
+        setErrorMessage(streamError);
+        return;
+      }
+
+      if (finalResult) {
+        const saved = finalResult;
+        setAnalysisResult(saved);
+        saveToHistory({
+          code: nextCode,
+          providerId,
+          result: saved,
+          title: generateAutoTitle(saved, nextCode),
+          createdAt: new Date().toISOString(),
+        }).then((savedId) => {
+          setCurrentHistoryId(savedId);
+          return getAllHistory();
+        }).then(setHistoryEntries).catch(() => {});
+      }
     } catch (error) {
       // 유저가 멈추기를 누른 경우 — 에러로 띄우지 않고 조용히 종료.
       if (error instanceof DOMException && error.name === "AbortError") {
@@ -202,6 +243,7 @@ export default function Home() {
       }
     } finally {
       abortRef.current = null;
+      setProgressLine("");
       setIsLoading(false);
     }
   }
@@ -253,6 +295,7 @@ export default function Home() {
         <LearningPanel
           providerId={providerId}
           isLoading={isLoading}
+          progressLine={progressLine}
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}

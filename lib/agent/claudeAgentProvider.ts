@@ -76,7 +76,12 @@ export const claudeAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runClaudeCli(availability.commandPath!, prompt, options?.signal);
+      const rawText = await runClaudeCli(
+        availability.commandPath!,
+        prompt,
+        options?.signal,
+        options?.onProgress,
+      );
       return normalizeClaudeOutput(rawText, request, availability, prompt);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
@@ -102,6 +107,7 @@ async function runClaudeCli(
   commandPath: string,
   prompt: string,
   signal?: AbortSignal,
+  onProgress?: (line: string) => void,
 ): Promise<string> {
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
@@ -133,7 +139,18 @@ async function runClaudeCli(
     signal?.addEventListener("abort", onAbort, { once: true });
     const cleanup = () => signal?.removeEventListener("abort", onAbort);
 
+    let progressBuf = "";
     proc.stdout?.on("data", (chunk: Buffer) => {
+      // 진행 표시용 — 완성된 줄만 onProgress로 흘린다(최종 결과는 누적 stdout 파싱).
+      if (onProgress) {
+        progressBuf += chunk.toString();
+        const lines = progressBuf.split("\n");
+        progressBuf = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) onProgress(trimmed);
+        }
+      }
       if (stdout.length >= MAX_STDOUT) return;
       stdout += chunk.toString().slice(0, MAX_STDOUT - stdout.length);
       if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); }

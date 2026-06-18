@@ -78,7 +78,12 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runCodexExec(availability.commandPath!, prompt, options?.signal);
+      const rawText = await runCodexExec(
+        availability.commandPath!,
+        prompt,
+        options?.signal,
+        options?.onProgress,
+      );
       return normalizeCodexOutput(rawText, request, availability, prompt);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
@@ -100,10 +105,43 @@ export const codexAgentProvider: AgentProvider = {
   },
 };
 
+// codex --json 이벤트(JSONL) 한 줄을 사람이 읽을 진행 라벨로 변환한다.
+// 파싱 실패 시 원문을 그대로 보여주고, 의미 없는 줄은 null로 건너뛴다.
+function codexProgressLabel(line: string): string | null {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+  try {
+    const event = JSON.parse(trimmed) as {
+      type?: string;
+      item?: { type?: string };
+      usage?: { output_tokens?: number };
+    };
+    switch (event.type) {
+      case "thread.started":
+        return "세션 시작…";
+      case "turn.started":
+        return "분석 시작…";
+      case "item.started":
+        return "처리 중…";
+      case "item.completed":
+        return event.item?.type === "agent_message" ? "응답 정리 중…" : "단계 완료…";
+      case "turn.completed":
+        return event.usage?.output_tokens != null
+          ? `완료 (출력 ${event.usage.output_tokens} 토큰)`
+          : "완료…";
+      default:
+        return event.type ?? null;
+    }
+  } catch {
+    return trimmed;
+  }
+}
+
 async function runCodexExec(
   commandPath: string,
   prompt: string,
   signal?: AbortSignal,
+  onProgress?: (line: string) => void,
 ): Promise<string> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
 
@@ -125,6 +163,9 @@ async function runCodexExec(
         // 학습용 코드 설명엔 high 추론이 과해 느리다. low로 호출 단위
         // 오버라이드(유저 config.toml은 안 건드림).
         "-c", "model_reasoning_effort=low",
+        // 진행 이벤트를 JSONL로 stdout에 flush한다. (--json 없이는 인간용 로그가
+        // 파이프에서 블록버퍼링돼 실시간으로 안 흐른다.) 최종 결과는 tmpfile에서 읽음.
+        "--json",
         "--output-last-message", tmpFile,
         prompt,
       ],
@@ -149,6 +190,22 @@ async function runCodexExec(
         stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
       }
     });
+
+    // stdout은 --json으로 흘러오는 진행 이벤트(JSONL). 최종 결과는 tmpfile에서
+    // 읽으므로 stdout은 진행 표시용. 완성된 줄만 읽기 좋은 라벨로 onProgress 전달.
+    let stdoutBuf = "";
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      stdoutBuf += chunk.toString();
+      const lines = stdoutBuf.split("\n");
+      stdoutBuf = lines.pop() ?? "";
+      if (onProgress) {
+        for (const line of lines) {
+          const label = codexProgressLabel(line);
+          if (label) onProgress(label);
+        }
+      }
+    });
+
     proc.on("error", (err) => { cleanup(); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
       cleanup();
