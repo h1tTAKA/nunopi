@@ -47,6 +47,7 @@ interface LearningPanelProps {
   onRestoreHistory?: (entry: HistoryEntry) => void;
   onDeleteHistory?: (id: string) => void;
   onClearHistory?: () => void;
+  onUpdateHistory?: (id: string, changes: Partial<Pick<HistoryEntry, "isPinned" | "title">>) => void;
 }
 
 export default function LearningPanel({
@@ -59,6 +60,7 @@ export default function LearningPanel({
   onRestoreHistory,
   onDeleteHistory,
   onClearHistory,
+  onUpdateHistory,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTab, setActiveTab] = useState<"analysis" | "history">("analysis");
@@ -174,6 +176,7 @@ export default function LearningPanel({
             onRestore={onRestoreHistory}
             onDelete={onDeleteHistory}
             onClear={onClearHistory}
+            onUpdate={onUpdateHistory}
             alwaysOpen
           />
         ) : (
