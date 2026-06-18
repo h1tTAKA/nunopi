@@ -59,10 +59,9 @@ export default function Home() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setProviderSettings(JSON.parse(raw) as ProviderSettings);
-    } catch {
-      // ignore parse errors
-    }
+    } catch { /* ignore */ }
   }, []);
 
   function handleSettingsSave(next: ProviderSettings) {

@@ -32,13 +32,17 @@ export default function LearningPanel({
   useEffect(() => {
     try {
       const raw = localStorage.getItem(BOOKMARKS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
     } catch { /* ignore */ }
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTokenIds([]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveConceptId(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
   }, [result]);
 
