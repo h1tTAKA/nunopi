@@ -40,6 +40,8 @@ export interface AgentProviderMetadata {
 export interface AgentAnalyzeCallOptions {
   // 분석 취소용. fire되면 provider는 진행 중인 작업(CLI 프로세스/HTTP 요청)을 중단한다.
   signal?: AbortSignal;
+  // 진행 출력 한 줄씩 흘리는 콜백(예: CLI provider의 stdout 라인). 실시간 상태 표시용.
+  onProgress?: (line: string) => void;
 }
 
 export interface AgentProvider {

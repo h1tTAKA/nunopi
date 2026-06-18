@@ -78,7 +78,12 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runCodexExec(availability.commandPath!, prompt, options?.signal);
+      const rawText = await runCodexExec(
+        availability.commandPath!,
+        prompt,
+        options?.signal,
+        options?.onProgress,
+      );
       return normalizeCodexOutput(rawText, request, availability, prompt);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
@@ -104,6 +109,7 @@ async function runCodexExec(
   commandPath: string,
   prompt: string,
   signal?: AbortSignal,
+  onProgress?: (line: string) => void,
 ): Promise<string> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
 
@@ -149,6 +155,23 @@ async function runCodexExec(
         stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
       }
     });
+
+    // stdout은 codex의 진행 로그(session id, reasoning, tokens 등). 최종 결과는
+    // tmpfile(--output-last-message)에서 읽으므로 stdout은 진행 표시용으로 흘린다.
+    // 청크를 버퍼에 모아 완성된 줄만 onProgress로 전달한다.
+    let stdoutBuf = "";
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      stdoutBuf += chunk.toString();
+      const lines = stdoutBuf.split("\n");
+      stdoutBuf = lines.pop() ?? "";
+      if (onProgress) {
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed) onProgress(trimmed);
+        }
+      }
+    });
+
     proc.on("error", (err) => { cleanup(); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
       cleanup();
