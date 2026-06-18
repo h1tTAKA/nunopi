@@ -108,7 +108,9 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
 
     proc.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
     proc.stderr?.on("data", (chunk: Buffer) => {
-      if (stderr.length < MAX_STDERR) stderr += chunk.toString();
+      if (stderr.length < MAX_STDERR) {
+        stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
+      }
     });
 
     proc.on("error", (err) => { clearTimeout(timer); reject(err); });
