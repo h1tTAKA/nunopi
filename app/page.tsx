@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
-import CodeInputArea from "@/components/translator/CodeInputArea";
+import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
+import { detectLanguage } from "@/lib/translator/detectLanguage";
+import type { SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
@@ -62,6 +64,15 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
+  const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
+
+  // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
+  // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
+  const editorLanguage: SupportedLanguage = useMemo(() => {
+    if (languageChoice !== "auto") return languageChoice;
+    const detected = detectLanguage(code).primary;
+    return detected === "unknown" ? "typescript" : detected;
+  }, [code, languageChoice]);
 
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
@@ -262,6 +273,9 @@ export default function Home() {
         isLoading={isLoading}
         errorMessage={errorMessage}
         hasResult={analysisResult !== null}
+        languageChoice={languageChoice}
+        editorLanguage={editorLanguage}
+        onLanguageChoiceChange={setLanguageChoice}
         onCodeChange={handleCodeChange}
         onProviderChange={handleProviderChange}
         onAnalyze={handleAnalyze}

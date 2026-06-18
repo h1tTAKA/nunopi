@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import type { Monaco } from "@monaco-editor/react";
 
 const MonacoEditor = dynamic(
   () => import("@monaco-editor/react").then((mod) => mod.Editor),
@@ -29,6 +30,18 @@ function monacoLanguage(language?: string): string {
     default:
       return "plaintext";
   }
+}
+
+// 학습용 스니펫이라 import/컴파일 단위가 없는 경우가 많다.
+// Monaco 내장 TS/JS 진단을 끄지 않으면 거의 모든 코드에 빨간 밑줄이 생겨 학습자를 혼란시킨다.
+function disableDiagnostics(monaco: Monaco) {
+  const options = {
+    noSemanticValidation: true,
+    noSyntaxValidation: true,
+    noSuggestionDiagnostics: true,
+  };
+  monaco.languages?.typescript?.typescriptDefaults?.setDiagnosticsOptions(options);
+  monaco.languages?.typescript?.javascriptDefaults?.setDiagnosticsOptions(options);
 }
 
 function EditorFallback() {
@@ -67,6 +80,7 @@ export default function CodeEditor({
         language={monacoLanguage(language)}
         value={value}
         onChange={(v) => onChange(v ?? "")}
+        beforeMount={disableDiagnostics}
         theme={isDark ? "vs-dark" : "light"}
         options={{
           readOnly,
