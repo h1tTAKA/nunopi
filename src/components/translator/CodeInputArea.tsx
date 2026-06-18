@@ -1,5 +1,6 @@
 import type { AgentProviderKind, AgentProviderMetadata } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
+import CodeEditor from "./CodeEditor";
 
 interface CodeInputAreaProps {
   code: string;
@@ -39,7 +40,7 @@ export default function CodeInputArea({
       </div>
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-        <label className="space-y-2">
+        <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               코드 입력
@@ -48,14 +49,13 @@ export default function CodeInputArea({
               {code.trim().split(/\r?\n/).filter(Boolean).length} lines
             </span>
           </div>
-          <textarea
+          <CodeEditor
             value={code}
-            onChange={(event) => onCodeChange(event.target.value)}
-            placeholder="설명받고 싶은 코드를 붙여넣으세요."
-            disabled={isLoading}
-            className="min-h-[320px] w-full rounded-2xl border border-zinc-200 bg-white p-4 font-mono text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:focus:border-zinc-700"
+            onChange={onCodeChange}
+            language="typescript"
+            readOnly={isLoading}
           />
-        </label>
+        </div>
 
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
           <label className="block space-y-2">

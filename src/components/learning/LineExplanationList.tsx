@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
+import CodeBlock from "./CodeBlock";
 
 const DEFAULT_VISIBLE = 5;
 
@@ -12,12 +13,14 @@ interface LineExplanationListProps {
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
   concepts?: ConceptOccurrence[];
   onConceptClick?: (conceptId: string) => void;
+  language?: string;
 }
 
 export default function LineExplanationList({
   lineExplanations,
   tokens = [],
   onTokenClick,
+  language,
   concepts = [],
   onConceptClick,
 }: LineExplanationListProps) {
@@ -59,9 +62,7 @@ export default function LineExplanationList({
                 </span>
               )}
             </div>
-            <pre className="overflow-x-auto rounded-xl bg-white p-3 text-xs text-zinc-700 dark:bg-zinc-950 dark:text-zinc-200">
-              {item.code}
-            </pre>
+            <CodeBlock code={item.code} language={language} />
             <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
               {item.explanation}
             </p>
