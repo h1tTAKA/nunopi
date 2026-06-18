@@ -5,7 +5,6 @@ import {
   localRulesProvider,
   openAICompatibleProvider,
   type AgentAnalyzeRequest,
-  type AgentAnalyzeResponse,
   type AgentProvider,
   type AgentProviderKind,
 } from "@/lib/agent";
@@ -13,12 +12,6 @@ import {
 interface AgentAnalyzeHttpRequest {
   providerId: AgentProviderKind;
   request: AgentAnalyzeRequest;
-}
-
-interface AgentAnalyzeSuccessResponse {
-  ok: true;
-  providerId: AgentProviderKind;
-  response: AgentAnalyzeResponse;
 }
 
 interface AgentAnalyzeErrorResponse {
@@ -84,36 +77,45 @@ export async function POST(
     );
   }
 
-  try {
-    const providerRequest: AgentAnalyzeRequest = {
-      ...parsedRequest.request,
-      providerId: parsedRequest.providerId,
-    };
-    // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
-    // provider가 진행 중인 CLI 프로세스/HTTP 요청을 중단한다.
-    const response = await provider.provider.analyze(providerRequest, {
-      signal: request.signal,
-    });
+  const providerRequest: AgentAnalyzeRequest = {
+    ...parsedRequest.request,
+    providerId: parsedRequest.providerId,
+  };
+  const providerId = parsedRequest.providerId;
 
-    return jsonSuccess(parsedRequest.providerId, response);
-  } catch (error) {
-    // 클라이언트 취소(abort) — 응답은 이미 버려졌으므로 조용히 처리한다.
-    if (request.signal.aborted) {
-      return jsonError(
-        499,
-        "PROVIDER_FAILED",
-        "분석이 취소되었습니다.",
-        parsedRequest.providerId,
-      );
-    }
+  // 진행 상황을 실시간으로 흘리기 위해 NDJSON(줄마다 JSON 1개) 스트림으로 응답한다.
+  // 이벤트: {type:"progress",line} | {type:"result",providerId,response} | {type:"error",message}
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      const send = (event: unknown) => {
+        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+      };
+      try {
+        // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
+        // provider가 진행 중인 CLI 프로세스/HTTP 요청을 중단한다.
+        const response = await provider.provider.analyze(providerRequest, {
+          signal: request.signal,
+          onProgress: (line) => send({ type: "progress", line }),
+        });
+        send({ type: "result", providerId, response });
+      } catch (error) {
+        const message = request.signal.aborted
+          ? "분석이 취소되었습니다."
+          : formatErrorMessage(error);
+        send({ type: "error", message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-    return jsonError(
-      500,
-      "PROVIDER_FAILED",
-      formatErrorMessage(error),
-      parsedRequest.providerId,
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export function OPTIONS(): Response {
@@ -317,17 +319,6 @@ function resolveProvider(
     ok: true,
     provider,
   };
-}
-
-function jsonSuccess(
-  providerId: AgentProviderKind,
-  response: AgentAnalyzeResponse,
-): Response {
-  return Response.json({
-    ok: true,
-    providerId,
-    response,
-  } satisfies AgentAnalyzeSuccessResponse);
 }
 
 function jsonError(
