@@ -21,12 +21,15 @@ function clampPct(value: number): number {
 export default function AppShell({ toolbar, editor, learningPanel }: AppShellProps) {
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
+  // 최신 leftPct를 항상 보유 — pointerup 시 클로저 stale 없이 영속화하기 위함.
+  const leftPctRef = useRef(DEFAULT_LEFT_PCT);
   const [isDesktop, setIsDesktop] = useState(false);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     const stored = Number(localStorage.getItem(SPLIT_STORAGE_KEY));
     if (Number.isFinite(stored) && stored >= MIN_LEFT_PCT && stored <= MAX_LEFT_PCT) {
+      leftPctRef.current = stored;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLeftPct(stored);
     }
@@ -57,6 +60,7 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
     const rect = mainRef.current.getBoundingClientRect();
     if (rect.width === 0) return;
     const pct = clampPct(((event.clientX - rect.left) / rect.width) * 100);
+    leftPctRef.current = pct;
     setLeftPct(pct);
   }
 
@@ -65,7 +69,7 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
     event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
     try {
-      localStorage.setItem(SPLIT_STORAGE_KEY, String(Math.round(leftPct)));
+      localStorage.setItem(SPLIT_STORAGE_KEY, String(Math.round(leftPctRef.current)));
     } catch {}
   }
 
