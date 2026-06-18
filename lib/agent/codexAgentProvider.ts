@@ -1,6 +1,9 @@
-import { access } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { access, readFile, unlink } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProvider } from "./types";
@@ -62,15 +65,82 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     const prompt = buildCodexPrompt(request);
-    const rawText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
+    const mockText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
 
-    if (!rawText) {
-      return buildPendingCodexResponse(request, availability, prompt);
+    if (mockText) {
+      return normalizeCodexOutput(mockText, request, availability, prompt);
     }
 
-    return normalizeCodexOutput(rawText, request, availability, prompt);
+    try {
+      const rawText = await runCodexExec(availability.commandPath!, prompt);
+      return normalizeCodexOutput(rawText, request, availability, prompt);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "codex exec failed";
+      return {
+        providerId: "codex-agent",
+        language: request.detectedLanguage ?? "unknown",
+        summary: `Codex exec failed: ${message}`,
+        lineExplanations: [],
+        tokens: [],
+        concepts: [],
+        warnings: [{ code: "PARSE_FAILED", message }],
+        createdAt: new Date().toISOString(),
+      };
+    }
   },
 };
+
+async function runCodexExec(commandPath: string, prompt: string): Promise<string> {
+  const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
+  const TIMEOUT_MS = 60_000;
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(
+      commandPath,
+      [
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-s", "read-only",
+        "--output-last-message", tmpFile,
+        prompt,
+      ],
+      { env: { ...process.env } },
+    );
+
+    let stderr = "";
+    let timedOut = false;
+    const MAX_STDERR = 2_048;
+
+    // spawn() ignores timeout option — implement manually
+    const timer = setTimeout(() => {
+      timedOut = true;
+      proc.kill();
+    }, TIMEOUT_MS);
+
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      if (stderr.length < MAX_STDERR) stderr += chunk.toString();
+    });
+    proc.on("error", (err) => { clearTimeout(timer); unlink(tmpFile).catch(() => {}); reject(err); });
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      readFile(tmpFile, "utf-8")
+        .then((text) => {
+          unlink(tmpFile).catch(() => {});
+          resolve(text.trim());
+        })
+        .catch((readErr: NodeJS.ErrnoException) => {
+          unlink(tmpFile).catch(() => {});
+          const reason = timedOut
+            ? `codex exec timed out after ${TIMEOUT_MS / 1000}s`
+            : readErr.code === "ENOENT"
+            ? `codex exec produced no output (exit code: ${code ?? "unknown"})`
+            : `codex exec failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`;
+          reject(new Error(reason));
+        });
+    });
+  });
+}
 
 function buildCodexPrompt(request: AgentAnalyzeRequest): string {
   return [
