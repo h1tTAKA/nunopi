@@ -104,10 +104,10 @@ export default function AnalysisHistory({
                         ? "text-amber-500 dark:text-amber-400"
                         : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
                     }`}
-                    title={entry.isPinned ? "핀 해제" : "핀 고정"}
-                    aria-label={entry.isPinned ? "핀 해제" : "핀 고정"}
+                    title={entry.isPinned ? "고정 해제" : "고정하기"}
+                    aria-label={entry.isPinned ? "고정 해제" : "고정하기"}
                   >
-                    📌
+                    {entry.isPinned ? "★" : "☆"}
                   </button>
                 )}
 
