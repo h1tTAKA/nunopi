@@ -25,9 +25,16 @@ export default function AnalysisHistory({
     return firstLine.length > 40 ? firstLine.slice(0, 40) + "…" : firstLine;
   };
 
-  const timeLabel = (createdAt: string) => {
+  const dateLabel = (createdAt: string): string => {
     const d = new Date(createdAt);
-    return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
+    const timeStr = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    if (d >= todayStart) return timeStr;
+    if (d >= yesterdayStart) return `어제 ${timeStr}`;
+    return d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
   };
 
   return (
@@ -73,7 +80,7 @@ export default function AnalysisHistory({
                     {codePreview(entry.code)}
                   </span>
                   <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0">
-                    {timeLabel(entry.createdAt)}
+                    {dateLabel(entry.createdAt)}
                   </span>
                 </div>
               </button>
