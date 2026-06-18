@@ -141,16 +141,14 @@ export default function LearningPanel({
         ? [...prev, tokenText]
         : prev.filter((t) => t !== tokenText);
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      if (isAdding) {
-        saveTokenDetail(token);
-        setBookmarkedTokenDetails(loadTokenDetails());
-      } else {
-        removeTokenDetail(tokenText);
-        setBookmarkedTokenDetails(loadTokenDetails());
-      }
+      // localStorage ops (not setState) — safe inside updater
+      if (isAdding) saveTokenDetail(token);
+      else removeTokenDetail(tokenText);
       if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
+    // setState outside updater to avoid nested setState
+    setBookmarkedTokenDetails(loadTokenDetails());
   }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
