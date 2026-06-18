@@ -5,6 +5,7 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -273,10 +274,12 @@ function normalizeClaudeOutput(
       parsed.summary ??
       `Claude runtime detected at ${availability.commandPath}, and a normalized Claude payload was returned.`,
     lineExplanations: parsed.lineExplanations ?? [],
-    tokens: Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
-    concepts: Array.isArray(parsed.concepts)
-      ? parsed.concepts.filter(isConceptOccurrence)
-      : [],
+    tokens: dedupeTokens(
+      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
+    ),
+    concepts: dedupeConcepts(
+      Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
+    ),
     warnings: parsed.warnings ?? [],
     rawText,
     createdAt: new Date().toISOString(),

@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
@@ -286,10 +287,12 @@ function normalizeCodexOutput(
       parsed.summary ??
       `Codex runtime detected at ${availability.commandPath}, and a normalized Codex payload was returned.`,
     lineExplanations: parsed.lineExplanations ?? [],
-    tokens: Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
-    concepts: Array.isArray(parsed.concepts)
-      ? parsed.concepts.filter(isConceptOccurrence)
-      : [],
+    tokens: dedupeTokens(
+      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
+    ),
+    concepts: dedupeConcepts(
+      Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
+    ),
     warnings: parsed.warnings ?? [],
     rawText,
     createdAt: new Date().toISOString(),
