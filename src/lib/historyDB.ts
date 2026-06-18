@@ -44,6 +44,7 @@ export async function saveToHistory(
     req.onsuccess = () => resolve();
     req.onerror = () => reject(req.error);
   });
+  db.close();
 
   // trim to MAX_ENTRIES
   const all = await getAllHistory();
@@ -53,8 +54,6 @@ export async function saveToHistory(
       await deleteFromHistory(entry.id);
     }
   }
-
-  db.close();
 }
 
 export async function getAllHistory(): Promise<HistoryEntry[]> {
@@ -64,9 +63,12 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
     const store = tx.objectStore(STORE_NAME);
     const req = store.getAll();
     req.onsuccess = () => {
-      const entries = (req.result as HistoryEntry[]).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      );
+      const entries = (req.result as HistoryEntry[]).sort((a, b) => {
+        const ta = new Date(a.createdAt).getTime();
+        const tb = new Date(b.createdAt).getTime();
+        if (isNaN(ta) || isNaN(tb)) return 0;
+        return tb - ta;
+      });
       resolve(entries);
       db.close();
     };
