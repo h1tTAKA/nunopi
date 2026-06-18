@@ -5,6 +5,7 @@ import AppShell from "@/components/layout/AppShell";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
+import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -218,32 +219,17 @@ export default function Home() {
 
   return (
     <>
-      <section className="bg-zinc-50 dark:bg-black border-b border-zinc-200 dark:border-zinc-800 px-6 py-10 text-center">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          Nunopi
-        </h1>
-        <p className="mt-2 text-base text-zinc-600 dark:text-zinc-300">
-          바이브코더를 위한 AI 코드 학습 도구
-        </p>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          코드를 붙여넣으면 줄별 설명, 토큰 사전, 개념 정리를 만들어준다.
-        </p>
-        <div className="mt-4 flex flex-wrap justify-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
-            로컬 AI 연결
-          </span>
-          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
-            줄별 설명
-          </span>
-          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
-            토큰 사전
-          </span>
-          <span className="rounded-2xl border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-900">
-            개념 정리
-          </span>
-        </div>
-      </section>
       <AppShell
+        toolbar={
+          <ProviderToolbar
+            providerId={providerId}
+            isLoading={isLoading}
+            errorMessage={errorMessage}
+            onProviderChange={handleProviderChange}
+            onAnalyze={handleAnalyze}
+            onSettingsOpen={() => setIsSettingsOpen(true)}
+          />
+        }
         learningPanel={
         <LearningPanel
           providerId={providerId}
@@ -266,22 +252,17 @@ export default function Home() {
           }}
         />
       }
-    >
-      <CodeInputArea
-        code={code}
-        providerId={providerId}
-        isLoading={isLoading}
-        errorMessage={errorMessage}
-        hasResult={analysisResult !== null}
-        languageChoice={languageChoice}
-        editorLanguage={editorLanguage}
-        onLanguageChoiceChange={setLanguageChoice}
-        onCodeChange={handleCodeChange}
-        onProviderChange={handleProviderChange}
-        onAnalyze={handleAnalyze}
-        onSettingsOpen={() => setIsSettingsOpen(true)}
+        editor={
+          <CodeInputArea
+            code={code}
+            isLoading={isLoading}
+            languageChoice={languageChoice}
+            editorLanguage={editorLanguage}
+            onLanguageChoiceChange={setLanguageChoice}
+            onCodeChange={handleCodeChange}
+          />
+        }
       />
-      </AppShell>
       <SettingsDrawer
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
