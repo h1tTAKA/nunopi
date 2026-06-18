@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { delimiter, join } from "node:path";
@@ -62,15 +63,78 @@ export const claudeAgentProvider: AgentProvider = {
     }
 
     const prompt = buildClaudePrompt(request);
-    const rawText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
+    const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
 
-    if (!rawText) {
-      return buildPendingClaudeResponse(request, availability, prompt);
+    if (mockText) {
+      return normalizeClaudeOutput(mockText, request, availability, prompt);
     }
 
-    return normalizeClaudeOutput(rawText, request, availability, prompt);
+    try {
+      const rawText = await runClaudeCli(availability.commandPath!, prompt);
+      return normalizeClaudeOutput(rawText, request, availability, prompt);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "claude -p failed";
+      return {
+        providerId: "claude-agent",
+        language: request.detectedLanguage ?? "unknown",
+        summary: `Claude CLI failed: ${message}`,
+        lineExplanations: [],
+        tokens: [],
+        concepts: [],
+        warnings: [{ code: "PARSE_FAILED", message }],
+        createdAt: new Date().toISOString(),
+      };
+    }
   },
 };
+
+async function runClaudeCli(commandPath: string, prompt: string): Promise<string> {
+  const TIMEOUT_MS = 60_000;
+  const MAX_STDERR = 2_048;
+  const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(
+      commandPath,
+      ["-p", "--output-format", "text", prompt],
+      { env: { ...process.env } },
+    );
+
+    let stdout = "";
+    let stderr = "";
+    let timedOut = false;
+    let stdoutCapped = false;
+
+    // spawn() ignores timeout option — implement manually
+    const timer = setTimeout(() => { timedOut = true; proc.kill(); }, TIMEOUT_MS);
+
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      if (stdout.length >= MAX_STDOUT) return;
+      stdout += chunk.toString().slice(0, MAX_STDOUT - stdout.length);
+      if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); }
+    });
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      if (stderr.length < MAX_STDERR) {
+        stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
+      }
+    });
+
+    proc.on("error", (err) => { clearTimeout(timer); reject(err); });
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (stdoutCapped) {
+        // exceeded MAX_STDOUT — return what we have for best-effort parse
+        resolve(stdout.trim());
+      } else if (timedOut) {
+        reject(new Error(`claude -p timed out after ${TIMEOUT_MS / 1000}s`));
+      } else if (code !== 0 && !stdout.trim()) {
+        reject(new Error(`claude -p failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`));
+      } else {
+        resolve(stdout.trim());
+      }
+    });
+  });
+}
 
 function buildClaudePrompt(request: AgentAnalyzeRequest): string {
   return [
