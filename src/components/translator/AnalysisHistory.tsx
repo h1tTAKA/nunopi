@@ -17,6 +17,7 @@ export default function AnalysisHistory({
   onClear,
 }: AnalysisHistoryProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   if (entries.length === 0) return null;
 
@@ -25,9 +26,24 @@ export default function AnalysisHistory({
     return firstLine.length > 40 ? firstLine.slice(0, 40) + "…" : firstLine;
   };
 
-  const timeLabel = (createdAt: string) => {
+  const filteredEntries = query.trim()
+    ? entries.filter(
+        (e) =>
+          codePreview(e.code).toLowerCase().includes(query.toLowerCase()) ||
+          e.providerId.toLowerCase().includes(query.toLowerCase()),
+      )
+    : entries;
+
+  const dateLabel = (createdAt: string): string => {
     const d = new Date(createdAt);
-    return d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    if (isNaN(d.getTime())) return "";
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
+    const timeStr = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    if (d >= todayStart) return timeStr;
+    if (d >= yesterdayStart) return `어제 ${timeStr}`;
+    return d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
   };
 
   return (
@@ -35,10 +51,10 @@ export default function AnalysisHistory({
       <div className="flex items-center justify-between">
         <button
           type="button"
-          onClick={() => setIsOpen((v) => !v)}
+          onClick={() => { setIsOpen((v) => !v); setQuery(""); }}
           className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
-          {isOpen ? "▲" : "▼"} 히스토리 {entries.length}개
+          {isOpen ? "▲" : "▼"} 히스토리 {isOpen && query.trim() ? `${filteredEntries.length}/${entries.length}` : entries.length}개
         </button>
         {isOpen && (
           <button
@@ -53,8 +69,21 @@ export default function AnalysisHistory({
       </div>
 
       {isOpen && (
-        <div className="space-y-1.5 max-h-48 overflow-y-auto">
-          {entries.map((entry) => (
+        <div className="space-y-1.5">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="코드 또는 provider 검색…"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-600"
+          />
+          {filteredEntries.length === 0 ? (
+            <p className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
+              검색 결과가 없다.
+            </p>
+          ) : (
+          <div className="max-h-48 overflow-y-auto space-y-1.5">
+          {filteredEntries.map((entry) => (
             <div
               key={entry.id}
               className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900"
@@ -73,7 +102,7 @@ export default function AnalysisHistory({
                     {codePreview(entry.code)}
                   </span>
                   <span className="text-xs text-zinc-400 dark:text-zinc-500 shrink-0">
-                    {timeLabel(entry.createdAt)}
+                    {dateLabel(entry.createdAt)}
                   </span>
                 </div>
               </button>
@@ -87,6 +116,8 @@ export default function AnalysisHistory({
               </button>
             </div>
           ))}
+          </div>
+          )}
         </div>
       )}
     </div>
