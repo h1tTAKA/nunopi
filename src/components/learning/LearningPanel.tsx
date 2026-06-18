@@ -8,6 +8,32 @@ import TokenSection from "./TokenSection";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
+function formatResultAsMarkdown(result: AgentAnalyzeResponse): string {
+  const lines = [
+    `# 코드 분석 결과 (provider: ${result.providerId})`,
+    `감지 언어: ${result.language}`,
+    "",
+    "## 요약",
+    result.summary,
+  ];
+
+  if (result.lineExplanations.length > 0) {
+    lines.push("", "## 줄별 설명");
+    for (const item of result.lineExplanations) {
+      lines.push("", `### ${item.line}번 줄`, `\`${item.code}\``, item.explanation);
+    }
+  }
+
+  if (result.warnings.length > 0) {
+    lines.push("", "## 경고");
+    for (const w of result.warnings) {
+      lines.push(`- [${w.code}] ${w.message}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 interface LearningPanelProps {
   providerId: AgentProviderKind;
   isLoading: boolean;
