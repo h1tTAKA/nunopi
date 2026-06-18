@@ -13,7 +13,6 @@ import {
   deleteFromHistory,
   clearHistory,
 } from "@/lib/historyDB";
-import AnalysisHistory from "@/components/translator/AnalysisHistory";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
@@ -214,32 +213,24 @@ export default function Home() {
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}
+          historyEntries={historyEntries}
+          onRestoreHistory={handleRestoreHistory}
+          onDeleteHistory={handleDeleteHistory}
+          onClearHistory={handleClearHistory}
         />
       }
     >
-      <>
-        <CodeInputArea
-          code={code}
-          providerId={providerId}
-          isLoading={isLoading}
-          errorMessage={errorMessage}
-          hasResult={analysisResult !== null}
-          onCodeChange={handleCodeChange}
-          onProviderChange={handleProviderChange}
-          onAnalyze={handleAnalyze}
-          onSettingsOpen={() => setIsSettingsOpen(true)}
-        />
-        {historyEntries.length > 0 && (
-          <div className="px-8 pb-4">
-            <AnalysisHistory
-              entries={historyEntries}
-              onRestore={handleRestoreHistory}
-              onDelete={handleDeleteHistory}
-              onClear={handleClearHistory}
-            />
-          </div>
-        )}
-      </>
+      <CodeInputArea
+        code={code}
+        providerId={providerId}
+        isLoading={isLoading}
+        errorMessage={errorMessage}
+        hasResult={analysisResult !== null}
+        onCodeChange={handleCodeChange}
+        onProviderChange={handleProviderChange}
+        onAnalyze={handleAnalyze}
+        onSettingsOpen={() => setIsSettingsOpen(true)}
+      />
       </AppShell>
       <SettingsDrawer
         isOpen={isSettingsOpen}
