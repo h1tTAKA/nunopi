@@ -1,6 +1,9 @@
-import { access } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { access, readFile, unlink } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProvider } from "./types";
@@ -62,15 +65,63 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     const prompt = buildCodexPrompt(request);
-    const rawText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
+    const mockText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
 
-    if (!rawText) {
-      return buildPendingCodexResponse(request, availability, prompt);
+    if (mockText) {
+      return normalizeCodexOutput(mockText, request, availability, prompt);
     }
 
-    return normalizeCodexOutput(rawText, request, availability, prompt);
+    try {
+      const rawText = await runCodexExec(availability.commandPath!, prompt);
+      return normalizeCodexOutput(rawText, request, availability, prompt);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "codex exec failed";
+      return {
+        providerId: "codex-agent",
+        language: request.detectedLanguage ?? "unknown",
+        summary: `Codex exec failed: ${message}`,
+        lineExplanations: [],
+        tokens: [],
+        concepts: [],
+        warnings: [{ code: "PARSE_FAILED", message }],
+        createdAt: new Date().toISOString(),
+      };
+    }
   },
 };
+
+async function runCodexExec(commandPath: string, prompt: string): Promise<string> {
+  const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
+  return new Promise((resolve, reject) => {
+    const proc = spawn(
+      commandPath,
+      [
+        "exec",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "-s", "read-only",
+        "--output-last-message", tmpFile,
+        prompt,
+      ],
+      { env: { ...process.env }, timeout: 60_000 },
+    );
+
+    let stderr = "";
+    proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    proc.on("error", (err) => reject(err));
+    proc.on("close", (code) => {
+      readFile(tmpFile, "utf-8")
+        .then((text) => {
+          unlink(tmpFile).catch(() => {});
+          resolve(text.trim());
+        })
+        .catch(() => {
+          reject(new Error(`codex exec exited with code ${code ?? "unknown"}. stderr: ${stderr.slice(0, 300)}`));
+        });
+    });
+  });
+}
 
 function buildCodexPrompt(request: AgentAnalyzeRequest): string {
   return [
