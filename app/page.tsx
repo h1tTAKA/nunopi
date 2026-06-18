@@ -12,6 +12,7 @@ import {
   getAllHistory,
   deleteFromHistory,
   clearHistory,
+  updateHistory,
 } from "@/lib/historyDB";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
@@ -178,6 +179,16 @@ export default function Home() {
     clearHistory().then(() => setHistoryEntries([])).catch(() => {});
   }
 
+  function handleUpdateHistory(
+    id: string,
+    changes: Partial<Pick<import("@/lib/historyDB").HistoryEntry, "isPinned" | "title">>,
+  ) {
+    updateHistory(id, changes)
+      .then(() => getAllHistory())
+      .then(setHistoryEntries)
+      .catch(() => {});
+  }
+
   return (
     <>
       <section className="bg-zinc-50 dark:bg-black border-b border-zinc-200 dark:border-zinc-800 px-6 py-10 text-center">
@@ -217,6 +228,7 @@ export default function Home() {
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}
           onClearHistory={handleClearHistory}
+          onUpdateHistory={handleUpdateHistory}
         />
       }
     >
