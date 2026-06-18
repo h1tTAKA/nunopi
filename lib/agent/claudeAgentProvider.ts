@@ -5,6 +5,7 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -201,6 +202,9 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     "",
     "Link references: lineExplanations.tokenIds must reference tokens[].id, and lineExplanations.conceptIds must reference concepts[].conceptId.",
     "Populate tokens with the meaningful identifiers/keywords in the code, and concepts with the higher-level ideas (e.g. React state).",
+    "Give one lineExplanations entry for EVERY meaningful line of the code — do not skip or omit lines, even for long inputs.",
+    "Each token id and each concept conceptId must be UNIQUE across the whole response (no duplicates).",
+    "Only include a PARTIAL_PARSE warning if the input was actually truncated; otherwise return an empty warnings array.",
     "",
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
@@ -273,10 +277,12 @@ function normalizeClaudeOutput(
       parsed.summary ??
       `Claude runtime detected at ${availability.commandPath}, and a normalized Claude payload was returned.`,
     lineExplanations: parsed.lineExplanations ?? [],
-    tokens: Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
-    concepts: Array.isArray(parsed.concepts)
-      ? parsed.concepts.filter(isConceptOccurrence)
-      : [],
+    tokens: dedupeTokens(
+      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
+    ),
+    concepts: dedupeConcepts(
+      Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
+    ),
     warnings: parsed.warnings ?? [],
     rawText,
     createdAt: new Date().toISOString(),
