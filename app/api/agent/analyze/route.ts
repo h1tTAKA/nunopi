@@ -27,7 +27,6 @@ interface AgentAnalyzeErrorResponse {
     code:
       | "INVALID_REQUEST"
       | "PROVIDER_NOT_FOUND"
-      | "PROVIDER_TIMEOUT"
       | "PROVIDER_FAILED";
     message: string;
     providerId?: string;

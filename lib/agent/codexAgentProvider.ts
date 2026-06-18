@@ -37,7 +37,7 @@ export const codexAgentProvider: AgentProvider = {
     dataHandling: "remote-provider",
     capabilities: {
       streaming: false,
-      cancellation: false,
+      cancellation: true,
       fileSystemAccess: false,
       shellAccess: true,
       requiresApiKey: false,
@@ -80,6 +80,10 @@ export const codexAgentProvider: AgentProvider = {
       const rawText = await runCodexExec(availability.commandPath!, prompt, options?.signal);
       return normalizeCodexOutput(rawText, request, availability, prompt);
     } catch (err) {
+      // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
+      if (options?.signal?.aborted) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : "codex exec failed";
       return {
         providerId: "codex-agent",
