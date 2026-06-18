@@ -5,7 +5,7 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProvider } from "./types";
-import type { TranslateWarning } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
@@ -20,6 +20,8 @@ interface ClaudeNormalizedPayload {
   summary?: string;
   language?: string;
   lineExplanations?: AgentAnalyzeResponse["lineExplanations"];
+  tokens?: unknown[];
+  concepts?: unknown[];
   warnings?: TranslateWarning[];
 }
 
@@ -158,8 +160,27 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     '      "confidence": number',
     "    }",
     "  ],",
+    '  "tokens": [',
+    "    {",
+    '      "id": "string (referenced by lineExplanations.tokenIds)",',
+    '      "token": "string (raw code token, e.g. useState)",',
+    '      "category": "react_hook | state_variable | state_setter | prop | function | event_handler | jsx_element | operator | keyword | api_call | dependency_array | initial_value | css_selector | css_property | css_value | tailwind_utility | tailwind_layout | tailwind_spacing | tailwind_color | tailwind_responsive | tailwind_state",',
+    '      "label": "string (short Korean name)",',
+    '      "description": "string (beginner-friendly Korean explanation)",',
+    '      "example": "string (optional usage example)",',
+    '      "lines": number[],',
+    '      "conceptId": "string (optional, references concepts.conceptId)",',
+    '      "bookmarkable": boolean',
+    "    }",
+    "  ],",
+    '  "concepts": [',
+    '    { "conceptId": "string", "title": "string (Korean)", "lines": number[], "count": number }',
+    "  ],",
     '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
     "}",
+    "",
+    "Link references: lineExplanations.tokenIds must reference tokens[].id, and lineExplanations.conceptIds must reference concepts[].conceptId.",
+    "Populate tokens with the meaningful identifiers/keywords in the code, and concepts with the higher-level ideas (e.g. React state).",
     "",
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
@@ -232,8 +253,10 @@ function normalizeClaudeOutput(
       parsed.summary ??
       `Claude runtime detected at ${availability.commandPath}, and a normalized Claude payload was returned.`,
     lineExplanations: parsed.lineExplanations ?? [],
-    tokens: [],
-    concepts: [],
+    tokens: Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
+    concepts: Array.isArray(parsed.concepts)
+      ? parsed.concepts.filter(isConceptOccurrence)
+      : [],
     warnings: parsed.warnings ?? [],
     rawText,
     createdAt: new Date().toISOString(),
@@ -293,11 +316,54 @@ function isClaudeNormalizedPayload(value: unknown): value is ClaudeNormalizedPay
     return false;
   }
 
+  // tokens/concepts는 배열인지만 느슨히 검사하고, 요소 검증은 normalize의
+  // filter로 처리한다(토큰 하나가 어긋나도 요약·줄별 설명을 잃지 않게).
+  if (value.tokens !== undefined && !Array.isArray(value.tokens)) {
+    return false;
+  }
+
+  if (value.concepts !== undefined && !Array.isArray(value.concepts)) {
+    return false;
+  }
+
   if (value.warnings !== undefined && !isWarningList(value.warnings)) {
     return false;
   }
 
   return true;
+}
+
+function isCodeToken(value: unknown): value is CodeToken {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.token === "string" &&
+    typeof value.category === "string" &&
+    typeof value.label === "string" &&
+    typeof value.description === "string" &&
+    (value.example === undefined || typeof value.example === "string") &&
+    Array.isArray(value.lines) &&
+    value.lines.every((line) => typeof line === "number") &&
+    (value.conceptId === undefined || typeof value.conceptId === "string") &&
+    typeof value.bookmarkable === "boolean"
+  );
+}
+
+function isConceptOccurrence(value: unknown): value is ConceptOccurrence {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.conceptId === "string" &&
+    typeof value.title === "string" &&
+    Array.isArray(value.lines) &&
+    value.lines.every((line) => typeof line === "number") &&
+    typeof value.count === "number"
+  );
 }
 
 function isLineExplanationList(
