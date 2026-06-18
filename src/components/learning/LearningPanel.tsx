@@ -54,6 +54,16 @@ export default function LearningPanel({
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopyResult() {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(formatResultAsMarkdown(result));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore — clipboard may be unavailable */ }
+  }
 
   useEffect(() => {
     try {
@@ -142,13 +152,23 @@ export default function LearningPanel({
       {result ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                {result.language}
-              </span>
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                요약
-              </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+                  {result.language}
+                </span>
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                  요약
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { void handleCopyResult(); }}
+                className="shrink-0 rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                aria-label="분석 결과 클립보드에 복사"
+              >
+                {copied ? "복사됨 ✓" : "복사"}
+              </button>
             </div>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
               {result.summary}
