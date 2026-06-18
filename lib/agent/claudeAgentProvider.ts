@@ -91,6 +91,7 @@ export const claudeAgentProvider: AgentProvider = {
 async function runClaudeCli(commandPath: string, prompt: string): Promise<string> {
   const TIMEOUT_MS = 60_000;
   const MAX_STDERR = 2_048;
+  const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
 
   return new Promise((resolve, reject) => {
     const proc = spawn(
@@ -102,11 +103,15 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let stdoutCapped = false;
 
     // spawn() ignores timeout option — implement manually
     const timer = setTimeout(() => { timedOut = true; proc.kill(); }, TIMEOUT_MS);
 
-    proc.stdout?.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stdout?.on("data", (chunk: Buffer) => {
+      if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); return; }
+      stdout += chunk.toString();
+    });
     proc.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_STDERR) {
         stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
@@ -116,7 +121,10 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
     proc.on("error", (err) => { clearTimeout(timer); reject(err); });
     proc.on("close", (code) => {
       clearTimeout(timer);
-      if (timedOut) {
+      if (stdoutCapped) {
+        // exceeded MAX_STDOUT — return what we have for best-effort parse
+        resolve(stdout.trim());
+      } else if (timedOut) {
         reject(new Error(`claude -p timed out after ${TIMEOUT_MS / 1000}s`));
       } else if (code !== 0 && !stdout.trim()) {
         reject(new Error(`claude -p failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`));
