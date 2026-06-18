@@ -1,4 +1,4 @@
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { TranslateWarning } from "@/lib/translator/types";
 
@@ -17,6 +17,13 @@ interface OpenAICompatibleRequestBody {
   model: string;
   messages: OpenAICompatibleMessage[];
   temperature: number;
+  stream: boolean;
+  stream_options: { include_usage: boolean };
+}
+
+interface OpenAIStreamChunk {
+  choices?: Array<{ delta?: { content?: string } }>;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
 interface OpenAICompatibleNormalizedPayload {
@@ -63,7 +70,13 @@ export const openAICompatibleProvider: AgentProvider = {
       return normalizeOpenAICompatibleResponse(mockResponse, request, config, requestBody);
     }
 
-    return fetchOpenAICompatibleResponse(request, config, requestBody, options?.signal);
+    return fetchOpenAICompatibleResponse(
+      request,
+      config,
+      requestBody,
+      options?.signal,
+      options?.onProgress,
+    );
   },
 };
 
@@ -72,6 +85,7 @@ function normalizeOpenAICompatibleResponse(
   request: AgentAnalyzeRequest,
   config: OpenAICompatibleConfig,
   requestBody: OpenAICompatibleRequestBody,
+  usage?: AgentUsage,
 ): AgentAnalyzeResponse {
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
   const parsed = parseOpenAICompatiblePayload(content);
@@ -114,6 +128,7 @@ function normalizeOpenAICompatibleResponse(
     tokens: [],
     concepts: [],
     warnings: parsed.warnings ?? [],
+    usage,
     rawText: rawResponse,
     createdAt: new Date().toISOString(),
   };
@@ -143,12 +158,12 @@ async function fetchOpenAICompatibleResponse(
   config: OpenAICompatibleConfig,
   requestBody: OpenAICompatibleRequestBody,
   signal?: AbortSignal,
+  onProgress?: (line: string) => void,
 ): Promise<AgentAnalyzeResponse> {
   const endpoint = `${config.baseUrl}/chat/completions`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (config.apiKey) headers["Authorization"] = `Bearer ${config.apiKey}`;
 
-  let rawText: string;
   try {
     const res = await fetch(endpoint, {
       method: "POST",
@@ -156,8 +171,9 @@ async function fetchOpenAICompatibleResponse(
       body: JSON.stringify(requestBody),
       signal,
     });
-    rawText = await res.text();
+
     if (!res.ok) {
+      const errText = await res.text().catch(() => "");
       return {
         providerId: "openai-compatible",
         language: request.detectedLanguage ?? "unknown",
@@ -165,12 +181,68 @@ async function fetchOpenAICompatibleResponse(
         lineExplanations: [],
         tokens: [],
         concepts: [],
-        warnings: [{ code: "PARSE_FAILED", message: `HTTP ${res.status} ${res.statusText}: ${rawText.slice(0, 200)}` }],
-        rawText,
+        warnings: [{ code: "PARSE_FAILED", message: `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}` }],
+        rawText: errText,
         createdAt: new Date().toISOString(),
       };
     }
+
+    // SSE 스트림 파싱 — data: {json} 라인마다 delta.content를 누적하고 흘린다.
+    let content = "";
+    let rawAll = ""; // 전체 본문 — stream:true를 무시한 엔드포인트 폴백용
+    let usage: AgentUsage | undefined;
+    if (res.body) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        rawAll += text;
+        buf += text;
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+          const data = trimmed.slice(5).trim();
+          if (data === "[DONE]") continue;
+          let chunk: OpenAIStreamChunk;
+          try {
+            chunk = JSON.parse(data) as OpenAIStreamChunk;
+          } catch {
+            continue;
+          }
+          const delta = chunk.choices?.[0]?.delta?.content;
+          if (typeof delta === "string" && delta) {
+            content += delta;
+            onProgress?.(content.slice(-200));
+          }
+          if (chunk.usage) {
+            usage = {
+              inputTokens: chunk.usage.prompt_tokens,
+              outputTokens: chunk.usage.completion_tokens,
+            };
+          }
+        }
+      }
+    } else {
+      rawAll = await res.text();
+    }
+
+    // SSE delta가 하나도 없으면(엔드포인트가 stream:true 무시 → 일반 JSON 본문)
+    // 전체 본문을 넘긴다. normalize가 chat-completion 형태에서 content를 추출한다.
+    return normalizeOpenAICompatibleResponse(
+      content || rawAll,
+      request,
+      config,
+      requestBody,
+      usage,
+    );
   } catch (err) {
+    // 사용자 취소는 route로 전파(499 처리).
+    if (signal?.aborted) throw err;
     return {
       providerId: "openai-compatible",
       language: request.detectedLanguage ?? "unknown",
@@ -182,8 +254,6 @@ async function fetchOpenAICompatibleResponse(
       createdAt: new Date().toISOString(),
     };
   }
-
-  return normalizeOpenAICompatibleResponse(rawText, request, config, requestBody);
 }
 
 function buildOpenAICompatibleRequestBody(
@@ -194,6 +264,9 @@ function buildOpenAICompatibleRequestBody(
     model: config.model,
     messages: buildOpenAICompatibleMessages(request),
     temperature: 0.2,
+    // 토큰을 실시간으로 받고(SSE), 마지막 청크에 usage를 포함시킨다.
+    stream: true,
+    stream_options: { include_usage: true },
   };
 }
 

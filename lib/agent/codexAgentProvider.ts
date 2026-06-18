@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
@@ -78,13 +78,13 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runCodexExec(
+      const { text: rawText, usage } = await runCodexExec(
         availability.commandPath!,
         prompt,
         options?.signal,
         options?.onProgress,
       );
-      return normalizeCodexOutput(rawText, request, availability, prompt);
+      return normalizeCodexOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
@@ -105,36 +105,35 @@ export const codexAgentProvider: AgentProvider = {
   },
 };
 
-// codex --json 이벤트(JSONL) 한 줄을 사람이 읽을 진행 라벨로 변환한다.
-// 파싱 실패 시 원문을 그대로 보여주고, 의미 없는 줄은 null로 건너뛴다.
-function codexProgressLabel(line: string): string | null {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
-  try {
-    const event = JSON.parse(trimmed) as {
-      type?: string;
-      item?: { type?: string };
-      usage?: { output_tokens?: number };
-    };
-    switch (event.type) {
-      case "thread.started":
-        return "세션 시작…";
-      case "turn.started":
-        return "분석 시작…";
-      case "item.started":
-        return "처리 중…";
-      case "item.completed":
-        return event.item?.type === "agent_message" ? "응답 정리 중…" : "단계 완료…";
-      case "turn.completed":
-        return event.usage?.output_tokens != null
-          ? `완료 (출력 ${event.usage.output_tokens} 토큰)`
-          : "완료…";
-      default:
-        return event.type ?? null;
-    }
-  } catch {
-    return trimmed;
+interface CodexEvent {
+  type?: string;
+  item?: { type?: string };
+  usage?: { input_tokens?: number; output_tokens?: number };
+}
+
+// 파싱된 codex --json 이벤트를 사람이 읽을 진행 라벨로 변환한다.
+function codexEventLabel(event: CodexEvent): string | null {
+  switch (event.type) {
+    case "thread.started":
+      return "세션 시작…";
+    case "turn.started":
+      return "분석 시작…";
+    case "item.started":
+      return "처리 중…";
+    case "item.completed":
+      return event.item?.type === "agent_message" ? "응답 정리 중…" : "단계 완료…";
+    case "turn.completed":
+      return event.usage?.output_tokens != null
+        ? `완료 (출력 ${event.usage.output_tokens} 토큰)`
+        : "완료…";
+    default:
+      return event.type ?? null;
   }
+}
+
+interface CodexExecResult {
+  text: string;
+  usage?: AgentUsage;
 }
 
 async function runCodexExec(
@@ -142,7 +141,7 @@ async function runCodexExec(
   prompt: string,
   signal?: AbortSignal,
   onProgress?: (line: string) => void,
-): Promise<string> {
+): Promise<CodexExecResult> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
 
   return new Promise((resolve, reject) => {
@@ -176,6 +175,7 @@ async function runCodexExec(
 
     let stderr = "";
     let aborted = false;
+    let usage: AgentUsage | undefined;
     const MAX_STDERR = 2_048;
 
     const onAbort = () => {
@@ -198,9 +198,24 @@ async function runCodexExec(
       stdoutBuf += chunk.toString();
       const lines = stdoutBuf.split("\n");
       stdoutBuf = lines.pop() ?? "";
-      if (onProgress) {
-        for (const line of lines) {
-          const label = codexProgressLabel(line);
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let event: CodexEvent;
+        try {
+          event = JSON.parse(trimmed) as CodexEvent;
+        } catch {
+          onProgress?.(trimmed);
+          continue;
+        }
+        if (event.type === "turn.completed" && event.usage) {
+          usage = {
+            inputTokens: event.usage.input_tokens,
+            outputTokens: event.usage.output_tokens,
+          };
+        }
+        if (onProgress) {
+          const label = codexEventLabel(event);
           if (label) onProgress(label);
         }
       }
@@ -217,7 +232,7 @@ async function runCodexExec(
       readFile(tmpFile, "utf-8")
         .then((text) => {
           unlink(tmpFile).catch(() => {});
-          resolve(text.trim());
+          resolve({ text: text.trim(), usage });
         })
         .catch((readErr: NodeJS.ErrnoException) => {
           unlink(tmpFile).catch(() => {});
@@ -317,6 +332,7 @@ function normalizeCodexOutput(
   request: AgentAnalyzeRequest,
   availability: CodexAvailabilityResult,
   prompt: string,
+  usage?: AgentUsage,
 ): AgentAnalyzeResponse {
   const parsed = parseCodexPayload(rawText);
 
@@ -354,6 +370,7 @@ function normalizeCodexOutput(
       Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
     ),
     warnings: parsed.warnings ?? [],
+    usage,
     rawText,
     createdAt: new Date().toISOString(),
   };

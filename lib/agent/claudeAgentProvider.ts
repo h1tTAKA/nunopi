@@ -3,7 +3,7 @@ import { access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { delimiter, join } from "node:path";
 
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
@@ -76,13 +76,13 @@ export const claudeAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runClaudeCli(
+      const { text: rawText, usage } = await runClaudeCli(
         availability.commandPath!,
         prompt,
         options?.signal,
         options?.onProgress,
       );
-      return normalizeClaudeOutput(rawText, request, availability, prompt);
+      return normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
@@ -103,14 +103,27 @@ export const claudeAgentProvider: AgentProvider = {
   },
 };
 
+interface ClaudeExecResult {
+  text: string;
+  usage?: AgentUsage;
+}
+
+interface ClaudeStreamEvent {
+  type?: string;
+  event?: { type?: string; delta?: { type?: string; text?: string } };
+  result?: string;
+  total_cost_usd?: number;
+  usage?: { input_tokens?: number; output_tokens?: number };
+}
+
 async function runClaudeCli(
   commandPath: string,
   prompt: string,
   signal?: AbortSignal,
   onProgress?: (line: string) => void,
-): Promise<string> {
+): Promise<ClaudeExecResult> {
   const MAX_STDERR = 2_048;
-  const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
+  const MAX_STDOUT = 8_388_608; // 8MB — stream-json + 세션 훅 노이즈까지 여유, 폭주 차단
 
   return new Promise((resolve, reject) => {
     // 시간 제한 없음 — 유저가 멈추기를 누르면 signal로 프로세스를 죽인다.
@@ -121,16 +134,19 @@ async function runClaudeCli(
 
     const proc = spawn(
       commandPath,
-      ["-p", "--output-format", "text", prompt],
-      // prompt는 positional 인자. stdin을 열어두면 CLI가 stdin EOF를
-      // 기다리며 멈출 수 있어 "ignore"로 자식 stdin을 닫는다.
+      // stream-json + partial-messages로 토큰 델타(content_block_delta)와
+      // 최종 result(텍스트+usage)를 JSONL로 받는다. prompt는 positional, stdin은 닫음.
+      ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", prompt],
       { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
     );
 
-    let stdout = "";
     let stderr = "";
     let aborted = false;
-    let stdoutCapped = false;
+    let consumed = 0;
+    let stdoutBuf = "";
+    let streamed = ""; // content_block_delta 누적(흐르는 진행 표시 + 폴백 텍스트)
+    let finalText = "";
+    let usage: AgentUsage | undefined;
 
     const onAbort = () => {
       aborted = true;
@@ -139,21 +155,40 @@ async function runClaudeCli(
     signal?.addEventListener("abort", onAbort, { once: true });
     const cleanup = () => signal?.removeEventListener("abort", onAbort);
 
-    let progressBuf = "";
     proc.stdout?.on("data", (chunk: Buffer) => {
-      // 진행 표시용 — 완성된 줄만 onProgress로 흘린다(최종 결과는 누적 stdout 파싱).
-      if (onProgress) {
-        progressBuf += chunk.toString();
-        const lines = progressBuf.split("\n");
-        progressBuf = lines.pop() ?? "";
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed) onProgress(trimmed);
+      consumed += chunk.length;
+      if (consumed >= MAX_STDOUT) { proc.kill(); return; }
+      stdoutBuf += chunk.toString();
+      const lines = stdoutBuf.split("\n");
+      stdoutBuf = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        let event: ClaudeStreamEvent;
+        try {
+          event = JSON.parse(trimmed) as ClaudeStreamEvent;
+        } catch {
+          continue;
+        }
+        if (
+          event.type === "stream_event" &&
+          event.event?.type === "content_block_delta" &&
+          event.event.delta?.type === "text_delta" &&
+          typeof event.event.delta.text === "string"
+        ) {
+          streamed += event.event.delta.text;
+          onProgress?.(streamed.slice(-200));
+        } else if (event.type === "result") {
+          if (typeof event.result === "string") finalText = event.result;
+          if (event.usage) {
+            usage = {
+              inputTokens: event.usage.input_tokens,
+              outputTokens: event.usage.output_tokens,
+              estimatedCostUsd: event.total_cost_usd,
+            };
+          }
         }
       }
-      if (stdout.length >= MAX_STDOUT) return;
-      stdout += chunk.toString().slice(0, MAX_STDOUT - stdout.length);
-      if (stdout.length >= MAX_STDOUT) { stdoutCapped = true; proc.kill(); }
     });
     proc.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_STDERR) {
@@ -166,14 +201,14 @@ async function runClaudeCli(
       cleanup();
       if (aborted) {
         reject(new Error("분석이 취소되었습니다."));
-      } else if (stdoutCapped) {
-        // exceeded MAX_STDOUT — return what we have for best-effort parse
-        resolve(stdout.trim());
-      } else if (code !== 0 && !stdout.trim()) {
-        reject(new Error(`claude -p failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`));
-      } else {
-        resolve(stdout.trim());
+        return;
       }
+      const text = (finalText || streamed).trim();
+      if (!text && code !== 0) {
+        reject(new Error(`claude -p failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`));
+        return;
+      }
+      resolve({ text, usage });
     });
   });
 }
@@ -264,6 +299,7 @@ function normalizeClaudeOutput(
   request: AgentAnalyzeRequest,
   availability: ClaudeAvailabilityResult,
   prompt: string,
+  usage?: AgentUsage,
 ): AgentAnalyzeResponse {
   const parsed = parseClaudePayload(rawText);
 
@@ -301,6 +337,7 @@ function normalizeClaudeOutput(
       Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
     ),
     warnings: parsed.warnings ?? [],
+    usage,
     rawText,
     createdAt: new Date().toISOString(),
   };
