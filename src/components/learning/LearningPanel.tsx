@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import type { HistoryEntry } from "@/lib/historyDB";
+import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
@@ -41,6 +43,10 @@ interface LearningPanelProps {
   errorMessage: string | null;
   result: AgentAnalyzeResponse | null;
   code: string;
+  historyEntries?: HistoryEntry[];
+  onRestoreHistory?: (entry: HistoryEntry) => void;
+  onDeleteHistory?: (id: string) => void;
+  onClearHistory?: () => void;
 }
 
 export default function LearningPanel({
@@ -49,8 +55,13 @@ export default function LearningPanel({
   errorMessage,
   result,
   code,
+  historyEntries = [],
+  onRestoreHistory,
+  onDeleteHistory,
+  onClearHistory,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+  const [activeTab, setActiveTab] = useState<"analysis" | "history">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
@@ -86,6 +97,8 @@ export default function LearningPanel({
     setActiveConceptId(null);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (result) setActiveTab("analysis");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopied(false);
   }, [result]);
@@ -124,12 +137,56 @@ export default function LearningPanel({
     }
   }
 
+  const tabBar = (
+    <div className="flex gap-1 rounded-xl border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800 dark:bg-zinc-900">
+      <button
+        type="button"
+        onClick={() => setActiveTab("analysis")}
+        className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+          activeTab === "analysis"
+            ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        }`}
+      >
+        학습 패널
+      </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab("history")}
+        className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+          activeTab === "history"
+            ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        }`}
+      >
+        히스토리{historyEntries.length > 0 ? ` ${historyEntries.length}` : ""}
+      </button>
+    </div>
+  );
+
+  if (activeTab === "history") {
+    return (
+      <div className="h-full p-6 space-y-4 overflow-y-auto">
+        {tabBar}
+        {onRestoreHistory && onDeleteHistory && onClearHistory ? (
+          <AnalysisHistory
+            entries={historyEntries}
+            onRestore={onRestoreHistory}
+            onDelete={onDeleteHistory}
+            onClear={onClearHistory}
+            alwaysOpen
+          />
+        ) : (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">히스토리가 없다.</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="h-full p-6 space-y-4">
+      {tabBar}
       <div className="space-y-1">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          학습 패널
-        </h3>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
           현재 provider: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
         </p>

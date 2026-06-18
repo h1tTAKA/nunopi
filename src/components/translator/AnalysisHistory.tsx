@@ -8,6 +8,7 @@ interface AnalysisHistoryProps {
   onRestore: (entry: HistoryEntry) => void;
   onDelete: (id: string) => void;
   onClear: () => void;
+  alwaysOpen?: boolean;
 }
 
 export default function AnalysisHistory({
@@ -15,11 +16,13 @@ export default function AnalysisHistory({
   onRestore,
   onDelete,
   onClear,
+  alwaysOpen = false,
 }: AnalysisHistoryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const effectiveOpen = alwaysOpen || isOpen;
 
-  if (entries.length === 0) return null;
+  if (!alwaysOpen && entries.length === 0) return null;
 
   const codePreview = (code: string) => {
     const firstLine = code.trim().split(/\r?\n/)[0] ?? "";
@@ -46,43 +49,25 @@ export default function AnalysisHistory({
     return d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
   };
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => { setIsOpen((v) => !v); setQuery(""); }}
-          className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-        >
-          {isOpen ? "▲" : "▼"} 히스토리 {isOpen && query.trim() ? `${filteredEntries.length}/${entries.length}` : entries.length}개
-        </button>
-        {isOpen && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-            aria-label="히스토리 전체 삭제"
-          >
-            모두 삭제
-          </button>
-        )}
-      </div>
-
-      {isOpen && (
-        <div className="space-y-1.5">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="코드 또는 provider 검색…"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-600"
-          />
-          {filteredEntries.length === 0 ? (
-            <p className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
-              검색 결과가 없다.
-            </p>
-          ) : (
-          <div className="max-h-48 overflow-y-auto space-y-1.5">
+  const listContent = (
+    <div className="space-y-1.5">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="코드 또는 provider 검색…"
+        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-600"
+      />
+      {entries.length === 0 ? (
+        <p className="py-4 text-center text-sm text-zinc-400 dark:text-zinc-500">
+          분석 히스토리가 없다.
+        </p>
+      ) : filteredEntries.length === 0 ? (
+        <p className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
+          검색 결과가 없다.
+        </p>
+      ) : (
+        <div className={`${alwaysOpen ? "" : "max-h-48"} overflow-y-auto space-y-1.5`}>
           {filteredEntries.map((entry) => (
             <div
               key={entry.id}
@@ -116,10 +101,57 @@ export default function AnalysisHistory({
               </button>
             </div>
           ))}
-          </div>
-          )}
         </div>
       )}
+    </div>
+  );
+
+  if (alwaysOpen) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+            {entries.length > 0 ? `총 ${entries.length}개` : ""}
+          </span>
+          {entries.length > 0 && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+              aria-label="히스토리 전체 삭제"
+            >
+              모두 삭제
+            </button>
+          )}
+        </div>
+        {listContent}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => { setIsOpen((v) => !v); setQuery(""); }}
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
+          {effectiveOpen ? "▲" : "▼"} 히스토리 {effectiveOpen && query.trim() ? `${filteredEntries.length}/${entries.length}` : entries.length}개
+        </button>
+        {effectiveOpen && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+            aria-label="히스토리 전체 삭제"
+          >
+            모두 삭제
+          </button>
+        )}
+      </div>
+
+      {effectiveOpen && listContent}
     </div>
   );
 }
