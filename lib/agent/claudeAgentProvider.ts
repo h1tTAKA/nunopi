@@ -110,6 +110,8 @@ interface ClaudeExecResult {
 
 interface ClaudeStreamEvent {
   type?: string;
+  subtype?: string;
+  apiKeySource?: string;
   event?: { type?: string; delta?: { type?: string; text?: string } };
   result?: string;
   total_cost_usd?: number;
@@ -147,6 +149,7 @@ async function runClaudeCli(
     let streamed = ""; // content_block_delta 누적(흐르는 진행 표시 + 폴백 텍스트)
     let finalText = "";
     let usage: AgentUsage | undefined;
+    let apiKeySource: string | undefined; // init 이벤트의 인증 출처(none=구독)
 
     const onAbort = () => {
       aborted = true;
@@ -170,7 +173,9 @@ async function runClaudeCli(
         } catch {
           continue;
         }
-        if (
+        if (event.type === "system" && event.subtype === "init") {
+          apiKeySource = event.apiKeySource;
+        } else if (
           event.type === "stream_event" &&
           event.event?.type === "content_block_delta" &&
           event.event.delta?.type === "text_delta" &&
@@ -181,10 +186,13 @@ async function runClaudeCli(
         } else if (event.type === "result") {
           if (typeof event.result === "string") finalText = event.result;
           if (event.usage) {
+            // 구독(apiKeySource "none" 또는 불명)이면 비용은 실제 청구가 아니라
+            // 환산값이므로 숨긴다. API 키 출처일 때만 비용을 표시한다.
+            const billed = apiKeySource != null && apiKeySource !== "none";
             usage = {
               inputTokens: event.usage.input_tokens,
               outputTokens: event.usage.output_tokens,
-              estimatedCostUsd: event.total_cost_usd,
+              estimatedCostUsd: billed ? event.total_cost_usd : undefined,
             };
           }
         }
