@@ -110,6 +110,7 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
 
     let stderr = "";
     let timedOut = false;
+    const MAX_STDERR = 2_048;
 
     // spawn() ignores timeout option — implement manually
     const timer = setTimeout(() => {
@@ -117,7 +118,9 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
       proc.kill();
     }, TIMEOUT_MS);
 
-    proc.stderr?.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stderr?.on("data", (chunk: Buffer) => {
+      if (stderr.length < MAX_STDERR) stderr += chunk.toString();
+    });
     proc.on("error", (err) => { clearTimeout(timer); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
       clearTimeout(timer);
