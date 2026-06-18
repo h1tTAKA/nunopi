@@ -37,9 +37,15 @@ export interface AgentProviderMetadata {
   capabilities: AgentProviderCapability;
 }
 
+export interface AgentAnalyzeCallOptions {
+  // 분석 취소용. fire되면 provider는 진행 중인 작업(CLI 프로세스/HTTP 요청)을 중단한다.
+  signal?: AbortSignal;
+}
+
 export interface AgentProvider {
   metadata: AgentProviderMetadata;
   analyze(
     request: import("./schema").AgentAnalyzeRequest,
+    options?: AgentAnalyzeCallOptions,
   ): Promise<import("./schema").AgentAnalyzeResponse>;
 }
