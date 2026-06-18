@@ -89,7 +89,12 @@ export async function POST(
     async start(controller) {
       const encoder = new TextEncoder();
       const send = (event: unknown) => {
-        controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        // 클라이언트가 중간에 끊으면(취소) 스트림이 cancel돼 enqueue가 throw한다 → 무시.
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+        } catch {
+          /* stream already closed/cancelled */
+        }
       };
       try {
         // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
