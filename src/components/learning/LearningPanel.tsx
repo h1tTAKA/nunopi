@@ -26,16 +26,17 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
-  const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = localStorage.getItem(BOOKMARKS_KEY);
-      return raw ? (JSON.parse(raw) as string[]) : [];
-    } catch { return []; }
-  });
+  const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(BOOKMARKS_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTokenIds([]);
