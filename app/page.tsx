@@ -48,21 +48,18 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
-  const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
+  const [providerSettings, setProviderSettings] = useState<ProviderSettings>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as ProviderSettings) : {};
+    } catch { return {}; }
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      if (raw) setProviderSettings(JSON.parse(raw) as ProviderSettings);
-    } catch {
-      // ignore parse errors
-    }
   }, []);
 
   function handleSettingsSave(next: ProviderSettings) {
