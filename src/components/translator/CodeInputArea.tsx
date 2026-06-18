@@ -1,6 +1,24 @@
 import type { AgentProviderKind, AgentProviderMetadata } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
+import type { SupportedLanguage } from "@/lib/translator/types";
 import CodeEditor from "./CodeEditor";
+
+export type LanguageChoice =
+  | "auto"
+  | "react"
+  | "typescript"
+  | "javascript"
+  | "css"
+  | "tailwindcss";
+
+const LANGUAGE_OPTIONS: { value: LanguageChoice; label: string }[] = [
+  { value: "auto", label: "자동 감지" },
+  { value: "react", label: "React (JSX)" },
+  { value: "typescript", label: "TypeScript" },
+  { value: "javascript", label: "JavaScript" },
+  { value: "css", label: "CSS" },
+  { value: "tailwindcss", label: "Tailwind CSS" },
+];
 
 interface CodeInputAreaProps {
   code: string;
@@ -8,6 +26,9 @@ interface CodeInputAreaProps {
   isLoading: boolean;
   errorMessage: string | null;
   hasResult: boolean;
+  languageChoice: LanguageChoice;
+  editorLanguage: SupportedLanguage;
+  onLanguageChoiceChange: (choice: LanguageChoice) => void;
   onCodeChange: (nextCode: string) => void;
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
@@ -20,6 +41,9 @@ export default function CodeInputArea({
   isLoading,
   errorMessage,
   hasResult,
+  languageChoice,
+  editorLanguage,
+  onLanguageChoiceChange,
   onCodeChange,
   onProviderChange,
   onAnalyze,
@@ -45,14 +69,36 @@ export default function CodeInputArea({
             <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               코드 입력
             </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {code.trim().split(/\r?\n/).filter(Boolean).length} lines
-            </span>
+            <div className="flex items-center gap-3">
+              <select
+                value={languageChoice}
+                disabled={isLoading}
+                onChange={(event) =>
+                  onLanguageChoiceChange(event.target.value as LanguageChoice)
+                }
+                aria-label="코드 언어 선택"
+                title={
+                  languageChoice === "auto"
+                    ? `자동 감지: ${editorLanguage}`
+                    : "코드 언어 선택"
+                }
+                className="rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-500"
+              >
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {code.trim().split(/\r?\n/).filter(Boolean).length} lines
+              </span>
+            </div>
           </div>
           <CodeEditor
             value={code}
             onChange={onCodeChange}
-            language="typescript"
+            language={editorLanguage}
             readOnly={isLoading}
           />
         </div>
