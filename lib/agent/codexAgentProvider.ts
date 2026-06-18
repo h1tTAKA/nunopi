@@ -119,7 +119,9 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
     }, TIMEOUT_MS);
 
     proc.stderr?.on("data", (chunk: Buffer) => {
-      if (stderr.length < MAX_STDERR) stderr += chunk.toString();
+      if (stderr.length < MAX_STDERR) {
+        stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
+      }
     });
     proc.on("error", (err) => { clearTimeout(timer); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
