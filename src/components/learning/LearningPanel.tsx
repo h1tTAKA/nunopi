@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
+import {
+  type BookmarkedTokenDetail,
+  saveTokenDetail,
+  removeTokenDetail,
+  loadTokenDetails,
+  clearTokenDetails,
+} from "@/lib/bookmarkDetails";
+import type { CodeToken } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
+import TokenDictionary from "./TokenDictionary";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
@@ -73,10 +82,11 @@ export default function LearningPanel({
   onToggleCurrentPin,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
-  const [activeTab, setActiveTab] = useState<"analysis" | "history">("analysis");
+  const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
+  const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -102,6 +112,8 @@ export default function LearningPanel({
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
     } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedTokenDetails(loadTokenDetails());
   }, []);
 
   useEffect(() => {
@@ -121,15 +133,22 @@ export default function LearningPanel({
     setHeaderEditing(false);
   }, [result]);
 
-  function handleBookmarkToggle(tokenText: string) {
+  function handleBookmarkToggle(token: CodeToken) {
+    const tokenText = token.token;
     setBookmarkedTokenTexts((prev) => {
-      const next = prev.includes(tokenText)
-        ? prev.filter((t) => t !== tokenText)
-        : [...prev, tokenText];
+      const isAdding = !prev.includes(tokenText);
+      const next = isAdding
+        ? [...prev, tokenText]
+        : prev.filter((t) => t !== tokenText);
       try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      // localStorage ops (not setState) — safe inside updater
+      if (isAdding) saveTokenDetail(token);
+      else removeTokenDetail(tokenText);
       if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
+    // setState outside updater to avoid nested setState
+    setBookmarkedTokenDetails(loadTokenDetails());
   }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
@@ -228,8 +247,41 @@ export default function LearningPanel({
       >
         히스토리{historyEntries.length > 0 ? ` ${historyEntries.length}` : ""}
       </button>
+      <button
+        type="button"
+        onClick={() => setActiveTab("dictionary")}
+        className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+          activeTab === "dictionary"
+            ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+            : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+        }`}
+      >
+        토큰 사전{Object.keys(bookmarkedTokenDetails).length > 0 ? ` ${Object.keys(bookmarkedTokenDetails).length}` : ""}
+      </button>
     </div>
   );
+
+  if (activeTab === "dictionary") {
+    return (
+      <div className="h-full p-6 space-y-4 overflow-y-auto">
+        {entryHeader}
+        {tabBar}
+        <TokenDictionary
+          details={bookmarkedTokenDetails}
+          onUnbookmark={(tokenText) => {
+            setBookmarkedTokenTexts((prev) => {
+              const next = prev.filter((t) => t !== tokenText);
+              try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
+              if (next.length === 0) setFilterBookmarked(false);
+              return next;
+            });
+            removeTokenDetail(tokenText);
+            setBookmarkedTokenDetails(loadTokenDetails());
+          }}
+        />
+      </div>
+    );
+  }
 
   if (activeTab === "history") {
     return (
@@ -389,8 +441,10 @@ export default function LearningPanel({
                           type="button"
                           onClick={() => {
                             setBookmarkedTokenTexts([]);
+                            setBookmarkedTokenDetails({});
                             setFilterBookmarked(false);
                             try { localStorage.removeItem(BOOKMARKS_KEY); } catch { /* ignore */ }
+                            clearTokenDetails();
                           }}
                           className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                         >
