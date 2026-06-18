@@ -1,5 +1,5 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProvider } from "./types";
+import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { TranslateWarning } from "@/lib/translator/types";
 
 interface OpenAICompatibleConfig {
@@ -51,7 +51,10 @@ export const openAICompatibleProvider: AgentProvider = {
       requiresLocalProcess: false,
     },
   },
-  async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+  async analyze(
+    request: AgentAnalyzeRequest,
+    options?: AgentAnalyzeCallOptions,
+  ): Promise<AgentAnalyzeResponse> {
     const config = resolveOpenAICompatibleConfig(request);
     const requestBody = buildOpenAICompatibleRequestBody(request, config);
     const mockResponse = process.env.NUNOPI_OPENAI_COMPAT_MOCK_RESPONSE?.trim();
@@ -60,7 +63,7 @@ export const openAICompatibleProvider: AgentProvider = {
       return normalizeOpenAICompatibleResponse(mockResponse, request, config, requestBody);
     }
 
-    return fetchOpenAICompatibleResponse(request, config, requestBody);
+    return fetchOpenAICompatibleResponse(request, config, requestBody, options?.signal);
   },
 };
 
@@ -139,6 +142,7 @@ async function fetchOpenAICompatibleResponse(
   request: AgentAnalyzeRequest,
   config: OpenAICompatibleConfig,
   requestBody: OpenAICompatibleRequestBody,
+  signal?: AbortSignal,
 ): Promise<AgentAnalyzeResponse> {
   const endpoint = `${config.baseUrl}/chat/completions`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -150,6 +154,7 @@ async function fetchOpenAICompatibleResponse(
       method: "POST",
       headers,
       body: JSON.stringify(requestBody),
+      signal,
     });
     rawText = await res.text();
     if (!res.ok) {

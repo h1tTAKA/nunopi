@@ -6,7 +6,7 @@ import { delimiter, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProvider } from "./types";
+import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
@@ -37,14 +37,17 @@ export const codexAgentProvider: AgentProvider = {
     dataHandling: "remote-provider",
     capabilities: {
       streaming: false,
-      cancellation: false,
+      cancellation: true,
       fileSystemAccess: false,
       shellAccess: true,
       requiresApiKey: false,
       requiresLocalProcess: true,
     },
   },
-  async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+  async analyze(
+    request: AgentAnalyzeRequest,
+    options?: AgentAnalyzeCallOptions,
+  ): Promise<AgentAnalyzeResponse> {
     const availability = await detectCodexAvailability(request);
 
     if (!availability.available) {
@@ -74,9 +77,13 @@ export const codexAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runCodexExec(availability.commandPath!, prompt);
+      const rawText = await runCodexExec(availability.commandPath!, prompt, options?.signal);
       return normalizeCodexOutput(rawText, request, availability, prompt);
     } catch (err) {
+      // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
+      if (options?.signal?.aborted) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : "codex exec failed";
       return {
         providerId: "codex-agent",
@@ -92,13 +99,21 @@ export const codexAgentProvider: AgentProvider = {
   },
 };
 
-async function runCodexExec(commandPath: string, prompt: string): Promise<string> {
+async function runCodexExec(
+  commandPath: string,
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const tmpFile = join(tmpdir(), `nunopi-codex-${randomUUID()}.txt`);
-  // route의 CLI 타임아웃(95s)보다 낮게 둬서, route가 먼저 끊지 않고
-  // 이 프로세스 정리가 먼저 동작하게 한다(좀비 프로세스 방지).
-  const TIMEOUT_MS = 90_000;
 
   return new Promise((resolve, reject) => {
+    // 시간 제한 없음 — 유저가 멈추기를 누르면 signal로 프로세스를 죽인다.
+    if (signal?.aborted) {
+      unlink(tmpFile).catch(() => {});
+      reject(new Error("분석이 취소되었습니다."));
+      return;
+    }
+
     const proc = spawn(
       commandPath,
       [
@@ -106,36 +121,41 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
         "--ephemeral",
         "--skip-git-repo-check",
         "-s", "read-only",
-        // 학습용 코드 설명엔 high 추론이 과해 60초를 넘긴다. low로 호출 단위
-        // 오버라이드(유저 config.toml은 안 건드림) → 같은 코드 60초+ → ~15초.
+        // 학습용 코드 설명엔 high 추론이 과해 느리다. low로 호출 단위
+        // 오버라이드(유저 config.toml은 안 건드림).
         "-c", "model_reasoning_effort=low",
         "--output-last-message", tmpFile,
         prompt,
       ],
       // prompt는 positional 인자로 넘긴다. stdin을 열어두면 codex exec가
-      // 추가 입력(stdin EOF)을 기다리며 멈춘다("Reading additional input from
-      // stdin...") → "ignore"로 자식 stdin을 닫아 즉시 EOF를 받게 한다.
+      // 추가 입력(stdin EOF)을 기다리며 멈춘다 → "ignore"로 자식 stdin을 닫는다.
       { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
     );
 
     let stderr = "";
-    let timedOut = false;
+    let aborted = false;
     const MAX_STDERR = 2_048;
 
-    // spawn() ignores timeout option — implement manually
-    const timer = setTimeout(() => {
-      timedOut = true;
+    const onAbort = () => {
+      aborted = true;
       proc.kill();
-    }, TIMEOUT_MS);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    const cleanup = () => signal?.removeEventListener("abort", onAbort);
 
     proc.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_STDERR) {
         stderr += chunk.toString().slice(0, MAX_STDERR - stderr.length);
       }
     });
-    proc.on("error", (err) => { clearTimeout(timer); unlink(tmpFile).catch(() => {}); reject(err); });
+    proc.on("error", (err) => { cleanup(); unlink(tmpFile).catch(() => {}); reject(err); });
     proc.on("close", (code) => {
-      clearTimeout(timer);
+      cleanup();
+      if (aborted) {
+        unlink(tmpFile).catch(() => {});
+        reject(new Error("분석이 취소되었습니다."));
+        return;
+      }
       readFile(tmpFile, "utf-8")
         .then((text) => {
           unlink(tmpFile).catch(() => {});
@@ -143,11 +163,10 @@ async function runCodexExec(commandPath: string, prompt: string): Promise<string
         })
         .catch((readErr: NodeJS.ErrnoException) => {
           unlink(tmpFile).catch(() => {});
-          const reason = timedOut
-            ? `codex exec timed out after ${TIMEOUT_MS / 1000}s`
-            : readErr.code === "ENOENT"
-            ? `codex exec produced no output (exit code: ${code ?? "unknown"})`
-            : `codex exec failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`;
+          const reason =
+            readErr.code === "ENOENT"
+              ? `codex exec produced no output (exit code: ${code ?? "unknown"})`
+              : `codex exec failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`;
           reject(new Error(reason));
         });
     });

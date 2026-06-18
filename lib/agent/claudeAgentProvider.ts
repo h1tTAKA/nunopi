@@ -4,7 +4,7 @@ import { constants as fsConstants } from "node:fs";
 import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProvider } from "./types";
+import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -35,14 +35,17 @@ export const claudeAgentProvider: AgentProvider = {
     dataHandling: "remote-provider",
     capabilities: {
       streaming: false,
-      cancellation: false,
+      cancellation: true,
       fileSystemAccess: false,
       shellAccess: true,
       requiresApiKey: false,
       requiresLocalProcess: true,
     },
   },
-  async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+  async analyze(
+    request: AgentAnalyzeRequest,
+    options?: AgentAnalyzeCallOptions,
+  ): Promise<AgentAnalyzeResponse> {
     const availability = await detectClaudeAvailability(request);
 
     if (!availability.available) {
@@ -72,9 +75,13 @@ export const claudeAgentProvider: AgentProvider = {
     }
 
     try {
-      const rawText = await runClaudeCli(availability.commandPath!, prompt);
+      const rawText = await runClaudeCli(availability.commandPath!, prompt, options?.signal);
       return normalizeClaudeOutput(rawText, request, availability, prompt);
     } catch (err) {
+      // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
+      if (options?.signal?.aborted) {
+        throw err;
+      }
       const message = err instanceof Error ? err.message : "claude -p failed";
       return {
         providerId: "claude-agent",
@@ -90,13 +97,21 @@ export const claudeAgentProvider: AgentProvider = {
   },
 };
 
-async function runClaudeCli(commandPath: string, prompt: string): Promise<string> {
-  // route의 CLI 타임아웃(95s)보다 낮게 유지(provider 자체 정리 우선).
-  const TIMEOUT_MS = 90_000;
+async function runClaudeCli(
+  commandPath: string,
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 1_048_576; // 1MB — generous for any real analysis, blocks runaway output
 
   return new Promise((resolve, reject) => {
+    // 시간 제한 없음 — 유저가 멈추기를 누르면 signal로 프로세스를 죽인다.
+    if (signal?.aborted) {
+      reject(new Error("분석이 취소되었습니다."));
+      return;
+    }
+
     const proc = spawn(
       commandPath,
       ["-p", "--output-format", "text", prompt],
@@ -107,11 +122,15 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
 
     let stdout = "";
     let stderr = "";
-    let timedOut = false;
+    let aborted = false;
     let stdoutCapped = false;
 
-    // spawn() ignores timeout option — implement manually
-    const timer = setTimeout(() => { timedOut = true; proc.kill(); }, TIMEOUT_MS);
+    const onAbort = () => {
+      aborted = true;
+      proc.kill();
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    const cleanup = () => signal?.removeEventListener("abort", onAbort);
 
     proc.stdout?.on("data", (chunk: Buffer) => {
       if (stdout.length >= MAX_STDOUT) return;
@@ -124,14 +143,14 @@ async function runClaudeCli(commandPath: string, prompt: string): Promise<string
       }
     });
 
-    proc.on("error", (err) => { clearTimeout(timer); reject(err); });
+    proc.on("error", (err) => { cleanup(); reject(err); });
     proc.on("close", (code) => {
-      clearTimeout(timer);
-      if (stdoutCapped) {
+      cleanup();
+      if (aborted) {
+        reject(new Error("분석이 취소되었습니다."));
+      } else if (stdoutCapped) {
         // exceeded MAX_STDOUT — return what we have for best-effort parse
         resolve(stdout.trim());
-      } else if (timedOut) {
-        reject(new Error(`claude -p timed out after ${TIMEOUT_MS / 1000}s`));
       } else if (code !== 0 && !stdout.trim()) {
         reject(new Error(`claude -p failed (exit code: ${code ?? "unknown"}). stderr: ${stderr.slice(0, 300)}`));
       } else {
