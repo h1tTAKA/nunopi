@@ -257,6 +257,8 @@ export default function Home() {
     setProviderId(entry.providerId);
     setAnalysisResult(entry.result);
     setErrorMessage(null);
+    // 복원한 항목을 현재 결과로 지정 → 상단 제목/핀 헤더가 그 항목 기준으로 표시된다.
+    setCurrentHistoryId(entry.id);
   }
 
   function handleDeleteHistory(id: string) {
