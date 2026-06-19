@@ -27,6 +27,7 @@ interface CodeInputAreaProps {
   onCodeChange: (nextCode: string) => void;
   activeLine?: number | null;
   onLineClick?: (line: number) => void;
+  markedLines?: number[];
 }
 
 export default function CodeInputArea({
@@ -38,6 +39,7 @@ export default function CodeInputArea({
   onCodeChange,
   activeLine = null,
   onLineClick,
+  markedLines,
 }: CodeInputAreaProps) {
   return (
     <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-black">
@@ -82,6 +84,7 @@ export default function CodeInputArea({
           fill
           activeLine={activeLine}
           onLineClick={onLineClick}
+          markedLines={markedLines}
         />
       </div>
     </div>

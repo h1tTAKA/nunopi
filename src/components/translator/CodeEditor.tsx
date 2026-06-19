@@ -23,6 +23,8 @@ interface CodeEditorProps {
   activeLine?: number | null;
   // 에디터에서 줄을 클릭하면 호출(1-based 줄 번호).
   onLineClick?: (line: number) => void;
+  // 토큰 호버/클릭 시 강조할 코드 줄들(1-based). selection 느낌으로 표시.
+  markedLines?: number[];
 }
 
 function monacoLanguage(language?: string): string {
@@ -69,11 +71,15 @@ export default function CodeEditor({
   fill = false,
   activeLine = null,
   onLineClick,
+  markedLines,
 }: CodeEditorProps) {
   const [isDark, setIsDark] = useState(false);
   const editorRef = useRef<MonacoEditorInstance | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const activeDecorationRef = useRef<DecorationsCollection | null>(null);
+  const markedDecorationRef = useRef<DecorationsCollection | null>(null);
+  // markedLines 배열은 매 렌더 새 참조라 effect 의존성으로 쓰면 과도 → 키 문자열로 비교.
+  const markedKey = (markedLines ?? []).join(",");
   // onMouseDown 핸들러는 mount 시점에 한 번 등록되므로, 최신 onLineClick을 ref로 참조한다.
   const onLineClickRef = useRef(onLineClick);
   useEffect(() => {
@@ -121,6 +127,32 @@ export default function CodeEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLine]);
 
+  // 토큰 강조 줄들 — selection 느낌의 whole-line decoration.
+  function applyMarkedLines() {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const lines = markedLines ?? [];
+    if (lines.length === 0) {
+      markedDecorationRef.current?.clear();
+      return;
+    }
+    const decorations = lines.map((line) => ({
+      range: new monaco.Range(line, 1, line, 1),
+      options: { isWholeLine: true, className: "nunopi-token-line" },
+    }));
+    if (markedDecorationRef.current) {
+      markedDecorationRef.current.set(decorations);
+    } else {
+      markedDecorationRef.current = editor.createDecorationsCollection(decorations);
+    }
+  }
+
+  useEffect(() => {
+    applyMarkedLines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markedKey]);
+
   const handleMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -129,6 +161,7 @@ export default function CodeEditor({
       if (line != null) onLineClickRef.current?.(line);
     });
     applyActiveLine();
+    applyMarkedLines();
   };
 
   return (
