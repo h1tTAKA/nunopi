@@ -8,7 +8,7 @@ import CodeInputArea, { type LanguageChoice } from "@/components/translator/Code
 import TextInputArea from "@/components/translator/TextInputArea";
 import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
-import type { SupportedLanguage } from "@/lib/translator/types";
+import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
@@ -88,6 +88,9 @@ export default function Home() {
   // 제외(차단) 목록 — 모드별. 분석 결과 표시에서 숨기고 설정에서 관리한다.
   const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
   const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
+  // lazy 토큰 사전 — 줄별 태그를 클릭하면 on-demand로 설명을 받아 여기 쌓는다(분석마다 리셋).
+  const [onDemandTokens, setOnDemandTokens] = useState<Record<string, CodeToken>>({});
+  const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -177,6 +180,8 @@ export default function Home() {
     }
     if (analysisResult) {
       setAnalysisResult(null);
+      setOnDemandTokens({});
+      setExplainingTokens([]);
     }
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
     setCurrentHistoryId(null);
@@ -188,6 +193,8 @@ export default function Home() {
     setErrorMessage(null);
     setAnalysisResult(null);
     setCurrentHistoryId(null);
+    setOnDemandTokens({});
+    setExplainingTokens([]);
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
@@ -223,6 +230,8 @@ export default function Home() {
     setAnalysisResult(null);
     setCurrentHistoryId(null);
     setProgressLine("");
+    setOnDemandTokens({});
+    setExplainingTokens([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -326,9 +335,62 @@ export default function Home() {
     abortRef.current?.abort();
   }
 
+  function handleTokenExplain(tokenText: string, line: number) {
+    if (onDemandTokens[tokenText] || explainingTokens.includes(tokenText)) return;
+    const input = code.trim();
+    if (!input) return;
+    setExplainingTokens((prev) => [...prev, tokenText]);
+    (async () => {
+      try {
+        const res = await fetch("/api/agent/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerId,
+            request: {
+              code: input,
+              locale: "ko",
+              providerId,
+              mode: "explain-token",
+              targetToken: tokenText,
+              providerSettings,
+            },
+          }),
+        });
+        if (!res.ok || !res.body) return;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let token: CodeToken | undefined;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const l of lines) {
+            if (!l.trim()) continue;
+            try {
+              const event = JSON.parse(l) as AnalyzeStreamEvent;
+              if (event.type === "result") token = event.response.tokens?.[0];
+            } catch { /* skip */ }
+          }
+        }
+        if (token) {
+          const resolved: CodeToken = { ...token, id: tokenText, token: tokenText, lines: [line] };
+          setOnDemandTokens((prev) => ({ ...prev, [tokenText]: resolved }));
+        }
+      } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
+        setExplainingTokens((prev) => prev.filter((t) => t !== tokenText));
+      }
+    })();
+  }
+
   function handleRestoreHistory(entry: HistoryEntry) {
     const entryMode = entry.mode ?? "code";
     setMode(entryMode);
+    setOnDemandTokens({});
+    setExplainingTokens([]);
     if (entryMode === "text") setTextInput(entry.code);
     else setCodeInput(entry.code);
     setProviderId(entry.providerId);
@@ -389,6 +451,9 @@ export default function Home() {
           excludedTokens={excludedTokens}
           excludedTerms={excludedTerms}
           onExclude={handleExclude}
+          dictionaryTokens={Object.values(onDemandTokens)}
+          explainingTokens={explainingTokens}
+          onTokenExplain={handleTokenExplain}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}

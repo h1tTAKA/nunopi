@@ -15,6 +15,8 @@ interface TokenSectionProps {
   onTokenHover?: (lines: number[] | null) => void;
   // 이 토큰을 제외(차단) — 다음 분석부터 표시에서 숨긴다.
   onExclude?: (token: CodeToken) => void;
+  // 토큰이 없을 때 보여줄 안내 문구(lazy 사전: 클릭 유도).
+  emptyHint?: string;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -42,7 +44,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onExclude }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onExclude, emptyHint }: TokenSectionProps) {
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
 
@@ -59,7 +61,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        토큰이 없다.
+        {emptyHint ?? "토큰이 없다."}
       </div>
     );
   }

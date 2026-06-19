@@ -74,6 +74,10 @@ interface LearningPanelProps {
   excludedTokens?: string[];
   excludedTerms?: string[];
   onExclude?: (mode: AnalyzeMode, text: string) => void;
+  // lazy 토큰 사전 — 클릭해 설명을 받아온 토큰들(코드 모드). 비면 사전은 빈 상태.
+  dictionaryTokens?: CodeToken[];
+  explainingTokens?: string[];
+  onTokenExplain?: (text: string, line: number) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -102,6 +106,9 @@ export default function LearningPanel({
   excludedTokens = [],
   excludedTerms = [],
   onExclude,
+  dictionaryTokens = [],
+  explainingTokens = [],
+  onTokenExplain,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -131,6 +138,9 @@ export default function LearningPanel({
     () => dedupedTokens.map((t) => ({ ...t, lines: remapLines(t.lines, reanchor.lineMap) })),
     [dedupedTokens, reanchor],
   );
+  // 토큰 사전: 레거시 결과(result.tokens 존재)는 그대로, lazy 결과(빈 사전)는
+  // 클릭해 받아온 dictionaryTokens를 쓴다.
+  const dictTokens = safeTokens.length > 0 ? safeTokens : dictionaryTokens;
   const safeConcepts = useMemo(
     () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
     [dedupedConcepts, reanchor],
@@ -142,10 +152,10 @@ export default function LearningPanel({
   // 클릭으로 고정된 토큰(activeTokenIds)의 줄들.
   const pinnedLines = useMemo(
     () =>
-      safeTokens
+      dictTokens
         .filter((t) => activeTokenIds.includes(t.id))
         .flatMap((t) => t.lines),
-    [safeTokens, activeTokenIds],
+    [dictTokens, activeTokenIds],
   );
   // 에디터에 강조할 줄: 호버 중엔 호버 우선, 떼면 클릭 고정으로 복귀.
   const markedLines = hoverLines ?? pinnedLines;
@@ -296,6 +306,12 @@ export default function LearningPanel({
       setActiveConceptId(conceptId);
       setActiveTokenIds(relatedTokenIds);
     }
+  }
+
+  // 코드 모드 lazy: 줄별 태그 클릭 → 그 토큰 활성화(스크롤/하이라이트) + on-demand 설명 요청.
+  function handleTokenTagExplain(text: string, line: number) {
+    setActiveTokenIds([text]);
+    onTokenExplain?.(text, line);
   }
 
   // 글 모드: 용어 클릭 → 첫 관련 개념으로 이동(ItConceptSection이 스크롤).
@@ -644,6 +660,7 @@ export default function LearningPanel({
               lineExplanations={anchoredLineExplanations}
               tokens={safeTokens}
               onTokenClick={handleTokenClick}
+              onTokenExplain={handleTokenTagExplain}
               concepts={safeConcepts}
               onConceptClick={handleConceptClick}
               language={result.language}
@@ -655,7 +672,7 @@ export default function LearningPanel({
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             {(() => {
               // 제외(차단)된 토큰은 표시에서 제거한 뒤, 그 위에서 북마크 카운트/필터를 계산.
-              const availableTokens = safeTokens.filter((t) => !excludedTokens.includes(t.token));
+              const availableTokens = dictTokens.filter((t) => !excludedTokens.includes(t.token));
               const visibleBookmarkCount = availableTokens.filter((t) =>
                 bookmarkedTokenTexts.includes(t.token),
               ).length;
@@ -697,6 +714,11 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
+                  {explainingTokens.length > 0 && (
+                    <p className="mb-2 px-1 text-xs text-zinc-400 dark:text-zinc-500">
+                      설명 불러오는 중: {explainingTokens.join(", ")}…
+                    </p>
+                  )}
                   <div ref={tokenBoxRef} className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
                     <TokenSection
                       key={result.createdAt}
@@ -707,6 +729,7 @@ export default function LearningPanel({
                       onBookmarkToggle={handleBookmarkToggle}
                       onTokenHover={setHoverLines}
                       onExclude={(token) => onExclude?.("code", token.token)}
+                      emptyHint="줄별 설명의 태그를 누르면 그 토큰 설명이 여기에 추가된다."
                     />
                   </div>
                 </>

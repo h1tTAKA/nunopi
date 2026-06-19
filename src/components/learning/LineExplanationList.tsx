@@ -10,6 +10,8 @@ interface LineExplanationListProps {
   lineExplanations: AgentLineExplanation[];
   tokens?: CodeToken[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
+  // lazy 모드: 줄별 태그(텍스트) 클릭 시 on-demand 설명 요청.
+  onTokenExplain?: (text: string, line: number) => void;
   concepts?: ConceptOccurrence[];
   onConceptClick?: (conceptId: string) => void;
   language?: string;
@@ -23,6 +25,7 @@ export default function LineExplanationList({
   lineExplanations,
   tokens = [],
   onTokenClick,
+  onTokenExplain,
   language,
   concepts = [],
   onConceptClick,
@@ -103,9 +106,12 @@ export default function LineExplanationList({
       className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll overscroll-contain pr-1"
     >
       {visibleItems.map((item, i) => {
+        // lazy 모드: item.tokens(텍스트)로 칩 표시 → 클릭 시 on-demand 설명.
+        // 레거시(local-rules 등): item.tokenIds로 사전 토큰을 찾아 칩 표시.
+        const tagTexts = Array.from(new Set(item.tokens ?? []));
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
         // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
-        const lineTokens = Array.from(new Set(item.tokenIds))
+        const lineTokens = Array.from(new Set(item.tokenIds ?? []))
           .map((id) => tokens.find((t) => t.id === id))
           .filter((t): t is CodeToken => t !== undefined);
 
@@ -139,7 +145,21 @@ export default function LineExplanationList({
             <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
               {item.explanation}
             </p>
-            {lineTokens.length > 0 && (
+            {tagTexts.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {tagTexts.map((text) => (
+                  <button
+                    key={text}
+                    type="button"
+                    onClick={() => onTokenExplain?.(text, item.line)}
+                    className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-mono font-medium text-zinc-700 transition hover:bg-blue-100 hover:text-blue-700 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
+                    aria-label={`${text} 설명 보기`}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            ) : lineTokens.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {lineTokens.map((token) => (
                   <button
@@ -153,7 +173,7 @@ export default function LineExplanationList({
                   </button>
                 ))}
               </div>
-            )}
+            ) : null}
             {lineConcepts.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {lineConcepts.map((concept) => (
