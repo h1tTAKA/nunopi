@@ -1,6 +1,7 @@
 "use client";
 
 import type { ItTerm } from "@/lib/translator/types";
+import { BanIcon, StarIcon } from "./icons";
 
 interface ItTermSectionProps {
   terms: ItTerm[];
@@ -48,27 +49,31 @@ export default function ItTermSection({
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
-            <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
-              {onExclude && (
-                <button
-                  type="button"
-                  onClick={() => onExclude(term)}
-                  className="text-sm leading-none text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
-                  title="이 용어 제외 (다음 분석부터 숨김)"
-                  aria-label={`${term.term} 제외하기`}
-                >
-                  🚫
-                </button>
-              )}
+            <div className="absolute right-2 top-2.5 flex items-center gap-2">
               {term.bookmarkable && onBookmarkToggle && (
                 <button
                   type="button"
                   onClick={() => onBookmarkToggle(term)}
-                  className="text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  className={`transition ${
+                    isBookmarked
+                      ? "text-amber-500 dark:text-amber-400"
+                      : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  }`}
                   title={isBookmarked ? "북마크 해제" : "북마크"}
                   aria-label={isBookmarked ? `${term.term} 북마크 해제` : `${term.term} 북마크 추가`}
                 >
-                  {isBookmarked ? "★" : "☆"}
+                  <StarIcon filled={isBookmarked} />
+                </button>
+              )}
+              {onExclude && (
+                <button
+                  type="button"
+                  onClick={() => onExclude(term)}
+                  className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                  title="이 용어 제외 (다음 분석부터 숨김)"
+                  aria-label={`${term.term} 제외하기`}
+                >
+                  <BanIcon />
                 </button>
               )}
             </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { BookmarkedTokenDetail } from "@/lib/bookmarkDetails";
 import type { TokenCategory } from "@/lib/translator/types";
+import { StarIcon } from "./icons";
 
 interface TokenDictionaryProps {
   details: Record<string, BookmarkedTokenDetail>;
@@ -118,11 +119,11 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
                 <button
                   type="button"
                   onClick={() => onUnbookmark(token.token)}
-                  className="shrink-0 text-base leading-none text-amber-500 hover:text-zinc-400 dark:text-amber-400 dark:hover:text-zinc-500 transition"
+                  className="shrink-0 text-amber-500 transition hover:text-zinc-400 dark:text-amber-400 dark:hover:text-zinc-500"
                   title="북마크 해제"
                   aria-label={`${token.token} 북마크 해제`}
                 >
-                  ★
+                  <StarIcon filled />
                 </button>
               </div>
             </div>

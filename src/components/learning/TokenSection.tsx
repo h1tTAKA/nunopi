@@ -2,6 +2,7 @@
 
 import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
+import { BanIcon, StarIcon } from "./icons";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
@@ -70,27 +71,31 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
-            <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
-              {onExclude && (
-                <button
-                  type="button"
-                  onClick={() => onExclude(token)}
-                  className="text-sm leading-none text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
-                  title="이 토큰 제외 (다음 분석부터 숨김)"
-                  aria-label={`${token.token} 제외하기`}
-                >
-                  🚫
-                </button>
-              )}
+            <div className="absolute right-2 top-2.5 flex items-center gap-2">
               {token.bookmarkable && (
                 <button
                   type="button"
                   onClick={() => onBookmarkToggle?.(token)}
-                  className="text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  className={`transition ${
+                    isBookmarked
+                      ? "text-amber-500 dark:text-amber-400"
+                      : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  }`}
                   title={isBookmarked ? "북마크 해제" : "북마크"}
                   aria-label={isBookmarked ? `${token.token} 북마크 해제` : `${token.token} 북마크 추가`}
                 >
-                  {isBookmarked ? "★" : "☆"}
+                  <StarIcon filled={isBookmarked} />
+                </button>
+              )}
+              {onExclude && (
+                <button
+                  type="button"
+                  onClick={() => onExclude(token)}
+                  className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                  title="이 토큰 제외 (다음 분석부터 숨김)"
+                  aria-label={`${token.token} 제외하기`}
+                >
+                  <BanIcon />
                 </button>
               )}
             </div>
