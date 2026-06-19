@@ -13,9 +13,11 @@ interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
   activeConceptId?: string | null;
   onConceptClick?: (conceptId: string) => void;
+  // on-demand 설명을 불러오는 중인 conceptId들(lazy 개념 설명).
+  explainingConcepts?: string[];
 }
 
-export default function ConceptSection({ concepts, activeConceptId, onConceptClick }: ConceptSectionProps) {
+export default function ConceptSection({ concepts, activeConceptId, onConceptClick, explainingConcepts }: ConceptSectionProps) {
   useEffect(() => {
     if (!activeConceptId) return;
     const el = document.getElementById(`concept-${activeConceptId}`);
@@ -76,11 +78,24 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
                 {concept.lines.join(", ")}번 줄
               </p>
             )}
-            {isActive && CONCEPT_DESCRIPTIONS[concept.conceptId] && (
-              <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
-                {CONCEPT_DESCRIPTIONS[concept.conceptId].short}
-              </p>
-            )}
+            {isActive && (() => {
+              const desc = concept.description ?? CONCEPT_DESCRIPTIONS[concept.conceptId]?.short;
+              if (desc) {
+                return (
+                  <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                    {desc}
+                  </p>
+                );
+              }
+              if (explainingConcepts?.includes(concept.conceptId)) {
+                return (
+                  <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
+                    설명 불러오는 중…
+                  </p>
+                );
+              }
+              return null;
+            })()}
           </button>
         );
       })}

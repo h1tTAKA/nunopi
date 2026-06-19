@@ -8,6 +8,7 @@ import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
+import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -52,8 +53,14 @@ export const claudeAgentProvider: AgentProvider = {
     const availability = await detectClaudeAvailability(request);
     const isText = request.mode === "text";
     const isExplainToken = request.mode === "explain-token";
+    const isExplainConcept = request.mode === "explain-concept";
 
     if (!availability.available) {
+      if (isExplainConcept) {
+        return conceptModeResponse("claude-agent", [], [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       if (isExplainToken) {
         return tokenModeResponse("claude-agent", [], [
           { code: "PARTIAL_PARSE", message: availability.message },
@@ -82,19 +89,23 @@ export const claudeAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = isExplainToken
-      ? buildExplainTokenPrompt(request)
-      : isText
-        ? buildTextPrompt(request)
-        : buildClaudePrompt(request);
+    const prompt = isExplainConcept
+      ? buildExplainConceptPrompt(request)
+      : isExplainToken
+        ? buildExplainTokenPrompt(request)
+        : isText
+          ? buildTextPrompt(request)
+          : buildClaudePrompt(request);
     const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return isExplainToken
-        ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
-        : isText
-          ? normalizeTextOutput(mockText, "claude-agent", request)
-          : normalizeClaudeOutput(mockText, request, availability, prompt);
+      return isExplainConcept
+        ? normalizeExplainConceptOutput(mockText, "claude-agent", request)
+        : isExplainToken
+          ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
+          : isText
+            ? normalizeTextOutput(mockText, "claude-agent", request)
+            : normalizeClaudeOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -104,17 +115,22 @@ export const claudeAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return isExplainToken
-        ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
-        : isText
-          ? normalizeTextOutput(rawText, "claude-agent", request, usage)
-          : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
+      return isExplainConcept
+        ? normalizeExplainConceptOutput(rawText, "claude-agent", request)
+        : isExplainToken
+          ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
+          : isText
+            ? normalizeTextOutput(rawText, "claude-agent", request, usage)
+            : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "claude -p failed";
+      if (isExplainConcept) {
+        return conceptModeResponse("claude-agent", [], [{ code: "PARSE_FAILED", message }]);
+      }
       if (isExplainToken) {
         return tokenModeResponse("claude-agent", [], [{ code: "PARSE_FAILED", message }]);
       }

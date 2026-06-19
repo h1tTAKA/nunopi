@@ -10,8 +10,8 @@ import type {
 import type { AgentProviderKind } from "./types";
 
 // 분석 모드 — "code"(기본, 코드 분석) | "text"(IT 용어 글 분석)
-// | "explain-token"(코드 맥락에서 토큰 1개만 on-demand 설명).
-export type AnalyzeMode = "code" | "text" | "explain-token";
+// | "explain-token"(토큰 1개 on-demand 설명) | "explain-concept"(개념 1개 on-demand 설명).
+export type AnalyzeMode = "code" | "text" | "explain-token" | "explain-concept";
 
 export interface ProviderSettings {
   "openai-compatible"?: {
@@ -33,6 +33,7 @@ export interface AgentAnalyzeRequest {
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code".
   targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.
+  targetConcept?: string; // mode "explain-concept"일 때 설명할 개념 제목.
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
   options?: AgentAnalyzeOptions;

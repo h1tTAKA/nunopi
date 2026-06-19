@@ -90,6 +90,7 @@ export default function Home() {
   // lazy 토큰 사전 — 줄별 태그 클릭 시 on-demand로 받은 토큰은 analysisResult.tokens에
   // 직접 합쳐 유지/HTML 포함/삭제를 한 소스로 다룬다. explainingTokens는 로딩 표시용.
   const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
+  const [explainingConcepts, setExplainingConcepts] = useState<string[]>([]);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -163,6 +164,7 @@ export default function Home() {
     if (analysisResult) {
       setAnalysisResult(null);
       setExplainingTokens([]);
+    setExplainingConcepts([]);
     }
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
     setCurrentHistoryId(null);
@@ -175,6 +177,7 @@ export default function Home() {
     setAnalysisResult(null);
     setCurrentHistoryId(null);
     setExplainingTokens([]);
+    setExplainingConcepts([]);
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
@@ -211,6 +214,7 @@ export default function Home() {
     setCurrentHistoryId(null);
     setProgressLine("");
     setExplainingTokens([]);
+    setExplainingConcepts([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -381,10 +385,76 @@ export default function Home() {
     );
   }
 
+  function handleConceptExplain(conceptId: string, title: string) {
+    if (
+      explainingConcepts.includes(conceptId) ||
+      analysisResult?.concepts.some((c) => c.conceptId === conceptId && c.description)
+    ) {
+      return;
+    }
+    const input = code.trim();
+    if (!input) return;
+    setExplainingConcepts((prev) => [...prev, conceptId]);
+    (async () => {
+      try {
+        const res = await fetch("/api/agent/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerId,
+            request: {
+              code: input,
+              locale: "ko",
+              providerId,
+              mode: "explain-concept",
+              targetConcept: title,
+              providerSettings,
+            },
+          }),
+        });
+        if (!res.ok || !res.body) return;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let description: string | undefined;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const l of lines) {
+            if (!l.trim()) continue;
+            try {
+              const event = JSON.parse(l) as AnalyzeStreamEvent;
+              if (event.type === "result") description = event.response.concepts?.[0]?.description;
+            } catch { /* skip */ }
+          }
+        }
+        if (description) {
+          const desc = description;
+          setAnalysisResult((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  concepts: prev.concepts.map((c) =>
+                    c.conceptId === conceptId ? { ...c, description: desc } : c,
+                  ),
+                }
+              : prev,
+          );
+        }
+      } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
+        setExplainingConcepts((prev) => prev.filter((x) => x !== conceptId));
+      }
+    })();
+  }
+
   function handleRestoreHistory(entry: HistoryEntry) {
     const entryMode = entry.mode ?? "code";
     setMode(entryMode);
     setExplainingTokens([]);
+    setExplainingConcepts([]);
     if (entryMode === "text") setTextInput(entry.code);
     else setCodeInput(entry.code);
     setProviderId(entry.providerId);
@@ -445,7 +515,9 @@ export default function Home() {
           excludedTerms={excludedTerms}
           onExclude={handleExclude}
           onDeleteToken={handleDeleteToken}
+          onConceptExplain={handleConceptExplain}
           explainingTokens={explainingTokens}
+          explainingConcepts={explainingConcepts}
           onTokenExplain={handleTokenExplain}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}

@@ -10,6 +10,7 @@ import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
+import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
@@ -54,8 +55,14 @@ export const codexAgentProvider: AgentProvider = {
     const availability = await detectCodexAvailability(request);
     const isText = request.mode === "text";
     const isExplainToken = request.mode === "explain-token";
+    const isExplainConcept = request.mode === "explain-concept";
 
     if (!availability.available) {
+      if (isExplainConcept) {
+        return conceptModeResponse("codex-agent", [], [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       if (isExplainToken) {
         return tokenModeResponse("codex-agent", [], [
           { code: "PARTIAL_PARSE", message: availability.message },
@@ -84,19 +91,23 @@ export const codexAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = isExplainToken
-      ? buildExplainTokenPrompt(request)
-      : isText
-        ? buildTextPrompt(request)
-        : buildCodexPrompt(request);
+    const prompt = isExplainConcept
+      ? buildExplainConceptPrompt(request)
+      : isExplainToken
+        ? buildExplainTokenPrompt(request)
+        : isText
+          ? buildTextPrompt(request)
+          : buildCodexPrompt(request);
     const mockText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return isExplainToken
-        ? normalizeExplainTokenOutput(mockText, "codex-agent", request)
-        : isText
-          ? normalizeTextOutput(mockText, "codex-agent", request)
-          : normalizeCodexOutput(mockText, request, availability, prompt);
+      return isExplainConcept
+        ? normalizeExplainConceptOutput(mockText, "codex-agent", request)
+        : isExplainToken
+          ? normalizeExplainTokenOutput(mockText, "codex-agent", request)
+          : isText
+            ? normalizeTextOutput(mockText, "codex-agent", request)
+            : normalizeCodexOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -106,17 +117,22 @@ export const codexAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return isExplainToken
-        ? normalizeExplainTokenOutput(rawText, "codex-agent", request)
-        : isText
-          ? normalizeTextOutput(rawText, "codex-agent", request, usage)
-          : normalizeCodexOutput(rawText, request, availability, prompt, usage);
+      return isExplainConcept
+        ? normalizeExplainConceptOutput(rawText, "codex-agent", request)
+        : isExplainToken
+          ? normalizeExplainTokenOutput(rawText, "codex-agent", request)
+          : isText
+            ? normalizeTextOutput(rawText, "codex-agent", request, usage)
+            : normalizeCodexOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "codex exec failed";
+      if (isExplainConcept) {
+        return conceptModeResponse("codex-agent", [], [{ code: "PARSE_FAILED", message }]);
+      }
       if (isExplainToken) {
         return tokenModeResponse("codex-agent", [], [{ code: "PARSE_FAILED", message }]);
       }
