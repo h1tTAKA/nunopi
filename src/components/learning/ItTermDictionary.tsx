@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BookmarkedTermDetail } from "@/lib/bookmarkDetails";
+import { StarIcon } from "./icons";
 
 interface ItTermDictionaryProps {
   details: Record<string, BookmarkedTermDetail>;
@@ -74,11 +75,11 @@ export default function ItTermDictionary({ details, onUnbookmark }: ItTermDictio
               <button
                 type="button"
                 onClick={() => onUnbookmark(term.term)}
-                className="shrink-0 text-base leading-none text-amber-500 transition hover:text-zinc-400 dark:text-amber-400 dark:hover:text-zinc-500"
+                className="shrink-0 text-amber-500 transition hover:text-zinc-400 dark:text-amber-400 dark:hover:text-zinc-500"
                 title="북마크 해제"
                 aria-label={`${term.term} 북마크 해제`}
               >
-                ★
+                <StarIcon filled />
               </button>
             </div>
           </div>
