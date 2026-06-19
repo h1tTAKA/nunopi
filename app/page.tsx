@@ -18,6 +18,7 @@ import {
   clearHistory,
   updateHistory,
 } from "@/lib/historyDB";
+import { loadExclusions, saveExclusions } from "@/lib/exclusions";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
@@ -84,6 +85,9 @@ export default function Home() {
     setActiveLineLink({ line, source: "panel" });
   // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들.
   const [markedLines, setMarkedLines] = useState<number[]>([]);
+  // 제외(차단) 목록 — 모드별. 분석 결과 표시에서 숨기고 설정에서 관리한다.
+  const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
+  const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -96,6 +100,45 @@ export default function Home() {
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExcludedTokens(loadExclusions("code"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExcludedTerms(loadExclusions("text"));
+  }, []);
+
+  function handleExclude(targetMode: AnalyzeMode, text: string) {
+    if (targetMode === "text") {
+      setExcludedTerms((prev) => {
+        const next = prev.includes(text) ? prev : [...prev, text];
+        saveExclusions("text", next);
+        return next;
+      });
+    } else {
+      setExcludedTokens((prev) => {
+        const next = prev.includes(text) ? prev : [...prev, text];
+        saveExclusions("code", next);
+        return next;
+      });
+    }
+  }
+
+  function handleRemoveExclusion(targetMode: AnalyzeMode, text: string) {
+    if (targetMode === "text") {
+      setExcludedTerms((prev) => {
+        const next = prev.filter((t) => t !== text);
+        saveExclusions("text", next);
+        return next;
+      });
+    } else {
+      setExcludedTokens((prev) => {
+        const next = prev.filter((t) => t !== text);
+        saveExclusions("code", next);
+        return next;
+      });
+    }
+  }
 
   useEffect(() => {
     try {
@@ -343,6 +386,9 @@ export default function Home() {
           activeLineSource={activeLineLink?.source}
           onLineFocus={focusLineFromPanel}
           onMarkLines={setMarkedLines}
+          excludedTokens={excludedTokens}
+          excludedTerms={excludedTerms}
+          onExclude={handleExclude}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}
@@ -385,6 +431,9 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)}
         settings={providerSettings}
         onSave={handleSettingsSave}
+        excludedTokens={excludedTokens}
+        excludedTerms={excludedTerms}
+        onRemoveExclusion={handleRemoveExclusion}
       />
     </>
   );

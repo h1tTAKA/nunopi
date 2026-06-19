@@ -9,6 +9,8 @@ interface ItTermSectionProps {
   onTermClick?: (conceptIds: string[]) => void;
   bookmarkedTermTexts?: string[];
   onBookmarkToggle?: (term: ItTerm) => void;
+  // 이 용어를 제외(차단) — 다음 분석부터 표시에서 숨긴다.
+  onExclude?: (term: ItTerm) => void;
 }
 
 // 글 모드 IT 용어 사전 — 코드 모드 TokenSection에 대응. 글에서 뽑은 IT 용어를
@@ -19,6 +21,7 @@ export default function ItTermSection({
   onTermClick,
   bookmarkedTermTexts,
   onBookmarkToggle,
+  onExclude,
 }: ItTermSectionProps) {
   if (terms.length === 0) {
     return (
@@ -45,22 +48,35 @@ export default function ItTermSection({
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
-            {term.bookmarkable && onBookmarkToggle && (
-              <button
-                type="button"
-                onClick={() => onBookmarkToggle(term)}
-                className="absolute right-2.5 top-2.5 text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
-                title={isBookmarked ? "북마크 해제" : "북마크"}
-                aria-label={isBookmarked ? `${term.term} 북마크 해제` : `${term.term} 북마크 추가`}
-              >
-                {isBookmarked ? "★" : "☆"}
-              </button>
-            )}
+            <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
+              {onExclude && (
+                <button
+                  type="button"
+                  onClick={() => onExclude(term)}
+                  className="text-sm leading-none text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                  title="이 용어 제외 (다음 분석부터 숨김)"
+                  aria-label={`${term.term} 제외하기`}
+                >
+                  🚫
+                </button>
+              )}
+              {term.bookmarkable && onBookmarkToggle && (
+                <button
+                  type="button"
+                  onClick={() => onBookmarkToggle(term)}
+                  className="text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  title={isBookmarked ? "북마크 해제" : "북마크"}
+                  aria-label={isBookmarked ? `${term.term} 북마크 해제` : `${term.term} 북마크 추가`}
+                >
+                  {isBookmarked ? "★" : "☆"}
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => onTermClick?.(term.conceptIds)}
               aria-label={`${term.term} 용어`}
-              className={`w-full p-4 text-left ${term.bookmarkable && onBookmarkToggle ? "pr-8" : ""}`}
+              className={`w-full p-4 text-left ${(term.bookmarkable && onBookmarkToggle) || onExclude ? "pr-12" : ""}`}
             >
               <div className="flex flex-wrap items-center gap-2">
                 <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
