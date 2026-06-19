@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
@@ -14,6 +14,10 @@ interface LineExplanationListProps {
   concepts?: ConceptOccurrence[];
   onConceptClick?: (conceptId: string) => void;
   language?: string;
+  // 에디터와 링크된 활성 줄 — 해당 카드를 강조.
+  activeLine?: number | null;
+  // 패널 스크롤 중 화면 상단에 보이는 줄을 알린다(우→좌 링크).
+  onLineFocus?: (line: number) => void;
 }
 
 export default function LineExplanationList({
@@ -23,10 +27,54 @@ export default function LineExplanationList({
   language,
   concepts = [],
   onConceptClick,
+  activeLine = null,
+  onLineFocus,
 }: LineExplanationListProps) {
   const [showAll, setShowAll] = useState(false);
   const visibleItems = showAll ? lineExplanations : lineExplanations.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = lineExplanations.length - DEFAULT_VISIBLE;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onLineFocusRef = useRef(onLineFocus);
+  const lastFocusedRef = useRef<number | null>(null);
+  useEffect(() => {
+    onLineFocusRef.current = onLineFocus;
+  }, [onLineFocus]);
+
+  // 패널 스크롤 시 화면 상단에 가장 가까운 가시 카드의 줄을 onLineFocus로 알린다.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cards = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-nunopi-line]"),
+    );
+    if (cards.length === 0) return;
+    const visible = new Set<HTMLElement>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement;
+          if (entry.isIntersecting) visible.add(el);
+          else visible.delete(el);
+        }
+        let top: HTMLElement | null = null;
+        for (const el of visible) {
+          if (!top || el.getBoundingClientRect().top < top.getBoundingClientRect().top) {
+            top = el;
+          }
+        }
+        if (!top) return;
+        const line = Number(top.dataset.nunopiLine);
+        if (Number.isFinite(line) && line !== lastFocusedRef.current) {
+          lastFocusedRef.current = line;
+          onLineFocusRef.current?.(line);
+        }
+      },
+      { rootMargin: "0px 0px -60% 0px", threshold: 0 },
+    );
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [visibleItems.length]);
 
   if (lineExplanations.length === 0) {
     return (
@@ -37,7 +85,7 @@ export default function LineExplanationList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={containerRef}>
       {visibleItems.map((item, i) => {
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
         // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
@@ -49,10 +97,17 @@ export default function LineExplanationList({
           .map((id) => concepts.find((c) => c.conceptId === id))
           .filter((c): c is ConceptOccurrence => c !== undefined);
 
+        const isActive = item.line === activeLine;
         return (
           <div
             key={`${i}-${item.line}`}
-            className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900"
+            id={`nunopi-line-${item.line}`}
+            data-nunopi-line={item.line}
+            className={`scroll-mt-4 rounded-2xl border p-4 transition-colors ${
+              isActive
+                ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+            }`}
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
