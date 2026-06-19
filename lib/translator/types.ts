@@ -125,6 +125,7 @@ export interface ConceptOccurrence {
   title: string;
   lines: number[];
   count: number;
+  description?: string; // on-demand로 받아온 개념 설명(lazy). 없으면 정적 사전/미설명.
 }
 
 export interface TranslateWarning {
