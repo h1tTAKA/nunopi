@@ -81,6 +81,7 @@ export type TokenCategory =
   | "jsx_element"
   | "operator"
   | "keyword"
+  | "punctuation"
   | "api_call"
   | "dependency_array"
   | "initial_value"
