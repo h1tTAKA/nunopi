@@ -50,3 +50,38 @@ samp {
 .dark .nunopi-token-line {
   background: rgba(245, 158, 11, 0.26);
 }
+
+/* 통일 스크롤바 — 항상 보이는 회색 thumb (학습패널 전체 + 줄별/토큰 박스 공통) */
+.nunopi-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+.nunopi-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.nunopi-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nunopi-scroll::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.nunopi-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+  background-clip: padding-box;
+}
+.dark .nunopi-scroll {
+  scrollbar-color: #52525b transparent;
+}
+.dark .nunopi-scroll::-webkit-scrollbar-thumb {
+  background: #52525b;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.dark .nunopi-scroll::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+  background-clip: padding-box;
+}

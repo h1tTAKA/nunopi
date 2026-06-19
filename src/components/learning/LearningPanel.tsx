@@ -344,7 +344,7 @@ export default function LearningPanel({
 
   if (activeTab === "dictionary") {
     return (
-      <div className="h-full p-6 space-y-4 overflow-y-auto">
+      <div className="nunopi-scroll h-full p-6 space-y-4 overflow-y-scroll">
         {entryHeader}
         {tabBar}
         <TokenDictionary
@@ -367,7 +367,7 @@ export default function LearningPanel({
 
   if (activeTab === "history") {
     return (
-      <div className="h-full p-6 space-y-4 overflow-y-auto">
+      <div className="nunopi-scroll h-full p-6 space-y-4 overflow-y-scroll">
         {entryHeader}
         {tabBar}
         {onRestoreHistory && onDeleteHistory && onClearHistory ? (
@@ -556,7 +556,7 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
-                  <div className="max-h-[45vh] overflow-y-auto pr-1">
+                  <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll pr-1">
                     <TokenSection
                       key={result.createdAt}
                       tokens={displayTokens}
