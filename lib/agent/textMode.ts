@@ -94,7 +94,12 @@ export function normalizeTextOutput(
 
   const terms = dedupeById(
     (Array.isArray(parsed.terms) ? parsed.terms : []).filter(isItTerm),
-  );
+  ).map((t) => ({
+    // IT 용어는 전부 북마크 가능(모델 재량 무시). conceptIds 누락 시 빈 배열.
+    ...t,
+    conceptIds: t.conceptIds ?? [],
+    bookmarkable: true,
+  }));
   const itConcepts = dedupeByConceptId(
     (Array.isArray(parsed.concepts) ? parsed.concepts : []).filter(isItConcept),
   );
@@ -181,14 +186,15 @@ function isTextNormalizedPayload(value: unknown): value is TextNormalizedPayload
 
 function isItTerm(value: unknown): value is ItTerm {
   if (!isRecord(value)) return false;
+  // id/term/explanation만 필수. conceptIds/bookmarkable은 normalize에서 기본값/강제하므로
+  // 누락돼도 드랍하지 않는다(있으면 타입만 확인).
   return (
     typeof value.id === "string" &&
     typeof value.term === "string" &&
     typeof value.explanation === "string" &&
     (value.reading === undefined || typeof value.reading === "string") &&
-    Array.isArray(value.conceptIds) &&
-    value.conceptIds.every((id) => typeof id === "string") &&
-    typeof value.bookmarkable === "boolean"
+    (value.conceptIds === undefined ||
+      (Array.isArray(value.conceptIds) && value.conceptIds.every((id) => typeof id === "string")))
   );
 }
 
