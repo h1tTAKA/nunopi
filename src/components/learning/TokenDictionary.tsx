@@ -22,6 +22,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   jsx_element: "JSX 요소",
   operator: "연산자",
   keyword: "키워드",
+  punctuation: "기호",
   api_call: "API 호출",
   dependency_array: "의존성 배열",
   initial_value: "초기값",

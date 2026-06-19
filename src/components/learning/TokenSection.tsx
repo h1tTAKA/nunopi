@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
 import { BanIcon, StarIcon } from "./icons";
@@ -26,6 +27,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   jsx_element: "JSX 요소",
   operator: "연산자",
   keyword: "키워드",
+  punctuation: "기호",
   api_call: "API 호출",
   dependency_array: "의존성 배열",
   initial_value: "초기값",
@@ -44,6 +46,16 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
 
+  // 줄별 설명에서 토큰 태그를 클릭하면 activeTokenIds가 바뀜 → 그 토큰 카드로 스크롤.
+  const activeKey = (activeTokenIds ?? []).join(",");
+  useEffect(() => {
+    const first = activeTokenIds?.[0];
+    if (!first) return;
+    const el = document.getElementById(`nunopi-token-${first}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKey]);
+
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -61,9 +73,10 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
         return (
           <div
             key={token.id}
+            id={`nunopi-token-${token.id}`}
             onMouseEnter={() => onTokenHover?.(token.lines)}
             onMouseLeave={() => onTokenHover?.(null)}
-            className={`relative rounded-2xl border transition ${
+            className={`relative scroll-mt-2 rounded-2xl border transition ${
               isBookmarked
                 ? "border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/20"
                 : isActive
