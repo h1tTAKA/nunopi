@@ -520,7 +520,8 @@ function isLineExplanation(
     typeof value.explanation === "string" &&
     stringArrayOrUndefined(value.tokens) &&
     stringArrayOrUndefined(value.tokenIds) &&
-    stringArrayOrUndefined(value.conceptIds) &&
+    Array.isArray(value.conceptIds) &&
+    value.conceptIds.every((item) => typeof item === "string") &&
     (value.confidence === undefined || typeof value.confidence === "number")
   );
 }
