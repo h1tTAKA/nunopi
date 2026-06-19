@@ -300,7 +300,8 @@ export default function Home() {
   }
 
   function handleClearHistory() {
-    clearHistory().then(() => setHistoryEntries([])).catch(() => {});
+    // 현재 모드의 히스토리만 삭제하고 목록을 다시 읽어 다른 모드 항목은 보존한다.
+    clearHistory(mode).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
   }
 
   function handleUpdateHistory(

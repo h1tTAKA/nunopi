@@ -101,6 +101,8 @@ export default function LearningPanel({
   onToggleCurrentPin,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+  // 히스토리는 현재 모드 항목만 보여 코드/글이 섞이지 않게 한다.
+  const modeHistoryEntries = historyEntries.filter((e) => (e.mode ?? "code") === mode);
   // 히스토리(IndexedDB)에서 복원한 옛 결과는 dedupe 이전 데이터라 중복
   // 토큰/개념을 담고 있을 수 있다 → 렌더 시점에도 방어적으로 중복 제거한다.
   const dedupedTokens = useMemo(() => dedupeTokens(result?.tokens ?? []), [result]);
@@ -346,7 +348,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        히스토리{historyEntries.length > 0 ? ` ${historyEntries.length}` : ""}
+        히스토리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
       </button>
       <button
         type="button"
@@ -392,7 +394,7 @@ export default function LearningPanel({
         {tabBar}
         {onRestoreHistory && onDeleteHistory && onClearHistory ? (
           <AnalysisHistory
-            entries={historyEntries}
+            entries={modeHistoryEntries}
             onRestore={onRestoreHistory}
             onDelete={onDeleteHistory}
             onClear={onClearHistory}

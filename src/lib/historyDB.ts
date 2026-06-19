@@ -117,7 +117,16 @@ export async function deleteFromHistory(id: string): Promise<void> {
   });
 }
 
-export async function clearHistory(): Promise<void> {
+// mode를 주면 해당 모드 항목만, 안 주면 전체를 삭제한다(모드별 분리 삭제).
+export async function clearHistory(mode?: AnalyzeMode): Promise<void> {
+  if (mode) {
+    const all = await getAllHistory();
+    const targets = all.filter((e) => (e.mode ?? "code") === mode);
+    for (const e of targets) {
+      await deleteFromHistory(e.id);
+    }
+    return;
+  }
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
