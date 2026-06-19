@@ -104,6 +104,18 @@ export default function Home() {
     getAllHistory().then(setHistoryEntries).catch(() => {});
   }, []);
 
+  // 현재 히스토리 항목의 result를 analysisResult와 동기화 — 태그로 불러온 토큰,
+  // 개념 설명이 DB+메모리에 저장돼 다른 동작 후 돌아와도 그대로 유지된다.
+  useEffect(() => {
+    if (!currentHistoryId || !analysisResult) return;
+    const saved = analysisResult;
+    updateHistory(currentHistoryId, { result: saved }).catch(() => {});
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistoryEntries((prev) =>
+      prev.map((e) => (e.id === currentHistoryId ? { ...e, result: saved } : e)),
+    );
+  }, [analysisResult, currentHistoryId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setExcludedTerms(loadExclusions("text"));
