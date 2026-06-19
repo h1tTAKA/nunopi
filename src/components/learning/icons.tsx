@@ -23,6 +23,25 @@ export function StarIcon({ filled, className }: IconProps & { filled?: boolean }
   );
 }
 
+// 삭제 — X(닫기). 코드 토큰 사전에서 카드 제거용.
+export function XIcon({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className ?? "h-4 w-4"}
+      aria-hidden
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 // 제외(차단) — 원 + 사선(금지). 이모지 🚫 대체.
 export function BanIcon({ className }: IconProps) {
   return (
