@@ -20,6 +20,7 @@ import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
 import ItTermDictionary from "./ItTermDictionary";
 import ConceptSection from "./ConceptSection";
+import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
@@ -77,6 +78,9 @@ interface LearningPanelProps {
   explainingTokens?: string[];
   onTokenExplain?: (text: string, line: number) => void;
   onDeleteToken?: (text: string) => void;
+  // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
+  explainingConcepts?: string[];
+  onConceptExplain?: (conceptId: string, title: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -107,6 +111,8 @@ export default function LearningPanel({
   explainingTokens = [],
   onTokenExplain,
   onDeleteToken,
+  explainingConcepts = [],
+  onConceptExplain,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -302,6 +308,11 @@ export default function LearningPanel({
         .map((t) => t.id);
       setActiveConceptId(conceptId);
       setActiveTokenIds(relatedTokenIds);
+      // 설명이 없고(정적 사전에도 없음) lazy면 on-demand 설명 요청.
+      const concept = safeConcepts.find((c) => c.conceptId === conceptId);
+      if (concept && !concept.description && !CONCEPT_DESCRIPTIONS[conceptId]) {
+        onConceptExplain?.(conceptId, concept.title);
+      }
     }
   }
 
@@ -741,6 +752,7 @@ export default function LearningPanel({
               concepts={safeConcepts}
               activeConceptId={activeConceptId}
               onConceptClick={handleConceptClick}
+              explainingConcepts={explainingConcepts}
             />
           </div>
             </>
