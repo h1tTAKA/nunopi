@@ -119,7 +119,12 @@ export async function POST(
               provider.provider,
               providerRequest,
               { signal: request.signal, onProgress },
-              { chunkLines: CHUNK_LINES, concurrency: CHUNK_CONCURRENCY },
+              {
+                chunkLines: CHUNK_LINES,
+                concurrency: CHUNK_CONCURRENCY,
+                // 청크 완료마다 부분 결과를 흘려 클라가 점진 렌더하게 한다.
+                onPartial: (partial) => send({ type: "partial", providerId, response: partial }),
+              },
             )
           : await provider.provider.analyze(providerRequest, {
               signal: request.signal,
