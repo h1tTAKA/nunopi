@@ -101,9 +101,9 @@ function renderLineExplanations(
   if (result.lineExplanations.length === 0) return "";
   const items = result.lineExplanations
     .map((item) => {
-      return `<div class="line">
-        <div class="line-head"><span class="badge">${item.line}번 줄</span></div>
-        <pre class="line-code">${escapeHtml(item.code)}</pre>
+      return `<div class="exp">
+        <div class="exp-head"><span class="badge">${item.line}번 줄</span></div>
+        <pre class="exp-code">${escapeHtml(item.code)}</pre>
         <p>${escapeHtml(item.explanation)}</p>
       </div>`;
     })
@@ -141,10 +141,10 @@ const STYLE = `
   .summary { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 14px 16px; }
   section { margin-top: 8px; }
   pre { overflow-x: auto; border-radius: 10px; font-size: 0.85rem; }
-  pre.shiki, pre.code-fallback, pre.line-code, pre.token-example { padding: 12px 14px; border: 1px solid #e4e4e7; background: #fff; }
-  pre.code-fallback, pre.line-code, pre.token-example { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
-  .line { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
-  .line-head { margin-bottom: 8px; }
+  pre.shiki, pre.code-fallback, pre.exp-code, pre.token-example { padding: 12px 14px; border: 1px solid #e4e4e7; background: #fff; }
+  pre.code-fallback, pre.exp-code, pre.token-example { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-word; }
+  .exp { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+  .exp-head { margin-bottom: 8px; }
   .badge { display: inline-block; background: #e4e4e7; color: #3f3f46; border-radius: 8px; padding: 2px 8px; font-size: 0.72rem; font-weight: 600; }
   .cards { display: grid; gap: 12px; }
   .card { background: #fff; border: 1px solid #e4e4e7; border-radius: 12px; padding: 12px 14px; }
