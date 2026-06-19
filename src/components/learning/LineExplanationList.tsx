@@ -57,13 +57,14 @@ export default function LineExplanationList({
           if (entry.isIntersecting) visible.add(el);
           else visible.delete(el);
         }
-        // 뷰포트 세로 중앙에 가장 가까운 카드를 "지금 보는 줄"로 선택.
-        const viewportCenter = window.innerHeight / 2;
+        // 스크롤 박스 세로 중앙에 가장 가까운 카드를 "지금 보는 줄"로 선택.
+        const boxRect = container.getBoundingClientRect();
+        const boxCenter = boxRect.top + boxRect.height / 2;
         let best: HTMLElement | null = null;
         let bestDist = Infinity;
         for (const el of visible) {
           const rect = el.getBoundingClientRect();
-          const dist = Math.abs(rect.top + rect.height / 2 - viewportCenter);
+          const dist = Math.abs(rect.top + rect.height / 2 - boxCenter);
           if (dist < bestDist) {
             bestDist = dist;
             best = el;
@@ -76,8 +77,8 @@ export default function LineExplanationList({
           onLineFocusRef.current?.(line);
         }
       },
-      // 뷰포트 중앙의 얇은 띠만 루트로 → 중앙을 지나는 카드만 교차(상단 바이어스 제거).
-      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
+      // root를 줄별설명 스크롤 박스로 → 박스 중앙 띠를 지나는 카드를 활성으로(박스 위치 무관).
+      { root: container, rootMargin: "-45% 0px -45% 0px", threshold: 0 },
     );
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
@@ -92,7 +93,10 @@ export default function LineExplanationList({
   }
 
   return (
-    <div className="space-y-3" ref={containerRef}>
+    <div
+      ref={containerRef}
+      className="max-h-[45vh] space-y-3 overflow-y-auto pr-1"
+    >
       {visibleItems.map((item, i) => {
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
         // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
