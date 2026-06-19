@@ -45,12 +45,14 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
   useEffect(() => {
     const main = mainRef.current;
     if (!main) return;
+    const panel = main.querySelector<HTMLElement>("[data-panel-scroll]");
+    if (!panel) return;
     const onWheel = (e: WheelEvent) => {
       const rect = main.getBoundingClientRect();
+      // main 세로 범위(에디터+패널 행) 안에서 좌우 거터에 있을 때만 → 패널로.
+      const inRow = e.clientY >= rect.top && e.clientY <= rect.bottom;
       const inGutter = e.clientX < rect.left || e.clientX > rect.right;
-      if (!inGutter) return;
-      const panel = main.querySelector<HTMLElement>("[data-panel-scroll]");
-      if (!panel) return;
+      if (!inRow || !inGutter) return;
       panel.scrollTop += e.deltaY;
       e.preventDefault();
     };
