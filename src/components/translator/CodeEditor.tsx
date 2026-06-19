@@ -188,6 +188,8 @@ export default function CodeEditor({
           padding: { top: 12, bottom: 12 },
           fontFamily: "var(--font-mono)",
           automaticLayout: true,
+          // 학습 도구라 TS 타입 hover(영어 quick info)는 노이즈 → 끈다.
+          hover: { enabled: false },
         }}
       />
     </div>
