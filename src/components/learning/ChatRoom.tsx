@@ -37,6 +37,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
 
   // 대화가 (다른 경로로) 비워지면 초기화 확인 상태도 해제 — 다음 대화에서 잔류 방지.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (messages.length === 0) setConfirmingClear(false);
   }, [messages.length]);
 
