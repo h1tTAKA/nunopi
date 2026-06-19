@@ -260,7 +260,7 @@ function mapLineResults(code: string, agentResponse: AgentAnalyzeResponse): Line
       line: lineNumber,
       code: sourceLine,
       status: hasPartialSignal ? "partial" : "matched",
-      patternIds: [...lineExplanation.tokenIds, ...lineExplanation.conceptIds],
+      patternIds: [...(lineExplanation.tokenIds ?? []), ...lineExplanation.conceptIds],
       explanations,
     };
   });
@@ -277,11 +277,11 @@ function buildExplanationBlocks(
     },
   ];
 
-  if (lineExplanation.tokenIds.length > 0) {
+  if ((lineExplanation.tokenIds ?? []).length > 0) {
     blocks.push({
       id: `tokens-${lineExplanation.line}`,
       kind: "token",
-      segments: buildListSegments("관련 토큰: ", lineExplanation.tokenIds),
+      segments: buildListSegments("관련 토큰: ", lineExplanation.tokenIds ?? []),
     });
   }
 

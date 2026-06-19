@@ -206,7 +206,16 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
-  if (value.mode !== undefined && value.mode !== "code" && value.mode !== "text") {
+  if (
+    value.mode !== undefined &&
+    value.mode !== "code" &&
+    value.mode !== "text" &&
+    value.mode !== "explain-token"
+  ) {
+    return false;
+  }
+
+  if (value.targetToken !== undefined && typeof value.targetToken !== "string") {
     return false;
   }
 

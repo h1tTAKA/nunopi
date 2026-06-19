@@ -9,8 +9,9 @@ import type {
 } from "@/lib/translator/types";
 import type { AgentProviderKind } from "./types";
 
-// 분석 모드 — "code"(기본, 코드 분석) | "text"(IT 용어 글 분석).
-export type AnalyzeMode = "code" | "text";
+// 분석 모드 — "code"(기본, 코드 분석) | "text"(IT 용어 글 분석)
+// | "explain-token"(코드 맥락에서 토큰 1개만 on-demand 설명).
+export type AnalyzeMode = "code" | "text" | "explain-token";
 
 export interface ProviderSettings {
   "openai-compatible"?: {
@@ -31,6 +32,7 @@ export interface AgentAnalyzeRequest {
   locale: "ko";
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code".
+  targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
   options?: AgentAnalyzeOptions;
@@ -67,7 +69,8 @@ export interface AgentLineExplanation {
   line: number;
   code: string;
   explanation: string;
-  tokenIds: string[];
+  tokens?: string[]; // 그 줄의 의미 토큰 텍스트(lazy 사전: 칩으로 표시, 클릭 시 on-demand 설명).
+  tokenIds?: string[]; // 레거시(사전 id 참조) — 하위호환용.
   conceptIds: string[];
   confidence?: number;
 }
