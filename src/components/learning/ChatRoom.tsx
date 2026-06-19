@@ -15,9 +15,31 @@ interface ChatRoomProps {
 }
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
+// 대화를 마크다운 문자열로(어시스턴트 답은 이미 마크다운이라 그대로 → 표/코드 보존).
+function formatChatAsMarkdown(messages: ChatMessage[]): string {
+  return messages
+    .map((m) => `${m.role === "user" ? "**🙋 나**" : "**🤖 튜터**"}\n\n${m.content}`)
+    .join("\n\n---\n\n");
+}
+
 export default function ChatRoom({ messages, streaming, isLoading, disabled, disabledHint, onSend }: ChatRoomProps) {
   const [input, setInput] = useState("");
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 2000);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  async function handleCopy() {
+    if (messages.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(formatChatAsMarkdown(messages));
+      setCopied(true);
+    } catch { /* ignore — clipboard may be unavailable */ }
+  }
 
   // 새 메시지/스트리밍마다 맨 아래로.
   const tick = `${messages.length}:${streaming?.length ?? 0}`;
@@ -38,6 +60,16 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">💬 학습 챗</span>
         <span className="text-xs text-zinc-400 dark:text-zinc-500">코드에 대해 물어보세요</span>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={() => { void handleCopy(); }}
+            className="ml-auto rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title="대화 전체를 마크다운으로 복사"
+          >
+            {copied ? "복사됨 ✓" : "MD 복사"}
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} className="nunopi-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
