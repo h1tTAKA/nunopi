@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
-
-const DEFAULT_VISIBLE = 5;
 
 interface LineExplanationListProps {
   lineExplanations: AgentLineExplanation[];
@@ -30,9 +28,8 @@ export default function LineExplanationList({
   activeLine = null,
   onLineFocus,
 }: LineExplanationListProps) {
-  const [showAll, setShowAll] = useState(false);
-  const visibleItems = showAll ? lineExplanations : lineExplanations.slice(0, DEFAULT_VISIBLE);
-  const hiddenCount = lineExplanations.length - DEFAULT_VISIBLE;
+  // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
+  const visibleItems = lineExplanations;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const onLineFocusRef = useRef(onLineFocus);
@@ -95,7 +92,7 @@ export default function LineExplanationList({
   return (
     <div
       ref={containerRef}
-      className="max-h-[45vh] space-y-3 overflow-y-auto pr-1"
+      className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll pr-1"
     >
       {visibleItems.map((item, i) => {
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
@@ -167,24 +164,6 @@ export default function LineExplanationList({
           </div>
         );
       })}
-      {!showAll && hiddenCount > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowAll(true)}
-          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-        >
-          더 보기 ({hiddenCount}개 더)
-        </button>
-      )}
-      {showAll && lineExplanations.length > DEFAULT_VISIBLE && (
-        <button
-          type="button"
-          onClick={() => setShowAll(false)}
-          className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-        >
-          접기
-        </button>
-      )}
     </div>
   );
 }

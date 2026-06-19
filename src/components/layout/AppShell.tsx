@@ -109,7 +109,7 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
         />
 
         {/* 우측 학습패널 — 자체 세로 스크롤. */}
-        <aside className="bg-white md:min-h-0 md:flex-1 md:overflow-y-auto dark:bg-zinc-950">
+        <aside className="nunopi-scroll bg-white md:min-h-0 md:flex-1 md:overflow-y-scroll dark:bg-zinc-950">
           {learningPanel}
         </aside>
       </main>
