@@ -17,6 +17,7 @@ import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
+import { formatResultAsHtml } from "@/lib/exportHtml";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
@@ -111,6 +112,25 @@ export default function LearningPanel({
       await navigator.clipboard.writeText(formatResultAsMarkdown(result));
       setCopied(true);
     } catch { /* ignore — clipboard may be unavailable */ }
+  }
+
+  async function handleExportHtml() {
+    if (!result) return;
+    const html = await formatResultAsHtml(result, code, currentHistoryTitle);
+    const datePart = new Date(result.createdAt).toISOString().slice(0, 10).replaceAll("-", "");
+    const titlePart = (currentHistoryTitle?.trim() || "분석")
+      .replaceAll(/[\\/:*?"<>|]/g, "")
+      .slice(0, 40);
+    const filename = `nunopi-${titlePart}-${datePart}.html`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   useEffect(() => {
@@ -365,14 +385,25 @@ export default function LearningPanel({
                   요약
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => { void handleCopyResult(); }}
-                className="shrink-0 rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
-                aria-label="분석 결과 클립보드에 복사"
-              >
-                {copied ? "복사됨 ✓" : "복사"}
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => { void handleCopyResult(); }}
+                  className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                  aria-label="분석 결과 클립보드에 복사"
+                >
+                  {copied ? "복사됨 ✓" : "복사"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { void handleExportHtml(); }}
+                  className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+                  aria-label="분석 결과를 HTML 파일로 저장"
+                  title="나중에 보며 공부할 수 있게 HTML로 저장"
+                >
+                  HTML 저장
+                </button>
+              </div>
             </div>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
               {result.summary}
