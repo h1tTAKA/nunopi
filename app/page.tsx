@@ -223,6 +223,8 @@ export default function Home() {
       setAnalysisResult(null);
     }
     setCurrentHistoryId(null);
+    setChatMessages([]);
+    setChatStreaming(null);
   }
 
   async function handleAnalyze() {
