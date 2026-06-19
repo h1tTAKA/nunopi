@@ -1,20 +1,29 @@
-import type { AgentProviderKind, AgentProviderMetadata } from "@/lib/agent";
+import type { AgentProviderKind, AgentProviderMetadata, AnalyzeMode } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 
 interface ProviderToolbarProps {
+  mode: AnalyzeMode;
   providerId: AgentProviderKind;
   isLoading: boolean;
   errorMessage: string | null;
+  onModeChange: (mode: AnalyzeMode) => void;
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
   onCancel: () => void;
   onSettingsOpen: () => void;
 }
 
+const MODE_OPTIONS: { value: AnalyzeMode; label: string }[] = [
+  { value: "code", label: "코드 분석" },
+  { value: "text", label: "글 분석" },
+];
+
 export default function ProviderToolbar({
+  mode,
   providerId,
   isLoading,
   errorMessage,
+  onModeChange,
   onProviderChange,
   onAnalyze,
   onCancel,
@@ -24,6 +33,34 @@ export default function ProviderToolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
+      {/* 모드 토글 — 코드 분석 / 글(IT 용어) 분석. 히스토리·북마크는 모드별로 분리(Issue 76). */}
+      <div
+        role="tablist"
+        aria-label="분석 모드"
+        className="inline-flex rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+      >
+        {MODE_OPTIONS.map((opt) => {
+          const selected = mode === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              disabled={isLoading}
+              onClick={() => onModeChange(opt.value)}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                selected
+                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                  : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
       <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
         분석 provider
       </span>

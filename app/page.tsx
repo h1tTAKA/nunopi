@@ -5,10 +5,11 @@ import AppShell from "@/components/layout/AppShell";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
+import TextInputArea from "@/components/translator/TextInputArea";
 import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { SupportedLanguage } from "@/lib/translator/types";
-import type { AgentAnalyzeResponse, AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
   saveToHistory,
@@ -51,7 +52,11 @@ function generateAutoTitle(result: import("@/lib/agent").AgentAnalyzeResponse, c
 }
 
 export default function Home() {
-  const [code, setCode] = useState(DEFAULT_CODE);
+  // 분석 모드(코드/글). 모드별로 입력을 따로 유지해 토글해도 서로 안 지워지게 한다.
+  const [mode, setMode] = useState<AnalyzeMode>("code");
+  const [codeInput, setCodeInput] = useState(DEFAULT_CODE);
+  const [textInput, setTextInput] = useState("");
+  const code = mode === "text" ? textInput : codeInput;
   const [providerId, setProviderId] = useState<AgentProviderKind>(
     DEFAULT_PROVIDER_ID,
   );
@@ -122,7 +127,8 @@ export default function Home() {
   }, [isLoading, errorMessage, analysisResult]);
 
   function handleCodeChange(nextCode: string) {
-    setCode(nextCode);
+    if (mode === "text") setTextInput(nextCode);
+    else setCodeInput(nextCode);
     if (errorMessage) {
       setErrorMessage(null);
     }
@@ -130,6 +136,14 @@ export default function Home() {
       setAnalysisResult(null);
     }
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
+    setCurrentHistoryId(null);
+  }
+
+  function handleModeChange(nextMode: AnalyzeMode) {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    setErrorMessage(null);
+    setAnalysisResult(null);
     setCurrentHistoryId(null);
   }
 
@@ -148,7 +162,11 @@ export default function Home() {
     const nextCode = code.trim();
 
     if (!nextCode) {
-      setErrorMessage("분석할 코드를 먼저 입력해야 한다.");
+      setErrorMessage(
+        mode === "text"
+          ? "분석할 글을 먼저 입력해야 한다."
+          : "분석할 코드를 먼저 입력해야 한다.",
+      );
       setAnalysisResult(null);
       return;
     }
@@ -178,6 +196,7 @@ export default function Home() {
             code: nextCode,
             locale: "ko",
             providerId,
+            mode,
             providerSettings,
           },
         }),
@@ -236,6 +255,7 @@ export default function Home() {
         saveToHistory({
           code: nextCode,
           providerId,
+          mode,
           result: saved,
           title: generateAutoTitle(saved, nextCode),
           createdAt: new Date().toISOString(),
@@ -264,7 +284,10 @@ export default function Home() {
   }
 
   function handleRestoreHistory(entry: HistoryEntry) {
-    setCode(entry.code);
+    const entryMode = entry.mode ?? "code";
+    setMode(entryMode);
+    if (entryMode === "text") setTextInput(entry.code);
+    else setCodeInput(entry.code);
     setProviderId(entry.providerId);
     setAnalysisResult(entry.result);
     setErrorMessage(null);
@@ -295,9 +318,11 @@ export default function Home() {
       <AppShell
         toolbar={
           <ProviderToolbar
+            mode={mode}
             providerId={providerId}
             isLoading={isLoading}
             errorMessage={errorMessage}
+            onModeChange={handleModeChange}
             onProviderChange={handleProviderChange}
             onAnalyze={handleAnalyze}
             onCancel={handleCancel}
@@ -332,17 +357,25 @@ export default function Home() {
         />
       }
         editor={
-          <CodeInputArea
-            code={code}
-            isLoading={isLoading}
-            languageChoice={languageChoice}
-            editorLanguage={editorLanguage}
-            onLanguageChoiceChange={setLanguageChoice}
-            onCodeChange={handleCodeChange}
-            activeLine={activeLineLink?.line ?? null}
-            onLineClick={focusLineFromEditor}
-            markedLines={markedLines}
-          />
+          mode === "text" ? (
+            <TextInputArea
+              code={code}
+              isLoading={isLoading}
+              onCodeChange={handleCodeChange}
+            />
+          ) : (
+            <CodeInputArea
+              code={code}
+              isLoading={isLoading}
+              languageChoice={languageChoice}
+              editorLanguage={editorLanguage}
+              onLanguageChoiceChange={setLanguageChoice}
+              onCodeChange={handleCodeChange}
+              activeLine={activeLineLink?.line ?? null}
+              onLineClick={focusLineFromEditor}
+              markedLines={markedLines}
+            />
+          )
         }
       />
       <SettingsDrawer
