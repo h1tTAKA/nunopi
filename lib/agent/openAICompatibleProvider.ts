@@ -1,6 +1,7 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
-import type { TranslateWarning } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import { dedupeConcepts, dedupeTokens } from "./dedupe";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -30,6 +31,8 @@ interface OpenAICompatibleNormalizedPayload {
   summary?: string;
   language?: string;
   lineExplanations?: AgentAnalyzeResponse["lineExplanations"];
+  tokens?: unknown[];
+  concepts?: unknown[];
   warnings?: TranslateWarning[];
 }
 
@@ -125,8 +128,12 @@ function normalizeOpenAICompatibleResponse(
       parsed.summary ??
       `OpenAI-compatible endpoint for ${config.model} at ${config.baseUrl} returned a normalized payload.`,
     lineExplanations: parsed.lineExplanations ?? [],
-    tokens: [],
-    concepts: [],
+    tokens: dedupeTokens(
+      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
+    ),
+    concepts: dedupeConcepts(
+      Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
+    ),
     warnings: parsed.warnings ?? [],
     usage,
     rawText: rawResponse,
@@ -294,8 +301,28 @@ function buildOpenAICompatibleMessages(
         '      "confidence": number',
         "    }",
         "  ],",
+        '  "tokens": [',
+        "    {",
+        '      "id": "string (referenced by lineExplanations.tokenIds)",',
+        '      "token": "string (raw code token, e.g. useState)",',
+        '      "category": "react_hook | state_variable | state_setter | prop | function | event_handler | jsx_element | operator | keyword | api_call | dependency_array | initial_value | css_selector | css_property | css_value | tailwind_utility | tailwind_layout | tailwind_spacing | tailwind_color | tailwind_responsive | tailwind_state",',
+        '      "label": "string (short Korean name)",',
+        '      "description": "string (beginner-friendly Korean explanation)",',
+        '      "example": "string (optional usage example)",',
+        '      "lines": number[],',
+        '      "conceptId": "string (optional, references concepts.conceptId)",',
+        '      "bookmarkable": boolean',
+        "    }",
+        "  ],",
+        '  "concepts": [',
+        '    { "conceptId": "string", "title": "string (Korean)", "lines": number[], "count": number }',
+        "  ],",
         '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
         "}",
+        "Link references: lineExplanations.tokenIds must reference tokens[].id, and lineExplanations.conceptIds must reference concepts[].conceptId.",
+        "Populate tokens with the meaningful identifiers/keywords in the code, and concepts with the higher-level ideas (e.g. React state).",
+        "Give one lineExplanations entry for EVERY meaningful line of the code — do not skip or omit lines.",
+        "Each token id and each concept conceptId must be UNIQUE across the whole response (no duplicates).",
       ].join("\n"),
     },
     {
@@ -401,11 +428,53 @@ function isOpenAICompatibleNormalizedPayload(
     return false;
   }
 
+  // tokens/concepts는 배열인지만 느슨히 검사하고, 요소 검증은 normalize의 filter에서.
+  if (value.tokens !== undefined && !Array.isArray(value.tokens)) {
+    return false;
+  }
+
+  if (value.concepts !== undefined && !Array.isArray(value.concepts)) {
+    return false;
+  }
+
   if (value.warnings !== undefined && !isWarningList(value.warnings)) {
     return false;
   }
 
   return true;
+}
+
+function isCodeToken(value: unknown): value is CodeToken {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.token === "string" &&
+    typeof value.category === "string" &&
+    typeof value.label === "string" &&
+    typeof value.description === "string" &&
+    (value.example === undefined || typeof value.example === "string") &&
+    Array.isArray(value.lines) &&
+    value.lines.every((line) => typeof line === "number") &&
+    (value.conceptId === undefined || typeof value.conceptId === "string") &&
+    typeof value.bookmarkable === "boolean"
+  );
+}
+
+function isConceptOccurrence(value: unknown): value is ConceptOccurrence {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.conceptId === "string" &&
+    typeof value.title === "string" &&
+    Array.isArray(value.lines) &&
+    value.lines.every((line) => typeof line === "number") &&
+    typeof value.count === "number"
+  );
 }
 
 function isLineExplanationList(
