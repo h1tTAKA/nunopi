@@ -36,6 +36,7 @@ export function mergeChunkResults(
   results: AgentAnalyzeResponse[],
   providerId: AgentProviderKind,
   language: string,
+  createdAt: string = new Date().toISOString(),
 ): AgentAnalyzeResponse {
   const tokens = new Map<string, CodeToken>(); // key = token 텍스트
   const concepts = new Map<string, ConceptOccurrence>(); // key = title
@@ -129,20 +130,23 @@ export function mergeChunkResults(
     concepts: Array.from(concepts.values()),
     warnings,
     usage,
-    createdAt: new Date().toISOString(),
+    createdAt,
   };
 }
 
 export interface ChunkedAnalyzeOptions {
   chunkLines: number;
   concurrency: number;
+  // 청크 하나가 완료될 때마다 "지금까지 완료된 청크들의 병합 결과"를 흘린다(부분 스트리밍).
+  onPartial?: (response: AgentAnalyzeResponse) => void;
 }
 
-// 동시성 제한 풀로 작업들을 병렬 실행한다(순서 보존).
+// 동시성 제한 풀로 작업들을 병렬 실행한다(순서 보존). onResult는 각 완료 직후 호출.
 async function runPool<T, R>(
   items: T[],
   limit: number,
   worker: (item: T, index: number) => Promise<R>,
+  onResult?: (index: number, result: R) => void,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
@@ -151,6 +155,7 @@ async function runPool<T, R>(
       const i = next++;
       if (i >= items.length) return;
       results[i] = await worker(items[i], i);
+      onResult?.(i, results[i]);
     }
   }
   const runners = Array.from({ length: Math.min(limit, items.length) }, () => runner());
@@ -167,19 +172,36 @@ export async function analyzeChunked(
 ): Promise<AgentAnalyzeResponse> {
   const chunks = splitCodeIntoChunks(request.code, opts.chunkLines);
   const total = chunks.length;
+  // 부분 결과의 createdAt을 고정해 클라의 key 리마운트/깜빡임을 막는다.
+  const createdAt = new Date().toISOString();
   let done = 0;
+  // 완료된 청크를 인덱스 위치에 누적(소스 순서 유지) → 부분 병합에 사용.
+  const acc: AgentAnalyzeResponse[] = [];
+  const filled: boolean[] = new Array(chunks.length).fill(false);
   options?.onProgress?.(`코드를 ${total}개 청크로 병렬 분석 시작…`);
 
-  const results = await runPool(chunks, opts.concurrency, async (chunk) => {
-    const res = await provider.analyze(
-      { ...request, code: chunk.text },
-      { signal: options?.signal },
-    );
-    done += 1;
-    options?.onProgress?.(`청크 ${done}/${total} 완료`);
-    return res;
-  });
+  const results = await runPool(
+    chunks,
+    opts.concurrency,
+    async (chunk) => {
+      const res = await provider.analyze(
+        { ...request, code: chunk.text },
+        { signal: options?.signal },
+      );
+      done += 1;
+      options?.onProgress?.(`청크 ${done}/${total} 완료`);
+      return res;
+    },
+    (index, res) => {
+      acc[index] = res;
+      filled[index] = true;
+      if (!opts.onPartial) return;
+      const completed = acc.filter((_, i) => filled[i]);
+      const language = request.detectedLanguage ?? completed[0]?.language ?? "unknown";
+      opts.onPartial(mergeChunkResults(completed, request.providerId, language, createdAt));
+    },
+  );
 
   const language = request.detectedLanguage ?? results[0]?.language ?? "unknown";
-  return mergeChunkResults(results, request.providerId, language);
+  return mergeChunkResults(results, request.providerId, language, createdAt);
 }
