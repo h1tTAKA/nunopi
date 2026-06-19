@@ -100,7 +100,7 @@ export default function LineExplanationList({
   return (
     <div
       ref={containerRef}
-      className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll pr-1"
+      className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll overscroll-contain pr-1"
     >
       {visibleItems.map((item, i) => {
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
