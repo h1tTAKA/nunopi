@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/lib/agent";
+import Markdown from "./Markdown";
 
 interface ChatRoomProps {
   messages: ChatMessage[];
@@ -47,21 +48,21 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
         )}
         {messages.map((m, i) => (
           <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            <div
-              className={`max-w-[85%] select-text whitespace-pre-wrap rounded-2xl px-3 py-2 text-xs ${
-                m.role === "user"
-                  ? "bg-blue-500 text-white"
-                  : "bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-              }`}
-            >
-              {m.content}
-            </div>
+            {m.role === "user" ? (
+              <div className="max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-xs text-white">
+                {m.content}
+              </div>
+            ) : (
+              <div className="max-w-[85%] select-text rounded-2xl bg-white px-3 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                <Markdown>{m.content}</Markdown>
+              </div>
+            )}
           </div>
         ))}
         {streaming != null && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-white px-3 py-2 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-              {streaming || "답변 작성 중…"}
+            <div className="max-w-[85%] select-text rounded-2xl bg-white px-3 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">답변 작성 중…</span>}
             </div>
           </div>
         )}
