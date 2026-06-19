@@ -392,7 +392,7 @@ export default function LearningPanel({
                   className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                   aria-label="분석 결과 클립보드에 복사"
                 >
-                  {copied ? "복사됨 ✓" : "복사"}
+                  {copied ? "복사됨 ✓" : "분석 결과 복사"}
                 </button>
                 <button
                   type="button"
