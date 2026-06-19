@@ -40,6 +40,26 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // main(max-w-7xl)이 중앙정렬이라 넓은 화면에선 양옆에 빈 거터가 생긴다.
+  // 그 거터 위 wheel은 body로 가 아무것도 스크롤 안 됨 → 우측 학습패널로 넘긴다.
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const panel = main.querySelector<HTMLElement>("[data-panel-scroll]");
+    if (!panel) return;
+    const onWheel = (e: WheelEvent) => {
+      const rect = main.getBoundingClientRect();
+      // main 세로 범위(에디터+패널 행) 안에서 좌우 거터에 있을 때만 → 패널로.
+      const inRow = e.clientY >= rect.top && e.clientY <= rect.bottom;
+      const inGutter = e.clientX < rect.left || e.clientX > rect.right;
+      if (!inRow || !inGutter) return;
+      panel.scrollTop += e.deltaY;
+      e.preventDefault();
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, []);
+
   // 드래그 중 텍스트 선택을 막아 끌기 경험을 깔끔하게 한다.
   useEffect(() => {
     if (!dragging) return;
@@ -108,8 +128,11 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
           }`}
         />
 
-        {/* 우측 학습패널 — 자체 세로 스크롤. */}
-        <aside className="nunopi-scroll bg-white md:min-h-0 md:flex-1 md:overflow-y-scroll dark:bg-zinc-950">
+        {/* 우측 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스가 wheel을 이 컨테이너로 포워딩. */}
+        <aside
+          data-panel-scroll
+          className="nunopi-scroll bg-white md:min-h-0 md:flex-1 md:overflow-y-scroll dark:bg-zinc-950"
+        >
           {learningPanel}
         </aside>
       </main>

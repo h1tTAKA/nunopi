@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
 import {
@@ -19,6 +19,7 @@ import TokenSection from "./TokenSection";
 import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 import { formatResultAsHtml } from "@/lib/exportHtml";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
+import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
@@ -141,6 +142,7 @@ export default function LearningPanel({
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
   const [headerTitle, setHeaderTitle] = useState(currentHistoryTitle ?? "");
+  const tokenBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!copied) return;
@@ -155,6 +157,13 @@ export default function LearningPanel({
     const el = document.getElementById(`nunopi-line-${activeLine}`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeLine, activeLineSource]);
+
+  // 토큰 사전 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘긴다(줄별 박스와 동일).
+  useEffect(() => {
+    const el = tokenBoxRef.current;
+    if (!el) return;
+    return attachPanelWheelForward(el);
+  }, [result, activeTab]);
 
   async function handleCopyResult() {
     if (!result) return;
@@ -556,7 +565,7 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
-                  <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll pr-1">
+                  <div ref={tokenBoxRef} className="nunopi-scroll max-h-[45vh] overflow-y-scroll pr-1">
                     <TokenSection
                       key={result.createdAt}
                       tokens={displayTokens}
