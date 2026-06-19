@@ -565,7 +565,7 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
-                  <div ref={tokenBoxRef} className="nunopi-scroll max-h-[45vh] overflow-y-scroll pr-1">
+                  <div ref={tokenBoxRef} className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
                     <TokenSection
                       key={result.createdAt}
                       tokens={displayTokens}

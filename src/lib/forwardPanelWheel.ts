@@ -1,17 +1,17 @@
-// 안쪽 스크롤 박스(줄별 설명/토큰 사전)가 wheel을 소화 못 할 때 — 스크롤이
-// 불필요(내용이 박스보다 짧음)하거나 이미 경계(맨 위/맨 아래)일 때 — 가장 가까운
-// [data-panel-scroll] 컨테이너(학습패널 aside)로 wheel을 넘겨 전체 패널이 스크롤되게 한다.
-// 박스 중간이면 그대로 박스를 스크롤한다(내용 읽기 방해 안 함).
+// 안쪽 박스(줄별 설명/토큰 사전)가 내용이 짧아 스크롤이 아예 불필요할 때만,
+// 그 위 wheel을 가장 가까운 [data-panel-scroll] 컨테이너(학습패널 aside)로 넘겨
+// 전체 패널이 스크롤되게 한다.
+//
+// 스크롤 가능한 박스는 항상 자기가 처리한다(경계에서도 패널로 안 샌다 — 경계 누수
+// 차단은 CSS overscroll-contain이 맡는다). 경계 포워딩을 하면 트랙패드 관성으로
+// 박스 끝에 닿는 순간 패널이 튀는 것처럼 보여 제거했다.
 //
 // React onWheel은 passive로 붙어 preventDefault가 막힐 수 있어, 네이티브
 // addEventListener({ passive: false })로 직접 붙인다.
 export function attachPanelWheelForward(el: HTMLElement): () => void {
   const onWheel = (e: WheelEvent) => {
     const canScroll = el.scrollHeight - el.clientHeight > 1;
-    const atTop = el.scrollTop <= 0;
-    const atBottom = el.scrollHeight - el.clientHeight - el.scrollTop <= 1;
-    // 박스가 해당 방향으로 스크롤 가능하면(중간) → 박스가 처리.
-    if (canScroll && !(e.deltaY < 0 && atTop) && !(e.deltaY > 0 && atBottom)) return;
+    if (canScroll) return; // 스크롤 가능 → 박스가 처리(패널로 안 샘).
     const panel = el.closest<HTMLElement>("[data-panel-scroll]");
     if (!panel) return;
     panel.scrollTop += e.deltaY;
