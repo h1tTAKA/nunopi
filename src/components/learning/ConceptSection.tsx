@@ -37,66 +37,73 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
       {concepts.map((concept) => {
         const isActive = activeConceptId === concept.conceptId;
         return (
-          <button
+          <div
             key={concept.conceptId}
-            type="button"
             id={`concept-${concept.conceptId}`}
-            onClick={() => onConceptClick?.(concept.conceptId)}
-            aria-label={`${concept.title} 개념 선택`}
-            className={`w-full rounded-2xl border p-4 text-left transition ${
+            className={`scroll-mt-4 rounded-2xl border transition ${
               isActive
                 ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
                 : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             }`}
           >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
-                {concept.title}
-              </p>
-              <div className="flex items-center gap-1.5 shrink-0">
-                {(() => {
-                  const desc = CONCEPT_DESCRIPTIONS[concept.conceptId];
-                  if (!desc) return null;
-                  const isIntermediate = desc.level === "intermediate";
-                  return (
-                    <span className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium ${
-                      isIntermediate
-                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                        : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                    }`}>
-                      {LEVEL_LABEL[desc.level]}
-                    </span>
-                  );
-                })()}
-                <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
-                  ×{concept.count}
-                </span>
+            {/* 헤더만 클릭 영역. 설명은 버튼 밖 select-text → 드래그 복사 가능. */}
+            <button
+              type="button"
+              onClick={() => onConceptClick?.(concept.conceptId)}
+              aria-label={`${concept.title} 개념 선택`}
+              className="w-full px-4 pt-4 text-left"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+                  {concept.title}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {(() => {
+                    const desc = CONCEPT_DESCRIPTIONS[concept.conceptId];
+                    if (!desc) return null;
+                    const isIntermediate = desc.level === "intermediate";
+                    return (
+                      <span className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium ${
+                        isIntermediate
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                      }`}>
+                        {LEVEL_LABEL[desc.level]}
+                      </span>
+                    );
+                  })()}
+                  <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                    ×{concept.count}
+                  </span>
+                </div>
               </div>
+              {concept.lines.length > 0 && (
+                <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+                  {concept.lines.join(", ")}번 줄
+                </p>
+              )}
+            </button>
+            <div className="px-4 pb-4 pt-2">
+              {isActive && (() => {
+                const desc = concept.description ?? CONCEPT_DESCRIPTIONS[concept.conceptId]?.short;
+                if (desc) {
+                  return (
+                    <p className="select-text border-t border-zinc-200 pt-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+                      {desc}
+                    </p>
+                  );
+                }
+                if (explainingConcepts?.includes(concept.conceptId)) {
+                  return (
+                    <p className="border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
+                      설명 불러오는 중…
+                    </p>
+                  );
+                }
+                return null;
+              })()}
             </div>
-            {concept.lines.length > 0 && (
-              <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
-                {concept.lines.join(", ")}번 줄
-              </p>
-            )}
-            {isActive && (() => {
-              const desc = concept.description ?? CONCEPT_DESCRIPTIONS[concept.conceptId]?.short;
-              if (desc) {
-                return (
-                  <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
-                    {desc}
-                  </p>
-                );
-              }
-              if (explainingConcepts?.includes(concept.conceptId)) {
-                return (
-                  <p className="mt-2 border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
-                    설명 불러오는 중…
-                  </p>
-                );
-              }
-              return null;
-            })()}
-          </button>
+          </div>
         );
       })}
     </div>

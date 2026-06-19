@@ -114,10 +114,11 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                 </button>
               )}
             </div>
+            {/* 헤더(토큰칩+카테고리)만 클릭 영역. 설명/예시는 버튼 밖 → 드래그 복사 가능. */}
             <button
               type="button"
               onClick={() => onTokenClick?.(token.id, token.conceptId)}
-              className={`w-full p-4 text-left ${token.bookmarkable || onDelete ? "pr-12" : ""}`}
+              className={`w-full px-4 pt-4 text-left ${token.bookmarkable || onDelete ? "pr-12" : ""}`}
               aria-label={`${token.token} 토큰 선택`}
             >
               <div className="flex items-center gap-2">
@@ -131,11 +132,13 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
               <p className="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-200">
                 {token.label}
               </p>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+            </button>
+            <div className="px-4 pb-4">
+              <p className="mt-1 select-text text-xs text-zinc-600 dark:text-zinc-300">
                 {token.description}
               </p>
               {token.example && (
-                <div className="mt-2">
+                <div className="mt-2 select-text">
                   <CodeBlock code={token.example} />
                 </div>
               )}
@@ -144,7 +147,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   등장: {token.lines.join(", ")}번 줄
                 </p>
               )}
-            </button>
+            </div>
           </div>
         );
       })}
