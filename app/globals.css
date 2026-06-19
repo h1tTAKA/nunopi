@@ -42,3 +42,11 @@ samp {
 .dark .nunopi-active-line {
   background: rgba(59, 130, 246, 0.22);
 }
+
+/* 토큰 사전 호버/클릭 시 해당 코드 줄 강조 (Monaco decoration className) */
+.nunopi-token-line {
+  background: rgba(245, 158, 11, 0.18);
+}
+.dark .nunopi-token-line {
+  background: rgba(245, 158, 11, 0.26);
+}
