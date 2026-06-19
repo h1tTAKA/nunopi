@@ -57,6 +57,8 @@ interface LearningPanelProps {
   activeLine?: number | null;
   activeLineSource?: "editor" | "panel";
   onLineFocus?: (line: number) => void;
+  // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들을 상위(page)에 올린다.
+  onMarkLines?: (lines: number[]) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -80,6 +82,7 @@ export default function LearningPanel({
   activeLine = null,
   activeLineSource,
   onLineFocus,
+  onMarkLines,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -98,6 +101,23 @@ export default function LearningPanel({
   const safeConcepts = useMemo(() => dedupeConcepts(result?.concepts ?? []), [result]);
   const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
+  // 토큰 호버 시 임시 강조 줄(떼면 null). 에디터 하이라이트는 hover ?? 클릭고정.
+  const [hoverLines, setHoverLines] = useState<number[] | null>(null);
+  // 클릭으로 고정된 토큰(activeTokenIds)의 줄들.
+  const pinnedLines = useMemo(
+    () =>
+      safeTokens
+        .filter((t) => activeTokenIds.includes(t.id))
+        .flatMap((t) => t.lines),
+    [safeTokens, activeTokenIds],
+  );
+  // 에디터에 강조할 줄: 호버 중엔 호버 우선, 떼면 클릭 고정으로 복귀.
+  const markedLines = hoverLines ?? pinnedLines;
+  const markedKey = markedLines.join(",");
+  useEffect(() => {
+    onMarkLines?.(markedKey ? markedKey.split(",").map(Number) : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markedKey]);
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
@@ -525,6 +545,7 @@ export default function LearningPanel({
                     onTokenClick={handleTokenClick}
                     bookmarkedTokenTexts={bookmarkedTokenTexts}
                     onBookmarkToggle={handleBookmarkToggle}
+                    onTokenHover={setHoverLines}
                   />
                 </>
               );

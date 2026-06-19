@@ -12,6 +12,8 @@ interface TokenSectionProps {
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
   bookmarkedTokenTexts?: string[];
   onBookmarkToggle?: (token: CodeToken) => void;
+  // 토큰 호버 시 강조할 코드 줄들(떼면 null). 에디터 하이라이트 연동.
+  onTokenHover?: (lines: number[] | null) => void;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -38,7 +40,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover }: TokenSectionProps) {
   const [showAll, setShowAll] = useState(false);
   const visibleTokens = showAll ? tokens : tokens.slice(0, DEFAULT_VISIBLE);
   const hiddenCount = tokens.length - DEFAULT_VISIBLE;
@@ -60,6 +62,8 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
         return (
           <div
             key={token.id}
+            onMouseEnter={() => onTokenHover?.(token.lines)}
+            onMouseLeave={() => onTokenHover?.(null)}
             className={`relative rounded-2xl border transition ${
               isBookmarked
                 ? "border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/20"

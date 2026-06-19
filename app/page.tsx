@@ -77,6 +77,8 @@ export default function Home() {
     setActiveLineLink({ line, source: "editor" });
   const focusLineFromPanel = (line: number) =>
     setActiveLineLink({ line, source: "panel" });
+  // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들.
+  const [markedLines, setMarkedLines] = useState<number[]>([]);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -313,6 +315,7 @@ export default function Home() {
           activeLine={activeLineLink?.line ?? null}
           activeLineSource={activeLineLink?.source}
           onLineFocus={focusLineFromPanel}
+          onMarkLines={setMarkedLines}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}
@@ -338,6 +341,7 @@ export default function Home() {
             onCodeChange={handleCodeChange}
             activeLine={activeLineLink?.line ?? null}
             onLineClick={focusLineFromEditor}
+            markedLines={markedLines}
           />
         }
       />
