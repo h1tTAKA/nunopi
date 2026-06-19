@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
+import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 import CodeBlock from "./CodeBlock";
 
 interface LineExplanationListProps {
@@ -37,6 +38,13 @@ export default function LineExplanationList({
   useEffect(() => {
     onLineFocusRef.current = onLineFocus;
   }, [onLineFocus]);
+
+  // 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘겨 어디서나 패널 스크롤.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    return attachPanelWheelForward(el);
+  }, [visibleItems.length]);
 
   // 패널 스크롤 시 화면 상단에 가장 가까운 가시 카드의 줄을 onLineFocus로 알린다.
   useEffect(() => {
