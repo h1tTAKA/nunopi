@@ -1,9 +1,10 @@
-import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
 
 export interface HistoryEntry {
   id: string;
   code: string;
   providerId: AgentProviderKind;
+  mode?: AnalyzeMode; // 기본 "code". Issue 76에서 모드별 필터에 사용.
   result: AgentAnalyzeResponse;
   createdAt: string;
   isPinned?: boolean;
