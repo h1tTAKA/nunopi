@@ -1,4 +1,4 @@
-import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage } from "@/lib/agent";
 
 export interface HistoryEntry {
   id: string;
@@ -6,6 +6,7 @@ export interface HistoryEntry {
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code". Issue 76에서 모드별 필터에 사용.
   result: AgentAnalyzeResponse;
+  chat?: ChatMessage[]; // 학습 챗 스레드(분석마다 보존).
   createdAt: string;
   isPinned?: boolean;
   title?: string;
@@ -87,7 +88,7 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
 
 export async function updateHistory(
   id: string,
-  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result">>,
+  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat">>,
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {

@@ -28,6 +28,8 @@ interface CodeInputAreaProps {
   activeLine?: number | null;
   onLineClick?: (line: number) => void;
   markedLines?: number[];
+  chatOpen?: boolean;
+  onToggleChat?: () => void;
 }
 
 export default function CodeInputArea({
@@ -40,6 +42,8 @@ export default function CodeInputArea({
   activeLine = null,
   onLineClick,
   markedLines,
+  chatOpen,
+  onToggleChat,
 }: CodeInputAreaProps) {
   return (
     <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-black">
@@ -71,6 +75,20 @@ export default function CodeInputArea({
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             {code.trim().split(/\r?\n/).filter(Boolean).length} lines
           </span>
+          {onToggleChat && (
+            <button
+              type="button"
+              onClick={onToggleChat}
+              className={`rounded-lg px-2 py-1 text-xs font-medium transition ${
+                chatOpen
+                  ? "bg-blue-500 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              }`}
+              title="학습 챗 열기/닫기"
+            >
+              💬 질문
+            </button>
+          )}
         </div>
       </div>
 

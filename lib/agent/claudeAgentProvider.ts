@@ -9,6 +9,7 @@ import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
+import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -54,8 +55,14 @@ export const claudeAgentProvider: AgentProvider = {
     const isText = request.mode === "text";
     const isExplainToken = request.mode === "explain-token";
     const isExplainConcept = request.mode === "explain-concept";
+    const isChat = request.mode === "chat";
 
     if (!availability.available) {
+      if (isChat) {
+        return chatModeResponse("claude-agent", `Claude 런타임을 찾지 못했다: ${availability.message}`, [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       if (isExplainConcept) {
         return conceptModeResponse("claude-agent", [], [
           { code: "PARTIAL_PARSE", message: availability.message },
@@ -89,23 +96,27 @@ export const claudeAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = isExplainConcept
-      ? buildExplainConceptPrompt(request)
-      : isExplainToken
-        ? buildExplainTokenPrompt(request)
-        : isText
-          ? buildTextPrompt(request)
-          : buildClaudePrompt(request);
+    const prompt = isChat
+      ? buildChatPrompt(request)
+      : isExplainConcept
+        ? buildExplainConceptPrompt(request)
+        : isExplainToken
+          ? buildExplainTokenPrompt(request)
+          : isText
+            ? buildTextPrompt(request)
+            : buildClaudePrompt(request);
     const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return isExplainConcept
-        ? normalizeExplainConceptOutput(mockText, "claude-agent", request)
-        : isExplainToken
-          ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
-          : isText
-            ? normalizeTextOutput(mockText, "claude-agent", request)
-            : normalizeClaudeOutput(mockText, request, availability, prompt);
+      return isChat
+        ? normalizeChatOutput(mockText, "claude-agent")
+        : isExplainConcept
+          ? normalizeExplainConceptOutput(mockText, "claude-agent", request)
+          : isExplainToken
+            ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
+            : isText
+              ? normalizeTextOutput(mockText, "claude-agent", request)
+              : normalizeClaudeOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -114,20 +125,27 @@ export const claudeAgentProvider: AgentProvider = {
         prompt,
         options?.signal,
         options?.onProgress,
+        isChat ? CHAT_SYSTEM_PROMPT : undefined,
+        isChat,
       );
-      return isExplainConcept
-        ? normalizeExplainConceptOutput(rawText, "claude-agent", request)
-        : isExplainToken
-          ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
-          : isText
-            ? normalizeTextOutput(rawText, "claude-agent", request, usage)
-            : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
+      return isChat
+        ? normalizeChatOutput(rawText, "claude-agent")
+        : isExplainConcept
+          ? normalizeExplainConceptOutput(rawText, "claude-agent", request)
+          : isExplainToken
+            ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
+            : isText
+              ? normalizeTextOutput(rawText, "claude-agent", request, usage)
+              : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "claude -p failed";
+      if (isChat) {
+        return chatModeResponse("claude-agent", `Claude 응답 실패: ${message}`, [{ code: "PARSE_FAILED", message }]);
+      }
       if (isExplainConcept) {
         return conceptModeResponse("claude-agent", [], [{ code: "PARSE_FAILED", message }]);
       }
@@ -173,6 +191,8 @@ async function runClaudeCli(
   prompt: string,
   signal?: AbortSignal,
   onProgress?: (line: string) => void,
+  systemPrompt: string = "You are a code analysis assistant. Return JSON only.",
+  fullProgress: boolean = false,
 ): Promise<ClaudeExecResult> {
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 8_388_608; // 8MB — stream-json + 세션 훅 노이즈까지 여유, 폭주 차단
@@ -194,7 +214,7 @@ async function runClaudeCli(
         // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
         "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
         "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
-        "--system-prompt", "You are a code analysis assistant. Return JSON only.", // 거대 기본 시스템 프롬프트 교체(분석 지시는 user 프롬프트에 있음)
+        "--system-prompt", systemPrompt, // 거대 기본 시스템 프롬프트 교체(코드 분석=JSON, 챗=튜터 프로즈)
         // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
         "--output-format", "stream-json", "--verbose", "--include-partial-messages",
         // prompt는 positional, stdin은 닫음.
@@ -243,7 +263,8 @@ async function runClaudeCli(
           typeof event.event.delta.text === "string"
         ) {
           streamed += event.event.delta.text;
-          onProgress?.(streamed.slice(-200));
+          // 챗은 전체 누적 텍스트(실시간 타이핑), 코드 모드는 진행 라벨용 끝 200자.
+          onProgress?.(fullProgress ? streamed : streamed.slice(-200));
         } else if (event.type === "result") {
           if (typeof event.result === "string") finalText = event.result;
           if (event.usage) {

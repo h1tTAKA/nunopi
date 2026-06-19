@@ -8,6 +8,7 @@ import type { AgentProvider } from "./types";
 import { textModeResponse } from "./textMode";
 import { tokenModeResponse } from "./tokenMode";
 import { conceptModeResponse } from "./conceptMode";
+import { chatModeResponse } from "./chatMode";
 
 const HOOK_PATTERN = /\b(useState|useEffect|useMemo|useCallback|useRef)\s*\(/;
 const JSX_PATTERN = /<\s*[A-Za-z][\w-]*(?:\s|>|\/)/;
@@ -42,6 +43,14 @@ export const localRulesProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+    // 로컬 규칙 분석은 대화를 못 한다 — chat은 안내만.
+    if (request.mode === "chat") {
+      return chatModeResponse(
+        this.metadata.id,
+        "학습 챗은 AI 프로바이더가 필요하다. 상단에서 Claude / Codex / OpenAI 호환 프로바이더를 선택해 보라.",
+        [],
+      );
+    }
     // 로컬 규칙 분석은 개념 설명을 만들지 않는다 — explain-concept은 안내만.
     if (request.mode === "explain-concept") {
       const c = request.targetConcept ?? "";

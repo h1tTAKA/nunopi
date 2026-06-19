@@ -11,6 +11,7 @@ import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
+import { buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
@@ -56,8 +57,14 @@ export const codexAgentProvider: AgentProvider = {
     const isText = request.mode === "text";
     const isExplainToken = request.mode === "explain-token";
     const isExplainConcept = request.mode === "explain-concept";
+    const isChat = request.mode === "chat";
 
     if (!availability.available) {
+      if (isChat) {
+        return chatModeResponse("codex-agent", `Codex 런타임을 찾지 못했다: ${availability.message}`, [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       if (isExplainConcept) {
         return conceptModeResponse("codex-agent", [], [
           { code: "PARTIAL_PARSE", message: availability.message },
@@ -91,23 +98,27 @@ export const codexAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = isExplainConcept
-      ? buildExplainConceptPrompt(request)
-      : isExplainToken
-        ? buildExplainTokenPrompt(request)
-        : isText
-          ? buildTextPrompt(request)
-          : buildCodexPrompt(request);
+    const prompt = isChat
+      ? buildChatPrompt(request)
+      : isExplainConcept
+        ? buildExplainConceptPrompt(request)
+        : isExplainToken
+          ? buildExplainTokenPrompt(request)
+          : isText
+            ? buildTextPrompt(request)
+            : buildCodexPrompt(request);
     const mockText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return isExplainConcept
-        ? normalizeExplainConceptOutput(mockText, "codex-agent", request)
-        : isExplainToken
-          ? normalizeExplainTokenOutput(mockText, "codex-agent", request)
-          : isText
-            ? normalizeTextOutput(mockText, "codex-agent", request)
-            : normalizeCodexOutput(mockText, request, availability, prompt);
+      return isChat
+        ? normalizeChatOutput(mockText, "codex-agent")
+        : isExplainConcept
+          ? normalizeExplainConceptOutput(mockText, "codex-agent", request)
+          : isExplainToken
+            ? normalizeExplainTokenOutput(mockText, "codex-agent", request)
+            : isText
+              ? normalizeTextOutput(mockText, "codex-agent", request)
+              : normalizeCodexOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -117,19 +128,24 @@ export const codexAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return isExplainConcept
-        ? normalizeExplainConceptOutput(rawText, "codex-agent", request)
-        : isExplainToken
-          ? normalizeExplainTokenOutput(rawText, "codex-agent", request)
-          : isText
-            ? normalizeTextOutput(rawText, "codex-agent", request, usage)
-            : normalizeCodexOutput(rawText, request, availability, prompt, usage);
+      return isChat
+        ? normalizeChatOutput(rawText, "codex-agent")
+        : isExplainConcept
+          ? normalizeExplainConceptOutput(rawText, "codex-agent", request)
+          : isExplainToken
+            ? normalizeExplainTokenOutput(rawText, "codex-agent", request)
+            : isText
+              ? normalizeTextOutput(rawText, "codex-agent", request, usage)
+              : normalizeCodexOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "codex exec failed";
+      if (isChat) {
+        return chatModeResponse("codex-agent", `Codex 응답 실패: ${message}`, [{ code: "PARSE_FAILED", message }]);
+      }
       if (isExplainConcept) {
         return conceptModeResponse("codex-agent", [], [{ code: "PARSE_FAILED", message }]);
       }
