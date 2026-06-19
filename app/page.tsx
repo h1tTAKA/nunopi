@@ -85,11 +85,10 @@ export default function Home() {
     setActiveLineLink({ line, source: "panel" });
   // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들.
   const [markedLines, setMarkedLines] = useState<number[]>([]);
-  // 제외(차단) 목록 — 모드별. 분석 결과 표시에서 숨기고 설정에서 관리한다.
-  const [excludedTokens, setExcludedTokens] = useState<string[]>([]);
+  // 제외(차단) 목록 — 글(IT 용어) 모드 전용. 코드 토큰은 X 삭제로 대체(제외 없음).
   const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
-  // lazy 토큰 사전 — 줄별 태그를 클릭하면 on-demand로 설명을 받아 여기 쌓는다(분석마다 리셋).
-  const [onDemandTokens, setOnDemandTokens] = useState<Record<string, CodeToken>>({});
+  // lazy 토큰 사전 — 줄별 태그 클릭 시 on-demand로 받은 토큰은 analysisResult.tokens에
+  // 직접 합쳐 유지/HTML 포함/삭제를 한 소스로 다룬다. explainingTokens는 로딩 표시용.
   const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
@@ -106,41 +105,24 @@ export default function Home() {
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setExcludedTokens(loadExclusions("code"));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExcludedTerms(loadExclusions("text"));
   }, []);
 
-  function handleExclude(targetMode: AnalyzeMode, text: string) {
-    if (targetMode === "text") {
-      setExcludedTerms((prev) => {
-        const next = prev.includes(text) ? prev : [...prev, text];
-        saveExclusions("text", next);
-        return next;
-      });
-    } else {
-      setExcludedTokens((prev) => {
-        const next = prev.includes(text) ? prev : [...prev, text];
-        saveExclusions("code", next);
-        return next;
-      });
-    }
+  // 제외는 글(IT 용어) 모드 전용.
+  function handleExclude(_targetMode: AnalyzeMode, text: string) {
+    setExcludedTerms((prev) => {
+      const next = prev.includes(text) ? prev : [...prev, text];
+      saveExclusions("text", next);
+      return next;
+    });
   }
 
-  function handleRemoveExclusion(targetMode: AnalyzeMode, text: string) {
-    if (targetMode === "text") {
-      setExcludedTerms((prev) => {
-        const next = prev.filter((t) => t !== text);
-        saveExclusions("text", next);
-        return next;
-      });
-    } else {
-      setExcludedTokens((prev) => {
-        const next = prev.filter((t) => t !== text);
-        saveExclusions("code", next);
-        return next;
-      });
-    }
+  function handleRemoveExclusion(_targetMode: AnalyzeMode, text: string) {
+    setExcludedTerms((prev) => {
+      const next = prev.filter((t) => t !== text);
+      saveExclusions("text", next);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -180,7 +162,6 @@ export default function Home() {
     }
     if (analysisResult) {
       setAnalysisResult(null);
-      setOnDemandTokens({});
       setExplainingTokens([]);
     }
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
@@ -193,7 +174,6 @@ export default function Home() {
     setErrorMessage(null);
     setAnalysisResult(null);
     setCurrentHistoryId(null);
-    setOnDemandTokens({});
     setExplainingTokens([]);
   }
 
@@ -230,7 +210,6 @@ export default function Home() {
     setAnalysisResult(null);
     setCurrentHistoryId(null);
     setProgressLine("");
-    setOnDemandTokens({});
     setExplainingTokens([]);
 
     const controller = new AbortController();
@@ -336,7 +315,12 @@ export default function Home() {
   }
 
   function handleTokenExplain(tokenText: string, line: number) {
-    if (onDemandTokens[tokenText] || explainingTokens.includes(tokenText)) return;
+    if (
+      explainingTokens.includes(tokenText) ||
+      analysisResult?.tokens.some((t) => t.token === tokenText)
+    ) {
+      return;
+    }
     const input = code.trim();
     if (!input) return;
     setExplainingTokens((prev) => [...prev, tokenText]);
@@ -378,7 +362,12 @@ export default function Home() {
         }
         if (token) {
           const resolved: CodeToken = { ...token, id: tokenText, token: tokenText, lines: [line] };
-          setOnDemandTokens((prev) => ({ ...prev, [tokenText]: resolved }));
+          // 받아온 토큰을 결과에 합쳐 유지(HTML 저장에도 포함, 삭제는 result에서 제거).
+          setAnalysisResult((prev) =>
+            prev && !prev.tokens.some((t) => t.token === tokenText)
+              ? { ...prev, tokens: [...prev.tokens, resolved] }
+              : prev,
+          );
         }
       } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
         setExplainingTokens((prev) => prev.filter((t) => t !== tokenText));
@@ -386,10 +375,15 @@ export default function Home() {
     })();
   }
 
+  function handleDeleteToken(tokenText: string) {
+    setAnalysisResult((prev) =>
+      prev ? { ...prev, tokens: prev.tokens.filter((t) => t.token !== tokenText) } : prev,
+    );
+  }
+
   function handleRestoreHistory(entry: HistoryEntry) {
     const entryMode = entry.mode ?? "code";
     setMode(entryMode);
-    setOnDemandTokens({});
     setExplainingTokens([]);
     if (entryMode === "text") setTextInput(entry.code);
     else setCodeInput(entry.code);
@@ -448,10 +442,9 @@ export default function Home() {
           activeLineSource={activeLineLink?.source}
           onLineFocus={focusLineFromPanel}
           onMarkLines={setMarkedLines}
-          excludedTokens={excludedTokens}
           excludedTerms={excludedTerms}
           onExclude={handleExclude}
-          dictionaryTokens={Object.values(onDemandTokens)}
+          onDeleteToken={handleDeleteToken}
           explainingTokens={explainingTokens}
           onTokenExplain={handleTokenExplain}
           historyEntries={historyEntries}
@@ -496,7 +489,6 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)}
         settings={providerSettings}
         onSave={handleSettingsSave}
-        excludedTokens={excludedTokens}
         excludedTerms={excludedTerms}
         onRemoveExclusion={handleRemoveExclusion}
       />

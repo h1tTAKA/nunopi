@@ -6,7 +6,6 @@ interface SettingsDrawerProps {
   onClose: () => void;
   settings: ProviderSettings;
   onSave: (next: ProviderSettings) => void;
-  excludedTokens?: string[];
   excludedTerms?: string[];
   onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
 }
@@ -58,7 +57,6 @@ export default function SettingsDrawer({
   onClose,
   settings,
   onSave,
-  excludedTokens = [],
   excludedTerms = [],
   onRemoveExclusion,
 }: SettingsDrawerProps) {
@@ -217,13 +215,8 @@ export default function SettingsDrawer({
               제외 목록
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">
-              🚫로 제외한 항목은 다음 분석부터 표시되지 않는다. ✕로 해제하면 다시 나온다.
+              글 분석에서 🚫로 제외한 IT 용어는 다음 분석부터 표시되지 않는다. ✕로 해제하면 다시 나온다.
             </p>
-            <ExclusionGroup
-              label="코드 토큰"
-              items={excludedTokens}
-              onRemove={(text) => onRemoveExclusion?.("code", text)}
-            />
             <ExclusionGroup
               label="IT 용어"
               items={excludedTerms}

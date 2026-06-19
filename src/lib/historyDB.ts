@@ -87,7 +87,7 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
 
 export async function updateHistory(
   id: string,
-  changes: Partial<Pick<HistoryEntry, "isPinned" | "title">>,
+  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result">>,
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {

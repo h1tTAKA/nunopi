@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import type { CodeToken, TokenCategory } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
-import { BanIcon, StarIcon } from "./icons";
+import { StarIcon, XIcon } from "./icons";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
@@ -13,8 +13,8 @@ interface TokenSectionProps {
   onBookmarkToggle?: (token: CodeToken) => void;
   // 토큰 호버 시 강조할 코드 줄들(떼면 null). 에디터 하이라이트 연동.
   onTokenHover?: (lines: number[] | null) => void;
-  // 이 토큰을 제외(차단) — 다음 분석부터 표시에서 숨긴다.
-  onExclude?: (token: CodeToken) => void;
+  // 이 토큰 카드를 사전에서 삭제(X) — 다시 태그를 누르면 재호출된다.
+  onDelete?: (token: CodeToken) => void;
   // 토큰이 없을 때 보여줄 안내 문구(lazy 사전: 클릭 유도).
   emptyHint?: string;
 }
@@ -44,7 +44,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onExclude, emptyHint }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onDelete, emptyHint }: TokenSectionProps) {
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
 
@@ -102,22 +102,22 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   <StarIcon filled={isBookmarked} />
                 </button>
               )}
-              {onExclude && (
+              {onDelete && (
                 <button
                   type="button"
-                  onClick={() => onExclude(token)}
+                  onClick={() => onDelete(token)}
                   className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
-                  title="이 토큰 제외 (다음 분석부터 숨김)"
-                  aria-label={`${token.token} 제외하기`}
+                  title="사전에서 삭제 (다시 태그를 누르면 다시 불러옴)"
+                  aria-label={`${token.token} 사전에서 삭제`}
                 >
-                  <BanIcon />
+                  <XIcon />
                 </button>
               )}
             </div>
             <button
               type="button"
               onClick={() => onTokenClick?.(token.id, token.conceptId)}
-              className={`w-full p-4 text-left ${token.bookmarkable || onExclude ? "pr-12" : ""}`}
+              className={`w-full p-4 text-left ${token.bookmarkable || onDelete ? "pr-12" : ""}`}
               aria-label={`${token.token} 토큰 선택`}
             >
               <div className="flex items-center gap-2">

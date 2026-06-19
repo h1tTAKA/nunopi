@@ -71,13 +71,12 @@ interface LearningPanelProps {
   // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들을 상위(page)에 올린다.
   onMarkLines?: (lines: number[]) => void;
   // 제외(차단) 목록 — 표시에서 숨길 토큰/용어 텍스트. page에서 관리.
-  excludedTokens?: string[];
   excludedTerms?: string[];
   onExclude?: (mode: AnalyzeMode, text: string) => void;
-  // lazy 토큰 사전 — 클릭해 설명을 받아온 토큰들(코드 모드). 비면 사전은 빈 상태.
-  dictionaryTokens?: CodeToken[];
+  // lazy 토큰 사전 — 클릭해 받아온 토큰은 result.tokens에 합쳐져 사전에 표시된다.
   explainingTokens?: string[];
   onTokenExplain?: (text: string, line: number) => void;
+  onDeleteToken?: (text: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -103,12 +102,11 @@ export default function LearningPanel({
   activeLineSource,
   onLineFocus,
   onMarkLines,
-  excludedTokens = [],
   excludedTerms = [],
   onExclude,
-  dictionaryTokens = [],
   explainingTokens = [],
   onTokenExplain,
+  onDeleteToken,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -138,9 +136,6 @@ export default function LearningPanel({
     () => dedupedTokens.map((t) => ({ ...t, lines: remapLines(t.lines, reanchor.lineMap) })),
     [dedupedTokens, reanchor],
   );
-  // 토큰 사전: 레거시 결과(result.tokens 존재)는 그대로, lazy 결과(빈 사전)는
-  // 클릭해 받아온 dictionaryTokens를 쓴다.
-  const dictTokens = safeTokens.length > 0 ? safeTokens : dictionaryTokens;
   const safeConcepts = useMemo(
     () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
     [dedupedConcepts, reanchor],
@@ -152,10 +147,10 @@ export default function LearningPanel({
   // 클릭으로 고정된 토큰(activeTokenIds)의 줄들.
   const pinnedLines = useMemo(
     () =>
-      dictTokens
+      safeTokens
         .filter((t) => activeTokenIds.includes(t.id))
         .flatMap((t) => t.lines),
-    [dictTokens, activeTokenIds],
+    [safeTokens, activeTokenIds],
   );
   // 에디터에 강조할 줄: 호버 중엔 호버 우선, 떼면 클릭 고정으로 복귀.
   const markedLines = hoverLines ?? pinnedLines;
@@ -253,7 +248,9 @@ export default function LearningPanel({
     setHeaderTitle(currentHistoryTitle ?? "");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHeaderEditing(false);
-  }, [result]);
+    // result.createdAt 기준 — on-demand 토큰 append(같은 createdAt)엔 리셋 안 함(활성/스크롤 보존).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result?.createdAt]);
 
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
@@ -671,14 +668,13 @@ export default function LearningPanel({
 
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             {(() => {
-              // 제외(차단)된 토큰은 표시에서 제거한 뒤, 그 위에서 북마크 카운트/필터를 계산.
-              const availableTokens = dictTokens.filter((t) => !excludedTokens.includes(t.token));
-              const visibleBookmarkCount = availableTokens.filter((t) =>
+              // 코드 토큰은 제외 없이, 북마크 카운트/필터만 적용.
+              const visibleBookmarkCount = safeTokens.filter((t) =>
                 bookmarkedTokenTexts.includes(t.token),
               ).length;
               const displayTokens = filterBookmarked
-                ? availableTokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
-                : availableTokens;
+                ? safeTokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
+                : safeTokens;
               return (
                 <>
                   <div className="mb-2 flex items-center gap-2 px-1">
@@ -728,7 +724,7 @@ export default function LearningPanel({
                       bookmarkedTokenTexts={bookmarkedTokenTexts}
                       onBookmarkToggle={handleBookmarkToggle}
                       onTokenHover={setHoverLines}
-                      onExclude={(token) => onExclude?.("code", token.token)}
+                      onDelete={(token) => onDeleteToken?.(token.token)}
                       emptyHint="줄별 설명의 태그를 누르면 그 토큰 설명이 여기에 추가된다."
                     />
                   </div>
