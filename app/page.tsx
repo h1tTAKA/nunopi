@@ -385,6 +385,12 @@ export default function Home() {
     );
   }
 
+  function handleDeleteConcept(conceptId: string) {
+    setAnalysisResult((prev) =>
+      prev ? { ...prev, concepts: prev.concepts.filter((c) => c.conceptId !== conceptId) } : prev,
+    );
+  }
+
   function handleConceptExplain(conceptId: string, title: string) {
     if (
       explainingConcepts.includes(conceptId) ||
@@ -516,6 +522,7 @@ export default function Home() {
           onExclude={handleExclude}
           onDeleteToken={handleDeleteToken}
           onConceptExplain={handleConceptExplain}
+          onDeleteConcept={handleDeleteConcept}
           explainingTokens={explainingTokens}
           explainingConcepts={explainingConcepts}
           onTokenExplain={handleTokenExplain}

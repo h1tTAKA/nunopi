@@ -6,6 +6,7 @@ import type { HistoryEntry } from "@/lib/historyDB";
 import {
   type BookmarkedTokenDetail,
   type BookmarkedTermDetail,
+  type BookmarkedConceptDetail,
   saveTokenDetail,
   removeTokenDetail,
   loadTokenDetails,
@@ -14,11 +15,15 @@ import {
   removeTermDetail,
   loadTermDetails,
   clearTermDetails,
+  saveConceptDetail,
+  removeConceptDetail,
+  loadConceptDetails,
 } from "@/lib/bookmarkDetails";
-import type { CodeToken, ItTerm } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
 import ItTermDictionary from "./ItTermDictionary";
+import ConceptDictionary from "./ConceptDictionary";
 import ConceptSection from "./ConceptSection";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
@@ -81,6 +86,7 @@ interface LearningPanelProps {
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
   onConceptExplain?: (conceptId: string, title: string) => void;
+  onDeleteConcept?: (conceptId: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -113,6 +119,7 @@ export default function LearningPanel({
   onDeleteToken,
   explainingConcepts = [],
   onConceptExplain,
+  onDeleteConcept,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -146,7 +153,7 @@ export default function LearningPanel({
     () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
     [dedupedConcepts, reanchor],
   );
-  const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
+  const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary" | "concept-dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   // 토큰 호버 시 임시 강조 줄(떼면 null). 에디터 하이라이트는 hover ?? 클릭고정.
   const [hoverLines, setHoverLines] = useState<number[] | null>(null);
@@ -171,6 +178,9 @@ export default function LearningPanel({
   // 글 모드 IT 용어 북마크 — details만 보관하고 texts는 키에서 파생한다.
   const [bookmarkedTermDetails, setBookmarkedTermDetails] = useState<Record<string, BookmarkedTermDetail>>({});
   const bookmarkedTermTexts = useMemo(() => Object.keys(bookmarkedTermDetails), [bookmarkedTermDetails]);
+  // 개념 북마크 — 키 = 개념 title.
+  const [bookmarkedConceptDetails, setBookmarkedConceptDetails] = useState<Record<string, BookmarkedConceptDetail>>({});
+  const bookmarkedConceptTitles = useMemo(() => Object.keys(bookmarkedConceptDetails), [bookmarkedConceptDetails]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -190,6 +200,14 @@ export default function LearningPanel({
     const el = document.getElementById(`nunopi-line-${activeLine}`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeLine, activeLineSource]);
+
+  // 글 모드로 바뀌면 코드 전용 '개념 사전' 탭에서 빠져나온다(글 모드엔 그 탭이 없음).
+  useEffect(() => {
+    if (mode === "text" && activeTab === "concept-dictionary") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab("analysis");
+    }
+  }, [mode, activeTab]);
 
   // 토큰 사전 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘긴다(줄별 박스와 동일).
   useEffect(() => {
@@ -235,6 +253,8 @@ export default function LearningPanel({
     setBookmarkedTokenDetails(loadTokenDetails());
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBookmarkedTermDetails(loadTermDetails());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedConceptDetails(loadConceptDetails());
   }, []);
 
   useEffect(() => {
@@ -296,6 +316,14 @@ export default function LearningPanel({
       setActiveTokenIds([tokenId]);
       setActiveConceptId(conceptId ?? null);
     }
+  }
+
+  // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
+  function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
+    const isAdding = !bookmarkedConceptDetails[concept.title];
+    if (isAdding) saveConceptDetail(concept);
+    else removeConceptDetail(concept.title);
+    setBookmarkedConceptDetails(loadConceptDetails());
   }
 
   function handleConceptClick(conceptId: string) {
@@ -417,8 +445,37 @@ export default function LearningPanel({
           return n > 0 ? ` ${n}` : "";
         })()}
       </button>
+      {mode !== "text" && (
+        <button
+          type="button"
+          onClick={() => setActiveTab("concept-dictionary")}
+          className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+            activeTab === "concept-dictionary"
+              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          }`}
+        >
+          개념 사전{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
+        </button>
+      )}
     </div>
   );
+
+  if (activeTab === "concept-dictionary" && mode !== "text") {
+    return (
+      <div className="nunopi-scroll h-full p-6 space-y-4 overflow-y-scroll">
+        {entryHeader}
+        {tabBar}
+        <ConceptDictionary
+          details={bookmarkedConceptDetails}
+          onUnbookmark={(title) => {
+            removeConceptDetail(title);
+            setBookmarkedConceptDetails(loadConceptDetails());
+          }}
+        />
+      </div>
+    );
+  }
 
   if (activeTab === "dictionary") {
     return (
@@ -753,6 +810,9 @@ export default function LearningPanel({
               activeConceptId={activeConceptId}
               onConceptClick={handleConceptClick}
               explainingConcepts={explainingConcepts}
+              bookmarkedConceptTitles={bookmarkedConceptTitles}
+              onBookmarkToggle={handleConceptBookmarkToggle}
+              onDelete={onDeleteConcept}
             />
           </div>
             </>
