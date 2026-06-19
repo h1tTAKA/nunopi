@@ -23,6 +23,7 @@ import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/type
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
 import ItTermDictionary from "./ItTermDictionary";
+import ConceptDictionary from "./ConceptDictionary";
 import ConceptSection from "./ConceptSection";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
@@ -152,7 +153,7 @@ export default function LearningPanel({
     () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
     [dedupedConcepts, reanchor],
   );
-  const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
+  const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary" | "concept-dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   // 토큰 호버 시 임시 강조 줄(떼면 null). 에디터 하이라이트는 hover ?? 클릭고정.
   const [hoverLines, setHoverLines] = useState<number[] | null>(null);
@@ -199,6 +200,14 @@ export default function LearningPanel({
     const el = document.getElementById(`nunopi-line-${activeLine}`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeLine, activeLineSource]);
+
+  // 글 모드로 바뀌면 코드 전용 '개념 사전' 탭에서 빠져나온다(글 모드엔 그 탭이 없음).
+  useEffect(() => {
+    if (mode === "text" && activeTab === "concept-dictionary") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveTab("analysis");
+    }
+  }, [mode, activeTab]);
 
   // 토큰 사전 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘긴다(줄별 박스와 동일).
   useEffect(() => {
@@ -436,8 +445,37 @@ export default function LearningPanel({
           return n > 0 ? ` ${n}` : "";
         })()}
       </button>
+      {mode !== "text" && (
+        <button
+          type="button"
+          onClick={() => setActiveTab("concept-dictionary")}
+          className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition ${
+            activeTab === "concept-dictionary"
+              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+              : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          }`}
+        >
+          개념 사전{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
+        </button>
+      )}
     </div>
   );
+
+  if (activeTab === "concept-dictionary" && mode !== "text") {
+    return (
+      <div className="nunopi-scroll h-full p-6 space-y-4 overflow-y-scroll">
+        {entryHeader}
+        {tabBar}
+        <ConceptDictionary
+          details={bookmarkedConceptDetails}
+          onUnbookmark={(title) => {
+            removeConceptDetail(title);
+            setBookmarkedConceptDetails(loadConceptDetails());
+          }}
+        />
+      </div>
+    );
+  }
 
   if (activeTab === "dictionary") {
     return (
