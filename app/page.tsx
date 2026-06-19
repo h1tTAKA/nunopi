@@ -24,7 +24,6 @@ const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
 type AnalyzeStreamEvent =
   | { type: "progress"; line: string }
-  | { type: "partial"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "result"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "error"; message: string };
 
@@ -279,9 +278,6 @@ export default function Home() {
           }
           if (event.type === "progress") {
             setProgressLine(event.line);
-          } else if (event.type === "partial") {
-            // 청크가 끝나는 대로 부분 결과를 즉시 렌더(로딩은 유지, 저장은 최종에서만).
-            setAnalysisResult(event.response);
           } else if (event.type === "result") {
             finalResult = event.response;
           } else if (event.type === "error") {

@@ -8,12 +8,6 @@ import {
   type AgentProvider,
   type AgentProviderKind,
 } from "@/lib/agent";
-import { analyzeChunked } from "@/lib/agent/chunkedAnalyze";
-
-// 대용량 코드는 청크로 나눠 병렬 분석한다(속도). 작은 코드/글 모드/local-rules는 단일 경로.
-const CHUNK_THRESHOLD_LINES = 40;
-const CHUNK_LINES = 30;
-const CHUNK_CONCURRENCY = 4;
 
 interface AgentAnalyzeHttpRequest {
   providerId: AgentProviderKind;
@@ -105,31 +99,10 @@ export async function POST(
       try {
         // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
         // provider가 진행 중인 CLI 프로세스/HTTP 요청을 중단한다.
-        const onProgress = (line: string) => send({ type: "progress", line });
-        const nonEmptyLines = providerRequest.code
-          .split(/\r?\n/)
-          .filter((l) => l.trim().length > 0).length;
-        const shouldChunk =
-          providerRequest.mode !== "text" &&
-          providerId !== "local-rules" &&
-          nonEmptyLines > CHUNK_THRESHOLD_LINES;
-
-        const response = shouldChunk
-          ? await analyzeChunked(
-              provider.provider,
-              providerRequest,
-              { signal: request.signal, onProgress },
-              {
-                chunkLines: CHUNK_LINES,
-                concurrency: CHUNK_CONCURRENCY,
-                // 청크 완료마다 부분 결과를 흘려 클라가 점진 렌더하게 한다.
-                onPartial: (partial) => send({ type: "partial", providerId, response: partial }),
-              },
-            )
-          : await provider.provider.analyze(providerRequest, {
-              signal: request.signal,
-              onProgress,
-            });
+        const response = await provider.provider.analyze(providerRequest, {
+          signal: request.signal,
+          onProgress: (line) => send({ type: "progress", line }),
+        });
         send({ type: "result", providerId, response });
       } catch (error) {
         const message = request.signal.aborted
