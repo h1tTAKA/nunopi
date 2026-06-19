@@ -185,6 +185,8 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHoverLines(null);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (result) setActiveTab("analysis");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopied(false);
