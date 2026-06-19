@@ -124,6 +124,22 @@ export default function Home() {
     }
   }
 
+  function handleRemoveExclusion(targetMode: AnalyzeMode, text: string) {
+    if (targetMode === "text") {
+      setExcludedTerms((prev) => {
+        const next = prev.filter((t) => t !== text);
+        saveExclusions("text", next);
+        return next;
+      });
+    } else {
+      setExcludedTokens((prev) => {
+        const next = prev.filter((t) => t !== text);
+        saveExclusions("code", next);
+        return next;
+      });
+    }
+  }
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -415,6 +431,9 @@ export default function Home() {
         onClose={() => setIsSettingsOpen(false)}
         settings={providerSettings}
         onSave={handleSettingsSave}
+        excludedTokens={excludedTokens}
+        excludedTerms={excludedTerms}
+        onRemoveExclusion={handleRemoveExclusion}
       />
     </>
   );

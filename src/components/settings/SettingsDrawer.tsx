@@ -1,11 +1,56 @@
 import { useState } from "react";
-import type { ProviderSettings } from "@/lib/agent";
+import type { AnalyzeMode, ProviderSettings } from "@/lib/agent";
 
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   settings: ProviderSettings;
   onSave: (next: ProviderSettings) => void;
+  excludedTokens?: string[];
+  excludedTerms?: string[];
+  onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
+}
+
+// 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
+function ExclusionGroup({
+  label,
+  items,
+  onRemove,
+}: {
+  label: string;
+  items: string[];
+  onRemove: (text: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+        {label} ({items.length})
+      </span>
+      {items.length === 0 ? (
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">제외한 항목이 없다.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {items.map((text) => (
+            <span
+              key={text}
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              <code className="font-mono">{text}</code>
+              <button
+                type="button"
+                onClick={() => onRemove(text)}
+                className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                title="제외 해제"
+                aria-label={`${text} 제외 해제`}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function SettingsDrawer({
@@ -13,6 +58,9 @@ export default function SettingsDrawer({
   onClose,
   settings,
   onSave,
+  excludedTokens = [],
+  excludedTerms = [],
+  onRemoveExclusion,
 }: SettingsDrawerProps) {
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
@@ -162,6 +210,25 @@ export default function SettingsDrawer({
                 비워두면 PATH에서 자동 탐색
               </p>
             </label>
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              제외 목록
+            </h3>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">
+              🚫로 제외한 항목은 다음 분석부터 표시되지 않는다. ✕로 해제하면 다시 나온다.
+            </p>
+            <ExclusionGroup
+              label="코드 토큰"
+              items={excludedTokens}
+              onRemove={(text) => onRemoveExclusion?.("code", text)}
+            />
+            <ExclusionGroup
+              label="IT 용어"
+              items={excludedTerms}
+              onRemove={(text) => onRemoveExclusion?.("text", text)}
+            />
           </section>
 
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
