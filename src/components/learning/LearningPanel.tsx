@@ -70,6 +70,10 @@ interface LearningPanelProps {
   onLineFocus?: (line: number) => void;
   // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들을 상위(page)에 올린다.
   onMarkLines?: (lines: number[]) => void;
+  // 제외(차단) 목록 — 표시에서 숨길 토큰/용어 텍스트. page에서 관리.
+  excludedTokens?: string[];
+  excludedTerms?: string[];
+  onExclude?: (mode: AnalyzeMode, text: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -95,6 +99,9 @@ export default function LearningPanel({
   activeLineSource,
   onLineFocus,
   onMarkLines,
+  excludedTokens = [],
+  excludedTerms = [],
+  onExclude,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -561,11 +568,12 @@ export default function LearningPanel({
             <>
               <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
                 {(() => {
-                  const allTerms = result.terms ?? [];
-                  const bookmarkedCount = allTerms.filter((t) => bookmarkedTermTexts.includes(t.term)).length;
+                  // 제외된 용어는 표시에서 제거한 뒤, 그 위에서 북마크 카운트/필터를 계산.
+                  const availableTerms = (result.terms ?? []).filter((t) => !excludedTerms.includes(t.term));
+                  const bookmarkedCount = availableTerms.filter((t) => bookmarkedTermTexts.includes(t.term)).length;
                   const displayTerms = filterBookmarked
-                    ? allTerms.filter((t) => bookmarkedTermTexts.includes(t.term))
-                    : allTerms;
+                    ? availableTerms.filter((t) => bookmarkedTermTexts.includes(t.term))
+                    : availableTerms;
                   return (
                     <>
                       <div className="mb-2 flex items-center gap-2 px-1">
@@ -606,6 +614,7 @@ export default function LearningPanel({
                           onTermClick={handleTermClick}
                           bookmarkedTermTexts={bookmarkedTermTexts}
                           onBookmarkToggle={handleTermBookmarkToggle}
+                          onExclude={(term) => onExclude?.("text", term.term)}
                         />
                       </div>
                     </>
@@ -645,12 +654,14 @@ export default function LearningPanel({
 
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             {(() => {
-              const visibleBookmarkCount = safeTokens.filter((t) =>
+              // 제외(차단)된 토큰은 표시에서 제거한 뒤, 그 위에서 북마크 카운트/필터를 계산.
+              const availableTokens = safeTokens.filter((t) => !excludedTokens.includes(t.token));
+              const visibleBookmarkCount = availableTokens.filter((t) =>
                 bookmarkedTokenTexts.includes(t.token),
               ).length;
               const displayTokens = filterBookmarked
-                ? safeTokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
-                : safeTokens;
+                ? availableTokens.filter((t) => bookmarkedTokenTexts.includes(t.token))
+                : availableTokens;
               return (
                 <>
                   <div className="mb-2 flex items-center gap-2 px-1">
@@ -695,6 +706,7 @@ export default function LearningPanel({
                       bookmarkedTokenTexts={bookmarkedTokenTexts}
                       onBookmarkToggle={handleBookmarkToggle}
                       onTokenHover={setHoverLines}
+                      onExclude={(token) => onExclude?.("code", token.token)}
                     />
                   </div>
                 </>

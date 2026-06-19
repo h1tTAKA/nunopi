@@ -11,6 +11,8 @@ interface TokenSectionProps {
   onBookmarkToggle?: (token: CodeToken) => void;
   // 토큰 호버 시 강조할 코드 줄들(떼면 null). 에디터 하이라이트 연동.
   onTokenHover?: (lines: number[] | null) => void;
+  // 이 토큰을 제외(차단) — 다음 분석부터 표시에서 숨긴다.
+  onExclude?: (token: CodeToken) => void;
 }
 
 const CATEGORY_LABEL: Record<TokenCategory, string> = {
@@ -37,7 +39,7 @@ const CATEGORY_LABEL: Record<TokenCategory, string> = {
   tailwind_state: "Tailwind 상태",
 };
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onExclude }: TokenSectionProps) {
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
 
@@ -68,21 +70,34 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
-            {token.bookmarkable && (
-              <button
-                type="button"
-                onClick={() => onBookmarkToggle?.(token)}
-                className="absolute right-2.5 top-2.5 text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
-                title={isBookmarked ? "북마크 해제" : "북마크"}
-                aria-label={isBookmarked ? `${token.token} 북마크 해제` : `${token.token} 북마크 추가`}
-              >
-                {isBookmarked ? "★" : "☆"}
-              </button>
-            )}
+            <div className="absolute right-2 top-2.5 flex items-center gap-1.5">
+              {onExclude && (
+                <button
+                  type="button"
+                  onClick={() => onExclude(token)}
+                  className="text-sm leading-none text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                  title="이 토큰 제외 (다음 분석부터 숨김)"
+                  aria-label={`${token.token} 제외하기`}
+                >
+                  🚫
+                </button>
+              )}
+              {token.bookmarkable && (
+                <button
+                  type="button"
+                  onClick={() => onBookmarkToggle?.(token)}
+                  className="text-base leading-none text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                  title={isBookmarked ? "북마크 해제" : "북마크"}
+                  aria-label={isBookmarked ? `${token.token} 북마크 해제` : `${token.token} 북마크 추가`}
+                >
+                  {isBookmarked ? "★" : "☆"}
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => onTokenClick?.(token.id, token.conceptId)}
-              className={`w-full p-4 text-left ${token.bookmarkable ? "pr-8" : ""}`}
+              className={`w-full p-4 text-left ${token.bookmarkable || onExclude ? "pr-12" : ""}`}
               aria-label={`${token.token} 토큰 선택`}
             >
               <div className="flex items-center gap-2">
