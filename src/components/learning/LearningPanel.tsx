@@ -496,8 +496,8 @@ export default function LearningPanel({
             </div>
           )}
 
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               줄별 설명
             </p>
             <LineExplanationList
@@ -511,9 +511,9 @@ export default function LearningPanel({
               activeLine={activeLine}
               onLineFocus={onLineFocus}
             />
-          </div>
+          </section>
 
-          <div>
+          <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             {(() => {
               const visibleBookmarkCount = safeTokens.filter((t) =>
                 bookmarkedTokenTexts.includes(t.token),
@@ -523,7 +523,7 @@ export default function LearningPanel({
                 : safeTokens;
               return (
                 <>
-                  <div className="mb-2 flex items-center gap-2">
+                  <div className="mb-2 flex items-center gap-2 px-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                       토큰 사전
                     </p>
@@ -570,7 +570,7 @@ export default function LearningPanel({
                 </>
               );
             })()}
-          </div>
+          </section>
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
