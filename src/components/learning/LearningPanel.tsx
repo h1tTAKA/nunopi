@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentAnalyzeResponse, AgentProviderKind } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
 import {
   type BookmarkedTokenDetail,
@@ -16,6 +16,8 @@ import TokenDictionary from "./TokenDictionary";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
+import ItTermSection from "./ItTermSection";
+import ItConceptSection from "./ItConceptSection";
 import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 import { formatResultAsHtml } from "@/lib/exportHtml";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
@@ -52,6 +54,7 @@ function formatResultAsMarkdown(result: AgentAnalyzeResponse): string {
 
 interface LearningPanelProps {
   providerId: AgentProviderKind;
+  mode?: AnalyzeMode;
   isLoading: boolean;
   progressLine?: string;
   errorMessage: string | null;
@@ -76,6 +79,7 @@ interface LearningPanelProps {
 
 export default function LearningPanel({
   providerId,
+  mode = "code",
   isLoading,
   progressLine = "",
   errorMessage,
@@ -264,6 +268,13 @@ export default function LearningPanel({
     }
   }
 
+  // 글 모드: 용어 클릭 → 첫 관련 개념으로 이동(ItConceptSection이 스크롤).
+  function handleTermClick(conceptIds: string[]) {
+    const first = conceptIds[0];
+    if (!first) return;
+    setActiveConceptId((prev) => (prev === first ? null : first));
+  }
+
   function saveHeaderTitle() {
     setHeaderEditing(false);
     onSetCurrentTitle?.(headerTitle);
@@ -407,7 +418,9 @@ export default function LearningPanel({
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          현재 입력 코드 {nonEmptyLineCount}줄
+          {mode === "text"
+            ? `현재 입력 글 ${code.trim().length}자`
+            : `현재 입력 코드 ${nonEmptyLineCount}줄`}
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
           상태: {isLoading ? "분석 중" : result ? "결과 도착" : errorMessage ? "오류" : "대기 중"}
@@ -440,7 +453,7 @@ export default function LearningPanel({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                  {result.language}
+                  {result.mode === "text" ? "글" : result.language}
                 </span>
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
                   요약
@@ -505,6 +518,34 @@ export default function LearningPanel({
             </div>
           )}
 
+          {result.mode === "text" ? (
+            <>
+              <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  IT 용어 사전
+                </p>
+                <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                  <ItTermSection
+                    key={result.createdAt}
+                    terms={result.terms ?? []}
+                    onTermClick={handleTermClick}
+                  />
+                </div>
+              </section>
+              <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  관련 개념
+                </p>
+                <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                  <ItConceptSection
+                    concepts={result.itConcepts ?? []}
+                    activeConceptId={activeConceptId}
+                  />
+                </div>
+              </section>
+            </>
+          ) : (
+            <>
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               줄별 설명
@@ -591,6 +632,8 @@ export default function LearningPanel({
               onConceptClick={handleConceptClick}
             />
           </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">

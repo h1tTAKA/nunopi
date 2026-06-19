@@ -332,6 +332,7 @@ export default function Home() {
         learningPanel={
         <LearningPanel
           providerId={providerId}
+          mode={mode}
           isLoading={isLoading}
           progressLine={progressLine}
           errorMessage={errorMessage}

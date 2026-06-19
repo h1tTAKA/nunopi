@@ -1,0 +1,49 @@
+"use client";
+
+import { useEffect } from "react";
+import type { ItConcept } from "@/lib/translator/types";
+
+interface ItConceptSectionProps {
+  concepts: ItConcept[];
+  activeConceptId?: string | null;
+}
+
+// 글 모드 관련 개념 — 코드 모드 ConceptSection에 대응. 용어 설명에 더 필요한
+// 배경 개념을 항상 설명과 함께 카드로 보여준다(코드 모드와 달리 설명이 동적).
+export default function ItConceptSection({ concepts, activeConceptId }: ItConceptSectionProps) {
+  useEffect(() => {
+    if (!activeConceptId) return;
+    const el = document.getElementById(`it-concept-${activeConceptId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeConceptId]);
+
+  if (concepts.length === 0) {
+    return (
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+        관련 개념이 없다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {concepts.map((concept) => {
+        const isActive = activeConceptId === concept.conceptId;
+        return (
+          <div
+            key={concept.conceptId}
+            id={`it-concept-${concept.conceptId}`}
+            className={`scroll-mt-4 rounded-2xl border p-4 transition ${
+              isActive
+                ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
+            }`}
+          >
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{concept.title}</p>
+            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-300">{concept.explanation}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
