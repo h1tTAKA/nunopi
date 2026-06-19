@@ -374,6 +374,7 @@ function normalizeCodexOutput(
 
   return {
     providerId: "codex-agent",
+    mode: "code",
     language: parsed.language ?? request.detectedLanguage ?? "unknown",
     summary:
       parsed.summary ??

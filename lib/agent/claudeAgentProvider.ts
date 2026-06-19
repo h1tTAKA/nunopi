@@ -360,6 +360,7 @@ function normalizeClaudeOutput(
 
   return {
     providerId: "claude-agent",
+    mode: "code",
     language: parsed.language ?? request.detectedLanguage ?? "unknown",
     summary:
       parsed.summary ??

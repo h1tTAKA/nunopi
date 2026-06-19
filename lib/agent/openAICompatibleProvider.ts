@@ -130,6 +130,7 @@ function normalizeOpenAICompatibleResponse(
 
   return {
     providerId: "openai-compatible",
+    mode: "code",
     language: parsed.language ?? request.detectedLanguage ?? "unknown",
     summary:
       parsed.summary ??

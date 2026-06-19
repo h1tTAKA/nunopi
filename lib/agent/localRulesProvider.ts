@@ -61,6 +61,7 @@ export const localRulesProvider: AgentProvider = {
 
     return {
       providerId: this.metadata.id,
+      mode: "code",
       language: request.detectedLanguage ?? "unknown",
       summary: buildSummary(totalNonEmptyLines, matchedLineCount),
       lineExplanations,
