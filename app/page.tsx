@@ -6,10 +6,12 @@ import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
+import EditorChatColumn from "@/components/translator/EditorChatColumn";
+import ChatRoom from "@/components/learning/ChatRoom";
 import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
-import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ProviderSettings } from "@/lib/agent";
+import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
   saveToHistory,
@@ -91,6 +93,11 @@ export default function Home() {
   // 직접 합쳐 유지/HTML 포함/삭제를 한 소스로 다룬다. explainingTokens는 로딩 표시용.
   const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
   const [explainingConcepts, setExplainingConcepts] = useState<string[]>([]);
+  // 학습 챗 — 분석(히스토리 항목)마다 스레드. chatStreaming은 타이핑 중 답변.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatStreaming, setChatStreaming] = useState<string | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -115,6 +122,17 @@ export default function Home() {
       prev.map((e) => (e.id === currentHistoryId ? { ...e, result: saved } : e)),
     );
   }, [analysisResult, currentHistoryId]);
+
+  // 챗 스레드도 현재 항목에 동기화 — 다른 거 보고 돌아와도 대화 유지(#90 패턴).
+  useEffect(() => {
+    if (!currentHistoryId) return;
+    const saved = chatMessages;
+    updateHistory(currentHistoryId, { chat: saved }).catch(() => {});
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHistoryEntries((prev) =>
+      prev.map((e) => (e.id === currentHistoryId ? { ...e, chat: saved } : e)),
+    );
+  }, [chatMessages, currentHistoryId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -177,6 +195,8 @@ export default function Home() {
       setAnalysisResult(null);
       setExplainingTokens([]);
     setExplainingConcepts([]);
+    setChatMessages([]);
+    setChatStreaming(null);
     }
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
     setCurrentHistoryId(null);
@@ -190,6 +210,8 @@ export default function Home() {
     setCurrentHistoryId(null);
     setExplainingTokens([]);
     setExplainingConcepts([]);
+    setChatMessages([]);
+    setChatStreaming(null);
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
@@ -227,6 +249,8 @@ export default function Home() {
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
+    setChatMessages([]);
+    setChatStreaming(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -397,6 +421,67 @@ export default function Home() {
     );
   }
 
+  function handleSendChat(text: string) {
+    if (chatLoading) return;
+    const input = code.trim();
+    const next: ChatMessage[] = [...chatMessages, { role: "user", content: text }];
+    setChatMessages(next);
+    setChatStreaming("");
+    setChatLoading(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/agent/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            providerId,
+            request: {
+              code: input || "(코드 없음)",
+              locale: "ko",
+              providerId,
+              mode: "chat",
+              messages: next,
+              providerSettings,
+            },
+          }),
+        });
+        if (!res.ok || !res.body) {
+          setChatMessages([...next, { role: "assistant", content: "답변 요청이 실패했다." }]);
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let answer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const l of lines) {
+            if (!l.trim()) continue;
+            try {
+              const event = JSON.parse(l) as AnalyzeStreamEvent;
+              // codex는 진행 라벨만 흘리므로 타이핑에 안 씀(claude/openai만 전체 답 스트림).
+              if (event.type === "progress" && providerId !== "codex-agent") {
+                setChatStreaming(event.line);
+              } else if (event.type === "result") {
+                answer = event.response.summary;
+              }
+            } catch { /* skip */ }
+          }
+        }
+        setChatMessages([...next, { role: "assistant", content: answer || "(빈 응답)" }]);
+      } catch {
+        setChatMessages([...next, { role: "assistant", content: "답변 중 오류가 발생했다." }]);
+      } finally {
+        setChatStreaming(null);
+        setChatLoading(false);
+      }
+    })();
+  }
+
   function handleDeleteConcept(conceptId: string) {
     setAnalysisResult((prev) =>
       prev ? { ...prev, concepts: prev.concepts.filter((c) => c.conceptId !== conceptId) } : prev,
@@ -473,6 +558,8 @@ export default function Home() {
     setMode(entryMode);
     setExplainingTokens([]);
     setExplainingConcepts([]);
+    setChatStreaming(null);
+    setChatMessages(entry.chat ?? []);
     if (entryMode === "text") setTextInput(entry.code);
     else setCodeInput(entry.code);
     setProviderId(entry.providerId);
@@ -554,25 +641,44 @@ export default function Home() {
         />
       }
         editor={
-          mode === "text" ? (
-            <TextInputArea
-              code={code}
-              isLoading={isLoading}
-              onCodeChange={handleCodeChange}
-            />
-          ) : (
-            <CodeInputArea
-              code={code}
-              isLoading={isLoading}
-              languageChoice={languageChoice}
-              editorLanguage={editorLanguage}
-              onLanguageChoiceChange={setLanguageChoice}
-              onCodeChange={handleCodeChange}
-              activeLine={activeLineLink?.line ?? null}
-              onLineClick={focusLineFromEditor}
-              markedLines={markedLines}
-            />
-          )
+          <EditorChatColumn
+            chatOpen={chatOpen}
+            editor={
+              mode === "text" ? (
+                <TextInputArea
+                  code={code}
+                  isLoading={isLoading}
+                  onCodeChange={handleCodeChange}
+                  chatOpen={chatOpen}
+                  onToggleChat={() => setChatOpen((v) => !v)}
+                />
+              ) : (
+                <CodeInputArea
+                  code={code}
+                  isLoading={isLoading}
+                  languageChoice={languageChoice}
+                  editorLanguage={editorLanguage}
+                  onLanguageChoiceChange={setLanguageChoice}
+                  onCodeChange={handleCodeChange}
+                  activeLine={activeLineLink?.line ?? null}
+                  onLineClick={focusLineFromEditor}
+                  markedLines={markedLines}
+                  chatOpen={chatOpen}
+                  onToggleChat={() => setChatOpen((v) => !v)}
+                />
+              )
+            }
+            chat={
+              <ChatRoom
+                messages={chatMessages}
+                streaming={chatStreaming}
+                isLoading={chatLoading}
+                disabled={!code.trim()}
+                disabledHint="코드를 입력하면 질문할 수 있어요."
+                onSend={handleSendChat}
+              />
+            }
+          />
         }
       />
       <SettingsDrawer

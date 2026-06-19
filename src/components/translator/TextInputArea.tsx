@@ -2,11 +2,13 @@ interface TextInputAreaProps {
   code: string; // 붙여넣은 글(분석 입력).
   isLoading: boolean;
   onCodeChange: (next: string) => void;
+  chatOpen?: boolean;
+  onToggleChat?: () => void;
 }
 
 // 글(IT 용어) 분석 모드 입력 — 산문을 붙여넣는 plain textarea.
 // (코드 모드의 Monaco 에디터는 산문 하이라이팅이 부적합해 별도 컴포넌트로 둔다.)
-export default function TextInputArea({ code, isLoading, onCodeChange }: TextInputAreaProps) {
+export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen, onToggleChat }: TextInputAreaProps) {
   const charCount = code.trim().length;
 
   return (
@@ -15,7 +17,23 @@ export default function TextInputArea({ code, isLoading, onCodeChange }: TextInp
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           글 입력 (IT 용어가 가득한 글을 붙여넣어 보세요)
         </span>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">{charCount}자</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">{charCount}자</span>
+          {onToggleChat && (
+            <button
+              type="button"
+              onClick={onToggleChat}
+              className={`rounded-lg px-2 py-1 text-xs font-medium transition ${
+                chatOpen
+                  ? "bg-blue-500 text-white"
+                  : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              }`}
+              title="학습 챗 열기/닫기"
+            >
+              💬 질문
+            </button>
+          )}
+        </div>
       </div>
 
       {/* flex-1로 데스크톱 높이를 채우고, 모바일에선 min-h로 바닥 확보 */}
