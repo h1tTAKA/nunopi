@@ -1,4 +1,4 @@
-import type { CodeToken, ItTerm } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/types";
 
 export interface BookmarkedTokenDetail extends CodeToken {
   bookmarkedAt: string;
@@ -9,8 +9,14 @@ export interface BookmarkedTermDetail extends ItTerm {
   bookmarkedAt: string;
 }
 
+// 개념 북마크 — 코드 모드 개념. 키 = 개념 title.
+export interface BookmarkedConceptDetail extends ConceptOccurrence {
+  bookmarkedAt: string;
+}
+
 const DETAILS_KEY = "nunopi:bookmark-token-details";
 const TERM_DETAILS_KEY = "nunopi:bookmark-term-details";
+const CONCEPT_DETAILS_KEY = "nunopi:bookmark-concept-details";
 
 export function saveTokenDetail(token: CodeToken): void {
   try {
@@ -70,4 +76,35 @@ export function loadTermDetails(): Record<string, BookmarkedTermDetail> {
 
 export function clearTermDetails(): void {
   try { localStorage.removeItem(TERM_DETAILS_KEY); } catch { /* ignore */ }
+}
+
+// --- 개념 북마크 (키 = 개념 title) ---
+
+export function saveConceptDetail(concept: ConceptOccurrence): void {
+  try {
+    const existing = loadConceptDetails();
+    existing[concept.title] = { ...concept, bookmarkedAt: new Date().toISOString() };
+    localStorage.setItem(CONCEPT_DETAILS_KEY, JSON.stringify(existing));
+  } catch { /* ignore */ }
+}
+
+export function removeConceptDetail(title: string): void {
+  try {
+    const existing = loadConceptDetails();
+    delete existing[title];
+    localStorage.setItem(CONCEPT_DETAILS_KEY, JSON.stringify(existing));
+  } catch { /* ignore */ }
+}
+
+export function loadConceptDetails(): Record<string, BookmarkedConceptDetail> {
+  try {
+    const raw = localStorage.getItem(CONCEPT_DETAILS_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, BookmarkedConceptDetail>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function clearConceptDetails(): void {
+  try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
 }

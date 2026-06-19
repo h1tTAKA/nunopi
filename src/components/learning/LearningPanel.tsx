@@ -6,6 +6,7 @@ import type { HistoryEntry } from "@/lib/historyDB";
 import {
   type BookmarkedTokenDetail,
   type BookmarkedTermDetail,
+  type BookmarkedConceptDetail,
   saveTokenDetail,
   removeTokenDetail,
   loadTokenDetails,
@@ -14,8 +15,11 @@ import {
   removeTermDetail,
   loadTermDetails,
   clearTermDetails,
+  saveConceptDetail,
+  removeConceptDetail,
+  loadConceptDetails,
 } from "@/lib/bookmarkDetails";
-import type { CodeToken, ItTerm } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
 import ItTermDictionary from "./ItTermDictionary";
@@ -81,6 +85,7 @@ interface LearningPanelProps {
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
   onConceptExplain?: (conceptId: string, title: string) => void;
+  onDeleteConcept?: (conceptId: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -113,6 +118,7 @@ export default function LearningPanel({
   onDeleteToken,
   explainingConcepts = [],
   onConceptExplain,
+  onDeleteConcept,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -171,6 +177,9 @@ export default function LearningPanel({
   // 글 모드 IT 용어 북마크 — details만 보관하고 texts는 키에서 파생한다.
   const [bookmarkedTermDetails, setBookmarkedTermDetails] = useState<Record<string, BookmarkedTermDetail>>({});
   const bookmarkedTermTexts = useMemo(() => Object.keys(bookmarkedTermDetails), [bookmarkedTermDetails]);
+  // 개념 북마크 — 키 = 개념 title.
+  const [bookmarkedConceptDetails, setBookmarkedConceptDetails] = useState<Record<string, BookmarkedConceptDetail>>({});
+  const bookmarkedConceptTitles = useMemo(() => Object.keys(bookmarkedConceptDetails), [bookmarkedConceptDetails]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -235,6 +244,8 @@ export default function LearningPanel({
     setBookmarkedTokenDetails(loadTokenDetails());
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBookmarkedTermDetails(loadTermDetails());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedConceptDetails(loadConceptDetails());
   }, []);
 
   useEffect(() => {
@@ -296,6 +307,14 @@ export default function LearningPanel({
       setActiveTokenIds([tokenId]);
       setActiveConceptId(conceptId ?? null);
     }
+  }
+
+  // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
+  function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
+    const isAdding = !bookmarkedConceptDetails[concept.title];
+    if (isAdding) saveConceptDetail(concept);
+    else removeConceptDetail(concept.title);
+    setBookmarkedConceptDetails(loadConceptDetails());
   }
 
   function handleConceptClick(conceptId: string) {
@@ -753,6 +772,9 @@ export default function LearningPanel({
               activeConceptId={activeConceptId}
               onConceptClick={handleConceptClick}
               explainingConcepts={explainingConcepts}
+              bookmarkedConceptTitles={bookmarkedConceptTitles}
+              onBookmarkToggle={handleConceptBookmarkToggle}
+              onDelete={onDeleteConcept}
             />
           </div>
             </>
