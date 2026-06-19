@@ -7,6 +7,7 @@ import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./sc
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
+import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -50,8 +51,14 @@ export const claudeAgentProvider: AgentProvider = {
   ): Promise<AgentAnalyzeResponse> {
     const availability = await detectClaudeAvailability(request);
     const isText = request.mode === "text";
+    const isExplainToken = request.mode === "explain-token";
 
     if (!availability.available) {
+      if (isExplainToken) {
+        return tokenModeResponse("claude-agent", [], [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       if (isText) {
         return textModeResponse("claude-agent", availability.message, [
           { code: "PARTIAL_PARSE", message: availability.message },
@@ -75,13 +82,19 @@ export const claudeAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = isText ? buildTextPrompt(request) : buildClaudePrompt(request);
+    const prompt = isExplainToken
+      ? buildExplainTokenPrompt(request)
+      : isText
+        ? buildTextPrompt(request)
+        : buildClaudePrompt(request);
     const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return isText
-        ? normalizeTextOutput(mockText, "claude-agent", request)
-        : normalizeClaudeOutput(mockText, request, availability, prompt);
+      return isExplainToken
+        ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
+        : isText
+          ? normalizeTextOutput(mockText, "claude-agent", request)
+          : normalizeClaudeOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -91,15 +104,20 @@ export const claudeAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return isText
-        ? normalizeTextOutput(rawText, "claude-agent", request, usage)
-        : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
+      return isExplainToken
+        ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
+        : isText
+          ? normalizeTextOutput(rawText, "claude-agent", request, usage)
+          : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "claude -p failed";
+      if (isExplainToken) {
+        return tokenModeResponse("claude-agent", [], [{ code: "PARSE_FAILED", message }]);
+      }
       if (isText) {
         return textModeResponse("claude-agent", `Claude CLI failed: ${message}`, [
           { code: "PARSE_FAILED", message },
@@ -262,22 +280,9 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     "    {",
     '      "line": number,',
     '      "code": "string",',
-    '      "explanation": "string",',
-    '      "tokenIds": string[],',
-    '      "conceptIds": string[],',
-    '      "confidence": number',
-    "    }",
-    "  ],",
-    '  "tokens": [',
-    "    {",
-    '      "id": "string (referenced by lineExplanations.tokenIds)",',
-    '      "token": "string (raw code token, e.g. useState)",',
-    '      "category": "react_hook | state_variable | state_setter | prop | function | event_handler | jsx_element | operator | keyword | punctuation | api_call | dependency_array | initial_value | css_selector | css_property | css_value | tailwind_utility | tailwind_layout | tailwind_spacing | tailwind_color | tailwind_responsive | tailwind_state",',
-    '      "label": "string (short Korean name)",',
-    '      "description": "string (a few words; trivial tokens like ; or = get a 2-4 word gloss)",',
-    '      "lines": number[],',
-    '      "conceptId": "string (optional, references concepts.conceptId)",',
-    '      "bookmarkable": boolean',
+    '      "explanation": "string (ONE short sentence)",',
+    '      "tokens": ["string", ...] (every meaningful token TEXT on this line: identifiers, keywords, operators, punctuation),',
+    '      "conceptIds": string[]',
     "    }",
     "  ],",
     '  "concepts": [',
@@ -286,13 +291,10 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
     "}",
     "",
-    "Link references: lineExplanations.tokenIds must reference tokens[].id, and lineExplanations.conceptIds must reference concepts[].conceptId.",
-    "Populate tokens with the meaningful identifiers/keywords in the code, and concepts with the higher-level ideas (e.g. React state).",
-    "Tag comprehensively: tokenize EVERY meaningful token (identifiers, keywords, operators, punctuation) so each appears in the dictionary, but emit ONE entry per DISTINCT token text — reuse its id across lines, collect lines in tokens[].lines, NEVER repeat. lineExplanations.tokenIds MUST link every distinct token appearing on that line.",
-    "Minimize output tokens (output size directly drives speed and cost): NEVER output an example field. Keep each token description to a few words. Each line explanation is ONE short sentence. summary is 2-3 sentences. Do not pad or repeat.",
-    "Give one lineExplanations entry for EVERY meaningful line of the code — do not skip or omit lines, even for long inputs.",
-    "Each token id and each concept conceptId must be UNIQUE across the whole response (no duplicates).",
-    "Only include a PARTIAL_PARSE warning if the input was actually truncated; otherwise return an empty warnings array.",
+    "Do NOT produce a token dictionary. Only list each line's token TEXTS in lineExplanations[].tokens — their descriptions are fetched later on demand. This keeps output small and fast.",
+    "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
+    "Give one lineExplanations entry for EVERY meaningful line — do not skip or omit lines. Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
+    "Each concept conceptId must be UNIQUE. Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
@@ -494,14 +496,15 @@ function isLineExplanation(value: unknown): value is AgentAnalyzeResponse["lineE
     return false;
   }
 
+  const stringArrayOrUndefined = (v: unknown) =>
+    v === undefined || (Array.isArray(v) && v.every((item) => typeof item === "string"));
   return (
     typeof value.line === "number" &&
     typeof value.code === "string" &&
     typeof value.explanation === "string" &&
-    Array.isArray(value.tokenIds) &&
-    value.tokenIds.every((item) => typeof item === "string") &&
-    Array.isArray(value.conceptIds) &&
-    value.conceptIds.every((item) => typeof item === "string") &&
+    stringArrayOrUndefined(value.tokens) &&
+    stringArrayOrUndefined(value.tokenIds) &&
+    stringArrayOrUndefined(value.conceptIds) &&
     (value.confidence === undefined || typeof value.confidence === "number")
   );
 }

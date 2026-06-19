@@ -70,7 +70,7 @@ export interface AgentLineExplanation {
   code: string;
   explanation: string;
   tokens?: string[]; // 그 줄의 의미 토큰 텍스트(lazy 사전: 칩으로 표시, 클릭 시 on-demand 설명).
-  tokenIds: string[]; // 레거시(사전 id 참조) — 하위호환용.
+  tokenIds?: string[]; // 레거시(사전 id 참조) — 하위호환용.
   conceptIds: string[];
   confidence?: number;
 }

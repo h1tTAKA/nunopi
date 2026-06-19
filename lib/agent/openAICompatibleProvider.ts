@@ -3,6 +3,7 @@ import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
+import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -93,7 +94,10 @@ function normalizeOpenAICompatibleResponse(
 ): AgentAnalyzeResponse {
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
-  // 글 모드는 공용 텍스트 정규화로 위임(IT 용어/관련 개념 파싱).
+  // 글 모드는 공용 텍스트 정규화, explain-token은 토큰 1개 정규화로 위임.
+  if (request.mode === "explain-token") {
+    return normalizeExplainTokenOutput(content, "openai-compatible", request);
+  }
   if (request.mode === "text") {
     return normalizeTextOutput(content, "openai-compatible", request, usage);
   }
@@ -190,6 +194,9 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
+      if (request.mode === "explain-token") {
+        return tokenModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: httpMsg }]);
+      }
       if (request.mode === "text") {
         return textModeResponse(
           "openai-compatible",
@@ -269,6 +276,9 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
+    if (request.mode === "explain-token") {
+      return tokenModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: netMsg }]);
+    }
     if (request.mode === "text") {
       return textModeResponse(
         "openai-compatible",
@@ -306,6 +316,16 @@ function buildOpenAICompatibleRequestBody(
 function buildOpenAICompatibleMessages(
   request: AgentAnalyzeRequest,
 ): OpenAICompatibleMessage[] {
+  // explain-token: 토큰 1개 설명 프롬프트.
+  if (request.mode === "explain-token") {
+    return [
+      {
+        role: "system",
+        content: "You are Nunopi's single-token explainer for beginners. Return JSON only.",
+      },
+      { role: "user", content: buildExplainTokenPrompt(request) },
+    ];
+  }
   // 글 모드는 공용 텍스트 프롬프트를 user 메시지로 사용한다.
   if (request.mode === "text") {
     return [
@@ -331,22 +351,9 @@ function buildOpenAICompatibleMessages(
         "    {",
         '      "line": number,',
         '      "code": "string",',
-        '      "explanation": "string",',
-        '      "tokenIds": string[],',
-        '      "conceptIds": string[],',
-        '      "confidence": number',
-        "    }",
-        "  ],",
-        '  "tokens": [',
-        "    {",
-        '      "id": "string (referenced by lineExplanations.tokenIds)",',
-        '      "token": "string (raw code token, e.g. useState)",',
-        '      "category": "react_hook | state_variable | state_setter | prop | function | event_handler | jsx_element | operator | keyword | punctuation | api_call | dependency_array | initial_value | css_selector | css_property | css_value | tailwind_utility | tailwind_layout | tailwind_spacing | tailwind_color | tailwind_responsive | tailwind_state",',
-        '      "label": "string (short Korean name)",',
-        '      "description": "string (a few words; trivial tokens like ; or = get a 2-4 word gloss)",',
-        '      "lines": number[],',
-        '      "conceptId": "string (optional, references concepts.conceptId)",',
-        '      "bookmarkable": boolean',
+        '      "explanation": "string (ONE short sentence)",',
+        '      "tokens": ["string", ...] (every meaningful token TEXT on this line: identifiers, keywords, operators, punctuation),',
+        '      "conceptIds": string[]',
         "    }",
         "  ],",
         '  "concepts": [',
@@ -354,12 +361,10 @@ function buildOpenAICompatibleMessages(
         "  ],",
         '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
         "}",
-        "Link references: lineExplanations.tokenIds must reference tokens[].id, and lineExplanations.conceptIds must reference concepts[].conceptId.",
-        "Populate tokens with the meaningful identifiers/keywords in the code, and concepts with the higher-level ideas (e.g. React state).",
-        "Tag comprehensively: tokenize EVERY meaningful token (identifiers, keywords, operators, punctuation) so each appears in the dictionary, but emit ONE entry per DISTINCT token text — reuse its id across lines, collect lines in tokens[].lines, NEVER repeat. lineExplanations.tokenIds MUST link every distinct token appearing on that line.",
-        "Minimize output tokens (output size directly drives speed and cost): NEVER output an example field. Keep each token description to a few words. Each line explanation is ONE short sentence. summary is 2-3 sentences. Do not pad or repeat.",
-        "Give one lineExplanations entry for EVERY meaningful line of the code — do not skip or omit lines.",
-        "Each token id and each concept conceptId must be UNIQUE across the whole response (no duplicates).",
+        "Do NOT produce a token dictionary. Only list each line's token TEXTS in lineExplanations[].tokens — descriptions are fetched later on demand. Keeps output small/fast.",
+        "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
+        "Give one lineExplanations entry for EVERY meaningful line — do not skip. Each line explanation ONE short sentence; summary 2-3 sentences. Do not pad.",
+        "Each concept conceptId must be UNIQUE.",
       ].join("\n"),
     },
     {
@@ -527,14 +532,15 @@ function isLineExplanation(
     return false;
   }
 
+  const stringArrayOrUndefined = (v: unknown) =>
+    v === undefined || (Array.isArray(v) && v.every((item) => typeof item === "string"));
   return (
     typeof value.line === "number" &&
     typeof value.code === "string" &&
     typeof value.explanation === "string" &&
-    Array.isArray(value.tokenIds) &&
-    value.tokenIds.every((item) => typeof item === "string") &&
-    Array.isArray(value.conceptIds) &&
-    value.conceptIds.every((item) => typeof item === "string") &&
+    stringArrayOrUndefined(value.tokens) &&
+    stringArrayOrUndefined(value.tokenIds) &&
+    stringArrayOrUndefined(value.conceptIds) &&
     (value.confidence === undefined || typeof value.confidence === "number")
   );
 }
