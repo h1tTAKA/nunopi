@@ -35,6 +35,11 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
     return () => clearTimeout(timer);
   }, [copied]);
 
+  // 대화가 (다른 경로로) 비워지면 초기화 확인 상태도 해제 — 다음 대화에서 잔류 방지.
+  useEffect(() => {
+    if (messages.length === 0) setConfirmingClear(false);
+  }, [messages.length]);
+
   async function handleCopy() {
     if (messages.length === 0) return;
     try {
