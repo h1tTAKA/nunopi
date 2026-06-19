@@ -1,6 +1,7 @@
 import { codeToHtml } from "shiki";
 import type { AgentAnalyzeResponse } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
+import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 
 // 분석 결과(전체 코드 + 학습패널 내용)를 폰에서도 열어 볼 수 있는
 // 자체완결(self-contained) HTML 문서 문자열로 만든다.
@@ -165,6 +166,15 @@ export async function formatResultAsHtml(
   const heading = title?.trim() ? title.trim() : "코드 분석 결과";
   const codeHtml = await highlight(code, result.language);
 
+  // LLM 줄번호를 실제 코드 행에 재앵커(화면 패널과 동일). 토큰/개념 lines도 보정.
+  const { lineExplanations, lineMap } = reanchorLineNumbers(code, result.lineExplanations);
+  const anchored: AgentAnalyzeResponse = {
+    ...result,
+    lineExplanations,
+    tokens: result.tokens.map((t) => ({ ...t, lines: remapLines(t.lines, lineMap) })),
+    concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines, lineMap) })),
+  };
+
   return `<!doctype html>
 <html lang="ko">
 <head>
@@ -176,13 +186,13 @@ export async function formatResultAsHtml(
 <body>
 <div class="wrap">
 <h1>${escapeHtml(heading)}</h1>
-${renderMeta(result)}
-<div class="summary"><strong>요약</strong><p>${escapeHtml(result.summary)}</p></div>
+${renderMeta(anchored)}
+<div class="summary"><strong>요약</strong><p>${escapeHtml(anchored.summary)}</p></div>
 <section><h2>입력 코드</h2>${codeHtml}</section>
-${renderLineExplanations(result)}
-${renderTokens(result.tokens)}
-${renderConcepts(result.concepts)}
-${renderWarnings(result)}
+${renderLineExplanations(anchored)}
+${renderTokens(anchored.tokens)}
+${renderConcepts(anchored.concepts)}
+${renderWarnings(anchored)}
 <p class="muted" style="margin-top:32px">Nunopi — 바이브코더를 위한 AI 코드 학습 도구</p>
 </div>
 </body>
