@@ -6,6 +6,24 @@ export type SupportedLanguage =
   | "tailwindcss"
   | "unknown";
 
+// 글(IT 용어) 분석 모드 — 코드의 CodeToken/ConceptOccurrence에 대응하는 산문용 타입.
+// IT 용어 사전 한 항목.
+export interface ItTerm {
+  id: string;
+  term: string; // 글에 등장한 IT 용어 그대로 (예: AMM, LP, 슬리피지)
+  reading?: string; // 약어 풀이/원어 (예: "AMM = Automated Market Maker")
+  explanation: string; // 초등학생도 이해할 쉬운 한국어 설명
+  conceptIds: string[]; // 이 용어를 이해하는 데 더 필요한 관련 개념 id들
+  bookmarkable: boolean;
+}
+
+// 관련 개념 한 항목 — 용어 설명에 또 필요한 상위/배경 개념.
+export interface ItConcept {
+  conceptId: string;
+  title: string;
+  explanation: string; // 이 개념을 초등학생 눈높이로 설명
+}
+
 export interface TranslateRequest {
   code: string;
   locale: "ko";
