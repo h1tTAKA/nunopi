@@ -5,14 +5,20 @@ import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib
 import type { HistoryEntry } from "@/lib/historyDB";
 import {
   type BookmarkedTokenDetail,
+  type BookmarkedTermDetail,
   saveTokenDetail,
   removeTokenDetail,
   loadTokenDetails,
   clearTokenDetails,
+  saveTermDetail,
+  removeTermDetail,
+  loadTermDetails,
+  clearTermDetails,
 } from "@/lib/bookmarkDetails";
-import type { CodeToken } from "@/lib/translator/types";
+import type { CodeToken, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
+import ItTermDictionary from "./ItTermDictionary";
 import ConceptSection from "./ConceptSection";
 import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
@@ -101,6 +107,8 @@ export default function LearningPanel({
   onToggleCurrentPin,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+  // 히스토리는 현재 모드 항목만 보여 코드/글이 섞이지 않게 한다.
+  const modeHistoryEntries = historyEntries.filter((e) => (e.mode ?? "code") === mode);
   // 히스토리(IndexedDB)에서 복원한 옛 결과는 dedupe 이전 데이터라 중복
   // 토큰/개념을 담고 있을 수 있다 → 렌더 시점에도 방어적으로 중복 제거한다.
   const dedupedTokens = useMemo(() => dedupeTokens(result?.tokens ?? []), [result]);
@@ -142,6 +150,9 @@ export default function LearningPanel({
   const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
+  // 글 모드 IT 용어 북마크 — details만 보관하고 texts는 키에서 파생한다.
+  const [bookmarkedTermDetails, setBookmarkedTermDetails] = useState<Record<string, BookmarkedTermDetail>>({});
+  const bookmarkedTermTexts = useMemo(() => Object.keys(bookmarkedTermDetails), [bookmarkedTermDetails]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -204,6 +215,8 @@ export default function LearningPanel({
     } catch { /* ignore */ }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBookmarkedTokenDetails(loadTokenDetails());
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedTermDetails(loadTermDetails());
   }, []);
 
   useEffect(() => {
@@ -243,6 +256,16 @@ export default function LearningPanel({
       if (next.length === 0) setFilterBookmarked(false);
       return next;
     });
+  }
+
+  // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
+  function handleTermBookmarkToggle(term: ItTerm) {
+    const isAdding = !bookmarkedTermDetails[term.term];
+    if (isAdding) saveTermDetail(term);
+    else removeTermDetail(term.term);
+    const next = loadTermDetails();
+    setBookmarkedTermDetails(next);
+    if (Object.keys(next).length === 0) setFilterBookmarked(false);
   }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
@@ -346,7 +369,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        히스토리{historyEntries.length > 0 ? ` ${historyEntries.length}` : ""}
+        히스토리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
       </button>
       <button
         type="button"
@@ -357,7 +380,11 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        토큰 사전{Object.keys(bookmarkedTokenDetails).length > 0 ? ` ${Object.keys(bookmarkedTokenDetails).length}` : ""}
+        {mode === "text" ? "IT 용어 사전" : "토큰 사전"}
+        {(() => {
+          const n = mode === "text" ? bookmarkedTermTexts.length : Object.keys(bookmarkedTokenDetails).length;
+          return n > 0 ? ` ${n}` : "";
+        })()}
       </button>
     </div>
   );
@@ -367,20 +394,32 @@ export default function LearningPanel({
       <div className="nunopi-scroll h-full p-6 space-y-4 overflow-y-scroll">
         {entryHeader}
         {tabBar}
-        <TokenDictionary
-          details={bookmarkedTokenDetails}
-          onUnbookmark={(tokenText) => {
-            // localStorage ops first, then state
-            removeTokenDetail(tokenText);
-            setBookmarkedTokenDetails(loadTokenDetails());
-            setBookmarkedTokenTexts((prev) => {
-              const next = prev.filter((t) => t !== tokenText);
-              try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
-              if (next.length === 0) setFilterBookmarked(false);
-              return next;
-            });
-          }}
-        />
+        {mode === "text" ? (
+          <ItTermDictionary
+            details={bookmarkedTermDetails}
+            onUnbookmark={(termText) => {
+              removeTermDetail(termText);
+              const next = loadTermDetails();
+              setBookmarkedTermDetails(next);
+              if (Object.keys(next).length === 0) setFilterBookmarked(false);
+            }}
+          />
+        ) : (
+          <TokenDictionary
+            details={bookmarkedTokenDetails}
+            onUnbookmark={(tokenText) => {
+              // localStorage ops first, then state
+              removeTokenDetail(tokenText);
+              setBookmarkedTokenDetails(loadTokenDetails());
+              setBookmarkedTokenTexts((prev) => {
+                const next = prev.filter((t) => t !== tokenText);
+                try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
+                if (next.length === 0) setFilterBookmarked(false);
+                return next;
+              });
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -392,7 +431,7 @@ export default function LearningPanel({
         {tabBar}
         {onRestoreHistory && onDeleteHistory && onClearHistory ? (
           <AnalysisHistory
-            entries={historyEntries}
+            entries={modeHistoryEntries}
             onRestore={onRestoreHistory}
             onDelete={onDeleteHistory}
             onClear={onClearHistory}
@@ -521,16 +560,57 @@ export default function LearningPanel({
           {result.mode === "text" ? (
             <>
               <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
-                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  IT 용어 사전
-                </p>
-                <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
-                  <ItTermSection
-                    key={result.createdAt}
-                    terms={result.terms ?? []}
-                    onTermClick={handleTermClick}
-                  />
-                </div>
+                {(() => {
+                  const allTerms = result.terms ?? [];
+                  const bookmarkedCount = allTerms.filter((t) => bookmarkedTermTexts.includes(t.term)).length;
+                  const displayTerms = filterBookmarked
+                    ? allTerms.filter((t) => bookmarkedTermTexts.includes(t.term))
+                    : allTerms;
+                  return (
+                    <>
+                      <div className="mb-2 flex items-center gap-2 px-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                          IT 용어 사전
+                        </p>
+                        {bookmarkedCount > 0 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setFilterBookmarked((v) => !v)}
+                              className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
+                                filterBookmarked
+                                  ? "bg-amber-400 text-white dark:bg-amber-500"
+                                  : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
+                              }`}
+                            >
+                              북마크 {bookmarkedCount}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setBookmarkedTermDetails({});
+                                setFilterBookmarked(false);
+                                clearTermDetails();
+                              }}
+                              className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                            >
+                              모두 해제
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                        <ItTermSection
+                          key={result.createdAt}
+                          terms={displayTerms}
+                          onTermClick={handleTermClick}
+                          bookmarkedTermTexts={bookmarkedTermTexts}
+                          onBookmarkToggle={handleTermBookmarkToggle}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
               </section>
               <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
