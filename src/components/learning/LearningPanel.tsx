@@ -540,15 +540,17 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
-                  <TokenSection
-                    key={result.createdAt}
-                    tokens={displayTokens}
-                    activeTokenIds={activeTokenIds}
-                    onTokenClick={handleTokenClick}
-                    bookmarkedTokenTexts={bookmarkedTokenTexts}
-                    onBookmarkToggle={handleBookmarkToggle}
-                    onTokenHover={setHoverLines}
-                  />
+                  <div className="max-h-[45vh] overflow-y-auto pr-1">
+                    <TokenSection
+                      key={result.createdAt}
+                      tokens={displayTokens}
+                      activeTokenIds={activeTokenIds}
+                      onTokenClick={handleTokenClick}
+                      bookmarkedTokenTexts={bookmarkedTokenTexts}
+                      onBookmarkToggle={handleBookmarkToggle}
+                      onTokenHover={setHoverLines}
+                    />
+                  </div>
                 </>
               );
             })()}
