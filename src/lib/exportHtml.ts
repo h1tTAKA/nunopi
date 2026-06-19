@@ -88,10 +88,11 @@ function renderTokens(tokens: CodeToken[]): string {
 function renderConcepts(concepts: ConceptOccurrence[]): string {
   if (concepts.length === 0) return "";
   const items = concepts
-    .map(
-      (c) =>
-        `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div><p class="muted">등장 줄: ${c.lines.join(", ")}</p></div>`,
-    )
+    .map((c) => {
+      const desc = c.description ? `<p>${escapeHtml(c.description)}</p>` : "";
+      const lines = c.lines.length > 0 ? `<p class="muted">등장 줄: ${c.lines.join(", ")}</p>` : "";
+      return `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div>${desc}${lines}</div>`;
+    })
     .join("\n");
   return `<section><h2>개념</h2><div class="cards">${items}</div></section>`;
 }

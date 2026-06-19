@@ -7,6 +7,7 @@ import type { CodeToken, ConceptOccurrence, TokenCategory } from "@/lib/translat
 import type { AgentProvider } from "./types";
 import { textModeResponse } from "./textMode";
 import { tokenModeResponse } from "./tokenMode";
+import { conceptModeResponse } from "./conceptMode";
 
 const HOOK_PATTERN = /\b(useState|useEffect|useMemo|useCallback|useRef)\s*\(/;
 const JSX_PATTERN = /<\s*[A-Za-z][\w-]*(?:\s|>|\/)/;
@@ -41,6 +42,17 @@ export const localRulesProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+    // 로컬 규칙 분석은 개념 설명을 만들지 않는다 — explain-concept은 안내만.
+    if (request.mode === "explain-concept") {
+      const c = request.targetConcept ?? "";
+      return conceptModeResponse(
+        this.metadata.id,
+        c
+          ? [{ conceptId: c, title: c, lines: [], count: 0, description: "로컬 규칙 분석은 개념 상세 설명을 제공하지 않는다. 상단에서 AI 프로바이더를 선택해 보라." }]
+          : [],
+        [],
+      );
+    }
     // 로컬 규칙 분석은 토큰 상세 설명을 만들지 않는다 — explain-token은 안내만.
     if (request.mode === "explain-token") {
       const t = request.targetToken ?? "";

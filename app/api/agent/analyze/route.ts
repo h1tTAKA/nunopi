@@ -210,12 +210,17 @@ function isValidAnalyzeRequestPayload(
     value.mode !== undefined &&
     value.mode !== "code" &&
     value.mode !== "text" &&
-    value.mode !== "explain-token"
+    value.mode !== "explain-token" &&
+    value.mode !== "explain-concept"
   ) {
     return false;
   }
 
   if (value.targetToken !== undefined && typeof value.targetToken !== "string") {
+    return false;
+  }
+
+  if (value.targetConcept !== undefined && typeof value.targetConcept !== "string") {
     return false;
   }
 

@@ -4,6 +4,7 @@ import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/trans
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
+import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -94,7 +95,10 @@ function normalizeOpenAICompatibleResponse(
 ): AgentAnalyzeResponse {
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
-  // 글 모드는 공용 텍스트 정규화, explain-token은 토큰 1개 정규화로 위임.
+  // 글 모드는 공용 텍스트 정규화, explain-token/concept는 각 1개 정규화로 위임.
+  if (request.mode === "explain-concept") {
+    return normalizeExplainConceptOutput(content, "openai-compatible", request);
+  }
   if (request.mode === "explain-token") {
     return normalizeExplainTokenOutput(content, "openai-compatible", request);
   }
@@ -194,6 +198,9 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
+      if (request.mode === "explain-concept") {
+        return conceptModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: httpMsg }]);
+      }
       if (request.mode === "explain-token") {
         return tokenModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: httpMsg }]);
       }
@@ -276,6 +283,9 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
+    if (request.mode === "explain-concept") {
+      return conceptModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: netMsg }]);
+    }
     if (request.mode === "explain-token") {
       return tokenModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: netMsg }]);
     }
@@ -316,6 +326,16 @@ function buildOpenAICompatibleRequestBody(
 function buildOpenAICompatibleMessages(
   request: AgentAnalyzeRequest,
 ): OpenAICompatibleMessage[] {
+  // explain-concept: 개념 1개 설명 프롬프트.
+  if (request.mode === "explain-concept") {
+    return [
+      {
+        role: "system",
+        content: "You are Nunopi's single-concept explainer for beginners. Return JSON only.",
+      },
+      { role: "user", content: buildExplainConceptPrompt(request) },
+    ];
+  }
   // explain-token: 토큰 1개 설명 프롬프트.
   if (request.mode === "explain-token") {
     return [
