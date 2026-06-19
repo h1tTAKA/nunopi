@@ -5,6 +5,7 @@ import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
+import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -95,7 +96,10 @@ function normalizeOpenAICompatibleResponse(
 ): AgentAnalyzeResponse {
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
-  // 글 모드는 공용 텍스트 정규화, explain-token/concept는 각 1개 정규화로 위임.
+  // 챗은 자유 텍스트, 글 모드는 텍스트 정규화, explain-token/concept는 각 1개.
+  if (request.mode === "chat") {
+    return normalizeChatOutput(content, "openai-compatible");
+  }
   if (request.mode === "explain-concept") {
     return normalizeExplainConceptOutput(content, "openai-compatible", request);
   }
@@ -198,6 +202,9 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
+      if (request.mode === "chat") {
+        return chatModeResponse("openai-compatible", `엔드포인트 오류(HTTP ${res.status}).`, [{ code: "PARSE_FAILED", message: httpMsg }]);
+      }
       if (request.mode === "explain-concept") {
         return conceptModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: httpMsg }]);
       }
@@ -256,7 +263,8 @@ async function fetchOpenAICompatibleResponse(
           const delta = chunk.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta) {
             content += delta;
-            onProgress?.(content.slice(-200));
+            // 챗은 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
+            onProgress?.(request.mode === "chat" ? content : content.slice(-200));
           }
           if (chunk.usage) {
             usage = {
@@ -283,6 +291,9 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
+    if (request.mode === "chat") {
+      return chatModeResponse("openai-compatible", "엔드포인트에 연결하지 못했다.", [{ code: "PARSE_FAILED", message: netMsg }]);
+    }
     if (request.mode === "explain-concept") {
       return conceptModeResponse("openai-compatible", [], [{ code: "PARSE_FAILED", message: netMsg }]);
     }
@@ -326,6 +337,13 @@ function buildOpenAICompatibleRequestBody(
 function buildOpenAICompatibleMessages(
   request: AgentAnalyzeRequest,
 ): OpenAICompatibleMessage[] {
+  // 챗: 튜터 시스템 + 코드/대화 프롬프트.
+  if (request.mode === "chat") {
+    return [
+      { role: "system", content: CHAT_SYSTEM_PROMPT },
+      { role: "user", content: buildChatPrompt(request) },
+    ];
+  }
   // explain-concept: 개념 1개 설명 프롬프트.
   if (request.mode === "explain-concept") {
     return [

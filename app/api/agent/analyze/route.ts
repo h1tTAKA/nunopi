@@ -211,7 +211,8 @@ function isValidAnalyzeRequestPayload(
     value.mode !== "code" &&
     value.mode !== "text" &&
     value.mode !== "explain-token" &&
-    value.mode !== "explain-concept"
+    value.mode !== "explain-concept" &&
+    value.mode !== "chat"
   ) {
     return false;
   }
@@ -221,6 +222,10 @@ function isValidAnalyzeRequestPayload(
   }
 
   if (value.targetConcept !== undefined && typeof value.targetConcept !== "string") {
+    return false;
+  }
+
+  if (value.messages !== undefined && !isChatMessageList(value.messages)) {
     return false;
   }
 
@@ -237,6 +242,18 @@ function isValidAnalyzeRequestPayload(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isChatMessageList(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (m) =>
+        isRecord(m) &&
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string",
+    )
+  );
 }
 
 function isOptionalProviderId(

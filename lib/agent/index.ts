@@ -19,6 +19,7 @@ export type {
   AgentToTranslateMapping,
   AgentUsage,
   AnalyzeMode,
+  ChatMessage,
   ProviderSettings,
 } from "./schema";
 export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAICompatibleProvider };
