@@ -12,6 +12,7 @@ interface ChatRoomProps {
   disabled?: boolean; // 분석 전 등 비활성 사유.
   disabledHint?: string;
   onSend: (text: string) => void;
+  onClear?: () => void;
 }
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
@@ -22,9 +23,10 @@ function formatChatAsMarkdown(messages: ChatMessage[]): string {
     .join("\n\n---\n\n");
 }
 
-export default function ChatRoom({ messages, streaming, isLoading, disabled, disabledHint, onSend }: ChatRoomProps) {
+export default function ChatRoom({ messages, streaming, isLoading, disabled, disabledHint, onSend, onClear }: ChatRoomProps) {
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -59,23 +61,53 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
     <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">💬 학습 챗</span>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">코드에 대해 물어보세요</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">궁금한 걸 물어보세요</span>
         {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={() => { void handleCopy(); }}
-            className="ml-auto rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title="대화 전체를 마크다운으로 복사"
-          >
-            {copied ? "복사됨 ✓" : "MD 복사"}
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => { void handleCopy(); }}
+              className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              title="대화 전체를 마크다운으로 복사"
+            >
+              {copied ? "복사됨 ✓" : "MD 복사"}
+            </button>
+            {confirmingClear ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { setConfirmingClear(false); onClear?.(); }}
+                  className="rounded-lg bg-red-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-600"
+                >
+                  정말 초기화?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingClear(false)}
+                  className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                >
+                  취소
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmingClear(true)}
+                disabled={isLoading}
+                className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-red-400"
+                title="대화 초기화"
+              >
+                초기화
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       <div ref={scrollRef} className="nunopi-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {messages.length === 0 && !streaming && (
           <p className="py-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
-            {disabled ? (disabledHint ?? "먼저 코드를 분석해 보세요.") : "예) 이 코드에서 useState는 왜 쓰나요?"}
+            {disabled ? (disabledHint ?? "먼저 입력을 채워 보세요.") : "예) 이게 무슨 뜻이에요? 왜 이렇게 하나요?"}
           </p>
         )}
         {messages.map((m, i) => (
@@ -115,7 +147,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
           }}
           disabled={isLoading || disabled}
           rows={1}
-          placeholder={disabled ? (disabledHint ?? "분석 후 질문 가능") : "질문 입력 (Enter 전송, Shift+Enter 줄바꿈)"}
+          placeholder={disabled ? (disabledHint ?? "입력 후 질문 가능") : "질문 입력 (Enter 전송, Shift+Enter 줄바꿈)"}
           className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
         />
         <button

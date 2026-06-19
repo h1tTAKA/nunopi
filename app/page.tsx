@@ -484,6 +484,12 @@ export default function Home() {
     })();
   }
 
+  function handleClearChat() {
+    setChatMessages([]);
+    setChatStreaming(null);
+    // 빈 배열은 [chatMessages] 동기화 effect가 현재 항목 DB/메모리에 반영한다.
+  }
+
   function handleDeleteConcept(conceptId: string) {
     setAnalysisResult((prev) =>
       prev ? { ...prev, concepts: prev.concepts.filter((c) => c.conceptId !== conceptId) } : prev,
@@ -676,8 +682,9 @@ export default function Home() {
                 streaming={chatStreaming}
                 isLoading={chatLoading}
                 disabled={!code.trim()}
-                disabledHint="코드를 입력하면 질문할 수 있어요."
+                disabledHint={mode === "text" ? "글을 입력하면 질문할 수 있어요." : "코드를 입력하면 질문할 수 있어요."}
                 onSend={handleSendChat}
+                onClear={handleClearChat}
               />
             }
           />
