@@ -206,6 +206,10 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
+  if (value.mode !== undefined && value.mode !== "code" && value.mode !== "text") {
+    return false;
+  }
+
   if (!isOptionalAnalyzeOptions(value.options)) {
     return false;
   }

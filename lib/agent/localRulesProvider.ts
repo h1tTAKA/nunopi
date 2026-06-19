@@ -5,6 +5,7 @@ import type {
 } from "./schema";
 import type { CodeToken, ConceptOccurrence, TokenCategory } from "@/lib/translator/types";
 import type { AgentProvider } from "./types";
+import { textModeResponse } from "./textMode";
 
 const HOOK_PATTERN = /\b(useState|useEffect|useMemo|useCallback|useRef)\s*\(/;
 const JSX_PATTERN = /<\s*[A-Za-z][\w-]*(?:\s|>|\/)/;
@@ -39,6 +40,19 @@ export const localRulesProvider: AgentProvider = {
     },
   },
   async analyze(request: AgentAnalyzeRequest): Promise<AgentAnalyzeResponse> {
+    // 로컬 규칙 분석은 코드 전용 — 글(IT 용어) 모드는 AI 프로바이더가 필요하다.
+    if (request.mode === "text") {
+      return textModeResponse(
+        this.metadata.id,
+        "글(IT 용어) 분석은 AI 프로바이더가 필요하다. 상단에서 Claude / Codex / OpenAI 호환 프로바이더를 선택해 보라.",
+        [
+          {
+            code: "PARTIAL_PARSE",
+            message: "Local Rules provider does not support text mode; choose an AI provider.",
+          },
+        ],
+      );
+    }
     const lineExplanations = buildLineExplanations(request.code);
     const matchedLineCount = lineExplanations.length;
     const totalNonEmptyLines = countNonEmptyLines(request.code);

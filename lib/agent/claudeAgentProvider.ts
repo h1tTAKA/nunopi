@@ -6,6 +6,7 @@ import { delimiter, join } from "node:path";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
+import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -48,8 +49,14 @@ export const claudeAgentProvider: AgentProvider = {
     options?: AgentAnalyzeCallOptions,
   ): Promise<AgentAnalyzeResponse> {
     const availability = await detectClaudeAvailability(request);
+    const isText = request.mode === "text";
 
     if (!availability.available) {
+      if (isText) {
+        return textModeResponse("claude-agent", availability.message, [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       return {
         providerId: this.metadata.id,
         language: request.detectedLanguage ?? "unknown",
@@ -68,11 +75,13 @@ export const claudeAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = buildClaudePrompt(request);
+    const prompt = isText ? buildTextPrompt(request) : buildClaudePrompt(request);
     const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return normalizeClaudeOutput(mockText, request, availability, prompt);
+      return isText
+        ? normalizeTextOutput(mockText, "claude-agent", request)
+        : normalizeClaudeOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -82,13 +91,20 @@ export const claudeAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return normalizeClaudeOutput(rawText, request, availability, prompt, usage);
+      return isText
+        ? normalizeTextOutput(rawText, "claude-agent", request, usage)
+        : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "claude -p failed";
+      if (isText) {
+        return textModeResponse("claude-agent", `Claude CLI failed: ${message}`, [
+          { code: "PARSE_FAILED", message },
+        ]);
+      }
       return {
         providerId: "claude-agent",
         language: request.detectedLanguage ?? "unknown",

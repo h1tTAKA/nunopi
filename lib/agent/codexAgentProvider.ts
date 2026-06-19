@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
+import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CODEX_COMMAND_CANDIDATES = ["codex", "codex.cmd", "codex.exe"] as const;
@@ -50,8 +51,14 @@ export const codexAgentProvider: AgentProvider = {
     options?: AgentAnalyzeCallOptions,
   ): Promise<AgentAnalyzeResponse> {
     const availability = await detectCodexAvailability(request);
+    const isText = request.mode === "text";
 
     if (!availability.available) {
+      if (isText) {
+        return textModeResponse("codex-agent", availability.message, [
+          { code: "PARTIAL_PARSE", message: availability.message },
+        ]);
+      }
       return {
         providerId: "codex-agent",
         language: request.detectedLanguage ?? "unknown",
@@ -70,11 +77,13 @@ export const codexAgentProvider: AgentProvider = {
       };
     }
 
-    const prompt = buildCodexPrompt(request);
+    const prompt = isText ? buildTextPrompt(request) : buildCodexPrompt(request);
     const mockText = process.env.NUNOPI_CODEX_MOCK_RESPONSE?.trim();
 
     if (mockText) {
-      return normalizeCodexOutput(mockText, request, availability, prompt);
+      return isText
+        ? normalizeTextOutput(mockText, "codex-agent", request)
+        : normalizeCodexOutput(mockText, request, availability, prompt);
     }
 
     try {
@@ -84,13 +93,20 @@ export const codexAgentProvider: AgentProvider = {
         options?.signal,
         options?.onProgress,
       );
-      return normalizeCodexOutput(rawText, request, availability, prompt, usage);
+      return isText
+        ? normalizeTextOutput(rawText, "codex-agent", request, usage)
+        : normalizeCodexOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
       if (options?.signal?.aborted) {
         throw err;
       }
       const message = err instanceof Error ? err.message : "codex exec failed";
+      if (isText) {
+        return textModeResponse("codex-agent", `Codex exec failed: ${message}`, [
+          { code: "PARSE_FAILED", message },
+        ]);
+      }
       return {
         providerId: "codex-agent",
         language: request.detectedLanguage ?? "unknown",

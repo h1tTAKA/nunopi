@@ -2,6 +2,7 @@ import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./sc
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
+import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -91,6 +92,12 @@ function normalizeOpenAICompatibleResponse(
   usage?: AgentUsage,
 ): AgentAnalyzeResponse {
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
+
+  // 글 모드는 공용 텍스트 정규화로 위임(IT 용어/관련 개념 파싱).
+  if (request.mode === "text") {
+    return normalizeTextOutput(content, "openai-compatible", request, usage);
+  }
+
   const parsed = parseOpenAICompatiblePayload(content);
 
   if (!parsed) {
@@ -181,6 +188,16 @@ async function fetchOpenAICompatibleResponse(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
+      const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
+      if (request.mode === "text") {
+        return textModeResponse(
+          "openai-compatible",
+          `OpenAI-compatible endpoint at ${endpoint} returned HTTP ${res.status}.`,
+          [{ code: "PARSE_FAILED", message: httpMsg }],
+          undefined,
+          errText,
+        );
+      }
       return {
         providerId: "openai-compatible",
         language: request.detectedLanguage ?? "unknown",
@@ -188,7 +205,7 @@ async function fetchOpenAICompatibleResponse(
         lineExplanations: [],
         tokens: [],
         concepts: [],
-        warnings: [{ code: "PARSE_FAILED", message: `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}` }],
+        warnings: [{ code: "PARSE_FAILED", message: httpMsg }],
         rawText: errText,
         createdAt: new Date().toISOString(),
       };
@@ -250,6 +267,14 @@ async function fetchOpenAICompatibleResponse(
   } catch (err) {
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
+    const netMsg = err instanceof Error ? err.message : "Network error.";
+    if (request.mode === "text") {
+      return textModeResponse(
+        "openai-compatible",
+        `Failed to reach OpenAI-compatible endpoint at ${endpoint}.`,
+        [{ code: "PARSE_FAILED", message: netMsg }],
+      );
+    }
     return {
       providerId: "openai-compatible",
       language: request.detectedLanguage ?? "unknown",
@@ -257,7 +282,7 @@ async function fetchOpenAICompatibleResponse(
       lineExplanations: [],
       tokens: [],
       concepts: [],
-      warnings: [{ code: "PARSE_FAILED", message: err instanceof Error ? err.message : "Network error." }],
+      warnings: [{ code: "PARSE_FAILED", message: netMsg }],
       createdAt: new Date().toISOString(),
     };
   }
@@ -280,6 +305,16 @@ function buildOpenAICompatibleRequestBody(
 function buildOpenAICompatibleMessages(
   request: AgentAnalyzeRequest,
 ): OpenAICompatibleMessage[] {
+  // 글 모드는 공용 텍스트 프롬프트를 user 메시지로 사용한다.
+  if (request.mode === "text") {
+    return [
+      {
+        role: "system",
+        content: "You are Nunopi's IT-term explainer for absolute beginners. Return JSON only.",
+      },
+      { role: "user", content: buildTextPrompt(request) },
+    ];
+  }
   return [
     {
       role: "system",
