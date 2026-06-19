@@ -136,9 +136,20 @@ async function runClaudeCli(
 
     const proc = spawn(
       commandPath,
-      // stream-json + partial-messages로 토큰 델타(content_block_delta)와
-      // 최종 result(텍스트+usage)를 JSONL로 받는다. prompt는 positional, stdin은 닫음.
-      ["-p", "--output-format", "stream-json", "--verbose", "--include-partial-messages", prompt],
+      [
+        "-p",
+        // sonnet으로 실행(opus 대비 저렴/빠름).
+        "--model", "sonnet",
+        // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
+        // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
+        "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
+        "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
+        "--system-prompt", "You are a code analysis assistant. Return JSON only.", // 거대 기본 시스템 프롬프트 교체(분석 지시는 user 프롬프트에 있음)
+        // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
+        "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+        // prompt는 positional, stdin은 닫음.
+        prompt,
+      ],
       { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
     );
 
