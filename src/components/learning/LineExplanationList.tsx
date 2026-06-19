@@ -57,20 +57,27 @@ export default function LineExplanationList({
           if (entry.isIntersecting) visible.add(el);
           else visible.delete(el);
         }
-        let top: HTMLElement | null = null;
+        // 뷰포트 세로 중앙에 가장 가까운 카드를 "지금 보는 줄"로 선택.
+        const viewportCenter = window.innerHeight / 2;
+        let best: HTMLElement | null = null;
+        let bestDist = Infinity;
         for (const el of visible) {
-          if (!top || el.getBoundingClientRect().top < top.getBoundingClientRect().top) {
-            top = el;
+          const rect = el.getBoundingClientRect();
+          const dist = Math.abs(rect.top + rect.height / 2 - viewportCenter);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = el;
           }
         }
-        if (!top) return;
-        const line = Number(top.dataset.nunopiLine);
+        if (!best) return;
+        const line = Number(best.dataset.nunopiLine);
         if (Number.isFinite(line) && line !== lastFocusedRef.current) {
           lastFocusedRef.current = line;
           onLineFocusRef.current?.(line);
         }
       },
-      { rootMargin: "0px 0px -60% 0px", threshold: 0 },
+      // 뷰포트 중앙의 얇은 띠만 루트로 → 중앙을 지나는 카드만 교차(상단 바이어스 제거).
+      { rootMargin: "-45% 0px -45% 0px", threshold: 0 },
     );
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
