@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { Monaco } from "@monaco-editor/react";
+import type { Monaco, OnMount } from "@monaco-editor/react";
+
+type MonacoEditorInstance = Parameters<OnMount>[0];
+type DecorationsCollection = ReturnType<MonacoEditorInstance["createDecorationsCollection"]>;
 
 const MonacoEditor = dynamic(
   () => import("@monaco-editor/react").then((mod) => mod.Editor),
@@ -16,6 +19,10 @@ interface CodeEditorProps {
   readOnly?: boolean;
   // true면 부모 컨테이너 높이를 채운다(부모가 높이를 줘야 함). false면 기존 320px 고정.
   fill?: boolean;
+  // 학습패널과 링크되는 현재 활성 코드 줄(1-based). 그 줄을 하이라이트하고 화면 밖이면 reveal.
+  activeLine?: number | null;
+  // 에디터에서 줄을 클릭하면 호출(1-based 줄 번호).
+  onLineClick?: (line: number) => void;
 }
 
 function monacoLanguage(language?: string): string {
@@ -60,8 +67,18 @@ export default function CodeEditor({
   language,
   readOnly = false,
   fill = false,
+  activeLine = null,
+  onLineClick,
 }: CodeEditorProps) {
   const [isDark, setIsDark] = useState(false);
+  const editorRef = useRef<MonacoEditorInstance | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
+  const activeDecorationRef = useRef<DecorationsCollection | null>(null);
+  // onMouseDown 핸들러는 mount 시점에 한 번 등록되므로, 최신 onLineClick을 ref로 참조한다.
+  const onLineClickRef = useRef(onLineClick);
+  useEffect(() => {
+    onLineClickRef.current = onLineClick;
+  }, [onLineClick]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -76,6 +93,44 @@ export default function CodeEditor({
     return () => observer.disconnect();
   }, []);
 
+  // 활성 줄 하이라이트 + 화면 밖이면 reveal. mount 이후 activeLine 변경마다 반영.
+  function applyActiveLine() {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    if (activeLine == null) {
+      activeDecorationRef.current?.clear();
+      return;
+    }
+    const decoration = [
+      {
+        range: new monaco.Range(activeLine, 1, activeLine, 1),
+        options: { isWholeLine: true, className: "nunopi-active-line" },
+      },
+    ];
+    if (activeDecorationRef.current) {
+      activeDecorationRef.current.set(decoration);
+    } else {
+      activeDecorationRef.current = editor.createDecorationsCollection(decoration);
+    }
+    editor.revealLineInCenterIfOutsideViewport(activeLine);
+  }
+
+  useEffect(() => {
+    applyActiveLine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLine]);
+
+  const handleMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+    editor.onMouseDown((event) => {
+      const line = event.target.position?.lineNumber;
+      if (line != null) onLineClickRef.current?.(line);
+    });
+    applyActiveLine();
+  };
+
   return (
     <div
       className={`overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 ${
@@ -88,6 +143,7 @@ export default function CodeEditor({
         value={value}
         onChange={(v) => onChange(v ?? "")}
         beforeMount={disableDiagnostics}
+        onMount={handleMount}
         theme={isDark ? "vs-dark" : "light"}
         options={{
           readOnly,
