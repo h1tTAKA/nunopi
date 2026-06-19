@@ -68,6 +68,15 @@ export default function Home() {
   const abortRef = useRef<AbortController | null>(null);
   // 분석 중 provider가 흘리는 최신 진행 출력 한 줄.
   const [progressLine, setProgressLine] = useState("");
+  // 에디터 ↔ 학습패널 줄 링크. source로 양방향 동기화 루프를 끊는다.
+  const [activeLineLink, setActiveLineLink] = useState<{
+    line: number;
+    source: "editor" | "panel";
+  } | null>(null);
+  const focusLineFromEditor = (line: number) =>
+    setActiveLineLink({ line, source: "editor" });
+  const focusLineFromPanel = (line: number) =>
+    setActiveLineLink({ line, source: "panel" });
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -301,6 +310,9 @@ export default function Home() {
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}
+          activeLine={activeLineLink?.line ?? null}
+          activeLineSource={activeLineLink?.source}
+          onLineFocus={focusLineFromPanel}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}
@@ -324,6 +336,8 @@ export default function Home() {
             editorLanguage={editorLanguage}
             onLanguageChoiceChange={setLanguageChoice}
             onCodeChange={handleCodeChange}
+            activeLine={activeLineLink?.line ?? null}
+            onLineClick={focusLineFromEditor}
           />
         }
       />

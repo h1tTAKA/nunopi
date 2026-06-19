@@ -54,6 +54,9 @@ interface LearningPanelProps {
   progressLine?: string;
   errorMessage: string | null;
   result: AgentAnalyzeResponse | null;
+  activeLine?: number | null;
+  activeLineSource?: "editor" | "panel";
+  onLineFocus?: (line: number) => void;
   code: string;
   historyEntries?: HistoryEntry[];
   onRestoreHistory?: (entry: HistoryEntry) => void;
@@ -74,6 +77,9 @@ export default function LearningPanel({
   errorMessage,
   result,
   code,
+  activeLine = null,
+  activeLineSource,
+  onLineFocus,
   historyEntries = [],
   onRestoreHistory,
   onDeleteHistory,
@@ -105,6 +111,14 @@ export default function LearningPanel({
     const timer = setTimeout(() => setCopied(false), 2000);
     return () => clearTimeout(timer);
   }, [copied]);
+
+  // 에디터에서 줄 클릭(source "editor") 시 그 줄 설명 카드로 스크롤.
+  // 패널 자체 스크롤(source "panel")로 생긴 변경엔 재스크롤하지 않는다(루프 차단).
+  useEffect(() => {
+    if (activeLine == null || activeLineSource !== "editor") return;
+    const el = document.getElementById(`nunopi-line-${activeLine}`);
+    el?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeLine, activeLineSource]);
 
   async function handleCopyResult() {
     if (!result) return;
@@ -456,6 +470,8 @@ export default function LearningPanel({
               concepts={safeConcepts}
               onConceptClick={handleConceptClick}
               language={result.language}
+              activeLine={activeLine}
+              onLineFocus={onLineFocus}
             />
           </div>
 

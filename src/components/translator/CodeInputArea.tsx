@@ -25,6 +25,8 @@ interface CodeInputAreaProps {
   editorLanguage: SupportedLanguage;
   onLanguageChoiceChange: (choice: LanguageChoice) => void;
   onCodeChange: (nextCode: string) => void;
+  activeLine?: number | null;
+  onLineClick?: (line: number) => void;
 }
 
 export default function CodeInputArea({
@@ -34,6 +36,8 @@ export default function CodeInputArea({
   editorLanguage,
   onLanguageChoiceChange,
   onCodeChange,
+  activeLine = null,
+  onLineClick,
 }: CodeInputAreaProps) {
   return (
     <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-black">
@@ -76,6 +80,8 @@ export default function CodeInputArea({
           language={editorLanguage}
           readOnly={isLoading}
           fill
+          activeLine={activeLine}
+          onLineClick={onLineClick}
         />
       </div>
     </div>
