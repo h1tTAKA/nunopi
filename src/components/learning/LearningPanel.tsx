@@ -18,6 +18,7 @@ import LineExplanationList from "./LineExplanationList";
 import TokenSection from "./TokenSection";
 import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 import { formatResultAsHtml } from "@/lib/exportHtml";
+import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
@@ -97,8 +98,23 @@ export default function LearningPanel({
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   // 히스토리(IndexedDB)에서 복원한 옛 결과는 dedupe 이전 데이터라 중복
   // 토큰/개념을 담고 있을 수 있다 → 렌더 시점에도 방어적으로 중복 제거한다.
-  const safeTokens = useMemo(() => dedupeTokens(result?.tokens ?? []), [result]);
-  const safeConcepts = useMemo(() => dedupeConcepts(result?.concepts ?? []), [result]);
+  const dedupedTokens = useMemo(() => dedupeTokens(result?.tokens ?? []), [result]);
+  const dedupedConcepts = useMemo(() => dedupeConcepts(result?.concepts ?? []), [result]);
+  // LLM이 매긴 줄번호는 부정확 → code 텍스트로 실제 행번호에 재앵커. lineMap으로
+  // 토큰/개념의 lines도 같이 보정해, 줄 링크·토큰 하이라이트가 실제 코드와 일치하게 한다.
+  const reanchor = useMemo(
+    () => reanchorLineNumbers(code, result?.lineExplanations ?? []),
+    [code, result],
+  );
+  const anchoredLineExplanations = reanchor.lineExplanations;
+  const safeTokens = useMemo(
+    () => dedupedTokens.map((t) => ({ ...t, lines: remapLines(t.lines, reanchor.lineMap) })),
+    [dedupedTokens, reanchor],
+  );
+  const safeConcepts = useMemo(
+    () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
+    [dedupedConcepts, reanchor],
+  );
   const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary">("analysis");
   const [activeTokenIds, setActiveTokenIds] = useState<string[]>([]);
   // 토큰 호버 시 임시 강조 줄(떼면 null). 에디터 하이라이트는 hover ?? 클릭고정.
@@ -486,7 +502,7 @@ export default function LearningPanel({
             </p>
             <LineExplanationList
               key={result.createdAt}
-              lineExplanations={result.lineExplanations}
+              lineExplanations={anchoredLineExplanations}
               tokens={safeTokens}
               onTokenClick={handleTokenClick}
               concepts={safeConcepts}
