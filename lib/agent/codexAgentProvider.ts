@@ -25,6 +25,7 @@ interface CodexAvailabilityResult {
 
 interface CodexNormalizedPayload {
   summary?: string;
+  title?: string;
   language?: string;
   lineExplanations?: AgentAnalyzeResponse["lineExplanations"];
   tokens?: unknown[];
@@ -320,6 +321,7 @@ function buildCodexPrompt(request: AgentAnalyzeRequest): string {
     "",
     "Output JSON shape:",
     "{",
+    '  "title": "string (이 코드의 핵심을 압축한 짧은 한국어 명사구 제목. 문장/마침표 금지, 6~24자, 구체적으로. 예: \\"유저 역할별 그룹화 유틸\\")",',
     '  "summary": "string",',
     '  "language": "string",',
     '  "lineExplanations": [',
@@ -411,6 +413,7 @@ function normalizeCodexOutput(
     providerId: "codex-agent",
     mode: "code",
     language: parsed.language ?? request.detectedLanguage ?? "unknown",
+    title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : undefined,
     summary:
       parsed.summary ??
       `Codex runtime detected at ${availability.commandPath}, and a normalized Codex payload was returned.`,
