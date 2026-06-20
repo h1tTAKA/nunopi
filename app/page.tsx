@@ -237,9 +237,11 @@ export default function Home() {
 
   function handleCodeChange(nextCode: string) {
     // Monaco는 value prop을 프로그램적으로 바꿔도(복원 등) onChange를 쏘고, 그 콜백은
-    // stale 클로저라 state 비교가 안 통한다. ref로 비교해 무변화면 무시 — 복원이 방금
-    // 띄운 결과를 첫 클릭에 클리어하는 걸 막는다. 두 ref 모두 비교해 mode 클로저 staleness도 회피.
-    if (nextCode === codeInputRef.current || nextCode === textInputRef.current) return;
+    // stale 클로저라 state 비교는 옛 값과 비교돼 실패한다. ref로 현재 모드 입력값과 비교해
+    // 무변화면 무시 — 복원이 방금 띄운 결과를 첫 클릭에 클리어하는 걸 막는다.
+    // (복원은 현재 모드 항목만 대상이라 mode 변경이 없어 mode 클로저는 stale이 아니다.)
+    const current = mode === "text" ? textInputRef.current : codeInputRef.current;
+    if (nextCode === current) return;
     if (mode === "text") setTextInput(nextCode);
     else setCodeInput(nextCode);
     if (errorMessage) {
