@@ -12,8 +12,9 @@ import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./sc
 
 // 청크 트리거 임계 — 이 줄 수(빈 줄 제외) 초과 시에만 청크. 작은 코드는 단일 호출이 더 빠름.
 const CHUNK_THRESHOLD_LINES = 40;
-// 조각당 줄 수. 출력을 분산시키되 조각이 너무 잘게 쪼개지지 않게.
-const CHUNK_SIZE_LINES = 30;
+// 조각당 줄 수. 작을수록 조각이 빨라 wall-clock↓(병렬). 동시성 cap 안에서 잘게 나눈다.
+// (실측: 84줄/30줄=3조각 → 청크 wall ~135s. 20줄로 줄여 더 잘게 = 더 빠름, 품질 무영향.)
+const CHUNK_SIZE_LINES = 20;
 // 동시 실행 상한(rate limit/폭주 차단).
 const MAX_CONCURRENT_CHUNKS = 5;
 
