@@ -225,6 +225,10 @@ export default function Home() {
   }, [isLoading, errorMessage, analysisResult]);
 
   function handleCodeChange(nextCode: string) {
+    // Monaco는 value prop을 프로그램적으로 바꿔도(복원 등) onChange를 쏜다. 값이 실제로
+    // 안 바뀌었으면 무시한다 — 안 그러면 복원이 방금 띄운 결과를 첫 클릭에 클리어해버린다.
+    const current = mode === "text" ? textInput : codeInput;
+    if (nextCode === current) return;
     if (mode === "text") setTextInput(nextCode);
     else setCodeInput(nextCode);
     if (errorMessage) {
