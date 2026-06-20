@@ -77,6 +77,9 @@ export default function Home() {
     DEFAULT_PROVIDER_ID,
   );
   const [isLoading, setIsLoading] = useState(false);
+  // 분석 소요시간 — 시작 시각(진행 중 실시간 타이머용) + 직전 분석 총 소요(ms, 완료 메타용).
+  const [analysisStartedAt, setAnalysisStartedAt] = useState<number | null>(null);
+  const [lastElapsedMs, setLastElapsedMs] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
@@ -306,6 +309,9 @@ export default function Home() {
       return;
     }
 
+    const startedAt = Date.now();
+    setAnalysisStartedAt(startedAt);
+    setLastElapsedMs(null);
     setIsLoading(true);
     setErrorMessage(null);
     setAnalysisResult(null);
@@ -386,6 +392,7 @@ export default function Home() {
 
       if (finalResult) {
         const saved = finalResult;
+        setLastElapsedMs(Date.now() - startedAt);
         setAnalysisResult(saved);
         saveToHistory({
           code: nextCode,
@@ -409,6 +416,7 @@ export default function Home() {
       }
     } finally {
       abortRef.current = null;
+      setAnalysisStartedAt(null);
       setProgressLine("");
       setIsLoading(false);
     }
@@ -640,6 +648,8 @@ export default function Home() {
 
   function handleRestoreHistory(entry: HistoryEntry) {
     const entryMode = entry.mode ?? "code";
+    // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
+    setLastElapsedMs(null);
     setMode(entryMode);
     setExplainingTokens([]);
     setExplainingConcepts([]);
@@ -697,6 +707,8 @@ export default function Home() {
           mode={mode}
           isLoading={isLoading}
           progressLine={progressLine}
+          analysisStartedAt={analysisStartedAt}
+          elapsedMs={lastElapsedMs}
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}
