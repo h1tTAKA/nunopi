@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
+import { tokenizeCodeLine } from "@/lib/tokenizeCodeLine";
 import CodeBlock from "./CodeBlock";
 
 interface LineExplanationListProps {
@@ -106,9 +107,10 @@ export default function LineExplanationList({
       className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll overscroll-contain pr-1"
     >
       {visibleItems.map((item, i) => {
-        // lazy 모드: item.tokens(텍스트)로 칩 표시 → 클릭 시 on-demand 설명.
-        // 레거시(local-rules 등): item.tokenIds로 사전 토큰을 찾아 칩 표시.
-        const tagTexts = Array.from(new Set(item.tokens ?? []));
+        // 칩은 모델 출력이 아니라 그 줄 코드를 클라에서 토큰화해 만든다(누락 0, 공백 뺀 전부).
+        // 클릭 시 explain-token으로 on-demand 설명(#86).
+        // 레거시(local-rules 등): item.tokenIds로 사전 토큰을 찾아 칩 표시(폴백).
+        const tagTexts = tokenizeCodeLine(item.code);
         // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
         // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
         const lineTokens = Array.from(new Set(item.tokenIds ?? []))
