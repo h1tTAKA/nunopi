@@ -408,7 +408,9 @@ function normalizeClaudeOutput(
     summary:
       parsed.summary ??
       `Claude runtime detected at ${availability.commandPath}, and a normalized Claude payload was returned.`,
-    lineExplanations: parsed.lineExplanations ?? [],
+    lineExplanations: Array.isArray(parsed.lineExplanations)
+      ? parsed.lineExplanations.filter(isLineExplanation)
+      : [],
     tokens: dedupeTokens(
       Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
     ),
@@ -471,7 +473,9 @@ function isClaudeNormalizedPayload(value: unknown): value is ClaudeNormalizedPay
     return false;
   }
 
-  if (value.lineExplanations !== undefined && !isLineExplanationList(value.lineExplanations)) {
+  // lineExplanations도 배열 여부만 느슨히 검사하고, 요소 검증은 normalize의 filter로 처리한다
+  // (줄설명 하나가 conceptIds 누락 등으로 어긋나도 요약·나머지 줄을 통째로 잃지 않게).
+  if (value.lineExplanations !== undefined && !Array.isArray(value.lineExplanations)) {
     return false;
   }
 
@@ -527,11 +531,6 @@ function isConceptOccurrence(value: unknown): value is ConceptOccurrence {
   );
 }
 
-function isLineExplanationList(
-  value: unknown,
-): value is AgentAnalyzeResponse["lineExplanations"] {
-  return Array.isArray(value) && value.every(isLineExplanation);
-}
 
 function isLineExplanation(value: unknown): value is AgentAnalyzeResponse["lineExplanations"][number] {
   if (!isRecord(value)) {
