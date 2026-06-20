@@ -442,7 +442,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        히스토리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
+        학습관리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
       </button>
       <button
         type="button"
@@ -547,7 +547,7 @@ export default function LearningPanel({
             onToggleEntryCollection={onToggleEntryCollection}
           />
         ) : (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">히스토리가 없다.</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">분석 이력이 없다.</p>
         )}
       </div>
     );

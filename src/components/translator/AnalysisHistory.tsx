@@ -369,8 +369,8 @@ export default function AnalysisHistory({
     return (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">
-            {entries.length > 0 ? `총 ${entries.length}개` : ""}
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            분석 이력{entries.length > 0 ? ` ${entries.length}` : ""}
           </span>
           {entries.length > 0 && (
             <button
