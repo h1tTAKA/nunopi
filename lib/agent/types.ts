@@ -42,6 +42,9 @@ export interface AgentAnalyzeCallOptions {
   signal?: AbortSignal;
   // 진행 출력 한 줄씩 흘리는 콜백(예: CLI provider의 stdout 라인). 실시간 상태 표시용.
   onProgress?: (line: string) => void;
+  // 누적 부분 결과 콜백(청크 분석 전용) — outline·청크가 완료될 때마다 지금까지의
+  // 누적 response를 흘려 화면에 점진 표시한다. 단일 호출 provider는 사용하지 않는다.
+  onPartial?: (response: import("./schema").AgentAnalyzeResponse) => void;
 }
 
 export interface AgentProvider {

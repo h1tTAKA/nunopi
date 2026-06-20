@@ -76,6 +76,9 @@ export async function analyzeCodeChunked(
   // 1차 — 개념/요약/제목 확정.
   options?.onProgress?.("개요 분석 중…");
   const outline = await provider.analyze({ ...request, outlineOnly: true }, options);
+  // 요약/제목/개념 먼저 화면에 흘린다(줄설명은 아직 빈 배열). 모든 partial은
+  // outline.createdAt을 공유 → 클라 reset effect(`[result?.createdAt]`) thrash 방지.
+  options?.onPartial?.({ ...outline, lineExplanations: [] });
 
   // 2차 — 줄 범위별 설명을 병렬로.
   const totalLines = request.code.split(/\r?\n/).length;
@@ -87,8 +90,11 @@ export async function analyzeCodeChunked(
     .filter((c) => typeof c.conceptId === "string" && c.conceptId.length > 0)
     .map((c) => ({ conceptId: c.conceptId, title: c.title }));
 
+  // 청크가 완료되는 족족 누적해 partial로 흘린다(도착 순 무작위 → 매번 줄번호 정렬).
+  const collected: AgentAnalyzeResponse["lineExplanations"] = [];
+  const okResponses: AgentAnalyzeResponse[] = [];
   let done = 0;
-  const partResponses = await mapWithConcurrency(
+  await mapWithConcurrency(
     ranges,
     MAX_CONCURRENT_CHUNKS,
     (range) =>
@@ -97,20 +103,19 @@ export async function analyzeCodeChunked(
         .then((r) => {
           done += 1;
           options?.onProgress?.(`줄별 설명 ${done}/${ranges.length} 조각 완료`);
+          okResponses.push(r);
+          collected.push(...(r.lineExplanations ?? []));
+          const sorted = [...collected].sort((a, b) => a.line - b.line);
+          options?.onPartial?.({ ...outline, lineExplanations: sorted, usage: sumUsage([outline, ...okResponses]) });
           return r;
         })
         // 한 조각이 실패해도 나머지+outline은 살린다(전체 실패 금지).
         .catch(() => null),
   );
 
-  const ok = partResponses.filter((r): r is AgentAnalyzeResponse => r != null);
-  const lineExplanations = ok
-    .flatMap((r) => r.lineExplanations ?? [])
-    .sort((a, b) => a.line - b.line);
-
   return {
     ...outline,
-    lineExplanations,
-    usage: sumUsage([outline, ...ok]),
+    lineExplanations: [...collected].sort((a, b) => a.line - b.line),
+    usage: sumUsage([outline, ...okResponses]),
   };
 }
