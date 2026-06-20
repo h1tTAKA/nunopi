@@ -46,6 +46,12 @@ const DEFAULT_PROVIDER_ID: AgentProviderKind = "local-rules";
 const DEFAULT_CODE = `const [count, setCount] = useState(0);\n\nreturn <button className="px-4 py-2">{count}</button>;`;
 
 function generateAutoTitle(result: import("@/lib/agent").AgentAnalyzeResponse, code: string): string {
+  // 1순위: 모델이 뽑은 핵심 명사구 제목. 길면 컷.
+  if (result.title?.trim()) {
+    const t = result.title.trim();
+    return t.length > 40 ? t.slice(0, 40) + "…" : t;
+  }
+  // 2순위 폴백: 요약 앞부분(문장이라 핵심은 약하지만 제목 없을 때 최후).
   if (result.summary?.trim()) {
     const s = result.summary.trim();
     return s.length > 40 ? s.slice(0, 40) + "…" : s;
