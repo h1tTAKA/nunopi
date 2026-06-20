@@ -61,6 +61,12 @@ export default function Home() {
   const [codeInput, setCodeInput] = useState(DEFAULT_CODE);
   const [textInput, setTextInput] = useState("");
   const code = mode === "text" ? textInput : codeInput;
+  // 최신 입력값의 ref 미러. Monaco가 readOnly 상태에서 value를 프로그램적으로 바꿀 때
+  // 쏘는 onChange는 "직전 렌더에 구독된 stale 콜백"을 호출하므로(@monaco-editor/react의
+  // value-effect가 onChange 재구독 effect보다 먼저 실행), state 클로저로는 최신값 비교가
+  // 안 된다. ref는 클로저와 무관해 복원 시 동기 세팅하면 stale 콜백에서도 정확히 비교된다.
+  const codeInputRef = useRef(codeInput);
+  const textInputRef = useRef(textInput);
   const [providerId, setProviderId] = useState<AgentProviderKind>(
     DEFAULT_PROVIDER_ID,
   );
@@ -114,6 +120,11 @@ export default function Home() {
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
   }, []);
+
+  // 입력 state → ref 미러 동기화. 편집·클리어·모드전환 등 일반 경로를 자동 커버.
+  // (복원은 readOnly setValue 타이밍 탓에 핸들러에서 ref를 동기로 직접 세팅한다.)
+  useEffect(() => { codeInputRef.current = codeInput; }, [codeInput]);
+  useEffect(() => { textInputRef.current = textInput; }, [textInput]);
 
   // 현재 히스토리 항목의 result를 analysisResult와 동기화 — 태그로 불러온 토큰,
   // 개념 설명이 DB+메모리에 저장돼 다른 동작 후 돌아와도 그대로 유지된다.
@@ -225,9 +236,11 @@ export default function Home() {
   }, [isLoading, errorMessage, analysisResult]);
 
   function handleCodeChange(nextCode: string) {
-    // Monaco는 value prop을 프로그램적으로 바꿔도(복원 등) onChange를 쏜다. 값이 실제로
-    // 안 바뀌었으면 무시한다 — 안 그러면 복원이 방금 띄운 결과를 첫 클릭에 클리어해버린다.
-    const current = mode === "text" ? textInput : codeInput;
+    // Monaco는 value prop을 프로그램적으로 바꿔도(복원 등) onChange를 쏘고, 그 콜백은
+    // stale 클로저라 state 비교는 옛 값과 비교돼 실패한다. ref로 현재 모드 입력값과 비교해
+    // 무변화면 무시 — 복원이 방금 띄운 결과를 첫 클릭에 클리어하는 걸 막는다.
+    // (복원은 현재 모드 항목만 대상이라 mode 변경이 없어 mode 클로저는 stale이 아니다.)
+    const current = mode === "text" ? textInputRef.current : codeInputRef.current;
     if (nextCode === current) return;
     if (mode === "text") setTextInput(nextCode);
     else setCodeInput(nextCode);
@@ -626,8 +639,10 @@ export default function Home() {
     setExplainingConcepts([]);
     setChatStreaming(null);
     setChatMessages(entry.chat ?? []);
-    if (entryMode === "text") setTextInput(entry.code);
-    else setCodeInput(entry.code);
+    // ref를 동기로 먼저 세팅 — 복원 직후 입력이 locked(readOnly)가 되고, Monaco가 그
+    // 상태에서 setValue로 쏘는 onChange(stale 콜백)가 결과를 클리어하지 못하게 한다.
+    if (entryMode === "text") { textInputRef.current = entry.code; setTextInput(entry.code); }
+    else { codeInputRef.current = entry.code; setCodeInput(entry.code); }
     setProviderId(entry.providerId);
     setAnalysisResult(entry.result);
     setErrorMessage(null);
