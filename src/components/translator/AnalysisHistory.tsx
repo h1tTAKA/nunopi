@@ -151,7 +151,7 @@ export default function AnalysisHistory({
             onChange={(e) => setBarName(e.target.value)}
             onBlur={submitBarCreate}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); submitBarCreate(); }
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitBarCreate(); }
               if (e.key === "Escape") { setBarName(""); setBarCreating(false); }
             }}
             placeholder="목록 이름…"
@@ -272,7 +272,7 @@ export default function AnalysisHistory({
                     onChange={(e) => setDraftTitle(e.target.value)}
                     onBlur={() => saveTitle(entry.id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") { e.preventDefault(); saveTitle(entry.id); }
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); saveTitle(entry.id); }
                       if (e.key === "Escape") setEditingId(null);
                     }}
                     placeholder="제목 입력…"
@@ -322,7 +322,7 @@ export default function AnalysisHistory({
                       value={menuEntryId === entry.id ? entryNewName : ""}
                       onChange={(e) => setEntryNewName(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") { e.preventDefault(); submitEntryCreate(entry.id); }
+                        if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitEntryCreate(entry.id); }
                         if (e.key === "Escape") { setEntryNewName(""); setMenuEntryId(null); }
                       }}
                       placeholder="새 목록 만들어 담기 (Enter)"
