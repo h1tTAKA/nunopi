@@ -156,12 +156,11 @@ export default function LearningPanel({
   const [nowTick, setNowTick] = useState(0);
   useEffect(() => {
     if (!isLoading || analysisStartedAt == null) return;
-    // 시작 즉시 한 번 seed 후 1초마다 갱신. seed는 effect 본문 동기 setState라 disable.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setNowTick(Date.now());
     const id = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(id);
   }, [isLoading, analysisStartedAt]);
+  // 첫 tick(1s) 전엔 nowTick=0이거나 이전 분석값 → startedAt보다 작아 max(0,..)로 0초 표시.
+  // 이후 1초마다 실제 경과. 음수만 클램프하면 충분(nowTick은 늘 startedAt 이후 시각으로 갱신).
   const liveElapsedMs =
     isLoading && analysisStartedAt != null ? Math.max(0, nowTick - analysisStartedAt) : 0;
   // 히스토리는 현재 모드 항목만 보여 코드/글이 섞이지 않게 한다.
