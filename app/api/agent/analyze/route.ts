@@ -1,9 +1,11 @@
 import {
+  analyzeCodeChunked,
   claudeAgentProvider,
   codexAgentProvider,
   createAgentRegistry,
   localRulesProvider,
   openAICompatibleProvider,
+  shouldChunkCodeAnalysis,
   type AgentAnalyzeRequest,
   type AgentProvider,
   type AgentProviderKind,
@@ -99,10 +101,15 @@ export async function POST(
       try {
         // 시간 제한 없음 — 클라이언트가 fetch를 abort하면 request.signal이 fire되어
         // provider가 진행 중인 CLI 프로세스/HTTP 요청을 중단한다.
-        const response = await provider.provider.analyze(providerRequest, {
+        const callOptions = {
           signal: request.signal,
-          onProgress: (line) => send({ type: "progress", line }),
-        });
+          onProgress: (line: string) => send({ type: "progress", line }),
+        };
+        // 큰 코드(code 모드 + LLM provider)는 병렬 청크 2단계로 분석해 wall-clock을 줄인다.
+        // 그 외는 기존 단일 호출 그대로(회귀 0).
+        const response = shouldChunkCodeAnalysis(providerRequest, provider.provider)
+          ? await analyzeCodeChunked(provider.provider, providerRequest, callOptions)
+          : await provider.provider.analyze(providerRequest, callOptions);
         send({ type: "result", providerId, response });
       } catch (error) {
         const message = request.signal.aborted
