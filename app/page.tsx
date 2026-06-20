@@ -490,6 +490,21 @@ export default function Home() {
     // 빈 배열은 [chatMessages] 동기화 effect가 현재 항목 DB/메모리에 반영한다.
   }
 
+  // 입력 잠금(분석 결과 있을 때) 해제 — 입력을 비우고 깨끗한 새 분석 상태로.
+  function handleClearInput() {
+    if (mode === "text") setTextInput("");
+    else setCodeInput("");
+    setAnalysisResult(null);
+    setErrorMessage(null);
+    setCurrentHistoryId(null);
+    setChatMessages([]);
+    setChatStreaming(null);
+    setExplainingTokens([]);
+    setExplainingConcepts([]);
+    setActiveLineLink(null);
+    setMarkedLines([]);
+  }
+
   function handleDeleteConcept(conceptId: string) {
     setAnalysisResult((prev) =>
       prev ? { ...prev, concepts: prev.concepts.filter((c) => c.conceptId !== conceptId) } : prev,
@@ -659,6 +674,8 @@ export default function Home() {
                   onCodeChange={handleCodeChange}
                   chatOpen={chatOpen}
                   onToggleChat={() => setChatOpen((v) => !v)}
+                  locked={analysisResult != null}
+                  onClear={handleClearInput}
                 />
               ) : (
                 <CodeInputArea
@@ -673,6 +690,8 @@ export default function Home() {
                   markedLines={markedLines}
                   chatOpen={chatOpen}
                   onToggleChat={() => setChatOpen((v) => !v)}
+                  locked={analysisResult != null}
+                  onClear={handleClearInput}
                 />
               )
             }
