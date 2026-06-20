@@ -21,6 +21,7 @@ import {
   updateHistory,
 } from "@/lib/historyDB";
 import { loadExclusions, saveExclusions } from "@/lib/exclusions";
+import { type Collection, loadCollections, saveCollections } from "@/lib/collections";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
@@ -98,6 +99,9 @@ export default function Home() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatStreaming, setChatStreaming] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  // 사용자 목록(카테고리) — 분석결과 분류용. 정의는 localStorage, 멤버십은 HistoryEntry.collectionIds.
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
@@ -137,7 +141,42 @@ export default function Home() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setExcludedTerms(loadExclusions("text"));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCollections(loadCollections());
   }, []);
+
+  function handleCreateCollection(name: string): string {
+    const id = crypto.randomUUID();
+    setCollections((prev) => {
+      const next = [...prev, { id, name, createdAt: new Date().toISOString() }];
+      saveCollections(next);
+      return next;
+    });
+    return id;
+  }
+
+  function handleDeleteCollection(id: string) {
+    setCollections((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      saveCollections(next);
+      return next;
+    });
+    setActiveCollectionId((cur) => (cur === id ? null : cur));
+  }
+
+  // 항목의 목록 멤버십 토글 — collectionIds 갱신(DB + 메모리, #90 패턴).
+  function handleToggleEntryCollection(entryId: string, collectionId: string) {
+    const entry = historyEntries.find((e) => e.id === entryId);
+    if (!entry) return;
+    const current = entry.collectionIds ?? [];
+    const next = current.includes(collectionId)
+      ? current.filter((c) => c !== collectionId)
+      : [...current, collectionId];
+    updateHistory(entryId, { collectionIds: next }).catch(() => {});
+    setHistoryEntries((prev) =>
+      prev.map((e) => (e.id === entryId ? { ...e, collectionIds: next } : e)),
+    );
+  }
 
   // 제외는 글(IT 용어) 모드 전용.
   function handleExclude(_targetMode: AnalyzeMode, text: string) {
