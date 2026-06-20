@@ -156,7 +156,7 @@ function normalizeOpenAICompatibleResponse(
     concepts: dedupeConcepts(
       Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
     ),
-    warnings: parsed.warnings ?? [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.filter(isWarning) : [],
     usage,
     rawText: rawResponse,
     createdAt: new Date().toISOString(),
@@ -520,7 +520,9 @@ function isOpenAICompatibleNormalizedPayload(
     return false;
   }
 
-  if (value.warnings !== undefined && !isWarningList(value.warnings)) {
+  // warnings도 배열인지만 느슨히 검사하고, 요소 검증은 normalize의 filter로 처리한다
+  // (형식 안 맞는 warning 하나로 요약·줄별 설명을 통째로 잃지 않게).
+  if (value.warnings !== undefined && !Array.isArray(value.warnings)) {
     return false;
   }
 
@@ -587,9 +589,6 @@ function isLineExplanation(
   );
 }
 
-function isWarningList(value: unknown): value is TranslateWarning[] {
-  return Array.isArray(value) && value.every(isWarning);
-}
 
 function isWarning(value: unknown): value is TranslateWarning {
   if (!isRecord(value)) {

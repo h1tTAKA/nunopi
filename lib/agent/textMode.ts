@@ -116,7 +116,7 @@ export function normalizeTextOutput(
     concepts: [],
     terms,
     itConcepts,
-    warnings: parsed.warnings ?? [],
+    warnings: Array.isArray(parsed.warnings) ? parsed.warnings.filter(isWarning) : [],
     usage,
     rawText,
     createdAt: new Date().toISOString(),
@@ -183,7 +183,9 @@ function isTextNormalizedPayload(value: unknown): value is TextNormalizedPayload
   // (한 항목이 어긋나도 요약·나머지 항목을 잃지 않게).
   if (value.terms !== undefined && !Array.isArray(value.terms)) return false;
   if (value.concepts !== undefined && !Array.isArray(value.concepts)) return false;
-  if (value.warnings !== undefined && !isWarningList(value.warnings)) return false;
+  // warnings도 배열 여부만 느슨히 검사하고, 요소 검증은 normalize의 filter로 처리한다
+  // (형식 안 맞는 warning 하나로 요약·용어를 통째로 잃지 않게).
+  if (value.warnings !== undefined && !Array.isArray(value.warnings)) return false;
   return true;
 }
 
@@ -222,9 +224,6 @@ function dedupeByConceptId(concepts: ItConcept[]): ItConcept[] {
   );
 }
 
-function isWarningList(value: unknown): value is TranslateWarning[] {
-  return Array.isArray(value) && value.every(isWarning);
-}
 
 function isWarning(value: unknown): value is TranslateWarning {
   if (!isRecord(value)) return false;
