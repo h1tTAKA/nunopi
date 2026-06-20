@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
 
@@ -43,8 +43,22 @@ export default function AnalysisHistory({
   const [barName, setBarName] = useState("");
   const [menuEntryId, setMenuEntryId] = useState<string | null>(null);
   const [entryNewName, setEntryNewName] = useState("");
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const effectiveOpen = alwaysOpen || isOpen;
   const hasCollections = Boolean(onSelectCollection);
+
+  // 열린 목록 메뉴 바깥을 클릭하면 닫는다.
+  useEffect(() => {
+    if (menuEntryId === null) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setEntryNewName("");
+        setMenuEntryId(null);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [menuEntryId]);
 
   if (!alwaysOpen && entries.length === 0) return null;
 
@@ -193,6 +207,7 @@ export default function AnalysisHistory({
           {filteredEntries.map((entry) => (
             <div
               key={entry.id}
+              ref={menuEntryId === entry.id ? menuRef : undefined}
               className={`rounded-xl border px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900 ${
                 entry.isPinned
                   ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20"
@@ -254,9 +269,11 @@ export default function AnalysisHistory({
                 {/* 삭제 버튼 */}
                 <button
                   type="button"
-                  onClick={() => onDelete(entry.id)}
-                  className="shrink-0 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-                  aria-label="히스토리 항목 삭제"
+                  onClick={() => {
+                    if (window.confirm("이 분석 이력을 삭제하시겠습니까? 되돌릴 수 없습니다.")) onDelete(entry.id);
+                  }}
+                  className="shrink-0 text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
+                  aria-label="분석 이력 삭제"
                 >
                   ×
                 </button>
@@ -293,7 +310,17 @@ export default function AnalysisHistory({
               {/* 목록 멤버십 인라인 패널 */}
               {menuEntryId === entry.id && onToggleEntryCollection && (
                 <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-950">
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500">목록에 담기</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">목록에 담기</p>
+                    <button
+                      type="button"
+                      onClick={() => { setEntryNewName(""); setMenuEntryId(null); }}
+                      className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
+                      aria-label="목록 메뉴 닫기"
+                    >
+                      ×
+                    </button>
+                  </div>
                   {collections.length === 0 && (
                     <p className="text-xs text-zinc-400 dark:text-zinc-500">아직 목록이 없다.</p>
                   )}
