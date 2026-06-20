@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
+import type { Collection } from "@/lib/collections";
 import {
   type BookmarkedTokenDetail,
   type BookmarkedTermDetail,
@@ -98,6 +99,13 @@ interface LearningPanelProps {
   currentHistoryIsPinned?: boolean;
   onSetCurrentTitle?: (title: string) => void;
   onToggleCurrentPin?: () => void;
+  // 사용자 목록(카테고리)
+  collections?: Collection[];
+  activeCollectionId?: string | null;
+  onSelectCollection?: (id: string | null) => void;
+  onCreateCollection?: (name: string) => string;
+  onDeleteCollection?: (id: string) => void;
+  onToggleEntryCollection?: (entryId: string, collectionId: string) => void;
 }
 
 export default function LearningPanel({
@@ -130,6 +138,12 @@ export default function LearningPanel({
   currentHistoryIsPinned = false,
   onSetCurrentTitle,
   onToggleCurrentPin,
+  collections,
+  activeCollectionId,
+  onSelectCollection,
+  onCreateCollection,
+  onDeleteCollection,
+  onToggleEntryCollection,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
   // 히스토리는 현재 모드 항목만 보여 코드/글이 섞이지 않게 한다.
@@ -525,6 +539,12 @@ export default function LearningPanel({
             onClear={onClearHistory}
             onUpdate={onUpdateHistory}
             alwaysOpen
+            collections={collections}
+            activeCollectionId={activeCollectionId}
+            onSelectCollection={onSelectCollection}
+            onCreateCollection={onCreateCollection}
+            onDeleteCollection={onDeleteCollection}
+            onToggleEntryCollection={onToggleEntryCollection}
           />
         ) : (
           <p className="text-sm text-zinc-500 dark:text-zinc-400">히스토리가 없다.</p>

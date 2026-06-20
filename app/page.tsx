@@ -700,6 +700,12 @@ export default function Home() {
             const entry = historyEntries.find(e => e.id === currentHistoryId);
             if (currentHistoryId && entry) handleUpdateHistory(currentHistoryId, { isPinned: !entry.isPinned });
           }}
+          collections={collections}
+          activeCollectionId={activeCollectionId}
+          onSelectCollection={setActiveCollectionId}
+          onCreateCollection={handleCreateCollection}
+          onDeleteCollection={handleDeleteCollection}
+          onToggleEntryCollection={handleToggleEntryCollection}
         />
       }
         editor={
