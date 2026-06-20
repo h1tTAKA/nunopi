@@ -396,7 +396,7 @@ function buildOpenAICompatibleMessages(
         '      "line": number,',
         '      "code": "string",',
         '      "explanation": "string (ONE short sentence)",',
-        '      "tokens": ["string", ...] (every meaningful token TEXT on this line: identifiers, keywords, operators, punctuation),',
+        '      "tokens": ["string", ...] (only KEY tokens worth a dictionary lookup: identifiers, function/variable names, important keywords/APIs. EXCLUDE punctuation, brackets, simple operators, and trivial tokens),',
         '      "conceptIds": string[]',
         "    }",
         "  ],",
