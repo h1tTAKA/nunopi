@@ -30,6 +30,9 @@ interface CodeInputAreaProps {
   markedLines?: number[];
   chatOpen?: boolean;
   onToggleChat?: () => void;
+  // 분석 결과가 있으면 입력 잠금(실수 수정 방지). 클리어로만 새 입력.
+  locked?: boolean;
+  onClear?: () => void;
 }
 
 export default function CodeInputArea({
@@ -44,6 +47,8 @@ export default function CodeInputArea({
   markedLines,
   chatOpen,
   onToggleChat,
+  locked = false,
+  onClear,
 }: CodeInputAreaProps) {
   return (
     <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-black">
@@ -54,7 +59,7 @@ export default function CodeInputArea({
         <div className="flex items-center gap-3">
           <select
             value={languageChoice}
-            disabled={isLoading}
+            disabled={isLoading || locked}
             onChange={(event) =>
               onLanguageChoiceChange(event.target.value as LanguageChoice)
             }
@@ -75,6 +80,16 @@ export default function CodeInputArea({
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             {code.trim().split(/\r?\n/).filter(Boolean).length} lines
           </span>
+          {locked && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              title="입력을 비우고 새 코드를 분석"
+            >
+              🔒 클리어
+            </button>
+          )}
           {onToggleChat && (
             <button
               type="button"
@@ -98,7 +113,7 @@ export default function CodeInputArea({
           value={code}
           onChange={onCodeChange}
           language={editorLanguage}
-          readOnly={isLoading}
+          readOnly={isLoading || locked}
           fill
           activeLine={activeLine}
           onLineClick={onLineClick}
