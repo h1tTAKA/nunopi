@@ -41,6 +41,10 @@ export interface AgentAnalyzeRequest {
   targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.
   targetConcept?: string; // mode "explain-concept"일 때 설명할 개념 제목.
   messages?: ChatMessage[]; // mode "chat"일 때 대화 내역(마지막이 사용자 질문).
+  // 병렬 청크(2단계) 분석용 — code 모드에서만.
+  outlineOnly?: boolean; // 1차: title/summary/concepts만 생성(lineExplanations 비움).
+  lineRange?: { start: number; end: number }; // 2차: 이 줄 범위(1-based, 포함)만 lineExplanations 생성.
+  knownConcepts?: { conceptId: string; title: string }[]; // 2차: conceptIds가 참조할 개념 목록(1차 결과).
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
   options?: AgentAnalyzeOptions;

@@ -6,6 +6,7 @@ import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMo
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { codeChunkDirectives } from "./codeChunkPrompt";
 
 interface OpenAICompatibleConfig {
   baseUrl: string;
@@ -405,9 +406,7 @@ function buildOpenAICompatibleMessages(
         '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
         "}",
         "Do NOT produce a token dictionary. Only list each line's token TEXTS in lineExplanations[].tokens — descriptions are fetched later on demand. Keeps output small/fast.",
-        "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
-        "Give one lineExplanations entry for EVERY meaningful line — do not skip. Each line explanation ONE short sentence; summary 2-3 sentences. Do not pad.",
-        "Each concept conceptId must be UNIQUE.",
+        ...codeChunkDirectives(request),
       ].join("\n"),
     },
     {

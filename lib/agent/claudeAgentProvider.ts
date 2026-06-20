@@ -10,6 +10,7 @@ import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMo
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { codeChunkDirectives } from "./codeChunkPrompt";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
@@ -331,9 +332,8 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     "}",
     "",
     "Do NOT produce a token dictionary. Only list each line's token TEXTS in lineExplanations[].tokens — their descriptions are fetched later on demand. This keeps output small and fast.",
-    "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
-    "Give one lineExplanations entry for EVERY meaningful line — do not skip or omit lines. Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
-    "Each concept conceptId must be UNIQUE. Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
+    ...codeChunkDirectives(request),
+    "Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
