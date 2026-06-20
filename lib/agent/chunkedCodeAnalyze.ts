@@ -83,10 +83,9 @@ export async function analyzeCodeChunked(
   for (let s = 1; s <= totalLines; s += CHUNK_SIZE_LINES) {
     ranges.push({ start: s, end: Math.min(s + CHUNK_SIZE_LINES - 1, totalLines) });
   }
-  const knownConcepts = (outline.concepts ?? []).map((c) => ({
-    conceptId: c.conceptId,
-    title: c.title,
-  }));
+  const knownConcepts = (outline.concepts ?? [])
+    .filter((c) => typeof c.conceptId === "string" && c.conceptId.length > 0)
+    .map((c) => ({ conceptId: c.conceptId, title: c.title }));
 
   let done = 0;
   const partResponses = await mapWithConcurrency(
