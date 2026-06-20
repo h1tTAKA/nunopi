@@ -1,6 +1,6 @@
 import { codeToHtml } from "shiki";
 import type { AgentAnalyzeResponse } from "@/lib/agent";
-import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, ItConcept, ItTerm } from "@/lib/translator/types";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 
 // 분석 결과(전체 코드 + 학습패널 내용)를 폰에서도 열어 볼 수 있는
@@ -97,6 +97,34 @@ function renderConcepts(concepts: ConceptOccurrence[]): string {
   return `<section><h2>개념</h2><div class="cards">${items}</div></section>`;
 }
 
+// 글(text) 모드 — IT 용어 사전. 화면 ItTermSection에 대응.
+function renderTerms(terms: ItTerm[]): string {
+  if (terms.length === 0) return "";
+  const cards = terms
+    .map((t) => {
+      const reading = t.reading
+        ? `<span class="badge">${escapeHtml(t.reading)}</span>`
+        : "";
+      return `<div class="card">
+        <div class="token-head"><code class="token">${escapeHtml(t.term)}</code>${reading}</div>
+        <p>${escapeHtml(t.explanation)}</p>
+      </div>`;
+    })
+    .join("\n");
+  return `<section><h2>IT 용어 사전</h2><div class="cards">${cards}</div></section>`;
+}
+
+// 글(text) 모드 — 관련 개념. 화면 ItConceptSection에 대응.
+function renderItConcepts(concepts: ItConcept[]): string {
+  if (concepts.length === 0) return "";
+  const cards = concepts
+    .map((c) => {
+      return `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div><p>${escapeHtml(c.explanation)}</p></div>`;
+    })
+    .join("\n");
+  return `<section><h2>관련 개념</h2><div class="cards">${cards}</div></section>`;
+}
+
 function renderLineExplanations(
   result: AgentAnalyzeResponse,
 ): string {
@@ -164,17 +192,35 @@ export async function formatResultAsHtml(
   code: string,
   title?: string,
 ): Promise<string> {
-  const heading = title?.trim() ? title.trim() : "코드 분석 결과";
-  const codeHtml = await highlight(code, result.language);
+  const isText = result.mode === "text";
+  const heading = title?.trim()
+    ? title.trim()
+    : isText
+      ? "글 분석 결과"
+      : "코드 분석 결과";
 
-  // LLM 줄번호를 실제 코드 행에 재앵커(화면 패널과 동일). 토큰/개념 lines도 보정.
-  const { lineExplanations, lineMap } = reanchorLineNumbers(code, result.lineExplanations);
-  const anchored: AgentAnalyzeResponse = {
-    ...result,
-    lineExplanations,
-    tokens: result.tokens.map((t) => ({ ...t, lines: remapLines(t.lines, lineMap) })),
-    concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines, lineMap) })),
-  };
+  // 글 모드: 산문이라 shiki·줄번호 재앵커 불필요. 평문 블록으로 입력 글을 보존한다.
+  // 코드 모드: 입력 코드 shiki 하이라이팅 + LLM 줄번호를 실제 행에 재앵커(토큰/개념 lines도 보정).
+  let inputSection: string;
+  let bodySections: string;
+  let anchored: AgentAnalyzeResponse = result;
+  if (isText) {
+    inputSection = `<section><h2>입력 글</h2><pre class="code-fallback">${escapeHtml(code)}</pre></section>`;
+    bodySections = `${renderTerms(result.terms ?? [])}\n${renderItConcepts(result.itConcepts ?? [])}`;
+  } else {
+    const codeHtml = await highlight(code, result.language);
+    const { lineExplanations, lineMap } = reanchorLineNumbers(code, result.lineExplanations);
+    anchored = {
+      ...result,
+      lineExplanations,
+      tokens: result.tokens.map((t) => ({ ...t, lines: remapLines(t.lines, lineMap) })),
+      concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines, lineMap) })),
+    };
+    inputSection = `<section><h2>입력 코드</h2>${codeHtml}</section>`;
+    bodySections = `${renderLineExplanations(anchored)}
+${renderTokens(anchored.tokens)}
+${renderConcepts(anchored.concepts)}`;
+  }
 
   return `<!doctype html>
 <html lang="ko">
@@ -189,10 +235,8 @@ export async function formatResultAsHtml(
 <h1>${escapeHtml(heading)}</h1>
 ${renderMeta(anchored)}
 <div class="summary"><strong>요약</strong><p>${escapeHtml(anchored.summary)}</p></div>
-<section><h2>입력 코드</h2>${codeHtml}</section>
-${renderLineExplanations(anchored)}
-${renderTokens(anchored.tokens)}
-${renderConcepts(anchored.concepts)}
+${inputSection}
+${bodySections}
 ${renderWarnings(anchored)}
 <p class="muted" style="margin-top:32px">Nunopi — 바이브코더를 위한 AI 코드 학습 도구</p>
 </div>
