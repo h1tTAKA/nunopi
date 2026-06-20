@@ -34,6 +34,7 @@ import ItConceptSection from "./ItConceptSection";
 import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 import { formatResultAsHtml } from "@/lib/exportHtml";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
+import { formatDuration } from "@/lib/formatDuration";
 import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
@@ -70,6 +71,8 @@ interface LearningPanelProps {
   mode?: AnalyzeMode;
   isLoading: boolean;
   progressLine?: string;
+  analysisStartedAt?: number | null; // 진행 중 실시간 경과 타이머용 시작 시각(ms).
+  elapsedMs?: number | null; // 직전 분석 총 소요시간(ms) — 완료 메타 표시용.
   errorMessage: string | null;
   result: AgentAnalyzeResponse | null;
   activeLine?: number | null;
@@ -113,6 +116,8 @@ export default function LearningPanel({
   mode = "code",
   isLoading,
   progressLine = "",
+  analysisStartedAt = null,
+  elapsedMs = null,
   errorMessage,
   result,
   code,
@@ -146,6 +151,19 @@ export default function LearningPanel({
   onToggleEntryCollection,
 }: LearningPanelProps) {
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
+
+  // 분석 중 실시간 경과 타이머 — 1초마다 갱신. interval 콜백 setState라 set-state-in-effect 무관.
+  const [nowTick, setNowTick] = useState(0);
+  useEffect(() => {
+    if (!isLoading || analysisStartedAt == null) return;
+    // 시작 즉시 한 번 seed 후 1초마다 갱신. seed는 effect 본문 동기 setState라 disable.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setNowTick(Date.now());
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isLoading, analysisStartedAt]);
+  const liveElapsedMs =
+    isLoading && analysisStartedAt != null ? Math.max(0, nowTick - analysisStartedAt) : 0;
   // 히스토리는 현재 모드 항목만 보여 코드/글이 섞이지 않게 한다.
   const modeHistoryEntries = historyEntries.filter((e) => (e.mode ?? "code") === mode);
   // 히스토리(IndexedDB)에서 복원한 옛 결과는 dedupe 이전 데이터라 중복
@@ -578,7 +596,9 @@ export default function LearningPanel({
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center gap-3">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
-            <span className="text-sm text-zinc-600 dark:text-zinc-300">분석 중…</span>
+            <span className="text-sm text-zinc-600 dark:text-zinc-300">
+              분석 중…{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs)}` : ""}
+            </span>
           </div>
           {progressLine ? (
             <p className="mt-2 truncate font-mono text-xs text-zinc-400 dark:text-zinc-500">
@@ -637,6 +657,7 @@ export default function LearningPanel({
               {result.usage?.outputTokens != null && (
                 <span>출력 {result.usage.outputTokens}토큰</span>
               )}
+              {elapsedMs != null && <span>소요 {formatDuration(elapsedMs)}</span>}
               {result.usage?.estimatedCostUsd != null && (
                 <span>${result.usage.estimatedCostUsd.toFixed(4)}</span>
               )}
