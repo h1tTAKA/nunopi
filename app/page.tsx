@@ -27,6 +27,7 @@ const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
 type AnalyzeStreamEvent =
   | { type: "progress"; line: string }
+  | { type: "partial"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "result"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "error"; message: string };
 
@@ -376,6 +377,9 @@ export default function Home() {
           }
           if (event.type === "progress") {
             setProgressLine(event.line);
+          } else if (event.type === "partial") {
+            // 청크 도착 순 점진 표시. 저장은 최종 result에서만(currentHistoryId null이라 SSOT effect도 조용).
+            setAnalysisResult(event.response);
           } else if (event.type === "result") {
             finalResult = event.response;
           } else if (event.type === "error") {
