@@ -238,7 +238,7 @@ export default function AnalysisHistory({
                 {onToggleEntryCollection && (
                   <button
                     type="button"
-                    onClick={() => setMenuEntryId((cur) => (cur === entry.id ? null : entry.id))}
+                    onClick={() => { setEntryNewName(""); setMenuEntryId((cur) => (cur === entry.id ? null : entry.id)); }}
                     className={`shrink-0 text-xs leading-none transition ${
                       (entry.collectionIds ?? []).length > 0
                         ? "text-blue-500 dark:text-blue-400"
@@ -323,7 +323,7 @@ export default function AnalysisHistory({
                       onChange={(e) => setEntryNewName(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") { e.preventDefault(); submitEntryCreate(entry.id); }
-                        if (e.key === "Escape") setMenuEntryId(null);
+                        if (e.key === "Escape") { setEntryNewName(""); setMenuEntryId(null); }
                       }}
                       placeholder="새 목록 만들어 담기 (Enter)"
                       className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
