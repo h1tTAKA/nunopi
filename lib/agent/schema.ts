@@ -59,6 +59,7 @@ export interface AgentAnalyzeResponse {
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code". "text"면 terms/itConcepts를 사용.
   language: string;
+  title?: string; // 핵심을 압축한 짧은 한국어 명사구 제목(히스토리 자동 제목용). 없으면 클라가 폴백.
   summary: string;
   // 코드 모드 필드 (text 모드에선 빈 배열).
   lineExplanations: AgentLineExplanation[];

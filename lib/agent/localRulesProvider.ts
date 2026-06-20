@@ -104,6 +104,8 @@ export const localRulesProvider: AgentProvider = {
       providerId: this.metadata.id,
       mode: "code",
       language: request.detectedLanguage ?? "unknown",
+      // 규칙 기반이라 의미 제목을 만들 수 없다 → 언어 + 첫 의미 줄로 폴백 제목.
+      title: buildLocalTitle(request.detectedLanguage ?? "unknown", request.code),
       summary: buildSummary(totalNonEmptyLines, matchedLineCount),
       lineExplanations,
       tokens,
@@ -242,6 +244,13 @@ function buildLineExplanation(
   }
 
   return null;
+}
+
+// 규칙 기반 폴백 제목 — 언어 + 첫 의미 줄 일부. LLM 제목이 없을 때만 쓰인다.
+function buildLocalTitle(language: string, code: string): string {
+  const firstLine = code.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+  const snippet = firstLine.length > 24 ? firstLine.slice(0, 24) + "…" : firstLine;
+  return snippet ? `${language}: ${snippet}` : `${language} 코드`;
 }
 
 function buildSummary(totalNonEmptyLines: number, matchedLineCount: number): string {

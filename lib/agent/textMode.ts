@@ -30,6 +30,7 @@ export function buildTextPrompt(request: AgentAnalyzeRequest): string {
     "",
     "Output JSON shape:",
     "{",
+    '  "title": "string (이 글의 핵심 주제를 압축한 짧은 한국어 명사구 제목. 문장/마침표 금지, 6~24자, 구체적으로. 예: \\"AMM·슬리피지 입문\\")",',
     '  "summary": "string (글 전체를 IT를 모르는 초보자도 이해할 만큼 쉬운 한국어 평서체로 3-5문장 요약)",',
     '  "terms": [',
     "    {",
@@ -108,6 +109,7 @@ export function normalizeTextOutput(
     providerId,
     mode: "text",
     language: "text",
+    title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : undefined,
     summary: parsed.summary ?? "요약을 생성하지 못했다.",
     lineExplanations: [],
     tokens: [],
@@ -148,6 +150,7 @@ export function textModeResponse(
 
 interface TextNormalizedPayload {
   summary?: string;
+  title?: string;
   terms?: unknown[];
   concepts?: unknown[];
   warnings?: TranslateWarning[];
