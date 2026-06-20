@@ -18,7 +18,8 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
       .map((c) => `${c.conceptId} (${c.title})`)
       .join(", ");
     return [
-      `LINE-RANGE MODE: the full code is provided for context, but produce lineExplanations ONLY for lines ${start} to ${end} (inclusive, 1-based). Give one entry for EVERY meaningful line in that range using its real absolute line number. Each explanation is ONE short sentence.`,
+      `LINE-RANGE MODE: the full code is provided for context, but produce lineExplanations ONLY for lines ${start} to ${end} (inclusive, 1-based). Give one entry for EVERY meaningful CODE line in that range using its real absolute line number. Each explanation is ONE short sentence.`,
+      "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code.",
       'Set concepts to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
       known
         ? `lineExplanations.conceptIds must reference ONLY these existing concept ids: ${known}. Do NOT invent new concept ids.`
@@ -27,6 +28,6 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   }
   return [
     "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
-    "Give one lineExplanations entry for EVERY meaningful line — do not skip or omit lines. Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
+    "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
   ];
 }
