@@ -243,6 +243,14 @@ export default function AnalysisHistory({
                     <span className="inline-flex items-center rounded bg-zinc-200 px-1 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 shrink-0">
                       {entry.providerId}
                     </span>
+                    {entry.incomplete && (
+                      <span
+                        className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 shrink-0"
+                        title="멈춘 미완 분석 — 복원해 이어서 분석할 수 있다"
+                      >
+                        미완
+                      </span>
+                    )}
                     <span className="truncate text-xs text-zinc-400 dark:text-zinc-500 shrink-0">
                       {dateLabel(entry.createdAt)}
                     </span>
