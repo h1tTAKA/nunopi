@@ -783,6 +783,8 @@ export default function LearningPanel({
               language={result.language}
               activeLine={activeLine}
               onLineFocus={onLineFocus}
+              isStreaming={isLoading}
+              chunkProgress={chunkProgress}
             />
           </section>
 
