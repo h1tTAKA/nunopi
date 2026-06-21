@@ -144,6 +144,9 @@ export default function Home() {
   // 현재 히스토리 항목의 result를 analysisResult와 동기화 — 태그로 불러온 토큰,
   // 개념 설명이 DB+메모리에 저장돼 다른 동작 후 돌아와도 그대로 유지된다.
   useEffect(() => {
+    // 분석 중(이어서 partial 스트리밍 포함)엔 매 partial마다 DB write 하지 않는다 —
+    // 완료/멈춤 시 명시적으로 저장/업데이트한다. on-demand 토큰·개념 append만 여기서 동기화.
+    if (isLoading) return;
     if (!currentHistoryId || !analysisResult) return;
     const saved = analysisResult;
     updateHistory(currentHistoryId, { result: saved }).catch(() => {});
@@ -151,7 +154,7 @@ export default function Home() {
     setHistoryEntries((prev) =>
       prev.map((e) => (e.id === currentHistoryId ? { ...e, result: saved } : e)),
     );
-  }, [analysisResult, currentHistoryId]);
+  }, [analysisResult, currentHistoryId, isLoading]);
 
   // 챗 스레드도 현재 항목에 동기화 — 다른 거 보고 돌아와도 대화 유지(#90 패턴).
   useEffect(() => {
@@ -332,9 +335,12 @@ export default function Home() {
     setChunkProgress(null);
     setIsLoading(true);
     setErrorMessage(null);
-    // 이어서 분석이면 기존 부분 결과를 유지(스트리밍이 이어서 누적). 처음이면 비운다.
-    if (!resumeFrom) setAnalysisResult(null);
-    setCurrentHistoryId(null);
+    // 이어서 분석이면 기존 부분 결과·항목 id를 유지(스트리밍 누적 + 완료 시 그 항목 update).
+    // 처음이면 비운다.
+    if (!resumeFrom) {
+      setAnalysisResult(null);
+      setCurrentHistoryId(null);
+    }
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
@@ -345,6 +351,12 @@ export default function Home() {
 
     const controller = new AbortController();
     abortRef.current = controller;
+
+    // 이어서면 기존(복원/멈춤 저장) 항목을 이어 쓴다 → 완료/멈춤 시 그 항목을 update.
+    // 처음이면 null로 시작해 완료 시 새로 save.
+    const historyId: string | null = resumeFrom ? currentHistoryId : null;
+    // 멈춤 시 저장할 최신 부분 결과(catch 클로저의 analysisResult는 stale이라 로컬로 잡는다).
+    let lastPartial: AgentAnalyzeResponse | null = resumeFrom ?? null;
 
     try {
       const response = await fetch("/api/agent/analyze", {
@@ -399,7 +411,8 @@ export default function Home() {
           if (event.type === "progress") {
             setProgressLine(event.line);
           } else if (event.type === "partial") {
-            // 청크 도착 순 점진 표시. 저장은 최종 result에서만(currentHistoryId null이라 SSOT effect도 조용).
+            // 청크 도착 순 점진 표시. lastPartial로 최신 부분 결과 추적(멈춤 저장용).
+            lastPartial = event.response;
             setAnalysisResult(event.response);
           } else if (event.type === "chunk-progress") {
             setChunkProgress({ done: event.done, total: event.total });
@@ -422,23 +435,56 @@ export default function Home() {
         setLastElapsedMs(Date.now() - startedAt);
         setResumable(false);
         setAnalysisResult(saved);
-        saveToHistory({
-          code: nextCode,
-          providerId,
-          mode,
-          result: saved,
-          title: generateAutoTitle(saved, nextCode),
-          createdAt: new Date().toISOString(),
-        }).then((savedId) => {
-          setCurrentHistoryId(savedId);
-          return getAllHistory();
-        }).then(setHistoryEntries).catch(() => {});
+        if (historyId) {
+          // 이어서/복원 항목 완성 → 같은 항목 업데이트(incomplete 해제, 제목 보존).
+          const id = historyId;
+          updateHistory(id, { result: saved, incomplete: false }).catch(() => {});
+          setHistoryEntries((prev) =>
+            prev.map((e) => (e.id === id ? { ...e, result: saved, incomplete: false } : e)),
+          );
+        } else {
+          saveToHistory({
+            code: nextCode,
+            providerId,
+            mode,
+            result: saved,
+            incomplete: false,
+            title: generateAutoTitle(saved, nextCode),
+            createdAt: new Date().toISOString(),
+          }).then((savedId) => {
+            setCurrentHistoryId(savedId);
+            return getAllHistory();
+          }).then(setHistoryEntries).catch(() => {});
+        }
       }
     } catch (error) {
-      // 유저가 멈추기를 누른 경우 — 부분 결과를 지우지 않고 그대로 둔다.
+      // 유저가 멈추기를 누른 경우 — 부분 결과를 지우지 않고 그대로 둔다 + 히스토리에 미완 저장.
       // 부분 결과가 있으면 "이어서 분석" 가능(render에서 analysisResult와 함께 게이트).
       if (error instanceof DOMException && error.name === "AbortError") {
         setResumable(true);
+        if (lastPartial) {
+          const partial = lastPartial;
+          if (historyId) {
+            const id = historyId;
+            updateHistory(id, { result: partial, incomplete: true }).catch(() => {});
+            setHistoryEntries((prev) =>
+              prev.map((e) => (e.id === id ? { ...e, result: partial, incomplete: true } : e)),
+            );
+          } else {
+            saveToHistory({
+              code: nextCode,
+              providerId,
+              mode,
+              result: partial,
+              incomplete: true,
+              title: generateAutoTitle(partial, nextCode),
+              createdAt: new Date().toISOString(),
+            }).then((savedId) => {
+              setCurrentHistoryId(savedId);
+              return getAllHistory();
+            }).then(setHistoryEntries).catch(() => {});
+          }
+        }
       } else {
         setAnalysisResult(null);
         setErrorMessage(formatFetchError(error));
@@ -680,7 +726,8 @@ export default function Home() {
     const entryMode = entry.mode ?? "code";
     // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
     setLastElapsedMs(null);
-    setResumable(false);
+    // 미완(멈춤) 항목이면 "이어서 분석" 가능.
+    setResumable(Boolean(entry.incomplete));
     setMode(entryMode);
     setExplainingTokens([]);
     setExplainingConcepts([]);

@@ -8,6 +8,7 @@ export interface HistoryEntry {
   result: AgentAnalyzeResponse;
   chat?: ChatMessage[]; // 학습 챗 스레드(분석마다 보존).
   collectionIds?: string[]; // 속한 사용자 목록(카테고리) id들.
+  incomplete?: boolean; // 멈춰서 부분만 저장된 미완 분석(이어서 가능).
   createdAt: string;
   isPinned?: boolean;
   title?: string;
@@ -89,7 +90,7 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
 
 export async function updateHistory(
   id: string,
-  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "collectionIds">>,
+  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "collectionIds" | "incomplete">>,
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
