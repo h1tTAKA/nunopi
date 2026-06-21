@@ -325,7 +325,7 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     "    }",
     "  ],",
     '  "concepts": [',
-    '    { "conceptId": "string", "title": "string (Korean)", "lines": number[], "count": number }',
+    '    { "conceptId": "string", "title": "string (Korean)" }',
     "  ],",
     '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
     "}",
