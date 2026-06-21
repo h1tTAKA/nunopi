@@ -9,7 +9,8 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   if (request.outlineOnly) {
     return [
       "OUTLINE MODE: set lineExplanations to an empty array []. Do NOT explain individual lines.",
-      "Produce ONLY title, summary (2-3 sentences), language, and concepts — the higher-level ideas in this code (e.g. React state). Each concept conceptId must be UNIQUE.",
+      "Produce ONLY title, summary (2-3 sentences), language, and concepts. Each concept conceptId must be UNIQUE.",
+      "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size). Do NOT add general concepts unrelated to this code.",
     ];
   }
   if (request.lineRange) {
@@ -27,7 +28,8 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
     ];
   }
   return [
-    "lineExplanations.conceptIds must reference concepts[].conceptId. Populate concepts with higher-level ideas (e.g. React state).",
+    "lineExplanations.conceptIds must reference concepts[].conceptId.",
+    "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size). Do NOT add general concepts unrelated to this code. Each conceptId UNIQUE.",
     "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
   ];
 }
