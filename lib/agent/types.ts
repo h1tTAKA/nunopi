@@ -45,6 +45,8 @@ export interface AgentAnalyzeCallOptions {
   // 누적 부분 결과 콜백(청크 분석 전용) — outline·청크가 완료될 때마다 지금까지의
   // 누적 response를 흘려 화면에 점진 표시한다. 단일 호출 provider는 사용하지 않는다.
   onPartial?: (response: import("./schema").AgentAnalyzeResponse) => void;
+  // 청크 진행률 콜백(청크 분석 전용) — 완료 조각 수/전체. 진행률 막대바용.
+  onChunkProgress?: (done: number, total: number) => void;
 }
 
 export interface AgentProvider {

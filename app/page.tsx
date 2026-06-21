@@ -28,6 +28,7 @@ const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 type AnalyzeStreamEvent =
   | { type: "progress"; line: string }
   | { type: "partial"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
+  | { type: "chunk-progress"; done: number; total: number }
   | { type: "result"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "error"; message: string };
 
@@ -83,6 +84,8 @@ export default function Home() {
   const [lastElapsedMs, setLastElapsedMs] = useState<number | null>(null);
   // 멈춤으로 부분 결과만 있는 상태 — "이어서 분석" 노출 조건.
   const [resumable, setResumable] = useState(false);
+  // 청크 분석 진행률(완료/전체 조각) — 막대바용. 단일 호출이면 null.
+  const [chunkProgress, setChunkProgress] = useState<{ done: number; total: number } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
@@ -326,6 +329,7 @@ export default function Home() {
     setAnalysisStartedAt(startedAt);
     setLastElapsedMs(null);
     setResumable(false);
+    setChunkProgress(null);
     setIsLoading(true);
     setErrorMessage(null);
     // 이어서 분석이면 기존 부분 결과를 유지(스트리밍이 이어서 누적). 처음이면 비운다.
@@ -397,6 +401,8 @@ export default function Home() {
           } else if (event.type === "partial") {
             // 청크 도착 순 점진 표시. 저장은 최종 result에서만(currentHistoryId null이라 SSOT effect도 조용).
             setAnalysisResult(event.response);
+          } else if (event.type === "chunk-progress") {
+            setChunkProgress({ done: event.done, total: event.total });
           } else if (event.type === "result") {
             finalResult = event.response;
           } else if (event.type === "error") {
@@ -440,6 +446,7 @@ export default function Home() {
     } finally {
       abortRef.current = null;
       setAnalysisStartedAt(null);
+      setChunkProgress(null);
       setProgressLine("");
       setIsLoading(false);
     }
@@ -735,6 +742,7 @@ export default function Home() {
           progressLine={progressLine}
           analysisStartedAt={analysisStartedAt}
           elapsedMs={lastElapsedMs}
+          chunkProgress={chunkProgress}
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}

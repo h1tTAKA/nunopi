@@ -118,6 +118,17 @@ export async function analyzeCodeChunked(
       .filter((le) => (seen.has(le.line) ? false : (seen.add(le.line), true)));
   };
 
+  // 청크 진행률(완료/전체) — 막대바용. outline 끝났으니 0/total부터.
+  options?.onChunkProgress?.(0, ranges.length);
+
+  // 청크 sub-call엔 onProgress를 넘기지 않는다 — 각 청크의 raw stream delta(JSON 조각)가
+  // 화면 진행줄을 오염시키지 않게. signal(취소)·onPartial(점진)·onChunkProgress는 유지.
+  const chunkOptions: AgentAnalyzeCallOptions = {
+    signal: options?.signal,
+    onPartial: options?.onPartial,
+    onChunkProgress: options?.onChunkProgress,
+  };
+
   // 청크가 완료되는 족족 누적해 partial로 흘린다. 이어서면 기존 줄설명을 시드로 시작.
   const collected: AgentAnalyzeResponse["lineExplanations"] = [...(prior?.lineExplanations ?? [])];
   const okResponses: AgentAnalyzeResponse[] = [];
@@ -128,10 +139,10 @@ export async function analyzeCodeChunked(
     (range) =>
       provider
         // sub-call이 또 resume 타지 않게 resumeFrom 제거.
-        .analyze({ ...request, resumeFrom: undefined, lineRange: range, knownConcepts }, options)
+        .analyze({ ...request, resumeFrom: undefined, lineRange: range, knownConcepts }, chunkOptions)
         .then((r) => {
           done += 1;
-          options?.onProgress?.(`줄별 설명 ${done}/${ranges.length} 조각 완료`);
+          options?.onChunkProgress?.(done, ranges.length);
           okResponses.push(r);
           collected.push(...(r.lineExplanations ?? []));
           options?.onPartial?.({ ...outline, lineExplanations: sortDedupe(collected), usage: sumUsage([outline, ...okResponses]) });
