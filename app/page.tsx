@@ -81,6 +81,8 @@ export default function Home() {
   // 분석 소요시간 — 시작 시각(진행 중 실시간 타이머용) + 직전 분석 총 소요(ms, 완료 메타용).
   const [analysisStartedAt, setAnalysisStartedAt] = useState<number | null>(null);
   const [lastElapsedMs, setLastElapsedMs] = useState<number | null>(null);
+  // 멈춤으로 부분 결과만 있는 상태 — "이어서 분석" 노출 조건.
+  const [resumable, setResumable] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] =
     useState<AgentAnalyzeResponse | null>(null);
@@ -264,6 +266,8 @@ export default function Home() {
     setChatMessages([]);
     setChatStreaming(null);
     }
+    // 코드가 바뀌면 이전 부분 결과 기준 "이어서"는 무효.
+    setResumable(false);
     // 결과가 사라지면 상단 제목/핀 헤더도 함께 비운다(이전 분석 제목 잔존 방지).
     setCurrentHistoryId(null);
   }
@@ -313,6 +317,7 @@ export default function Home() {
     const startedAt = Date.now();
     setAnalysisStartedAt(startedAt);
     setLastElapsedMs(null);
+    setResumable(false);
     setIsLoading(true);
     setErrorMessage(null);
     setAnalysisResult(null);
@@ -397,6 +402,7 @@ export default function Home() {
       if (finalResult) {
         const saved = finalResult;
         setLastElapsedMs(Date.now() - startedAt);
+        setResumable(false);
         setAnalysisResult(saved);
         saveToHistory({
           code: nextCode,
@@ -411,9 +417,10 @@ export default function Home() {
         }).then(setHistoryEntries).catch(() => {});
       }
     } catch (error) {
-      // 유저가 멈추기를 누른 경우 — 에러로 띄우지 않고 조용히 종료.
+      // 유저가 멈추기를 누른 경우 — 부분 결과를 지우지 않고 그대로 둔다.
+      // 부분 결과가 있으면 "이어서 분석" 가능(render에서 analysisResult와 함께 게이트).
       if (error instanceof DOMException && error.name === "AbortError") {
-        setAnalysisResult(null);
+        setResumable(true);
       } else {
         setAnalysisResult(null);
         setErrorMessage(formatFetchError(error));
@@ -654,6 +661,7 @@ export default function Home() {
     const entryMode = entry.mode ?? "code";
     // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
     setLastElapsedMs(null);
+    setResumable(false);
     setMode(entryMode);
     setExplainingTokens([]);
     setExplainingConcepts([]);
