@@ -335,9 +335,12 @@ export default function Home() {
     setChunkProgress(null);
     setIsLoading(true);
     setErrorMessage(null);
-    // 이어서 분석이면 기존 부분 결과를 유지(스트리밍이 이어서 누적). 처음이면 비운다.
-    if (!resumeFrom) setAnalysisResult(null);
-    setCurrentHistoryId(null);
+    // 이어서 분석이면 기존 부분 결과·항목 id를 유지(스트리밍 누적 + 완료 시 그 항목 update).
+    // 처음이면 비운다.
+    if (!resumeFrom) {
+      setAnalysisResult(null);
+      setCurrentHistoryId(null);
+    }
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
