@@ -144,6 +144,9 @@ export default function Home() {
   // 현재 히스토리 항목의 result를 analysisResult와 동기화 — 태그로 불러온 토큰,
   // 개념 설명이 DB+메모리에 저장돼 다른 동작 후 돌아와도 그대로 유지된다.
   useEffect(() => {
+    // 분석 중(이어서 partial 스트리밍 포함)엔 매 partial마다 DB write 하지 않는다 —
+    // 완료/멈춤 시 명시적으로 저장/업데이트한다. on-demand 토큰·개념 append만 여기서 동기화.
+    if (isLoading) return;
     if (!currentHistoryId || !analysisResult) return;
     const saved = analysisResult;
     updateHistory(currentHistoryId, { result: saved }).catch(() => {});
@@ -151,7 +154,7 @@ export default function Home() {
     setHistoryEntries((prev) =>
       prev.map((e) => (e.id === currentHistoryId ? { ...e, result: saved } : e)),
     );
-  }, [analysisResult, currentHistoryId]);
+  }, [analysisResult, currentHistoryId, isLoading]);
 
   // 챗 스레드도 현재 항목에 동기화 — 다른 거 보고 돌아와도 대화 유지(#90 패턴).
   useEffect(() => {
