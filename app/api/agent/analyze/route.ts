@@ -240,6 +240,12 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
+  // 이어서 분석: 이전 부분 결과 객체. 상세 형태는 orchestrator가 ?? 가드로 안전 처리하므로
+  // 여기선 객체 여부만 느슨히 검사.
+  if (value.resumeFrom !== undefined && !isRecord(value.resumeFrom)) {
+    return false;
+  }
+
   if (!isOptionalAnalyzeOptions(value.options)) {
     return false;
   }

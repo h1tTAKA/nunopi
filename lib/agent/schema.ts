@@ -45,6 +45,7 @@ export interface AgentAnalyzeRequest {
   outlineOnly?: boolean; // 1차: title/summary/concepts만 생성(lineExplanations 비움).
   lineRange?: { start: number; end: number }; // 2차: 이 줄 범위(1-based, 포함)만 lineExplanations 생성.
   knownConcepts?: { conceptId: string; title: string }[]; // 2차: conceptIds가 참조할 개념 목록(1차 결과).
+  resumeFrom?: AgentAnalyzeResponse; // 이어서 분석: 이전 부분 결과(outline 재사용 + 이미 된 줄설명 시드). orchestrator 전용.
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
   options?: AgentAnalyzeOptions;
