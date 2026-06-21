@@ -20,6 +20,10 @@ interface LineExplanationListProps {
   activeLine?: number | null;
   // 패널 스크롤 중 화면 상단에 보이는 줄을 알린다(우→좌 링크).
   onLineFocus?: (line: number) => void;
+  // 분석 진행 중 — 줄별 설명이 아직 스트리밍으로 채워지는 중임을 알린다.
+  isStreaming?: boolean;
+  // 청크 진행률(완료/전체) — "남은 줄 분석 중" 안내용.
+  chunkProgress?: { done: number; total: number } | null;
 }
 
 export default function LineExplanationList({
@@ -32,6 +36,8 @@ export default function LineExplanationList({
   onConceptClick,
   activeLine = null,
   onLineFocus,
+  isStreaming = false,
+  chunkProgress = null,
 }: LineExplanationListProps) {
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleItems = lineExplanations;
@@ -93,10 +99,18 @@ export default function LineExplanationList({
     return () => observer.disconnect();
   }, [visibleItems.length]);
 
+  // 청크 진행 안내 문구(있을 때만).
+  const progressLabel =
+    chunkProgress && chunkProgress.total > 0
+      ? ` (${chunkProgress.done}/${chunkProgress.total} 조각)`
+      : "";
+
   if (lineExplanations.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        줄 설명이 없다.
+        {isStreaming
+          ? `줄별 설명을 분석하는 중…${progressLabel} 잠시 후 순서대로 표시됩니다.`
+          : "줄 설명이 없다."}
       </div>
     );
   }
@@ -194,6 +208,12 @@ export default function LineExplanationList({
           </div>
         );
       })}
+      {isStreaming && (
+        <div className="flex items-center gap-2 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
+          남은 줄별 설명 분석 중…{progressLabel}
+        </div>
+      )}
     </div>
   );
 }
