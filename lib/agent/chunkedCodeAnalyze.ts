@@ -86,7 +86,9 @@ export async function analyzeCodeChunked(
     outline = await provider.analyze({ ...request, outlineOnly: true }, options);
     // 요약/제목/개념 먼저 화면에 흘린다(줄설명은 아직 빈 배열). 모든 partial은
     // outline.createdAt을 공유 → 클라 reset effect(`[result?.createdAt]`) thrash 방지.
-    options?.onPartial?.({ ...outline, lineExplanations: [] });
+    // warnings는 비운다 — outline 1차 모델이 "lineExplanations=[]" 지시를 코드 길이 탓으로
+    // 오해해 다는 헛 TOO_LONG/PARTIAL_PARSE 경고가 최종까지 남는 걸 막는다(줄설명은 청크가 다 함).
+    options?.onPartial?.({ ...outline, lineExplanations: [], warnings: [] });
   }
 
   // 2차 — 줄 범위별 설명을 병렬로.
@@ -145,7 +147,7 @@ export async function analyzeCodeChunked(
           options?.onChunkProgress?.(done, ranges.length);
           okResponses.push(r);
           collected.push(...(r.lineExplanations ?? []));
-          options?.onPartial?.({ ...outline, lineExplanations: sortDedupe(collected), usage: sumUsage([outline, ...okResponses]) });
+          options?.onPartial?.({ ...outline, lineExplanations: sortDedupe(collected), usage: sumUsage([outline, ...okResponses]), warnings: [] });
           return r;
         })
         // 한 조각이 실패해도 나머지+outline은 살린다(전체 실패 금지).
@@ -156,5 +158,6 @@ export async function analyzeCodeChunked(
     ...outline,
     lineExplanations: sortDedupe(collected),
     usage: sumUsage([outline, ...okResponses]),
+    warnings: [],
   };
 }
