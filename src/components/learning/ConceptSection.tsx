@@ -110,14 +110,16 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
                       </span>
                     );
                   })()}
-                  <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
-                    ×{concept.count}
-                  </span>
+                  {concept.count != null && concept.count > 0 && (
+                    <span className="inline-flex items-center rounded-lg bg-zinc-200 px-1.5 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                      ×{concept.count}
+                    </span>
+                  )}
                 </div>
               </div>
-              {concept.lines.length > 0 && (
+              {(concept.lines ?? []).length > 0 && (
                 <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
-                  {concept.lines.join(", ")}번 줄
+                  {(concept.lines ?? []).join(", ")}번 줄
                 </p>
               )}
             </button>

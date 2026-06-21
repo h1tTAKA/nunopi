@@ -123,8 +123,10 @@ export interface ConceptEntry {
 export interface ConceptOccurrence {
   conceptId: string;
   title: string;
-  lines: number[];
-  count: number;
+  // lines/count는 부차(등장 줄 표시용). LLM outline에선 생성 안 함(출력 가속) → optional.
+  // 줄↔개념 연결은 AgentLineExplanation.conceptIds로 별도 유지. localRules는 채운다.
+  lines?: number[];
+  count?: number;
   description?: string; // on-demand로 받아온 개념 설명(lazy). 없으면 정적 사전/미설명.
 }
 
