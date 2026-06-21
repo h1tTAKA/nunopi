@@ -297,7 +297,15 @@ export default function Home() {
     setChatStreaming(null);
   }
 
-  async function handleAnalyze() {
+  // 일반 분석은 () => runAnalyze(), 이어서 분석은 runAnalyze(이전 부분 결과).
+  function handleAnalyze() {
+    void runAnalyze();
+  }
+  function handleResume() {
+    if (analysisResult) void runAnalyze(analysisResult);
+  }
+
+  async function runAnalyze(resumeFrom?: AgentAnalyzeResponse) {
     const nextCode = code.trim();
 
     if (!nextCode) {
@@ -320,13 +328,16 @@ export default function Home() {
     setResumable(false);
     setIsLoading(true);
     setErrorMessage(null);
-    setAnalysisResult(null);
+    // 이어서 분석이면 기존 부분 결과를 유지(스트리밍이 이어서 누적). 처음이면 비운다.
+    if (!resumeFrom) setAnalysisResult(null);
     setCurrentHistoryId(null);
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
-    setChatMessages([]);
-    setChatStreaming(null);
+    if (!resumeFrom) {
+      setChatMessages([]);
+      setChatStreaming(null);
+    }
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -345,6 +356,7 @@ export default function Home() {
             providerId,
             mode,
             providerSettings,
+            ...(resumeFrom ? { resumeFrom } : {}),
           },
         }),
         signal: controller.signal,
@@ -711,6 +723,8 @@ export default function Home() {
             onAnalyze={handleAnalyze}
             onCancel={handleCancel}
             onSettingsOpen={() => setIsSettingsOpen(true)}
+            resumable={resumable && analysisResult != null}
+            onResume={handleResume}
           />
         }
         learningPanel={

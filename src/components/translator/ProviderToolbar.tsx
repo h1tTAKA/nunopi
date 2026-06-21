@@ -11,6 +11,9 @@ interface ProviderToolbarProps {
   onAnalyze: () => void | Promise<void>;
   onCancel: () => void;
   onSettingsOpen: () => void;
+  // 멈춰서 부분 결과만 있는 상태 → "이어서 분석" 노출.
+  resumable?: boolean;
+  onResume?: () => void;
 }
 
 const MODE_OPTIONS: { value: AnalyzeMode; label: string }[] = [
@@ -28,6 +31,8 @@ export default function ProviderToolbar({
   onAnalyze,
   onCancel,
   onSettingsOpen,
+  resumable = false,
+  onResume,
 }: ProviderToolbarProps) {
   const providerMeta = PROVIDER_CATALOG.find((p) => p.id === providerId);
 
@@ -90,15 +95,27 @@ export default function ProviderToolbar({
           ■ 멈추기
         </button>
       ) : (
-        <button
-          type="button"
-          onClick={() => {
-            void onAnalyze();
-          }}
-          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-50 transition hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-900"
-        >
-          분석 요청하기
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              void onAnalyze();
+            }}
+            className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-50 transition hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-900"
+          >
+            분석 요청하기
+          </button>
+          {resumable && onResume ? (
+            <button
+              type="button"
+              onClick={onResume}
+              className="rounded-xl border border-blue-500 px-4 py-2 text-sm font-semibold text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+              title="멈춘 지점부터 안 된 부분만 이어서 분석"
+            >
+              ▸ 이어서 분석
+            </button>
+          ) : null}
+        </div>
       )}
 
       <button
