@@ -90,7 +90,8 @@ function renderConcepts(concepts: ConceptOccurrence[]): string {
   const items = concepts
     .map((c) => {
       const desc = c.description ? `<p>${escapeHtml(c.description)}</p>` : "";
-      const lines = c.lines.length > 0 ? `<p class="muted">등장 줄: ${c.lines.join(", ")}</p>` : "";
+      const cLines = c.lines ?? [];
+      const lines = cLines.length > 0 ? `<p class="muted">등장 줄: ${cLines.join(", ")}</p>` : "";
       return `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div>${desc}${lines}</div>`;
     })
     .join("\n");
@@ -214,7 +215,7 @@ export async function formatResultAsHtml(
       ...result,
       lineExplanations,
       tokens: result.tokens.map((t) => ({ ...t, lines: remapLines(t.lines, lineMap) })),
-      concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines, lineMap) })),
+      concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines ?? [], lineMap) })),
     };
     inputSection = `<section><h2>입력 코드</h2>${codeHtml}</section>`;
     bodySections = `${renderLineExplanations(anchored)}

@@ -183,7 +183,7 @@ export default function LearningPanel({
     [dedupedTokens, reanchor],
   );
   const safeConcepts = useMemo(
-    () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines, reanchor.lineMap) })),
+    () => dedupedConcepts.map((c) => ({ ...c, lines: remapLines(c.lines ?? [], reanchor.lineMap) })),
     [dedupedConcepts, reanchor],
   );
   const [activeTab, setActiveTab] = useState<"analysis" | "history" | "dictionary" | "concept-dictionary">("analysis");

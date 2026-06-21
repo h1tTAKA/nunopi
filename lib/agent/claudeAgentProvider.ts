@@ -325,7 +325,7 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     "    }",
     "  ],",
     '  "concepts": [',
-    '    { "conceptId": "string", "title": "string (Korean)", "lines": number[], "count": number }',
+    '    { "conceptId": "string", "title": "string (Korean)" }',
     "  ],",
     '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
     "}",
@@ -521,12 +521,13 @@ function isConceptOccurrence(value: unknown): value is ConceptOccurrence {
     return false;
   }
 
+  // lines/count는 optional(LLM outline은 안 보냄). conceptId/title만 필수.
   return (
     typeof value.conceptId === "string" &&
     typeof value.title === "string" &&
-    Array.isArray(value.lines) &&
-    value.lines.every((line) => typeof line === "number") &&
-    typeof value.count === "number"
+    (value.lines === undefined ||
+      (Array.isArray(value.lines) && value.lines.every((line) => typeof line === "number"))) &&
+    (value.count === undefined || typeof value.count === "number")
   );
 }
 
