@@ -73,6 +73,7 @@ interface LearningPanelProps {
   progressLine?: string;
   analysisStartedAt?: number | null; // 진행 중 실시간 경과 타이머용 시작 시각(ms).
   elapsedMs?: number | null; // 직전 분석 총 소요시간(ms) — 완료 메타 표시용.
+  chunkProgress?: { done: number; total: number } | null; // 청크 진행률(막대바). 단일 호출이면 null.
   errorMessage: string | null;
   result: AgentAnalyzeResponse | null;
   activeLine?: number | null;
@@ -118,6 +119,7 @@ export default function LearningPanel({
   progressLine = "",
   analysisStartedAt = null,
   elapsedMs = null,
+  chunkProgress = null,
   errorMessage,
   result,
   code,
@@ -597,9 +599,19 @@ export default function LearningPanel({
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
             <span className="text-sm text-zinc-600 dark:text-zinc-300">
               분석 중…{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs)}` : ""}
+              {chunkProgress && chunkProgress.total > 0
+                ? ` (${chunkProgress.done}/${chunkProgress.total} 조각)`
+                : ""}
             </span>
           </div>
-          {progressLine ? (
+          {chunkProgress && chunkProgress.total > 0 ? (
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-300 dark:bg-blue-400"
+                style={{ width: `${Math.round((chunkProgress.done / chunkProgress.total) * 100)}%` }}
+              />
+            </div>
+          ) : progressLine ? (
             <p className="mt-2 truncate font-mono text-xs text-zinc-400 dark:text-zinc-500">
               {progressLine}
             </p>
