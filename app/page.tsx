@@ -349,6 +349,12 @@ export default function Home() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // 이어서면 기존(복원/멈춤 저장) 항목을 이어 쓴다 → 완료/멈춤 시 그 항목을 update.
+    // 처음이면 null로 시작해 완료 시 새로 save.
+    const historyId: string | null = resumeFrom ? currentHistoryId : null;
+    // 멈춤 시 저장할 최신 부분 결과(catch 클로저의 analysisResult는 stale이라 로컬로 잡는다).
+    let lastPartial: AgentAnalyzeResponse | null = resumeFrom ?? null;
+
     try {
       const response = await fetch("/api/agent/analyze", {
         method: "POST",
@@ -402,7 +408,8 @@ export default function Home() {
           if (event.type === "progress") {
             setProgressLine(event.line);
           } else if (event.type === "partial") {
-            // 청크 도착 순 점진 표시. 저장은 최종 result에서만(currentHistoryId null이라 SSOT effect도 조용).
+            // 청크 도착 순 점진 표시. lastPartial로 최신 부분 결과 추적(멈춤 저장용).
+            lastPartial = event.response;
             setAnalysisResult(event.response);
           } else if (event.type === "chunk-progress") {
             setChunkProgress({ done: event.done, total: event.total });
@@ -425,23 +432,56 @@ export default function Home() {
         setLastElapsedMs(Date.now() - startedAt);
         setResumable(false);
         setAnalysisResult(saved);
-        saveToHistory({
-          code: nextCode,
-          providerId,
-          mode,
-          result: saved,
-          title: generateAutoTitle(saved, nextCode),
-          createdAt: new Date().toISOString(),
-        }).then((savedId) => {
-          setCurrentHistoryId(savedId);
-          return getAllHistory();
-        }).then(setHistoryEntries).catch(() => {});
+        if (historyId) {
+          // 이어서/복원 항목 완성 → 같은 항목 업데이트(incomplete 해제, 제목 보존).
+          const id = historyId;
+          updateHistory(id, { result: saved, incomplete: false }).catch(() => {});
+          setHistoryEntries((prev) =>
+            prev.map((e) => (e.id === id ? { ...e, result: saved, incomplete: false } : e)),
+          );
+        } else {
+          saveToHistory({
+            code: nextCode,
+            providerId,
+            mode,
+            result: saved,
+            incomplete: false,
+            title: generateAutoTitle(saved, nextCode),
+            createdAt: new Date().toISOString(),
+          }).then((savedId) => {
+            setCurrentHistoryId(savedId);
+            return getAllHistory();
+          }).then(setHistoryEntries).catch(() => {});
+        }
       }
     } catch (error) {
-      // 유저가 멈추기를 누른 경우 — 부분 결과를 지우지 않고 그대로 둔다.
+      // 유저가 멈추기를 누른 경우 — 부분 결과를 지우지 않고 그대로 둔다 + 히스토리에 미완 저장.
       // 부분 결과가 있으면 "이어서 분석" 가능(render에서 analysisResult와 함께 게이트).
       if (error instanceof DOMException && error.name === "AbortError") {
         setResumable(true);
+        if (lastPartial) {
+          const partial = lastPartial;
+          if (historyId) {
+            const id = historyId;
+            updateHistory(id, { result: partial, incomplete: true }).catch(() => {});
+            setHistoryEntries((prev) =>
+              prev.map((e) => (e.id === id ? { ...e, result: partial, incomplete: true } : e)),
+            );
+          } else {
+            saveToHistory({
+              code: nextCode,
+              providerId,
+              mode,
+              result: partial,
+              incomplete: true,
+              title: generateAutoTitle(partial, nextCode),
+              createdAt: new Date().toISOString(),
+            }).then((savedId) => {
+              setCurrentHistoryId(savedId);
+              return getAllHistory();
+            }).then(setHistoryEntries).catch(() => {});
+          }
+        }
       } else {
         setAnalysisResult(null);
         setErrorMessage(formatFetchError(error));
@@ -683,7 +723,8 @@ export default function Home() {
     const entryMode = entry.mode ?? "code";
     // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
     setLastElapsedMs(null);
-    setResumable(false);
+    // 미완(멈춤) 항목이면 "이어서 분석" 가능.
+    setResumable(Boolean(entry.incomplete));
     setMode(entryMode);
     setExplainingTokens([]);
     setExplainingConcepts([]);
