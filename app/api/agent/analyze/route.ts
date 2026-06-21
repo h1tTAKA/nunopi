@@ -108,6 +108,9 @@ export async function POST(
           // 청크 분석 부분 결과 — 도착하는 족족 클라에 흘려 점진 표시.
           onPartial: (partial: AgentAnalyzeResponse) =>
             send({ type: "partial", providerId, response: partial }),
+          // 청크 진행률(완료/전체) — 막대바용.
+          onChunkProgress: (done: number, total: number) =>
+            send({ type: "chunk-progress", done, total }),
         };
         // 큰 코드(code 모드 + LLM provider)는 병렬 청크 2단계로 분석해 wall-clock을 줄인다.
         // 그 외는 기존 단일 호출 그대로(회귀 0).
