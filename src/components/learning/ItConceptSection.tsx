@@ -70,7 +70,11 @@ export default function ItConceptSection({
                 </button>
               )}
             </div>
-            <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-300">{concept.explanation}</p>
+            {concept.explanation.trim() ? (
+              <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-300">{concept.explanation}</p>
+            ) : (
+              <p className="mt-1.5 text-xs italic text-zinc-400 dark:text-zinc-500">설명 분석 중…</p>
+            )}
           </div>
         );
       })}

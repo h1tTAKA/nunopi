@@ -91,7 +91,11 @@ export default function ItTermSection({
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">{term.reading}</span>
                 )}
               </div>
-              <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">{term.explanation}</p>
+              {term.explanation.trim() ? (
+                <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">{term.explanation}</p>
+              ) : (
+                <p className="mt-2 text-xs italic text-zinc-400 dark:text-zinc-500">설명 분석 중…</p>
+              )}
               {hasConcepts && (
                 <p className="mt-2 text-xs text-blue-500 dark:text-blue-400">
                   관련 개념 {term.conceptIds.length}개 →
