@@ -674,9 +674,19 @@ export default function LearningPanel({
                 </button>
               </div>
             </div>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              {result.summary}
-            </p>
+            {result.summary.trim() ? (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {result.summary}
+              </p>
+            ) : isLoading ? (
+              <p className="mt-2 text-sm italic text-zinc-400 dark:text-zinc-500">
+                분석이 끝나면 요약이 여기 정리된다…
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {result.summary}
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400 dark:text-zinc-500">
               <span>{new Date(result.createdAt).toLocaleString("ko-KR")}</span>
               {result.usage?.inputTokens != null && (
