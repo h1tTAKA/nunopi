@@ -74,7 +74,7 @@ export function buildTextPrompt(request: AgentAnalyzeRequest): string {
     "",
     "Rules:",
     "- Extract ONLY IT/tech-related terms from the text. Ignore ordinary words.",
-    "- For a term whose explanation itself uses another term a beginner likely doesn't know, add that to concepts and link it via the term's conceptIds.",
+    "- For a term whose explanation itself uses another term a beginner likely doesn't know, add that to concepts and link it via the term's conceptIds — but stay within the count limits above (the caps take priority over completeness).",
     "- Every term.id and every concept.conceptId must be UNIQUE across the whole response.",
     "- All explanations in beginner-friendly Korean, plain declarative '~다' tone, 2-3 sentences, helpful but never padded.",
     "- Only include a PARTIAL_PARSE warning if the input was actually truncated; otherwise return an empty warnings array.",
