@@ -343,6 +343,7 @@ export default function Home() {
       setAnalysisResult(null);
       setCurrentHistoryId(null);
     }
+    setActiveTermId(null); // 이전 분석에서 클릭한 용어 선택 해제(stale 스크롤 방지).
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
@@ -743,6 +744,7 @@ export default function Home() {
     setProviderId(entry.providerId);
     setAnalysisResult(entry.result);
     setErrorMessage(null);
+    setActiveTermId(null); // 복원 시 이전 용어 선택 해제(다른 결과의 stale id 방지).
     // 복원한 항목을 현재 결과로 지정 → 상단 제목/핀 헤더가 그 항목 기준으로 표시된다.
     setCurrentHistoryId(entry.id);
   }
