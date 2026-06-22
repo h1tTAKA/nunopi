@@ -212,6 +212,10 @@ async function runClaudeCli(
         "-p",
         // sonnet으로 실행(opus 대비 저렴/빠름).
         "--model", "sonnet",
+        // 내장 툴(Bash/Read/Edit/Grep/WebFetch…) 정의를 전부 끈다. 분석/챗은 툴을 안 쓰는데
+        // -p 기본은 툴 정의를 매 호출 입력에 싣는다(실측: cache_read ~18k). ""로 끄면
+        // 베이스라인이 0이 돼 입력 토큰이 우리 프롬프트(수백)만 남는다(실측 18291→0, $0.0061→$0.0011).
+        "--tools", "",
         // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
         // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
         "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
