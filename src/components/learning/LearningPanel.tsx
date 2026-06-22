@@ -20,7 +20,7 @@ import {
   removeConceptDetail,
   loadConceptDetails,
 } from "@/lib/bookmarkDetails";
-import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/types";
+import type { CodeToken, ConceptOccurrence, ItConcept, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
 import TokenDictionary from "./TokenDictionary";
 import ItTermDictionary from "./ItTermDictionary";
@@ -336,6 +336,23 @@ export default function LearningPanel({
     const isAdding = !bookmarkedTermDetails[term.term];
     if (isAdding) saveTermDetail(term);
     else removeTermDetail(term.term);
+    const next = loadTermDetails();
+    setBookmarkedTermDetails(next);
+    if (Object.keys(next).length === 0) setFilterBookmarked(false);
+  }
+
+  // 글 모드 관련 개념 북마크 — 개념을 용어로 변환해 IT 용어 사전에 같이 저장(title 기준).
+  function handleItConceptBookmarkToggle(concept: ItConcept) {
+    const asTerm: ItTerm = {
+      id: concept.conceptId,
+      term: concept.title,
+      explanation: concept.explanation,
+      conceptIds: [],
+      bookmarkable: true,
+    };
+    const isAdding = !bookmarkedTermDetails[concept.title];
+    if (isAdding) saveTermDetail(asTerm);
+    else removeTermDetail(concept.title);
     const next = loadTermDetails();
     setBookmarkedTermDetails(next);
     if (Object.keys(next).length === 0) setFilterBookmarked(false);
@@ -762,6 +779,8 @@ export default function LearningPanel({
                   <ItConceptSection
                     concepts={result.itConcepts ?? []}
                     activeConceptId={activeConceptId}
+                    onBookmarkToggle={handleItConceptBookmarkToggle}
+                    bookmarkedTitles={bookmarkedTermTexts}
                   />
                 </div>
               </section>
