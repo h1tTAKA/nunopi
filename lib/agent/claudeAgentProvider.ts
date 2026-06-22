@@ -156,6 +156,10 @@ export const claudeAgentProvider: AgentProvider = {
         streamOnProgress,
         isChat ? CHAT_SYSTEM_PROMPT : undefined,
         fullProgress,
+        // 글 모드는 effort low로 확장 추론(thinking)을 끈다. 측정: 긴 글 첫 출력까지
+        // thinking ~66초 → low면 3초(생각 델타 2개), 용어 17개·품질 동일. 스트리밍이
+        // thinking 중엔 빈 화면이라 체감이 죽던 걸 없앤다.
+        isText ? "low" : undefined,
       );
       return isChat
         ? normalizeChatOutput(rawText, "claude-agent")
@@ -222,6 +226,7 @@ async function runClaudeCli(
   onProgress?: (line: string) => void,
   systemPrompt: string = "You are a code analysis assistant. Return JSON only.",
   fullProgress: boolean = false,
+  effort?: "low" | "medium" | "high" | "xhigh" | "max",
 ): Promise<ClaudeExecResult> {
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 8_388_608; // 8MB — stream-json + 세션 훅 노이즈까지 여유, 폭주 차단
@@ -233,28 +238,31 @@ async function runClaudeCli(
       return;
     }
 
-    const proc = spawn(
-      commandPath,
-      [
-        "-p",
-        // sonnet으로 실행(opus 대비 저렴/빠름).
-        "--model", "sonnet",
-        // 내장 툴(Bash/Read/Edit/Grep/WebFetch…) 정의를 전부 끈다. 분석/챗은 툴을 안 쓰는데
-        // -p 기본은 툴 정의를 매 호출 입력에 싣는다(실측: cache_read ~18k). ""로 끄면
-        // 베이스라인이 0이 돼 입력 토큰이 우리 프롬프트(수백)만 남는다(실측 18291→0, $0.0061→$0.0011).
-        "--tools", "",
-        // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
-        // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
-        "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
-        "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
-        "--system-prompt", systemPrompt, // 거대 기본 시스템 프롬프트 교체(코드 분석=JSON, 챗=튜터 프로즈)
-        // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
-        "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-        // prompt는 positional, stdin은 닫음.
-        prompt,
-      ],
-      { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
-    );
+    const args = [
+      "-p",
+      // sonnet으로 실행(opus 대비 저렴/빠름).
+      "--model", "sonnet",
+      // 내장 툴(Bash/Read/Edit/Grep/WebFetch…) 정의를 전부 끈다. 분석/챗은 툴을 안 쓰는데
+      // -p 기본은 툴 정의를 매 호출 입력에 싣는다(실측: cache_read ~18k). ""로 끄면
+      // 베이스라인이 0이 돼 입력 토큰이 우리 프롬프트(수백)만 남는다(실측 18291→0, $0.0061→$0.0011).
+      "--tools", "",
+      // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
+      // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
+      "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
+      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
+      "--system-prompt", systemPrompt, // 거대 기본 시스템 프롬프트 교체(코드 분석=JSON, 챗=튜터 프로즈)
+      // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
+      "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+    ];
+    // effort 지정 시 추론(thinking) 강도 조절. 글 모드는 "low"로 thinking을 사실상 꺼
+    // 스트리밍 첫 출력을 수초로 당긴다(미지정이면 CLI 기본값 = thinking 큼).
+    if (effort) args.push("--effort", effort);
+    args.push(prompt); // prompt는 positional, stdin은 닫음.
+
+    const proc = spawn(commandPath, args, {
+      env: { ...process.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     let stderr = "";
     let aborted = false;
