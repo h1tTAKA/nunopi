@@ -5,7 +5,7 @@
 //  3차 개념 설명 배치 병렬 → 채움(용어 다음).
 // partial/chunk-progress 이벤트는 코드 모드와 동일 인프라 재사용(#110/#112).
 import type { AgentProvider, AgentAnalyzeCallOptions } from "./types";
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { ItConcept, ItTerm } from "@/lib/translator/types";
 
 // 글자수 임계 — 이 길이 초과 글만 청크(작은 글은 단일이 더 빠름).
@@ -30,6 +30,21 @@ function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
   return out;
+}
+
+// 코드 모드와 동일: 부분 응답들의 토큰/비용을 합산(있는 것만).
+function sumUsage(responses: AgentAnalyzeResponse[]): AgentUsage | undefined {
+  const usages = responses.map((r) => r.usage).filter((u): u is AgentUsage => u != null);
+  if (usages.length === 0) return undefined;
+  const sum = (pick: (u: AgentUsage) => number | undefined) =>
+    usages.reduce((acc, u) => acc + (pick(u) ?? 0), 0);
+  return {
+    inputTokens: sum((u) => u.inputTokens),
+    outputTokens: sum((u) => u.outputTokens),
+    estimatedCostUsd: usages.some((u) => u.estimatedCostUsd != null)
+      ? sum((u) => u.estimatedCostUsd)
+      : undefined,
+  };
 }
 
 async function mapWithConcurrency<T, R>(
@@ -68,6 +83,9 @@ export async function analyzeTextChunked(
   const conceptBatches = chunk([...conceptsById.values()], CONCEPT_BATCH);
   const totalBatches = termBatches.length + conceptBatches.length;
   let done = 0;
+  // 부분 응답 수집 — usage 합산 + 실패 배치 수 집계용.
+  const okResponses: AgentAnalyzeResponse[] = [];
+  let failedBatches = 0;
 
   // sub-call엔 onProgress 제거(raw delta 누출 차단), signal/onPartial/onChunkProgress만.
   const subOptions: AgentAnalyzeCallOptions = {
@@ -80,6 +98,7 @@ export async function analyzeTextChunked(
     ...outline,
     terms: [...termsById.values()],
     itConcepts: [...conceptsById.values()],
+    usage: sumUsage([outline, ...okResponses]),
     warnings: [],
   });
 
@@ -108,11 +127,17 @@ export async function analyzeTextChunked(
           const base = termsById.get(t.id);
           if (base && t.explanation) termsById.set(t.id, { ...base, explanation: t.explanation });
         }
+        okResponses.push(r);
         done += 1;
         options?.onChunkProgress?.(done, totalBatches);
         options?.onPartial?.(snapshot());
       })
-      .catch(() => {}),
+      // 한 배치 실패가 전체를 깨면 안 됨 — 해당 용어들은 골격(빈 설명)으로 남고 UI가 "분석 중" 유지.
+      .catch(() => {
+        failedBatches += 1;
+        done += 1;
+        options?.onChunkProgress?.(done, totalBatches);
+      }),
   );
 
   // 3차 — 개념 설명 배치 병렬(용어 다음).
@@ -131,12 +156,30 @@ export async function analyzeTextChunked(
           const base = conceptsById.get(c.conceptId);
           if (base && c.explanation) conceptsById.set(c.conceptId, { ...base, explanation: c.explanation });
         }
+        okResponses.push(r);
         done += 1;
         options?.onChunkProgress?.(done, totalBatches);
         options?.onPartial?.(snapshot());
       })
-      .catch(() => {}),
+      .catch(() => {
+        failedBatches += 1;
+        done += 1;
+        options?.onChunkProgress?.(done, totalBatches);
+      }),
   );
 
-  return snapshot();
+  const final = snapshot();
+  // 일부 배치가 실패했으면 경고 1건 — 설명이 빠진 용어/개념이 있을 수 있음을 표시.
+  if (failedBatches > 0) {
+    return {
+      ...final,
+      warnings: [
+        {
+          code: "PARTIAL_PARSE",
+          message: `설명 배치 ${failedBatches}개를 불러오지 못했습니다. 일부 용어·개념 설명이 비어 있을 수 있습니다.`,
+        },
+      ],
+    };
+  }
+  return final;
 }
