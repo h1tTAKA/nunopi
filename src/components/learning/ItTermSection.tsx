@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { ItTerm } from "@/lib/translator/types";
 import { BanIcon, StarIcon } from "./icons";
 
@@ -24,6 +25,13 @@ export default function ItTermSection({
   onBookmarkToggle,
   onExclude,
 }: ItTermSectionProps) {
+  // 글 원문에서 용어를 클릭하면 그 카드로 스크롤(ItConceptSection과 동일 패턴).
+  useEffect(() => {
+    if (!activeTermId) return;
+    const el = document.getElementById(`it-term-${activeTermId}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [activeTermId]);
+
   if (terms.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -41,7 +49,8 @@ export default function ItTermSection({
         return (
           <div
             key={term.id}
-            className={`relative rounded-2xl border transition ${
+            id={`it-term-${term.id}`}
+            className={`relative scroll-mt-4 rounded-2xl border transition ${
               isBookmarked
                 ? "border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/20"
                 : isActive

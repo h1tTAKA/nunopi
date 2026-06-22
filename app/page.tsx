@@ -122,6 +122,8 @@ export default function Home() {
   const [chatLoading, setChatLoading] = useState(false);
   // 사용자 목록(카테고리) — 분석결과 분류용. 정의는 localStorage, 멤버십은 HistoryEntry.collectionIds.
   const [collections, setCollections] = useState<Collection[]>([]);
+  // 글 원문에서 클릭한 IT 용어 — 학습패널이 그 용어 카드로 스크롤(왼↔오 연결).
+  const [activeTermId, setActiveTermId] = useState<string | null>(null);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
@@ -341,6 +343,7 @@ export default function Home() {
       setAnalysisResult(null);
       setCurrentHistoryId(null);
     }
+    setActiveTermId(null); // 이전 분석에서 클릭한 용어 선택 해제(stale 스크롤 방지).
     setProgressLine("");
     setExplainingTokens([]);
     setExplainingConcepts([]);
@@ -649,6 +652,7 @@ export default function Home() {
     setExplainingConcepts([]);
     setActiveLineLink(null);
     setMarkedLines([]);
+    setActiveTermId(null);
   }
 
   function handleDeleteConcept(conceptId: string) {
@@ -740,6 +744,7 @@ export default function Home() {
     setProviderId(entry.providerId);
     setAnalysisResult(entry.result);
     setErrorMessage(null);
+    setActiveTermId(null); // 복원 시 이전 용어 선택 해제(다른 결과의 stale id 방지).
     // 복원한 항목을 현재 결과로 지정 → 상단 제목/핀 헤더가 그 항목 기준으로 표시된다.
     setCurrentHistoryId(entry.id);
   }
@@ -793,6 +798,7 @@ export default function Home() {
           errorMessage={errorMessage}
           result={analysisResult}
           code={code}
+          activeTermId={activeTermId}
           activeLine={activeLineLink?.line ?? null}
           activeLineSource={activeLineLink?.source}
           onLineFocus={focusLineFromPanel}
@@ -839,6 +845,8 @@ export default function Home() {
                   onToggleChat={() => setChatOpen((v) => !v)}
                   locked={analysisResult != null}
                   onClear={handleClearInput}
+                  terms={analysisResult?.terms ?? []}
+                  onTermClick={setActiveTermId}
                 />
               ) : (
                 <CodeInputArea

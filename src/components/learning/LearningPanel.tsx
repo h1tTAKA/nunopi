@@ -79,6 +79,8 @@ interface LearningPanelProps {
   activeLine?: number | null;
   activeLineSource?: "editor" | "panel";
   onLineFocus?: (line: number) => void;
+  // 글 원문에서 클릭한 IT 용어 id — 그 용어 카드로 스크롤(글 모드).
+  activeTermId?: string | null;
   // 토큰 호버/클릭으로 에디터에서 강조할 코드 줄들을 상위(page)에 올린다.
   onMarkLines?: (lines: number[]) => void;
   // 제외(차단) 목록 — 표시에서 숨길 토큰/용어 텍스트. page에서 관리.
@@ -126,6 +128,7 @@ export default function LearningPanel({
   activeLine = null,
   activeLineSource,
   onLineFocus,
+  activeTermId = null,
   onMarkLines,
   excludedTerms = [],
   onExclude,
@@ -233,6 +236,15 @@ export default function LearningPanel({
     const el = document.getElementById(`nunopi-line-${activeLine}`);
     el?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [activeLine, activeLineSource]);
+
+  // 글 원문에서 용어를 클릭하면(activeTermId) 분석 탭으로 전환 — ItTermSection이
+  // 거기 있어야 그 카드로 스크롤된다(다른 탭이면 안 보임).
+  useEffect(() => {
+    // 다른 탭에 있으면 분석 탭으로 전환해야 용어 카드가 보인다. effect 내 동기 setState라
+    // set-state-in-effect 룰에 걸리지만, prop(activeTermId) 변화에 반응하는 의도된 전환이다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (activeTermId) setActiveTab("analysis");
+  }, [activeTermId]);
 
   // 글 모드로 바뀌면 코드 전용 '개념 사전' 탭에서 빠져나온다(글 모드엔 그 탭이 없음).
   useEffect(() => {
@@ -788,6 +800,7 @@ export default function LearningPanel({
                         <ItTermSection
                           key={result.createdAt}
                           terms={displayTerms}
+                          activeTermId={activeTermId}
                           onTermClick={handleTermClick}
                           bookmarkedTermTexts={bookmarkedTermTexts}
                           onBookmarkToggle={handleTermBookmarkToggle}
