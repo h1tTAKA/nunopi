@@ -132,10 +132,15 @@ export const claudeAgentProvider: AgentProvider = {
         let lastT = -1;
         let lastC = -1;
         let lastS = -1;
+        let summaryDone = false;
         streamOnProgress = (full: string) => {
-          if (!full.includes("}")) return; // 닫힌 객체 없으면 재파싱 스킵(매 델타 비용 완화)
+          // 용어 단계(요약 잡힌 뒤)는 버퍼가 커지므로 객체가 닫힐 때(`}`)만 재파싱한다.
+          // 요약 단계 전엔 버퍼가 작으니 매 델타 파싱해도 싸고, 요약은 문자열이라 `}`가
+          // 없어 게이트에 걸리면 "요약 먼저 표시"가 첫 용어까지 늦어진다 → 그 전엔 게이트 끔.
+          if (summaryDone && !full.includes("}")) return;
           const partial = parseTextStreamPartial(full, "claude-agent", startedAt);
           if (!partial) return;
+          if (partial.summary.length > 0) summaryDone = true;
           const t = partial.terms?.length ?? 0;
           const c = partial.itConcepts?.length ?? 0;
           const s = partial.summary.length;
