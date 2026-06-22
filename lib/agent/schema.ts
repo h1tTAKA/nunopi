@@ -41,6 +41,10 @@ export interface AgentAnalyzeRequest {
   targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.
   targetConcept?: string; // mode "explain-concept"일 때 설명할 개념 제목.
   messages?: ChatMessage[]; // mode "chat"일 때 대화 내역(마지막이 사용자 질문).
+  // 글(text) 모드 청크 스트리밍용 단계.
+  textStage?: "outline" | "terms" | "concepts"; // outline: 용어/개념 골격(설명 X) / terms·concepts: 설명만 채움.
+  targetTerms?: { id: string; term: string; reading?: string; conceptIds: string[] }[]; // textStage:"terms"에서 설명 채울 용어 골격.
+  targetConcepts?: { conceptId: string; title: string }[]; // textStage:"concepts"에서 설명 채울 개념 골격.
   // 병렬 청크(2단계) 분석용 — code 모드에서만.
   outlineOnly?: boolean; // 1차: title/summary/concepts만 생성(lineExplanations 비움).
   lineRange?: { start: number; end: number }; // 2차: 이 줄 범위(1-based, 포함)만 lineExplanations 생성.

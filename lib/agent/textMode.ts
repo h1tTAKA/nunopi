@@ -9,18 +9,105 @@ import type { ItConcept, ItTerm, TranslateWarning } from "@/lib/translator/types
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
 // IT 용어 글을 초보자용으로 분석하라는 프롬프트(JSON only).
-export function buildTextPrompt(request: AgentAnalyzeRequest): string {
+const TEXT_HEADER = [
+  "You are Nunopi's IT-term explainer for absolute beginners.",
+  "The input is a piece of IT-related prose (e.g. an X/Twitter post, a tech article).",
+  "It is NOT source code. Do not treat it as code.",
+  "Explain it in Korean so that even a beginner with no IT background understands.",
+  "Return JSON only.",
+  "",
+  "Tone (IMPORTANT):",
+  "- Write ALL Korean text in plain declarative style ending in '~다' (평서체).",
+  "- Do NOT use polite/honorific or childish endings like '~에요', '~예요', '~해요', '~요'.",
+  "- Match the dry, neutral tone of code analysis. Be easy and friendly but never use honorifics.",
+];
+
+function textTail(request: AgentAnalyzeRequest): string[] {
   return [
-    "You are Nunopi's IT-term explainer for absolute beginners.",
-    "The input is a piece of IT-related prose (e.g. an X/Twitter post, a tech article).",
-    "It is NOT source code. Do not treat it as code.",
-    "Explain it in Korean so that even a beginner with no IT background understands.",
-    "Return JSON only.",
     "",
-    "Tone (IMPORTANT):",
-    "- Write ALL Korean text in plain declarative style ending in '~다' (평서체).",
-    "- Do NOT use polite/honorific or childish endings like '~에요', '~예요', '~해요', '~요'.",
-    "- Match the dry, neutral tone of code analysis. Be easy and friendly but never use honorifics.",
+    `Locale: ${request.locale}`,
+    `User intent: ${request.userIntent ?? "Explain the IT terms in this text for a beginner in Korean."}`,
+    "",
+    "Text to analyze:",
+    '"""',
+    request.code,
+    '"""',
+  ];
+}
+
+export function buildTextPrompt(request: AgentAnalyzeRequest): string {
+  // 1차 outline — 용어/개념 "골격"만(설명 없이) 빠르게. 청크 스트리밍의 첫 단계.
+  if (request.textStage === "outline") {
+    return [
+      ...TEXT_HEADER,
+      "",
+      "OUTLINE STAGE: list the IT terms and related concepts, but DO NOT write explanations yet.",
+      "Output JSON shape:",
+      "{",
+      '  "title": "string (글 핵심 주제 짧은 한국어 명사구, 문장/마침표 금지, 6~24자)",',
+      '  "summary": "string (글 전체를 초보자도 이해할 쉬운 한국어 평서체 3-5문장 요약)",',
+      '  "terms": [ { "id": "string unique", "term": "글에 실제 등장한 IT 용어 그대로", "reading": "string optional 약어풀이/원어", "explanation": "", "conceptIds": "string[] 관련 concepts[].conceptId", "bookmarkable": true } ],',
+      '  "concepts": [ { "conceptId": "string unique", "title": "관련 개념 이름(한국어 가능)", "explanation": "" } ],',
+      '  "warnings": []',
+      "}",
+      "",
+      "Rules:",
+      "- explanation은 모두 빈 문자열 \"\"로 둔다(다음 단계에서 채움).",
+      "- Extract ONLY IT/tech terms that actually appear. Skip trivial/duplicate.",
+      "- 용어 설명에 또 필요한 배경 개념을 concepts에 넣고 term.conceptIds로 연결.",
+      "- term.id, concept.conceptId는 전체에서 UNIQUE.",
+      ...textTail(request),
+    ].join("\n");
+  }
+
+  // 2차 terms — 주어진 용어들의 explanation만 채운다.
+  if (request.textStage === "terms") {
+    const list = (request.targetTerms ?? [])
+      .map((t) => `  - id=${t.id} term=${JSON.stringify(t.term)}${t.reading ? ` reading=${JSON.stringify(t.reading)}` : ""}`)
+      .join("\n");
+    return [
+      ...TEXT_HEADER,
+      "",
+      "TERMS STAGE: for EACH given term, write its explanation based on the text.",
+      "Each explanation: 1-2 short sentences, beginner-friendly, plain '~다' tone. No padding.",
+      "Output JSON shape:",
+      "{",
+      '  "terms": [ { "id": "주어진 id 그대로", "term": "주어진 term 그대로", "reading": "주어진 reading 그대로(있으면)", "explanation": "이 용어 설명 1-2문장", "conceptIds": "주어진 conceptIds 그대로", "bookmarkable": true } ],',
+      '  "concepts": [], "warnings": []',
+      "}",
+      "Return ONLY these terms (same id/term), with explanation filled. Do not add new terms or concepts.",
+      "",
+      "Terms to explain:",
+      list || "  (none)",
+      ...textTail(request),
+    ].join("\n");
+  }
+
+  // 3차 concepts — 주어진 개념들의 explanation만 채운다.
+  if (request.textStage === "concepts") {
+    const list = (request.targetConcepts ?? [])
+      .map((c) => `  - conceptId=${c.conceptId} title=${JSON.stringify(c.title)}`)
+      .join("\n");
+    return [
+      ...TEXT_HEADER,
+      "",
+      "CONCEPTS STAGE: for EACH given concept, write its explanation (background idea behind the terms), based on the text context.",
+      "Each explanation: 1-2 short sentences, beginner-friendly, plain '~다' tone.",
+      "Output JSON shape:",
+      "{",
+      '  "terms": [], "concepts": [ { "conceptId": "주어진 conceptId 그대로", "title": "주어진 title 그대로", "explanation": "이 개념 설명 1-2문장" } ], "warnings": []',
+      "}",
+      "Return ONLY these concepts (same conceptId/title), with explanation filled. Do not add new ones.",
+      "",
+      "Concepts to explain:",
+      list || "  (none)",
+      ...textTail(request),
+    ].join("\n");
+  }
+
+  // 기본(단일 호출) — 작은 글/폴백. 전체를 한 번에.
+  return [
+    ...TEXT_HEADER,
     "",
     "Be concise (this also keeps responses fast):",
     "- Each term explanation: 1-2 short sentences with the essence (use a quick analogy only if it helps).",
@@ -58,14 +145,7 @@ export function buildTextPrompt(request: AgentAnalyzeRequest): string {
     "- Every term.id and every concept.conceptId must be UNIQUE across the whole response.",
     "- All explanations in beginner-friendly Korean, plain declarative '~다' tone, concise (1-2 sentences).",
     "- Only include a PARTIAL_PARSE warning if the input was actually truncated; otherwise return an empty warnings array.",
-    "",
-    `Locale: ${request.locale}`,
-    `User intent: ${request.userIntent ?? "Explain the IT terms in this text for a beginner in Korean."}`,
-    "",
-    "Text to analyze:",
-    '"""',
-    request.code,
-    '"""',
+    ...textTail(request),
   ].join("\n");
 }
 

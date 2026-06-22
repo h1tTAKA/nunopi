@@ -6,6 +6,8 @@ import {
   localRulesProvider,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
+  analyzeTextChunked,
+  shouldChunkTextAnalysis,
   type AgentAnalyzeRequest,
   type AgentAnalyzeResponse,
   type AgentProvider,
@@ -113,10 +115,16 @@ export async function POST(
             send({ type: "chunk-progress", done, total }),
         };
         // 큰 코드(code 모드 + LLM provider)는 병렬 청크 2단계로 분석해 wall-clock을 줄인다.
+        // 긴 글(text 모드 + LLM provider)은 골격→용어/개념 설명 배치로 점진 스트리밍한다.
         // 그 외는 기존 단일 호출 그대로(회귀 0).
-        const response = shouldChunkCodeAnalysis(providerRequest, provider.provider)
-          ? await analyzeCodeChunked(provider.provider, providerRequest, callOptions)
-          : await provider.provider.analyze(providerRequest, callOptions);
+        let response: AgentAnalyzeResponse;
+        if (shouldChunkCodeAnalysis(providerRequest, provider.provider)) {
+          response = await analyzeCodeChunked(provider.provider, providerRequest, callOptions);
+        } else if (shouldChunkTextAnalysis(providerRequest, provider.provider)) {
+          response = await analyzeTextChunked(provider.provider, providerRequest, callOptions);
+        } else {
+          response = await provider.provider.analyze(providerRequest, callOptions);
+        }
         send({ type: "result", providerId, response });
       } catch (error) {
         const message = request.signal.aborted

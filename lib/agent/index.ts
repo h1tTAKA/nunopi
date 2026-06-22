@@ -26,3 +26,4 @@ export { claudeAgentProvider, codexAgentProvider, localRulesProvider, openAIComp
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
 export { analyzeCodeChunked, shouldChunkCodeAnalysis } from "./chunkedCodeAnalyze";
+export { analyzeTextChunked, shouldChunkTextAnalysis } from "./chunkedTextAnalyze";
