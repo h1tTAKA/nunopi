@@ -791,6 +791,7 @@ export default function LearningPanel({
                     activeConceptId={activeConceptId}
                     onBookmarkToggle={handleItConceptBookmarkToggle}
                     bookmarkedTitles={bookmarkedTermTexts}
+                    isStreaming={isLoading}
                   />
                 </div>
               </section>
