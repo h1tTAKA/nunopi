@@ -10,6 +10,8 @@ interface ItConceptSectionProps {
   // 북마크 — 누르면 IT 용어 사전에 저장(용어와 한 사전). title 기준.
   onBookmarkToggle?: (concept: ItConcept) => void;
   bookmarkedTitles?: string[];
+  // 스트리밍 중이면 빈 목록은 "아직 안 옴"이지 "없음"이 아니다(용어 다음에 채워짐).
+  isStreaming?: boolean;
 }
 
 // 글 모드 관련 개념 — 코드 모드 ConceptSection에 대응. 용어 설명에 더 필요한
@@ -19,6 +21,7 @@ export default function ItConceptSection({
   activeConceptId,
   onBookmarkToggle,
   bookmarkedTitles = [],
+  isStreaming = false,
 }: ItConceptSectionProps) {
   useEffect(() => {
     if (!activeConceptId) return;
@@ -29,7 +32,13 @@ export default function ItConceptSection({
   if (concepts.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        관련 개념이 없다.
+        {isStreaming ? (
+          <span className="italic text-zinc-400 dark:text-zinc-500">
+            관련 개념은 용어 분석 다음에 추가된다…
+          </span>
+        ) : (
+          "관련 개념이 없다."
+        )}
       </div>
     );
   }

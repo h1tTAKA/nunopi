@@ -619,6 +619,17 @@ export default function LearningPanel({
               {chunkProgress && chunkProgress.total > 0
                 ? ` (${chunkProgress.done}/${chunkProgress.total} 조각)`
                 : ""}
+              {mode === "text" && result
+                ? ` · ${
+                    result.summary.trim()
+                      ? "요약 정리 중…"
+                      : (result.itConcepts?.length ?? 0) > 0
+                        ? `관련 개념 분석 중 (${result.itConcepts!.length}개)`
+                        : (result.terms?.length ?? 0) > 0
+                          ? `용어 분석 중 (${result.terms!.length}개)`
+                          : "용어 추출 중…"
+                  }`
+                : ""}
             </span>
           </div>
           {chunkProgress && chunkProgress.total > 0 ? (
@@ -627,6 +638,12 @@ export default function LearningPanel({
                 className="h-full rounded-full bg-blue-500 transition-all duration-300 dark:bg-blue-400"
                 style={{ width: `${Math.round((chunkProgress.done / chunkProgress.total) * 100)}%` }}
               />
+            </div>
+          ) : mode === "text" ? (
+            // 글 모드는 용어/개념 총 개수를 미리 모른다(% 막대 불가) → 미확정(움직이는) 막대로
+            // "멈춘 게 아니라 진행 중"만 시각화.
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+              <div className="h-full w-2/5 animate-pulse rounded-full bg-blue-500 dark:bg-blue-400" />
             </div>
           ) : progressLine ? (
             <p className="mt-2 truncate font-mono text-xs text-zinc-400 dark:text-zinc-500">
@@ -674,9 +691,19 @@ export default function LearningPanel({
                 </button>
               </div>
             </div>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              {result.summary}
-            </p>
+            {result.summary.trim() ? (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {result.summary}
+              </p>
+            ) : isLoading ? (
+              <p className="mt-2 text-sm italic text-zinc-400 dark:text-zinc-500">
+                분석이 끝나면 요약이 여기 정리된다…
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+                {result.summary}
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400 dark:text-zinc-500">
               <span>{new Date(result.createdAt).toLocaleString("ko-KR")}</span>
               {result.usage?.inputTokens != null && (
@@ -781,6 +808,7 @@ export default function LearningPanel({
                     activeConceptId={activeConceptId}
                     onBookmarkToggle={handleItConceptBookmarkToggle}
                     bookmarkedTitles={bookmarkedTermTexts}
+                    isStreaming={isLoading}
                   />
                 </div>
               </section>
