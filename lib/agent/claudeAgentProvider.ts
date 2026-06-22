@@ -6,7 +6,7 @@ import { delimiter, join } from "node:path";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
-import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
+import { buildTextPrompt, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
@@ -122,13 +122,43 @@ export const claudeAgentProvider: AgentProvider = {
     }
 
     try {
+      // 글 모드는 단일 호출의 stream-json 누적 텍스트를 점진 파싱해 용어/개념을 하나씩
+      // onPartial로 흘린다. 그 외(코드/챗)는 기존 onProgress/fullProgress 그대로.
+      let streamOnProgress = options?.onProgress;
+      let fullProgress = isChat;
+      if (isText && options?.onPartial) {
+        const onPartial = options.onPartial;
+        const startedAt = new Date().toISOString();
+        let lastT = -1;
+        let lastC = -1;
+        let lastS = -1;
+        let summaryDone = false;
+        streamOnProgress = (full: string) => {
+          // 용어 단계(요약 잡힌 뒤)는 버퍼가 커지므로 객체가 닫힐 때(`}`)만 재파싱한다.
+          // 요약 단계 전엔 버퍼가 작으니 매 델타 파싱해도 싸고, 요약은 문자열이라 `}`가
+          // 없어 게이트에 걸리면 "요약 먼저 표시"가 첫 용어까지 늦어진다 → 그 전엔 게이트 끔.
+          if (summaryDone && !full.includes("}")) return;
+          const partial = parseTextStreamPartial(full, "claude-agent", startedAt);
+          if (!partial) return;
+          if (partial.summary.length > 0) summaryDone = true;
+          const t = partial.terms?.length ?? 0;
+          const c = partial.itConcepts?.length ?? 0;
+          const s = partial.summary.length;
+          if (t === lastT && c === lastC && s === lastS) return; // 변화 없으면 발행 안 함
+          lastT = t;
+          lastC = c;
+          lastS = s;
+          onPartial(partial);
+        };
+        fullProgress = true; // 누적 전체 텍스트를 받아야 점진 파싱 가능
+      }
       const { text: rawText, usage } = await runClaudeCli(
         availability.commandPath!,
         prompt,
         options?.signal,
-        options?.onProgress,
+        streamOnProgress,
         isChat ? CHAT_SYSTEM_PROMPT : undefined,
-        isChat,
+        fullProgress,
       );
       return isChat
         ? normalizeChatOutput(rawText, "claude-agent")
