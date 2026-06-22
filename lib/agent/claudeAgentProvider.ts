@@ -132,15 +132,12 @@ export const claudeAgentProvider: AgentProvider = {
         let lastT = -1;
         let lastC = -1;
         let lastS = -1;
-        let summaryDone = false;
         streamOnProgress = (full: string) => {
-          // 용어 단계(요약 잡힌 뒤)는 버퍼가 커지므로 객체가 닫힐 때(`}`)만 재파싱한다.
-          // 요약 단계 전엔 버퍼가 작으니 매 델타 파싱해도 싸고, 요약은 문자열이라 `}`가
-          // 없어 게이트에 걸리면 "요약 먼저 표시"가 첫 용어까지 늦어진다 → 그 전엔 게이트 끔.
-          if (summaryDone && !full.includes("}")) return;
+          // 용어가 먼저 스트림되므로 첫 객체의 `}`가 일찍 나온다 → 객체가 닫힐 때만
+          // 재파싱(매 델타 전체 재파싱 비용 완화). 요약/제목은 끝에 와도 최종 result가 보정.
+          if (!full.includes("}")) return;
           const partial = parseTextStreamPartial(full, "claude-agent", startedAt);
           if (!partial) return;
-          if (partial.summary.length > 0) summaryDone = true;
           const t = partial.terms?.length ?? 0;
           const c = partial.itConcepts?.length ?? 0;
           const s = partial.summary.length;
@@ -159,6 +156,10 @@ export const claudeAgentProvider: AgentProvider = {
         streamOnProgress,
         isChat ? CHAT_SYSTEM_PROMPT : undefined,
         fullProgress,
+        // 글 모드는 effort low로 확장 추론(thinking)을 끈다. 측정: 긴 글 첫 출력까지
+        // thinking ~66초 → low면 3초(생각 델타 2개), 용어 17개·품질 동일. 스트리밍이
+        // thinking 중엔 빈 화면이라 체감이 죽던 걸 없앤다.
+        isText ? "low" : undefined,
       );
       return isChat
         ? normalizeChatOutput(rawText, "claude-agent")
@@ -225,6 +226,7 @@ async function runClaudeCli(
   onProgress?: (line: string) => void,
   systemPrompt: string = "You are a code analysis assistant. Return JSON only.",
   fullProgress: boolean = false,
+  effort?: "low" | "medium" | "high" | "xhigh" | "max",
 ): Promise<ClaudeExecResult> {
   const MAX_STDERR = 2_048;
   const MAX_STDOUT = 8_388_608; // 8MB — stream-json + 세션 훅 노이즈까지 여유, 폭주 차단
@@ -236,28 +238,31 @@ async function runClaudeCli(
       return;
     }
 
-    const proc = spawn(
-      commandPath,
-      [
-        "-p",
-        // sonnet으로 실행(opus 대비 저렴/빠름).
-        "--model", "sonnet",
-        // 내장 툴(Bash/Read/Edit/Grep/WebFetch…) 정의를 전부 끈다. 분석/챗은 툴을 안 쓰는데
-        // -p 기본은 툴 정의를 매 호출 입력에 싣는다(실측: cache_read ~18k). ""로 끄면
-        // 베이스라인이 0이 돼 입력 토큰이 우리 프롬프트(수백)만 남는다(실측 18291→0, $0.0061→$0.0011).
-        "--tools", "",
-        // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
-        // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
-        "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
-        "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
-        "--system-prompt", systemPrompt, // 거대 기본 시스템 프롬프트 교체(코드 분석=JSON, 챗=튜터 프로즈)
-        // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
-        "--output-format", "stream-json", "--verbose", "--include-partial-messages",
-        // prompt는 positional, stdin은 닫음.
-        prompt,
-      ],
-      { env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] },
-    );
+    const args = [
+      "-p",
+      // sonnet으로 실행(opus 대비 저렴/빠름).
+      "--model", "sonnet",
+      // 내장 툴(Bash/Read/Edit/Grep/WebFetch…) 정의를 전부 끈다. 분석/챗은 툴을 안 쓰는데
+      // -p 기본은 툴 정의를 매 호출 입력에 싣는다(실측: cache_read ~18k). ""로 끄면
+      // 베이스라인이 0이 돼 입력 토큰이 우리 프롬프트(수백)만 남는다(실측 18291→0, $0.0061→$0.0011).
+      "--tools", "",
+      // 유저 글로벌 환경 로드 차단으로 입력 토큰을 줄인다(측정: fresh 입력 12432→3).
+      // 이 플래그들은 이번 호출에만 적용 — 유저 settings/CLAUDE.md/훅/MCP 등록은 안 건드림.
+      "--setting-sources", "",                          // 훅/CLAUDE.md/유저 settings 미로드
+      "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', // MCP 서버 0
+      "--system-prompt", systemPrompt, // 거대 기본 시스템 프롬프트 교체(코드 분석=JSON, 챗=튜터 프로즈)
+      // stream-json + partial-messages로 토큰 델타·최종 result(텍스트+usage)를 받는다.
+      "--output-format", "stream-json", "--verbose", "--include-partial-messages",
+    ];
+    // effort 지정 시 추론(thinking) 강도 조절. 글 모드는 "low"로 thinking을 사실상 꺼
+    // 스트리밍 첫 출력을 수초로 당긴다(미지정이면 CLI 기본값 = thinking 큼).
+    if (effort) args.push("--effort", effort);
+    args.push(prompt); // prompt는 positional, stdin은 닫음.
+
+    const proc = spawn(commandPath, args, {
+      env: { ...process.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
     let stderr = "";
     let aborted = false;
