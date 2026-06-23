@@ -321,11 +321,16 @@ export default function LearningPanel({
     setHeaderTitle(currentHistoryTitle ?? "");
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHeaderEditing(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setHeaderCollMenu(false);
     // result.createdAt 기준 — on-demand 토큰 append(같은 createdAt)엔 리셋 안 함(활성/스크롤 보존).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.createdAt]);
+
+  // 현재 항목이 바뀌면(복원/저장 등) 목록 메뉴를 닫는다 — createdAt 안 바뀌는 경로(첫 저장
+  // null→id)까지 커버. result.createdAt 효과의 다른 리셋엔 영향 안 주려 별도 effect로 분리.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHeaderCollMenu(false);
+  }, [currentHistoryId]);
 
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
