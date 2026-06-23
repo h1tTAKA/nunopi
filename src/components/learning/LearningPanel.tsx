@@ -221,8 +221,9 @@ export default function LearningPanel({
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
   const [headerTitle, setHeaderTitle] = useState(currentHistoryTitle ?? "");
-  // 제목 헤더의 "목록에 담기" 인라인 패널 열림 여부.
+  // 제목 헤더의 "목록에 담기" 인라인 패널 열림 여부 + 새 목록 이름 입력.
   const [headerCollMenu, setHeaderCollMenu] = useState(false);
+  const [headerNewColl, setHeaderNewColl] = useState("");
   const tokenBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -433,6 +434,15 @@ export default function LearningPanel({
     onSetCurrentTitle?.(headerTitle);
   }
 
+  // 헤더 목록 패널: 새 목록 만들어 현재 분석을 거기에 담는다(AnalysisHistory와 동일).
+  function submitHeaderCreateCollection() {
+    const name = headerNewColl.trim();
+    if (!name || !currentHistoryId) return;
+    const id = onCreateCollection?.(name);
+    setHeaderNewColl("");
+    if (id) onToggleEntryCollection?.(currentHistoryId, id);
+  }
+
   const currentEntry = currentHistoryId
     ? historyEntries.find((e) => e.id === currentHistoryId)
     : undefined;
@@ -536,6 +546,19 @@ export default function LearningPanel({
             );
           })}
         </div>
+        {onCreateCollection && (
+          <input
+            type="text"
+            value={headerNewColl}
+            onChange={(e) => setHeaderNewColl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitHeaderCreateCollection(); }
+              if (e.key === "Escape") { setHeaderNewColl(""); setHeaderCollMenu(false); }
+            }}
+            placeholder="새 목록 만들어 담기 (Enter)"
+            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          />
+        )}
       </div>
     )}
     </div>
