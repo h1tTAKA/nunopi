@@ -35,6 +35,22 @@ function textTail(request: AgentAnalyzeRequest): string[] {
   ];
 }
 
+// 이어서 분석(resume): 이미 뽑힌 용어를 제외하고 나머지만 뽑게 하는 추가 지시.
+// resumeFrom 없으면 빈 배열(첫 분석은 영향 0).
+function resumeDirectives(request: AgentAnalyzeRequest): string[] {
+  const prior = request.resumeFrom;
+  const doneTerms = (prior?.terms ?? []).map((t) => t.term).filter(Boolean);
+  if (doneTerms.length === 0) return [];
+  return [
+    "",
+    "RESUME — these IT terms were ALREADY extracted in a previous pass; do NOT repeat any of them:",
+    doneTerms.map((t) => `- ${t}`).join("\n"),
+    "Now CONTINUE: scan the text and output ONLY the IT terms that are NOT in the list above,",
+    "plus their related concepts. Same JSON shape and order (terms first). You may leave",
+    'summary and title as "" — they are already done. Do not re-extract listed terms.',
+  ];
+}
+
 export function buildTextPrompt(request: AgentAnalyzeRequest): string {
   // 글 분석은 호출 1번으로 title/summary/terms(설명)/concepts(설명)를 한 방에 생성한다.
   return [
@@ -79,6 +95,7 @@ export function buildTextPrompt(request: AgentAnalyzeRequest): string {
     "- Every term.id and every concept.conceptId must be UNIQUE across the whole response.",
     "- All explanations in beginner-friendly Korean, plain declarative '~다' tone, about 2 sentences, helpful but never padded.",
     "- Only include a PARTIAL_PARSE warning if the input was actually truncated; otherwise return an empty warnings array.",
+    ...resumeDirectives(request),
     ...textTail(request),
   ].join("\n");
 }
@@ -204,6 +221,72 @@ function scanBalancedObject(body: string, start: number): { text: string; end: n
     }
   }
   return null; // 안 닫힘
+}
+
+// 이어서 분석 결과 병합: 이전 부분 결과(prev) + 이번에 새로 받은 것(next).
+// terms는 term 텍스트로 중복 제거(이전 것 우선·순서 유지), concepts는 next의 id를
+// 프리픽스해 prev와 충돌 방지(+ next.terms.conceptIds도 같이 갱신), title 중복은 drop.
+// summary/title은 prev에 있으면 prev 우선(이어서는 새로 안 만듦). usage 합산.
+export function mergeTextResults(
+  prev: AgentAnalyzeResponse,
+  next: AgentAnalyzeResponse,
+): AgentAnalyzeResponse {
+  const prevTermTexts = new Set((prev.terms ?? []).map((t) => t.term));
+  const prevTitleToId = new Map((prev.itConcepts ?? []).map((c) => [c.title, c.conceptId]));
+  // 이미 쓰인 conceptId 전체 — 새 id가 이것과 안 겹치게(다중 resume 포함).
+  const usedIds = new Set((prev.itConcepts ?? []).map((c) => c.conceptId));
+
+  // next의 conceptId를 안전한 새 id로 재매핑. title이 prev에 이미 있으면 그 개념은
+  // 버리되 참조를 prev의 기존 id로 redirect(끊긴 링크 방지). 아니면 충돌 없는 새 id 부여.
+  const remap = new Map<string, string>();
+  const newConcepts: ItConcept[] = [];
+  for (const c of next.itConcepts ?? []) {
+    const existing = prevTitleToId.get(c.title);
+    if (existing != null) {
+      remap.set(c.conceptId, existing); // 같은 개념 → 기존 것으로 연결
+      continue;
+    }
+    let nid = `r-${c.conceptId}`;
+    while (usedIds.has(nid)) nid = `_${nid}`; // 충돌 시 유니크해질 때까지(다중 resume 안전)
+    usedIds.add(nid);
+    remap.set(c.conceptId, nid);
+    newConcepts.push({ ...c, conceptId: nid });
+  }
+
+  const newTerms = (next.terms ?? [])
+    .filter((t) => !prevTermTexts.has(t.term)) // 이미 한 용어는 제외
+    .map((t) => ({
+      ...t,
+      conceptIds: (t.conceptIds ?? []).map((id) => remap.get(id) ?? id),
+    }));
+
+  // prev 요약이 실제 요약이면 그대로(이어서는 새로 안 만듦). sentinel/빈 거면 next로.
+  const prevSummary = prev.summary && prev.summary !== "요약을 생성하지 못했다." ? prev.summary : "";
+
+  return {
+    ...prev,
+    terms: [...(prev.terms ?? []), ...newTerms],
+    itConcepts: [...(prev.itConcepts ?? []), ...newConcepts],
+    summary: prevSummary || next.summary || "",
+    title: prev.title || next.title,
+    usage: sumTextUsage(prev.usage, next.usage),
+    warnings: [],
+    createdAt: prev.createdAt, // 같은 항목 갱신(클라 reset effect thrash 방지).
+  };
+}
+
+function sumTextUsage(a?: AgentUsage, b?: AgentUsage): AgentUsage | undefined {
+  if (!a && !b) return undefined;
+  const sum = (x?: number, y?: number) =>
+    x == null && y == null ? undefined : (x ?? 0) + (y ?? 0);
+  return {
+    inputTokens: sum(a?.inputTokens, b?.inputTokens),
+    outputTokens: sum(a?.outputTokens, b?.outputTokens),
+    estimatedCostUsd:
+      a?.estimatedCostUsd != null || b?.estimatedCostUsd != null
+        ? (a?.estimatedCostUsd ?? 0) + (b?.estimatedCostUsd ?? 0)
+        : undefined,
+  };
 }
 
 // 프로바이더 출력(rawText)을 글 모드 AgentAnalyzeResponse로 정규화한다.

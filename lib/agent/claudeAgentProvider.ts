@@ -6,7 +6,7 @@ import { delimiter, join } from "node:path";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
-import { buildTextPrompt, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
+import { buildTextPrompt, mergeTextResults, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
@@ -126,6 +126,9 @@ export const claudeAgentProvider: AgentProvider = {
       // onPartial로 흘린다. 그 외(코드/챗)는 기존 onProgress/fullProgress 그대로.
       let streamOnProgress = options?.onProgress;
       let fullProgress = isChat;
+      // 이어서 분석: 이전 부분 결과(resumeFrom)가 있으면 새 결과를 거기에 merge해서
+      // 흘린다(이전 용어 유지 + 새 용어 이어 붙음). prompt는 buildTextPrompt가 제외 목록 포함.
+      const prior = isText ? request.resumeFrom : undefined;
       if (isText && options?.onPartial) {
         const onPartial = options.onPartial;
         const startedAt = new Date().toISOString();
@@ -136,8 +139,9 @@ export const claudeAgentProvider: AgentProvider = {
           // 용어가 먼저 스트림되므로 첫 객체의 `}`가 일찍 나온다 → 객체가 닫힐 때만
           // 재파싱(매 델타 전체 재파싱 비용 완화). 요약/제목은 끝에 와도 최종 result가 보정.
           if (!full.includes("}")) return;
-          const partial = parseTextStreamPartial(full, "claude-agent", startedAt);
-          if (!partial) return;
+          const fresh = parseTextStreamPartial(full, "claude-agent", startedAt);
+          if (!fresh) return;
+          const partial = prior ? mergeTextResults(prior, fresh) : fresh;
           const t = partial.terms?.length ?? 0;
           const c = partial.itConcepts?.length ?? 0;
           const s = partial.summary.length;
@@ -168,7 +172,11 @@ export const claudeAgentProvider: AgentProvider = {
           : isExplainToken
             ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
             : isText
-              ? normalizeTextOutput(rawText, "claude-agent", request, usage)
+              ? (() => {
+                  const fresh = normalizeTextOutput(rawText, "claude-agent", request, usage);
+                  // 이어서면 이전 부분 결과와 합쳐 최종 반환(이전 용어/개념 보존 + 새 것 추가).
+                  return prior ? mergeTextResults(prior, fresh) : fresh;
+                })()
               : normalizeClaudeOutput(rawText, request, availability, prompt, usage);
     } catch (err) {
       // 사용자 취소는 일반 실패가 아니므로 route로 전파한다(499 처리).
