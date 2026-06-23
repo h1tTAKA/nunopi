@@ -92,8 +92,8 @@ export default function ItTermSection({
               aria-label={`${term.term} 용어`}
               className={`w-full p-4 text-left ${(term.bookmarkable && onBookmarkToggle) || onExclude ? "pr-12" : ""}`}
             >
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <code className="max-w-full break-all rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
                   {term.term}
                 </code>
                 {term.reading && (
