@@ -331,6 +331,9 @@ export default function LearningPanel({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHeaderCollMenu(false);
+    // 입력도 비운다 — 안 그러면 다른 항목 메뉴 열 때 이전 입력 텍스트가 남는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHeaderNewColl("");
   }, [currentHistoryId]);
 
   function handleBookmarkToggle(token: CodeToken) {
