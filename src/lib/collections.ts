@@ -4,6 +4,8 @@ export interface Collection {
   id: string;
   name: string;
   createdAt: string;
+  // 이 목록이 속한 분석 모드. 코드/글 목록을 분리한다. 레거시(없음)는 "code"로 취급.
+  mode?: "code" | "text";
 }
 
 const KEY = "nunopi:collections";

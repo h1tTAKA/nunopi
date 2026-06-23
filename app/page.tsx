@@ -176,10 +176,15 @@ export default function Home() {
     setCollections(loadCollections());
   }, []);
 
+  // 목록은 분석 모드별로 분리한다(코드/글). explain·chat 등은 code로 묶음.
+  const collectionMode: "code" | "text" = mode === "text" ? "text" : "code";
+  // 현재 모드 목록만 표시(레거시=mode 없음은 code로 취급).
+  const visibleCollections = collections.filter((c) => (c.mode ?? "code") === collectionMode);
+
   function handleCreateCollection(name: string): string {
     const id = crypto.randomUUID();
     setCollections((prev) => {
-      const next = [...prev, { id, name, createdAt: new Date().toISOString() }];
+      const next = [...prev, { id, name, createdAt: new Date().toISOString(), mode: collectionMode }];
       saveCollections(next);
       return next;
     });
@@ -290,6 +295,7 @@ export default function Home() {
     setExplainingConcepts([]);
     setChatMessages([]);
     setChatStreaming(null);
+    setActiveCollectionId(null); // 다른 모드 목록 필터가 남지 않게 해제.
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
@@ -826,7 +832,7 @@ export default function Home() {
             const entry = historyEntries.find(e => e.id === currentHistoryId);
             if (currentHistoryId && entry) handleUpdateHistory(currentHistoryId, { isPinned: !entry.isPinned });
           }}
-          collections={collections}
+          collections={visibleCollections}
           activeCollectionId={activeCollectionId}
           onSelectCollection={setActiveCollectionId}
           onCreateCollection={handleCreateCollection}
