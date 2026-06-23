@@ -751,6 +751,8 @@ export default function Home() {
 
   function handleDeleteHistory(id: string) {
     deleteFromHistory(id).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
+    // 지금 화면에 보고 있는 분석을 지웠으면 화면(입력+결과)도 비운다 — 안 그러면 삭제했는데 그대로 남음.
+    if (id === currentHistoryId) handleClearInput();
   }
 
   function handleClearHistory() {
