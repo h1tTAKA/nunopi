@@ -232,15 +232,26 @@ export function mergeTextResults(
   next: AgentAnalyzeResponse,
 ): AgentAnalyzeResponse {
   const prevTermTexts = new Set((prev.terms ?? []).map((t) => t.term));
-  const prevConceptTitles = new Set((prev.itConcepts ?? []).map((c) => c.title));
+  const prevTitleToId = new Map((prev.itConcepts ?? []).map((c) => [c.title, c.conceptId]));
+  // 이미 쓰인 conceptId 전체 — 새 id가 이것과 안 겹치게(다중 resume 포함).
+  const usedIds = new Set((prev.itConcepts ?? []).map((c) => c.conceptId));
 
-  // next의 conceptId를 프리픽스해 prev와 절대 안 겹치게(모델이 같은 id 재사용해도 안전).
+  // next의 conceptId를 안전한 새 id로 재매핑. title이 prev에 이미 있으면 그 개념은
+  // 버리되 참조를 prev의 기존 id로 redirect(끊긴 링크 방지). 아니면 충돌 없는 새 id 부여.
   const remap = new Map<string, string>();
-  for (const c of next.itConcepts ?? []) remap.set(c.conceptId, `r-${c.conceptId}`);
-
-  const newConcepts = (next.itConcepts ?? [])
-    .filter((c) => !prevConceptTitles.has(c.title)) // 같은 개념 또 나오면 이전 것 유지
-    .map((c) => ({ ...c, conceptId: remap.get(c.conceptId) ?? c.conceptId }));
+  const newConcepts: ItConcept[] = [];
+  for (const c of next.itConcepts ?? []) {
+    const existing = prevTitleToId.get(c.title);
+    if (existing != null) {
+      remap.set(c.conceptId, existing); // 같은 개념 → 기존 것으로 연결
+      continue;
+    }
+    let nid = `r-${c.conceptId}`;
+    while (usedIds.has(nid)) nid = `_${nid}`; // 충돌 시 유니크해질 때까지(다중 resume 안전)
+    usedIds.add(nid);
+    remap.set(c.conceptId, nid);
+    newConcepts.push({ ...c, conceptId: nid });
+  }
 
   const newTerms = (next.terms ?? [])
     .filter((t) => !prevTermTexts.has(t.term)) // 이미 한 용어는 제외
@@ -249,13 +260,14 @@ export function mergeTextResults(
       conceptIds: (t.conceptIds ?? []).map((id) => remap.get(id) ?? id),
     }));
 
+  // prev 요약이 실제 요약이면 그대로(이어서는 새로 안 만듦). sentinel/빈 거면 next로.
   const prevSummary = prev.summary && prev.summary !== "요약을 생성하지 못했다." ? prev.summary : "";
 
   return {
     ...prev,
     terms: [...(prev.terms ?? []), ...newTerms],
     itConcepts: [...(prev.itConcepts ?? []), ...newConcepts],
-    summary: prevSummary || next.summary || prev.summary,
+    summary: prevSummary || next.summary || "",
     title: prev.title || next.title,
     usage: sumTextUsage(prev.usage, next.usage),
     warnings: [],
