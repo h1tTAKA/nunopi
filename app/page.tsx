@@ -751,6 +751,7 @@ export default function Home() {
     setAnalysisResult(entry.result);
     setErrorMessage(null);
     setActiveTermId(null); // 복원 시 이전 용어 선택 해제(다른 결과의 stale id 방지).
+    setActiveCollectionId(null); // 다른 모드 항목 복원 시 이전 모드 목록 필터 해제.
     // 복원한 항목을 현재 결과로 지정 → 상단 제목/핀 헤더가 그 항목 기준으로 표시된다.
     setCurrentHistoryId(entry.id);
   }
