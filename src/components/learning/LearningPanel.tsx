@@ -221,6 +221,9 @@ export default function LearningPanel({
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
   const [headerTitle, setHeaderTitle] = useState(currentHistoryTitle ?? "");
+  // 제목 헤더의 "목록에 담기" 인라인 패널 열림 여부 + 새 목록 이름 입력.
+  const [headerCollMenu, setHeaderCollMenu] = useState(false);
+  const [headerNewColl, setHeaderNewColl] = useState("");
   const tokenBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -323,6 +326,16 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result?.createdAt]);
 
+  // 현재 항목이 바뀌면(복원/저장 등) 목록 메뉴를 닫는다 — createdAt 안 바뀌는 경로(첫 저장
+  // null→id)까지 커버. result.createdAt 효과의 다른 리셋엔 영향 안 주려 별도 effect로 분리.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHeaderCollMenu(false);
+    // 입력도 비운다 — 안 그러면 다른 항목 메뉴 열 때 이전 입력 텍스트가 남는다.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHeaderNewColl("");
+  }, [currentHistoryId]);
+
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
     // Compute isAdding synchronously before queueing updater
@@ -424,7 +437,21 @@ export default function LearningPanel({
     onSetCurrentTitle?.(headerTitle);
   }
 
+  // 헤더 목록 패널: 새 목록 만들어 현재 분석을 거기에 담는다(AnalysisHistory와 동일).
+  function submitHeaderCreateCollection() {
+    const name = headerNewColl.trim();
+    if (!name || !currentHistoryId) return;
+    const id = onCreateCollection?.(name);
+    setHeaderNewColl("");
+    if (id) onToggleEntryCollection?.(currentHistoryId, id);
+  }
+
+  const currentEntry = currentHistoryId
+    ? historyEntries.find((e) => e.id === currentHistoryId)
+    : undefined;
+
   const entryHeader = currentHistoryId ? (
+    <div className="min-w-0">
     <div className="flex items-center gap-2 min-w-0">
       {/* 고정 버튼: 비핀 상태에서는 outline ☆, 핀 상태에서는 filled ★ amber */}
       <button
@@ -465,6 +492,78 @@ export default function LearningPanel({
           {currentHistoryTitle || "제목 없음"}
         </button>
       )}
+      {/* 목록에 담기 */}
+      {onToggleEntryCollection && (
+        <button
+          type="button"
+          onClick={() => setHeaderCollMenu((v) => !v)}
+          className={`shrink-0 rounded-lg px-1.5 py-1 text-xs transition ${
+            headerCollMenu || (currentEntry?.collectionIds?.length ?? 0) > 0
+              ? "bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+              : "text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+          }`}
+          title="목록에 담기"
+          aria-label="이 분석을 목록에 담기"
+        >
+          📁
+        </button>
+      )}
+      {/* 현재 분석 삭제 */}
+      {onDeleteHistory && (
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("이 분석을 삭제할까? 되돌릴 수 없다.")) onDeleteHistory(currentHistoryId);
+          }}
+          className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+          title="이 분석 삭제"
+          aria-label="이 분석 삭제"
+        >
+          🗑
+        </button>
+      )}
+    </div>
+    {/* 목록 멤버십 인라인 패널 (AnalysisHistory와 동일 패턴) */}
+    {headerCollMenu && onToggleEntryCollection && (
+      <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-950">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">목록에 담기</p>
+        {(collections?.length ?? 0) === 0 && (
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">아직 목록이 없다. 학습관리 탭에서 만들 수 있다.</p>
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {(collections ?? []).map((c) => {
+            const inIt = (currentEntry?.collectionIds ?? []).includes(c.id);
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onToggleEntryCollection(currentHistoryId, c.id)}
+                className={`rounded-lg px-2 py-0.5 text-xs transition ${
+                  inIt
+                    ? "bg-blue-500 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                }`}
+              >
+                {inIt ? "✓ " : ""}{c.name}
+              </button>
+            );
+          })}
+        </div>
+        {onCreateCollection && (
+          <input
+            type="text"
+            value={headerNewColl}
+            onChange={(e) => setHeaderNewColl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitHeaderCreateCollection(); }
+              if (e.key === "Escape") { setHeaderNewColl(""); setHeaderCollMenu(false); }
+            }}
+            placeholder="새 목록 만들어 담기 (Enter)"
+            className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          />
+        )}
+      </div>
+    )}
     </div>
   ) : null;
 
