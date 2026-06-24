@@ -91,7 +91,7 @@ export default function ProviderToolbar({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          className="rounded-xl bg-zinc-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-600 dark:bg-zinc-600 dark:hover:bg-zinc-500"
         >
           ■ 멈추기
         </button>
@@ -102,7 +102,7 @@ export default function ProviderToolbar({
             onClick={() => {
               void onAnalyze();
             }}
-            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="rounded-xl bg-[#3B34E2] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#322bc9]"
           >
             분석 요청하기
           </button>
