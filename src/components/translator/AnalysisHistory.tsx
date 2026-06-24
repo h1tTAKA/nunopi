@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconFolder } from "@tabler/icons-react";
+import { StarIcon } from "@/components/learning/icons";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
 
@@ -211,7 +212,7 @@ export default function AnalysisHistory({
               ref={menuEntryId === entry.id ? menuRef : undefined}
               className={`rounded-xl border px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900 ${
                 entry.isPinned
-                  ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/20"
+                  ? "border-lime-600 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
                   : "border-zinc-200 bg-zinc-50"
               }`}
             >
@@ -221,15 +222,15 @@ export default function AnalysisHistory({
                   <button
                     type="button"
                     onClick={() => onUpdate(entry.id, { isPinned: !entry.isPinned })}
-                    className={`shrink-0 text-sm leading-none transition ${
+                    className={`shrink-0 leading-none transition ${
                       entry.isPinned
-                        ? "text-amber-500 dark:text-amber-400"
-                        : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                        ? "text-lime-600 dark:text-lime-400"
+                        : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
                     }`}
                     title={entry.isPinned ? "고정 해제" : "고정하기"}
                     aria-label={entry.isPinned ? "고정 해제" : "고정하기"}
                   >
-                    {entry.isPinned ? "★" : "☆"}
+                    <StarIcon filled={entry.isPinned} className="h-4 w-4" />
                   </button>
                 )}
 

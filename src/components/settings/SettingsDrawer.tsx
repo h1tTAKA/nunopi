@@ -101,7 +101,7 @@ export default function SettingsDrawer({
         className="fixed inset-0 z-40 bg-black/30 dark:bg-black/50"
         onClick={onClose}
       />
-      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-zinc-950">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[#111219]">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             Provider 설정

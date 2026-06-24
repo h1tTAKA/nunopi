@@ -143,7 +143,7 @@ export default function LineExplanationList({
             data-nunopi-line={item.line}
             className={`scroll-mt-4 rounded-2xl border p-4 transition-colors ${
               isActive
-                ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                ? "border-blue-500 bg-blue-100 dark:border-blue-500 dark:bg-blue-950/30"
                 : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >

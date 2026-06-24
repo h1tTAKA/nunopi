@@ -48,9 +48,9 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
             id={`concept-${concept.conceptId}`}
             className={`relative scroll-mt-4 rounded-2xl border transition ${
               isBookmarked
-                ? "border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/20"
+                ? "border-lime-600 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
                 : isActive
-                  ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                  ? "border-blue-500 bg-blue-100 dark:border-blue-500 dark:bg-blue-950/30"
                   : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             }`}
           >
@@ -62,8 +62,8 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
                     onClick={() => onBookmarkToggle(concept)}
                     className={`transition ${
                       isBookmarked
-                        ? "text-amber-500 dark:text-amber-400"
-                        : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                        ? "text-lime-600 dark:text-lime-400"
+                        : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
                     }`}
                     title={isBookmarked ? "북마크 해제" : "북마크"}
                     aria-label={isBookmarked ? `${concept.title} 북마크 해제` : `${concept.title} 북마크 추가`}

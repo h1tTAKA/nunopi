@@ -55,16 +55,26 @@ function disableDiagnostics(monaco: Monaco) {
   monaco.languages?.typescript?.javascriptDefaults?.setDiagnosticsOptions(options);
 }
 
-// 라이트 모드 코드 surface를 순백 대신 따뜻한 베이지로(Claude 데스크톱 결).
-// vs 내장 light 테마 기반, 배경/거터만 캔버스(zinc-50 #F2F0E8)와 맞춤.
-function defineLightTheme(monaco: Monaco) {
+// 코드 편집면을 글 분석 패널(textarea)과 같은 색으로 통일.
+// 라이트=쿨 라이트 그레이 #F1F2F4, 다크=ink-800 #1A1B26(패널 #111219서 살짝 들린 입력면).
+function defineThemes(monaco: Monaco) {
   monaco.editor.defineTheme("nunopi-light", {
     base: "vs",
     inherit: true,
     rules: [],
     colors: {
-      "editor.background": "#F2F0E8",
-      "editorGutter.background": "#F2F0E8",
+      "editor.background": "#F1F2F4",
+      "editorGutter.background": "#F1F2F4",
+      "editor.lineHighlightBorder": "#00000000",
+    },
+  });
+  monaco.editor.defineTheme("nunopi-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#1A1B26",
+      "editorGutter.background": "#1A1B26",
       "editor.lineHighlightBorder": "#00000000",
     },
   });
@@ -72,12 +82,12 @@ function defineLightTheme(monaco: Monaco) {
 
 function beforeMount(monaco: Monaco) {
   disableDiagnostics(monaco);
-  defineLightTheme(monaco);
+  defineThemes(monaco);
 }
 
 function EditorFallback() {
   return (
-    <div className="flex min-h-[320px] w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-500">
+    <div className="flex min-h-[320px] w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-400 dark:border-zinc-800 dark:bg-[#111219] dark:text-zinc-500">
       에디터 로딩 중…
     </div>
   );
@@ -197,7 +207,7 @@ export default function CodeEditor({
         onChange={(v) => onChange(v ?? "")}
         beforeMount={beforeMount}
         onMount={handleMount}
-        theme={isDark ? "vs-dark" : "nunopi-light"}
+        theme={isDark ? "nunopi-dark" : "nunopi-light"}
         options={{
           readOnly,
           fontSize: 13,

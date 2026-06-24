@@ -57,7 +57,7 @@ export default function ItConceptSection({
             id={`it-concept-${concept.conceptId}`}
             className={`scroll-mt-4 rounded-2xl border p-4 transition ${
               isActive
-                ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                ? "border-blue-500 bg-blue-100 dark:border-blue-500 dark:bg-blue-950/30"
                 : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
@@ -69,8 +69,8 @@ export default function ItConceptSection({
                   onClick={() => onBookmarkToggle(concept)}
                   className={`shrink-0 transition ${
                     bookmarkedTitles.includes(concept.title)
-                      ? "text-amber-500 dark:text-amber-400"
-                      : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                      ? "text-lime-600 dark:text-lime-400"
+                      : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
                   }`}
                   title={bookmarkedTitles.includes(concept.title) ? "북마크 해제" : "IT 용어 사전에 북마크"}
                   aria-label={
