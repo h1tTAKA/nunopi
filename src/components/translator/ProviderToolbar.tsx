@@ -102,7 +102,7 @@ export default function ProviderToolbar({
             onClick={() => {
               void onAnalyze();
             }}
-            className="rounded-xl bg-[#c6fb2a] px-4 py-2 text-sm font-semibold text-[#15172e] transition hover:opacity-90"
+            className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
           >
             분석 요청하기
           </button>
