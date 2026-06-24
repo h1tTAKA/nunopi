@@ -65,7 +65,7 @@ samp {
 
 /* 학습패널 ↔ 에디터 줄 링크: 활성 코드 줄 하이라이트 (Monaco decoration className) */
 .nunopi-active-line {
-  background: rgba(46, 125, 246, 0.14);
+  background: rgba(46, 125, 246, 0.22);
 }
 .dark .nunopi-active-line {
   background: rgba(46, 125, 246, 0.22);

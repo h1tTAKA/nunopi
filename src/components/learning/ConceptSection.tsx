@@ -50,7 +50,7 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
               isBookmarked
                 ? "border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/20"
                 : isActive
-                  ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+                  ? "border-blue-500 bg-blue-100 dark:border-blue-500 dark:bg-blue-950/30"
                   : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
             }`}
           >
