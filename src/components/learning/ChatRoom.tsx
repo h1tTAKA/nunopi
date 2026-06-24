@@ -65,7 +65,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
   }
 
   return (
-    <div className="flex h-full flex-col bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#111219]">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
         <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300"><IconMessageCircle size={15} stroke={2} aria-hidden /> 학습 챗</span>
         <span className="text-xs text-zinc-400 dark:text-zinc-500">궁금한 걸 물어보세요</span>
