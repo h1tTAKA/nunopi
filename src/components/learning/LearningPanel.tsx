@@ -30,6 +30,7 @@ import ConceptDictionary from "./ConceptDictionary";
 import ConceptSection from "./ConceptSection";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
+import ResizableBody from "./ResizableBody";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
 import ItConceptSection from "./ItConceptSection";
@@ -37,7 +38,6 @@ import { dedupeConcepts, dedupeTokens } from "@/lib/agent/dedupe";
 import { formatResultAsHtml } from "@/lib/exportHtml";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 import { formatDuration } from "@/lib/formatDuration";
-import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
@@ -227,7 +227,6 @@ export default function LearningPanel({
   // 제목 헤더의 "목록에 담기" 인라인 패널 열림 여부 + 새 목록 이름 입력.
   const [headerCollMenu, setHeaderCollMenu] = useState(false);
   const [headerNewColl, setHeaderNewColl] = useState("");
-  const tokenBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!copied) return;
@@ -260,12 +259,6 @@ export default function LearningPanel({
     }
   }, [mode, activeTab]);
 
-  // 토큰 사전 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘긴다(줄별 박스와 동일).
-  useEffect(() => {
-    const el = tokenBoxRef.current;
-    if (!el) return;
-    return attachPanelWheelForward(el);
-  }, [result, activeTab]);
 
   async function handleCopyResult() {
     if (!result) return;
@@ -901,7 +894,7 @@ export default function LearningPanel({
                           </>
                         )}
                       </div>
-                      <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                      <ResizableBody id="it-terms" defaultHeight={360}>
                         <ItTermSection
                           key={result.createdAt}
                           terms={displayTerms}
@@ -911,7 +904,7 @@ export default function LearningPanel({
                           onBookmarkToggle={handleTermBookmarkToggle}
                           onExclude={(term) => onExclude?.("text", term.term)}
                         />
-                      </div>
+                      </ResizableBody>
                     </>
                   );
                 })()}
@@ -937,20 +930,22 @@ export default function LearningPanel({
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               줄별 설명
             </p>
-            <LineExplanationList
-              key={result.createdAt}
-              lineExplanations={anchoredLineExplanations}
-              tokens={safeTokens}
-              onTokenClick={handleTokenClick}
-              onTokenExplain={handleTokenTagExplain}
-              concepts={safeConcepts}
-              onConceptClick={handleConceptClick}
-              language={result.language}
-              activeLine={activeLine}
-              onLineFocus={onLineFocus}
-              isStreaming={isLoading}
-              chunkProgress={chunkProgress}
-            />
+            <ResizableBody id="lines" defaultHeight={440}>
+              <LineExplanationList
+                key={result.createdAt}
+                lineExplanations={anchoredLineExplanations}
+                tokens={safeTokens}
+                onTokenClick={handleTokenClick}
+                onTokenExplain={handleTokenTagExplain}
+                concepts={safeConcepts}
+                onConceptClick={handleConceptClick}
+                language={result.language}
+                activeLine={activeLine}
+                onLineFocus={onLineFocus}
+                isStreaming={isLoading}
+                chunkProgress={chunkProgress}
+              />
+            </ResizableBody>
           </section>
 
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
@@ -1002,7 +997,7 @@ export default function LearningPanel({
                       설명 불러오는 중: {explainingTokens.join(", ")}…
                     </p>
                   )}
-                  <div ref={tokenBoxRef} className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                  <ResizableBody id="tokens" defaultHeight={360}>
                     <TokenSection
                       key={result.createdAt}
                       tokens={displayTokens}
@@ -1014,7 +1009,7 @@ export default function LearningPanel({
                       onDelete={(token) => onDeleteToken?.(token.token)}
                       emptyHint="줄별 설명의 태그를 누르면 그 토큰 설명이 여기에 추가된다."
                     />
-                  </div>
+                  </ResizableBody>
                 </>
               );
             })()}
