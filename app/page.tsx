@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
+import ModeToggle from "@/components/layout/ModeToggle";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
@@ -797,13 +798,14 @@ export default function Home() {
     <>
       <AppShell
         onOpenSettings={() => setIsSettingsOpen(true)}
+        modeToggle={
+          <ModeToggle mode={mode} onModeChange={handleModeChange} disabled={isLoading} />
+        }
         toolbar={
           <ProviderToolbar
-            mode={mode}
             providerId={providerId}
             isLoading={isLoading}
             errorMessage={errorMessage}
-            onModeChange={handleModeChange}
             onProviderChange={handleProviderChange}
             onAnalyze={handleAnalyze}
             onCancel={handleCancel}
