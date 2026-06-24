@@ -15,22 +15,22 @@
   --font-mono: var(--font-mono);
 }
 
-/* Linear 결 색 적용 — 액센트(앱 전역의 blue)를 Linear 라벤더(#5e6ad2)로,
-   캔버스를 더 깊은 near-black(#010102)으로. 컴포넌트는 기존 blue/zinc 클래스를
-   그대로 쓰고 여기서 토큰만 재정의 → 레이아웃·클래스 변경 0, 색만 교체.
-   blue는 앱에서 액센트 전용이라 토큰 교체로 전역 액센트가 라벤더가 된다. */
+/* 브랜드 색 정렬 — 앱 전역 액센트(blue)를 로고 브랜드 블루(#2E7DF6)로, 캔버스는 깊은
+   near-black(#010102). 컴포넌트는 기존 blue/zinc 클래스 그대로 쓰고 여기서 토큰만 재정의
+   → 레이아웃·클래스 변경 0, 색만 교체. blue는 액센트 전용이라 전역 일괄 정렬된다.
+   (라임 #C6FB2A는 브랜드 단일 pop으로 분석 CTA 한 곳에만 — 토큰 아님.) */
 @theme {
-  --color-blue-50: #eef0fb;
-  --color-blue-100: #dfe2f7;
-  --color-blue-200: #c5cbf1;
-  --color-blue-300: #a3ace7;
-  --color-blue-400: #828fff; /* Linear hover */
-  --color-blue-500: #5e6ad2; /* Linear primary = 액센트 */
-  --color-blue-600: #4f59c0; /* active */
-  --color-blue-700: #424aa0;
-  --color-blue-900: #2a2e5e;
-  --color-blue-950: #1c1f44; /* 다크 하이라이트 배경 */
-  --color-zinc-950: #010102; /* 캔버스 더 깊은 near-black */
+  --color-blue-50: #eff5ff;
+  --color-blue-100: #d9e8fe;
+  --color-blue-200: #bdd6fd;
+  --color-blue-300: #93bbfd;
+  --color-blue-400: #5b9bfa; /* hover */
+  --color-blue-500: #2e7df6; /* 브랜드 블루 = 액센트 */
+  --color-blue-600: #1f63d6; /* active */
+  --color-blue-700: #1c4fa8;
+  --color-blue-900: #15306b;
+  --color-blue-950: #0f2147; /* 다크 하이라이트 배경 */
+  --color-zinc-950: #010102; /* 패널/캔버스 near-black(원래대로). 최외곽 배경만 네이비(AppShell) */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -55,10 +55,10 @@ samp {
 
 /* 학습패널 ↔ 에디터 줄 링크: 활성 코드 줄 하이라이트 (Monaco decoration className) */
 .nunopi-active-line {
-  background: rgba(94, 106, 210, 0.14);
+  background: rgba(46, 125, 246, 0.14);
 }
 .dark .nunopi-active-line {
-  background: rgba(94, 106, 210, 0.22);
+  background: rgba(46, 125, 246, 0.22);
 }
 
 /* 토큰 사전 호버/클릭 시 해당 코드 줄 강조 (Monaco decoration className) */
@@ -111,8 +111,8 @@ samp {
 .nunopi-md h3 { font-size: 0.9rem; }
 .nunopi-md ul, .nunopi-md ol { margin: 0.4em 0; padding-left: 1.25em; }
 .nunopi-md li { margin: 0.15em 0; }
-.nunopi-md a { color: #4f59c0; text-decoration: underline; }
-.dark .nunopi-md a { color: #828fff; }
+.nunopi-md a { color: #1f63d6; text-decoration: underline; }
+.dark .nunopi-md a { color: #5b9bfa; }
 .nunopi-md code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: rgba(0,0,0,0.06); padding: 0.1em 0.35em; border-radius: 0.35em; }
 .dark .nunopi-md code { background: rgba(255,255,255,0.1); }
 .nunopi-md pre { margin: 0.5em 0; padding: 0.7em 0.85em; border-radius: 0.6em; overflow-x: auto; background: #f4f4f5; border: 1px solid #e4e4e7; }
