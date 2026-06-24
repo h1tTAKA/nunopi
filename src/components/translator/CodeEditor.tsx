@@ -56,15 +56,15 @@ function disableDiagnostics(monaco: Monaco) {
 }
 
 // 코드 편집면을 글 분석 패널(textarea)과 같은 색으로 통일.
-// 라이트=쿨 라이트 그레이 #F1F2F4, 다크=ink-800 #1A1B26(패널 #111219서 살짝 들린 입력면).
+// 라이트=밝은 베이지 #F2F0E8(흰 wrapper 위에서 따뜻하게 떠 보임), 다크=ink-800 #1A1B26.
 function defineThemes(monaco: Monaco) {
   monaco.editor.defineTheme("nunopi-light", {
     base: "vs",
     inherit: true,
     rules: [],
     colors: {
-      "editor.background": "#F1F2F4",
-      "editorGutter.background": "#F1F2F4",
+      "editor.background": "#F2F0E8",
+      "editorGutter.background": "#F2F0E8",
       "editor.lineHighlightBorder": "#00000000",
     },
   });

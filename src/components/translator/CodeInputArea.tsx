@@ -52,7 +52,7 @@ export default function CodeInputArea({
   onClear,
 }: CodeInputAreaProps) {
   return (
-    <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-[#111219]">
+    <div className="flex h-full flex-col gap-2 bg-white p-4 dark:bg-[#111219]">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           코드 입력
