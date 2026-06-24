@@ -130,16 +130,16 @@ samp {
 .dark .nunopi-md a { color: #5b9bfa; }
 .nunopi-md code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: rgba(0,0,0,0.06); padding: 0.1em 0.35em; border-radius: 0.35em; }
 .dark .nunopi-md code { background: rgba(255,255,255,0.1); }
-.nunopi-md pre { margin: 0.5em 0; padding: 0.7em 0.85em; border-radius: 0.6em; overflow-x: auto; background: #f4f4f5; border: 1px solid #e4e4e7; }
+.nunopi-md pre { margin: 0.5em 0; padding: 0.7em 0.85em; border-radius: 0.6em; overflow-x: auto; background: #ffffff; border: 1px solid #d4d4d8; }
 .dark .nunopi-md pre { background: #18181b; border-color: #3f3f46; }
 .nunopi-md pre code { background: transparent; padding: 0; font-size: 0.9em; }
 .nunopi-md blockquote { margin: 0.5em 0; padding-left: 0.75em; border-left: 3px solid #d4d4d8; color: #52525b; }
 .dark .nunopi-md blockquote { border-left-color: #52525b; color: #a1a1aa; }
-.nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #e4e4e7; }
-.dark .nunopi-md hr { border-top-color: #3f3f46; }
+.nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #d4d4d8; }
+.dark .nunopi-md hr { border-top-color: #52525b; }
 /* 표 — 말풍선보다 넓으면 가로 스크롤 */
 .nunopi-md table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 0.5em 0; font-size: 0.92em; }
-.nunopi-md th, .nunopi-md td { border: 1px solid #e4e4e7; padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
-.dark .nunopi-md th, .dark .nunopi-md td { border-color: #3f3f46; }
-.nunopi-md th { background: #f4f4f5; font-weight: 600; }
-.dark .nunopi-md th { background: #27272a; }
+.nunopi-md th, .nunopi-md td { border: 1px solid #d4d4d8; padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
+.dark .nunopi-md th, .dark .nunopi-md td { border-color: #52525b; }
+.nunopi-md th { background: #e4e4e7; font-weight: 600; }
+.dark .nunopi-md th { background: #3f3f46; }
