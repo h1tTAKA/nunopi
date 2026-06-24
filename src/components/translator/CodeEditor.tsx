@@ -55,16 +55,16 @@ function disableDiagnostics(monaco: Monaco) {
   monaco.languages?.typescript?.javascriptDefaults?.setDiagnosticsOptions(options);
 }
 
-// 라이트 모드 코드 surface를 순백 대신 따뜻한 베이지로(Claude 데스크톱 결).
-// vs 내장 light 테마 기반, 배경/거터만 캔버스(zinc-50 #F2F0E8)와 맞춤.
+// 라이트 모드 코드 surface를 순백 대신 쿨 라이트 그레이(회색계통)로 — 흰 패널과 구분.
+// vs 내장 light 테마 기반, 배경/거터만 회색으로 맞춤.
 function defineLightTheme(monaco: Monaco) {
   monaco.editor.defineTheme("nunopi-light", {
     base: "vs",
     inherit: true,
     rules: [],
     colors: {
-      "editor.background": "#F2F0E8",
-      "editorGutter.background": "#F2F0E8",
+      "editor.background": "#F1F2F4",
+      "editorGutter.background": "#F1F2F4",
       "editor.lineHighlightBorder": "#00000000",
     },
   });

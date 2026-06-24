@@ -35,12 +35,12 @@
   --color-blue-950: #0f2147; /* 다크 하이라이트 배경 */
   --color-zinc-950: #010102; /* 다크 패널 near-black(원래대로). 다크 외곽/헤더는 ink #111219(AppShell/Header 인라인) */
 
-  /* 라이트 웜톤 — 순백이 너무 밝아 가독성↓ → PDF 결의 따뜻한 off-white/베이지로.
-     패널(white)이 캔버스(zinc-50)보다 밝아 위로 떠 보인다. 코드입력패널(zinc-50)=베이지. */
-  --color-white: #faf9f5; /* 패널/카드/헤더 — warm off-white */
-  --color-zinc-50: #f2f0e8; /* 캔버스/외곽 + 코드·글 입력패널 + 작은 input — 베이지 */
-  --color-zinc-100: #eae7dd; /* 칩/토글 트랙/hover fill */
-  --color-zinc-200: #e0dcd2; /* 라이트 보더 */
+  /* 라이트 — 베이지(웜)는 로고 쿨 팔레트와 안 맞아 폐기. 흰색 + 쿨 그레이 기본으로.
+     패널/헤더/외곽=흰색, 코드 surface만 회색계통(Monaco nunopi-light). */
+  --color-white: #ffffff; /* 패널/카드/헤더/외곽 — 순백 */
+  --color-zinc-50: #fafafa; /* 작은 input/칩 배경 — 쿨 near-white */
+  --color-zinc-100: #f4f4f5; /* 토글 트랙/hover fill */
+  --color-zinc-200: #e4e4e7; /* 라이트 보더 */
 }
 
 @media (prefers-color-scheme: dark) {
