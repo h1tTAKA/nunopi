@@ -9,6 +9,8 @@ interface SettingsDrawerProps {
   onSave: (next: ProviderSettings) => void;
   excludedTerms?: string[];
   onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
+  theme: "light" | "dark";
+  onThemeChange: (next: "light" | "dark") => void;
 }
 
 // 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
@@ -60,6 +62,8 @@ export default function SettingsDrawer({
   onSave,
   excludedTerms = [],
   onRemoveExclusion,
+  theme,
+  onThemeChange,
 }: SettingsDrawerProps) {
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
@@ -118,6 +122,43 @@ export default function SettingsDrawer({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              화면
+            </h3>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">테마</span>
+              <div
+                role="radiogroup"
+                aria-label="테마"
+                className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
+              >
+                {([
+                  { value: "light", label: "라이트" },
+                  { value: "dark", label: "다크" },
+                ] as const).map((opt) => {
+                  const selected = theme === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => onThemeChange(opt.value)}
+                      className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                        selected
+                          ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                          : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
           <section className="space-y-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               OpenAI-Compatible

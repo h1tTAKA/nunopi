@@ -91,6 +91,22 @@ export default function Home() {
     useState<AgentAnalyzeResponse | null>(null);
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 테마(라이트/다크) — 설정 드로어에서 토글. html.dark 클래스를 직접 토글하므로
+  // Monaco/Shiki의 MutationObserver가 즉시 반응한다. (prepaint는 layout.tsx 스크립트가 처리.)
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    const stored = localStorage.getItem("nunopi:theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = stored ? stored === "dark" : prefersDark;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(isDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+  function changeTheme(next: "light" | "dark") {
+    setTheme(next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+    try { localStorage.setItem("nunopi:theme", next); } catch {}
+  }
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
@@ -780,6 +796,7 @@ export default function Home() {
   return (
     <>
       <AppShell
+        onOpenSettings={() => setIsSettingsOpen(true)}
         toolbar={
           <ProviderToolbar
             mode={mode}
@@ -790,7 +807,6 @@ export default function Home() {
             onProviderChange={handleProviderChange}
             onAnalyze={handleAnalyze}
             onCancel={handleCancel}
-            onSettingsOpen={() => setIsSettingsOpen(true)}
             resumable={resumable && analysisResult != null}
             onResume={handleResume}
           />
@@ -896,6 +912,8 @@ export default function Home() {
         onSave={handleSettingsSave}
         excludedTerms={excludedTerms}
         onRemoveExclusion={handleRemoveExclusion}
+        theme={theme}
+        onThemeChange={changeTheme}
       />
     </>
   );

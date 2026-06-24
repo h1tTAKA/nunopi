@@ -1,4 +1,3 @@
-import { IconSettings } from "@tabler/icons-react";
 import type { AgentProviderKind, AgentProviderMetadata, AnalyzeMode } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 
@@ -11,7 +10,6 @@ interface ProviderToolbarProps {
   onProviderChange: (providerId: AgentProviderKind) => void;
   onAnalyze: () => void | Promise<void>;
   onCancel: () => void;
-  onSettingsOpen: () => void;
   // 멈춰서 부분 결과만 있는 상태 → "이어서 분석" 노출.
   resumable?: boolean;
   onResume?: () => void;
@@ -31,7 +29,6 @@ export default function ProviderToolbar({
   onProviderChange,
   onAnalyze,
   onCancel,
-  onSettingsOpen,
   resumable = false,
   onResume,
 }: ProviderToolbarProps) {
@@ -118,16 +115,6 @@ export default function ProviderToolbar({
           ) : null}
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={onSettingsOpen}
-        className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-        title="Provider 설정"
-        aria-label="Provider 설정 열기"
-      >
-        <IconSettings size={18} stroke={2} aria-hidden />
-      </button>
 
       {providerMeta ? <ProviderDataBadge providerMeta={providerMeta} /> : null}
 

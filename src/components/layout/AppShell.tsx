@@ -7,6 +7,8 @@ interface AppShellProps {
   toolbar: React.ReactNode;
   editor: React.ReactNode;
   learningPanel: React.ReactNode;
+  modeToggle?: React.ReactNode;
+  onOpenSettings: () => void;
 }
 
 const SPLIT_STORAGE_KEY = "nunopi:split-left-pct";
@@ -18,7 +20,7 @@ function clampPct(value: number): number {
   return Math.min(MAX_LEFT_PCT, Math.max(MIN_LEFT_PCT, value));
 }
 
-export default function AppShell({ toolbar, editor, learningPanel }: AppShellProps) {
+export default function AppShell({ toolbar, editor, learningPanel, modeToggle, onOpenSettings }: AppShellProps) {
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
   // 최신 leftPct를 항상 보유 — pointerup 시 클로저 stale 없이 영속화하기 위함.
@@ -95,7 +97,7 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
 
   return (
     <div className="flex min-h-screen flex-col bg-white md:h-screen md:min-h-0 dark:bg-[#111219]">
-      <Header />
+      <Header modeToggle={modeToggle} onOpenSettings={onOpenSettings} />
 
       <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#111219]">
         <div className="mx-auto w-full max-w-7xl px-6 py-3">{toolbar}</div>
