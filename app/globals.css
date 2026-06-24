@@ -30,7 +30,7 @@
   --color-blue-700: #1c4fa8;
   --color-blue-900: #15306b;
   --color-blue-950: #0f2147; /* 다크 하이라이트 배경 */
-  --color-zinc-950: #010102; /* 캔버스 더 깊은 near-black */
+  --color-zinc-950: #010102; /* 패널/캔버스 near-black(원래대로). 최외곽 배경만 네이비(AppShell) */
 }
 
 @media (prefers-color-scheme: dark) {
