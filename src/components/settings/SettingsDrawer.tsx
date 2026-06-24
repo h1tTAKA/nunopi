@@ -134,8 +134,8 @@ export default function SettingsDrawer({
                 className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
               >
                 {([
-                  { value: "light", label: "라이트" },
                   { value: "dark", label: "다크" },
+                  { value: "light", label: "라이트" },
                 ] as const).map((opt) => {
                   const selected = theme === opt.value;
                   return (
