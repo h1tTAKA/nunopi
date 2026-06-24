@@ -9,7 +9,6 @@ import CodeInputArea, { type LanguageChoice } from "@/components/translator/Code
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
 import ChatRoom from "@/components/learning/ChatRoom";
-import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -801,18 +800,6 @@ export default function Home() {
         modeToggle={
           <ModeToggle mode={mode} onModeChange={handleModeChange} disabled={isLoading} />
         }
-        toolbar={
-          <ProviderToolbar
-            providerId={providerId}
-            isLoading={isLoading}
-            errorMessage={errorMessage}
-            onProviderChange={handleProviderChange}
-            onAnalyze={handleAnalyze}
-            onCancel={handleCancel}
-            resumable={resumable && analysisResult != null}
-            onResume={handleResume}
-          />
-        }
         learningPanel={
         <LearningPanel
           providerId={providerId}
@@ -874,6 +861,13 @@ export default function Home() {
                   onClear={handleClearInput}
                   terms={analysisResult?.terms ?? []}
                   onTermClick={setActiveTermId}
+                  providerId={providerId}
+                  onProviderChange={handleProviderChange}
+                  onAnalyze={handleAnalyze}
+                  onCancel={handleCancel}
+                  resumable={resumable && analysisResult != null}
+                  onResume={handleResume}
+                  errorMessage={errorMessage}
                 />
               ) : (
                 <CodeInputArea
@@ -890,6 +884,13 @@ export default function Home() {
                   onToggleChat={() => setChatOpen((v) => !v)}
                   locked={analysisResult != null}
                   onClear={handleClearInput}
+                  providerId={providerId}
+                  onProviderChange={handleProviderChange}
+                  onAnalyze={handleAnalyze}
+                  onCancel={handleCancel}
+                  resumable={resumable && analysisResult != null}
+                  onResume={handleResume}
+                  errorMessage={errorMessage}
                 />
               )
             }
