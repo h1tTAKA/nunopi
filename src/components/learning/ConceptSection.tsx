@@ -13,6 +13,8 @@ const LEVEL_LABEL: Record<"beginner" | "intermediate", string> = {
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
   activeConceptId?: string | null;
+  // 설명을 펼친 conceptId들 — active(테두리 하이라이트)와 독립.
+  expandedConceptIds?: string[];
   onConceptClick?: (conceptId: string) => void;
   // on-demand 설명을 불러오는 중인 conceptId들(lazy 개념 설명).
   explainingConcepts?: string[];
@@ -21,7 +23,7 @@ interface ConceptSectionProps {
   onDelete?: (conceptId: string) => void;
 }
 
-export default function ConceptSection({ concepts, activeConceptId, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
+export default function ConceptSection({ concepts, activeConceptId, expandedConceptIds, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
   useEffect(() => {
     if (!activeConceptId) return;
     const el = document.getElementById(`concept-${activeConceptId}`);
@@ -124,7 +126,7 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
               )}
             </button>
             <div className="px-4 pb-4 pt-2">
-              {isActive && (() => {
+              {(expandedConceptIds?.includes(concept.conceptId) ?? false) && (() => {
                 const desc = concept.description ?? CONCEPT_DESCRIPTIONS[concept.conceptId]?.short;
                 if (desc) {
                   return (
