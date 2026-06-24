@@ -6,7 +6,7 @@ import type { AgentProviderMetadata } from "./types";
 export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   {
     id: "claude-agent",
-    label: "Claude Agent",
+    label: "Claude Code",
     description:
       "Provider scaffold for Claude Agent SDK or Claude Code based analysis in the user's local environment.",
     executionLocation: "local-server",
@@ -22,7 +22,7 @@ export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   },
   {
     id: "codex-agent",
-    label: "Codex Agent",
+    label: "Codex",
     description:
       "Provider scaffold for OpenAI Codex CLI or app-server based analysis in the user's local environment.",
     executionLocation: "local-server",
@@ -38,7 +38,7 @@ export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   },
   {
     id: "openai-compatible",
-    label: "OpenAI-Compatible",
+    label: "Open Code",
     description:
       "Provider scaffold for OpenAI-style local or remote LLM endpoints such as Ollama gateways, vLLM, LiteLLM, or Hermes servers.",
     executionLocation: "local-server",

@@ -779,12 +779,12 @@ export default function LearningPanel({
       {result ? (
         <div className="space-y-4">
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
                   {result.mode === "text" ? "글" : result.language}
                 </span>
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                <p className="whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-zinc-50">
                   요약
                 </p>
               </div>

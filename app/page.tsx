@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "@/components/layout/AppShell";
+import ModeToggle from "@/components/layout/ModeToggle";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
 import ChatRoom from "@/components/learning/ChatRoom";
-import ProviderToolbar from "@/components/translator/ProviderToolbar";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -91,6 +91,22 @@ export default function Home() {
     useState<AgentAnalyzeResponse | null>(null);
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 테마(라이트/다크) — 설정 드로어에서 토글. html.dark 클래스를 직접 토글하므로
+  // Monaco/Shiki의 MutationObserver가 즉시 반응한다. (prepaint는 layout.tsx 스크립트가 처리.)
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    const stored = localStorage.getItem("nunopi:theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const isDark = stored ? stored === "dark" : prefersDark;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTheme(isDark ? "dark" : "light");
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+  function changeTheme(next: "light" | "dark") {
+    setTheme(next);
+    document.documentElement.classList.toggle("dark", next === "dark");
+    try { localStorage.setItem("nunopi:theme", next); } catch {}
+  }
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [currentHistoryId, setCurrentHistoryId] = useState<string | null>(null);
   const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
@@ -128,7 +144,7 @@ export default function Home() {
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
-  const editorLanguage: SupportedLanguage = useMemo(() => {
+  const editorLanguage: string = useMemo(() => {
     if (languageChoice !== "auto") return languageChoice;
     const detected = detectLanguage(code).primary;
     return detected === "unknown" ? "typescript" : detected;
@@ -780,20 +796,9 @@ export default function Home() {
   return (
     <>
       <AppShell
-        toolbar={
-          <ProviderToolbar
-            mode={mode}
-            providerId={providerId}
-            isLoading={isLoading}
-            errorMessage={errorMessage}
-            onModeChange={handleModeChange}
-            onProviderChange={handleProviderChange}
-            onAnalyze={handleAnalyze}
-            onCancel={handleCancel}
-            onSettingsOpen={() => setIsSettingsOpen(true)}
-            resumable={resumable && analysisResult != null}
-            onResume={handleResume}
-          />
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        modeToggle={
+          <ModeToggle mode={mode} onModeChange={handleModeChange} disabled={isLoading} />
         }
         learningPanel={
         <LearningPanel
@@ -856,6 +861,13 @@ export default function Home() {
                   onClear={handleClearInput}
                   terms={analysisResult?.terms ?? []}
                   onTermClick={setActiveTermId}
+                  providerId={providerId}
+                  onProviderChange={handleProviderChange}
+                  onAnalyze={handleAnalyze}
+                  onCancel={handleCancel}
+                  resumable={resumable && analysisResult != null}
+                  onResume={handleResume}
+                  errorMessage={errorMessage}
                 />
               ) : (
                 <CodeInputArea
@@ -872,6 +884,13 @@ export default function Home() {
                   onToggleChat={() => setChatOpen((v) => !v)}
                   locked={analysisResult != null}
                   onClear={handleClearInput}
+                  providerId={providerId}
+                  onProviderChange={handleProviderChange}
+                  onAnalyze={handleAnalyze}
+                  onCancel={handleCancel}
+                  resumable={resumable && analysisResult != null}
+                  onResume={handleResume}
+                  errorMessage={errorMessage}
                 />
               )
             }
@@ -896,6 +915,8 @@ export default function Home() {
         onSave={handleSettingsSave}
         excludedTerms={excludedTerms}
         onRemoveExclusion={handleRemoveExclusion}
+        theme={theme}
+        onThemeChange={changeTheme}
       />
     </>
   );

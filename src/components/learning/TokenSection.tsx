@@ -121,11 +121,11 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
               className={`w-full px-4 pt-4 text-left ${token.bookmarkable || onDelete ? "pr-12" : ""}`}
               aria-label={`${token.token} 토큰 선택`}
             >
-              <div className="flex items-center gap-2">
-                <code className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <code className="max-w-full break-all rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
                   {token.token}
                 </code>
-                <span className="inline-flex items-center rounded-lg bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                   {CATEGORY_LABEL[token.category] ?? token.category}
                 </span>
               </div>

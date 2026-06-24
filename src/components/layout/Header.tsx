@@ -1,31 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { IconSettings } from "@tabler/icons-react";
 
-export default function Header() {
-  const [dark, setDark] = useState(false);
+interface HeaderProps {
+  // 헤더 정중앙 슬롯 — 코드/글 분석 모드 토글.
+  modeToggle?: React.ReactNode;
+  onOpenSettings: () => void;
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem("nunopi:theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = stored ? stored === "dark" : prefersDark;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
-
-  function toggleDark() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    try { localStorage.setItem("nunopi:theme", next ? "dark" : "light"); } catch {}
-  }
-
+export default function Header({ modeToggle, onOpenSettings }: HeaderProps) {
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-[#111219]/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-        {/* 브랜드 로고 lockup. 라이트=네이비 워드마크(투명 배경: white 파일의 흰 박스를
-            제거한 light 파일 — off-white 헤더에서 흰 네모가 안 보이게), 다크=흰 워드마크(transparent). */}
+    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-[#111219]/80">
+      <div className="relative container mx-auto flex h-14 items-center justify-between px-4">
+        {/* 브랜드 로고 lockup. 라이트=네이비 워드마크(투명), 다크=흰 워드마크(투명). */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/brand/nunopi-lockup-light.png"
@@ -38,14 +25,21 @@ export default function Header() {
           alt="Nunopi"
           className="hidden h-8 w-auto dark:block"
         />
+
+        {/* 정중앙 — 코드/글 분석 모드 토글 */}
+        {modeToggle ? (
+          <div className="absolute left-1/2 -translate-x-1/2">{modeToggle}</div>
+        ) : null}
+
+        {/* 우측 — provider 설정 */}
         <button
           type="button"
-          onClick={toggleDark}
-          className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          title={dark ? "라이트 모드" : "다크 모드"}
-          aria-label={dark ? "라이트 모드로 전환" : "다크 모드로 전환"}
+          onClick={onOpenSettings}
+          className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          title="설정"
+          aria-label="설정 열기"
         >
-          {dark ? "☀" : "☾"}
+          <IconSettings size={18} stroke={2} aria-hidden />
         </button>
       </div>
     </header>

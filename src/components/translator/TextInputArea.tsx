@@ -1,6 +1,8 @@
 import { IconLock, IconMessageCircle } from "@tabler/icons-react";
 import type { ItTerm } from "@/lib/translator/types";
+import type { AgentProviderKind } from "@/lib/agent";
 import { highlightTerms } from "@/lib/highlightTerms";
+import { ProviderSelect, AnalyzeButton, AnalyzeError } from "./AnalyzeControls";
 
 interface TextInputAreaProps {
   code: string; // 붙여넣은 글(분석 입력).
@@ -15,11 +17,19 @@ interface TextInputAreaProps {
   terms?: ItTerm[];
   // 글 안의 용어를 클릭하면 학습패널의 그 용어 카드로 스크롤(termId 전달).
   onTermClick?: (termId: string) => void;
+  // 분석 컨트롤 — 툴바 strip 해체로 입력 헤더에 들어옴.
+  providerId: AgentProviderKind;
+  onProviderChange: (id: AgentProviderKind) => void;
+  onAnalyze: () => void | Promise<void>;
+  onCancel: () => void;
+  resumable?: boolean;
+  onResume?: () => void;
+  errorMessage?: string | null;
 }
 
 // 글(IT 용어) 분석 모드 입력 — 산문을 붙여넣는 plain textarea.
 // (코드 모드의 Monaco 에디터는 산문 하이라이팅이 부적합해 별도 컴포넌트로 둔다.)
-export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen, onToggleChat, locked = false, onClear, terms, onTermClick }: TextInputAreaProps) {
+export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen, onToggleChat, locked = false, onClear, terms, onTermClick, providerId, onProviderChange, onAnalyze, onCancel, resumable = false, onResume, errorMessage = null }: TextInputAreaProps) {
   const charCount = code.trim().length;
   // 분석 완료(locked)면 textarea 대신 읽기 오버레이로 용어를 하이라이트한다.
   const showHighlighted = locked && (terms?.length ?? 0) > 0;
@@ -27,17 +37,26 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
 
   return (
     <div className="flex h-full flex-col gap-2 bg-white p-4 dark:bg-[#111219]">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          글 입력 (IT 용어가 가득한 글을 붙여넣어 보세요)
+      <div className="flex items-center justify-between gap-2">
+        <span className="shrink-0 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          글 입력
         </span>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">{charCount}자</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <ProviderSelect providerId={providerId} onProviderChange={onProviderChange} disabled={isLoading} />
+          <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{charCount}자</span>
+          <AnalyzeButton
+            isLoading={isLoading}
+            resumable={resumable}
+            locked={locked}
+            onAnalyze={onAnalyze}
+            onCancel={onCancel}
+            onResume={onResume}
+          />
           {locked && onClear && (
             <button
               type="button"
               onClick={onClear}
-              className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
               title="입력을 비우고 새 글을 분석"
             >
               <IconLock size={14} stroke={2} aria-hidden /> 클리어
@@ -47,7 +66,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
             <button
               type="button"
               onClick={onToggleChat}
-              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
+              className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-2 py-1 text-xs font-medium transition ${
                 chatOpen
                   ? "bg-lime-600 text-white"
                   : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
@@ -57,6 +76,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
               <IconMessageCircle size={14} stroke={2} aria-hidden /> 질문
             </button>
           )}
+          {errorMessage && <AnalyzeError message={errorMessage} onRetry={onAnalyze} />}
         </div>
       </div>
 
