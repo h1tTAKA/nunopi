@@ -124,7 +124,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
                 {m.content}
               </div>
             ) : (
-              <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+              <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                 <Markdown>{m.content}</Markdown>
               </div>
             )}
@@ -132,7 +132,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
         ))}
         {streaming != null && (
           <div className="flex justify-start">
-            <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+            <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
               {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">답변 작성 중…</span>}
             </div>
           </div>
