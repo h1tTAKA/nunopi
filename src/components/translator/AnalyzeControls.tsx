@@ -33,16 +33,22 @@ export function ProviderSelect({
   );
 }
 
-// 단일 버튼이 상태에 따라 교체: 분석중→멈추기(회색) / 중단·resumable→이어서하기 / else→분석요청하기.
+// 단일 버튼이 상태에 따라 교체:
+//  분석중→멈추기(회색) / 중단·resumable→이어서하기 / 완료(locked)→재분석 요청(경고 confirm) / else→분석요청하기.
+const REANALYZE_WARNING =
+  "재분석하시게 되면 현재 분석 내용이 사라지고 분석 내용이 달라질 수 있습니다. 재분석하시겠습니까?";
+
 export function AnalyzeButton({
   isLoading,
   resumable = false,
+  locked = false,
   onAnalyze,
   onCancel,
   onResume,
 }: {
   isLoading: boolean;
   resumable?: boolean;
+  locked?: boolean;
   onAnalyze: () => void | Promise<void>;
   onCancel: () => void;
   onResume?: () => void;
@@ -70,13 +76,28 @@ export function AnalyzeButton({
       </button>
     );
   }
+  // 이미 분석이 끝난 입력 → 재분석은 기존 결과를 덮어쓰므로 경고 confirm 후 진행.
+  if (locked) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (window.confirm(REANALYZE_WARNING)) void onAnalyze();
+        }}
+        title="현재 입력을 다시 분석(기존 결과는 사라짐)"
+        className="shrink-0 whitespace-nowrap rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
+      >
+        재분석 요청
+      </button>
+    );
+  }
   return (
     <button
       type="button"
       onClick={() => {
         void onAnalyze();
       }}
-      className="shrink-0 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
+      className="shrink-0 whitespace-nowrap rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
     >
       분석 요청하기
     </button>

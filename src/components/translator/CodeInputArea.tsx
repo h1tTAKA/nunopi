@@ -99,6 +99,7 @@ export default function CodeInputArea({
           <AnalyzeButton
             isLoading={isLoading}
             resumable={resumable}
+            locked={locked}
             onAnalyze={onAnalyze}
             onCancel={onCancel}
             onResume={onResume}
