@@ -22,7 +22,7 @@ export default function Header() {
   }
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-black/80 backdrop-blur-md sticky top-0 z-50">
+    <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-[#111219]/80 backdrop-blur-md sticky top-0 z-50">
       <div className="container mx-auto px-4 h-14 flex items-center justify-between">
         {/* 브랜드 로고 lockup. 라이트=ink navy 워드마크(white 파일), 다크=흰 워드마크(transparent).
             (투명본은 흰 워드마크라 라이트에 두면 안 보임 — 테마별로 분기.) */}

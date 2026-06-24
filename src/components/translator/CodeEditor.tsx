@@ -55,6 +55,26 @@ function disableDiagnostics(monaco: Monaco) {
   monaco.languages?.typescript?.javascriptDefaults?.setDiagnosticsOptions(options);
 }
 
+// 라이트 모드 코드 surface를 순백 대신 따뜻한 베이지로(Claude 데스크톱 결).
+// vs 내장 light 테마 기반, 배경/거터만 캔버스(zinc-50 #F2F0E8)와 맞춤.
+function defineLightTheme(monaco: Monaco) {
+  monaco.editor.defineTheme("nunopi-light", {
+    base: "vs",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#F2F0E8",
+      "editorGutter.background": "#F2F0E8",
+      "editor.lineHighlightBorder": "#00000000",
+    },
+  });
+}
+
+function beforeMount(monaco: Monaco) {
+  disableDiagnostics(monaco);
+  defineLightTheme(monaco);
+}
+
 function EditorFallback() {
   return (
     <div className="flex min-h-[320px] w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-500">
@@ -175,9 +195,9 @@ export default function CodeEditor({
         language={monacoLanguage(language)}
         value={value}
         onChange={(v) => onChange(v ?? "")}
-        beforeMount={disableDiagnostics}
+        beforeMount={beforeMount}
         onMount={handleMount}
-        theme={isDark ? "vs-dark" : "light"}
+        theme={isDark ? "vs-dark" : "nunopi-light"}
         options={{
           readOnly,
           fontSize: 13,

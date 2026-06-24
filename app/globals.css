@@ -4,7 +4,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-sans: "SF Pro Text", "SF Pro Display", "Pretendard", "Inter", "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* PDF 타이포: 라틴 본문 Inter + 한글 Noto Sans KR (next/font CSS variable).
+     로드 전 폴백으로 시스템 스택 유지. 코드(--font-mono)는 유저 요청대로 제외. */
+  --font-sans: var(--font-inter), var(--font-noto), "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: var(--font-display), var(--font-noto), var(--font-inter), system-ui, sans-serif;
   --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", "Roboto Mono", "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
@@ -30,7 +33,14 @@
   --color-blue-700: #1c4fa8;
   --color-blue-900: #15306b;
   --color-blue-950: #0f2147; /* 다크 하이라이트 배경 */
-  --color-zinc-950: #010102; /* 패널/캔버스 near-black(원래대로). 최외곽 배경만 네이비(AppShell) */
+  --color-zinc-950: #010102; /* 다크 패널 near-black(원래대로). 다크 외곽/헤더는 ink #111219(AppShell/Header 인라인) */
+
+  /* 라이트 웜톤 — 순백이 너무 밝아 가독성↓ → PDF 결의 따뜻한 off-white/베이지로.
+     패널(white)이 캔버스(zinc-50)보다 밝아 위로 떠 보인다. 코드입력패널(zinc-50)=베이지. */
+  --color-white: #faf9f5; /* 패널/카드/헤더 — warm off-white */
+  --color-zinc-50: #f2f0e8; /* 캔버스/외곽 + 코드·글 입력패널 + 작은 input — 베이지 */
+  --color-zinc-100: #eae7dd; /* 칩/토글 트랙/hover fill */
+  --color-zinc-200: #e0dcd2; /* 라이트 보더 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -105,7 +115,7 @@ samp {
 .nunopi-md > :first-child { margin-top: 0; }
 .nunopi-md > :last-child { margin-bottom: 0; }
 .nunopi-md p { margin: 0.4em 0; }
-.nunopi-md h1, .nunopi-md h2, .nunopi-md h3, .nunopi-md h4 { margin: 0.6em 0 0.3em; font-weight: 600; line-height: 1.3; }
+.nunopi-md h1, .nunopi-md h2, .nunopi-md h3, .nunopi-md h4 { margin: 0.6em 0 0.3em; font-family: var(--font-heading); font-weight: 600; line-height: 1.3; }
 .nunopi-md h1 { font-size: 1.05rem; }
 .nunopi-md h2 { font-size: 1rem; }
 .nunopi-md h3 { font-size: 0.9rem; }
