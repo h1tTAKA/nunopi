@@ -26,7 +26,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
   const segments = showHighlighted ? highlightTerms(code, terms ?? []) : [];
 
   return (
-    <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-[#111219]">
+    <div className="flex h-full flex-col gap-2 bg-white p-4 dark:bg-[#111219]">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           글 입력 (IT 용어가 가득한 글을 붙여넣어 보세요)
@@ -64,7 +64,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
       <div className="min-h-[320px] flex-1">
         {showHighlighted ? (
           // 읽기 오버레이 — 분석된 용어를 클릭 가능한 하이라이트로. 줄바꿈/공백 보존.
-          <div className="nunopi-scroll h-full w-full overflow-y-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-[#F1F2F4] p-4 text-sm leading-relaxed text-zinc-900 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100">
+          <div className="nunopi-scroll h-full w-full overflow-y-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-[#F2F0E8] p-4 text-sm leading-relaxed text-zinc-900 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100">
             {segments.map((seg, idx) =>
               seg.termId ? (
                 <button
@@ -89,10 +89,10 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
             readOnly={locked}
             spellCheck={false}
             placeholder={
-              "예) 쿠버네티스 파드가 OOM으로 죽어서 HPA가 스케일아웃했는데도 p99 레이턴시가 안 잡히고 캐시 히트율이 떨어진다…\n" +
-              "기술 블로그·릴리스 노트·X 피드처럼 모르는 IT 용어(컨테이너, 비동기 큐, CI/CD…)가 잔뜩인 글을 그대로 붙여넣으세요."
+              "예) 이번 업데이트로 백엔드 API 응답 속도를 개선하고 데이터베이스 쿼리를 최적화했어요. 프론트엔드는 컴포넌트를 리팩터링하고 배포를 자동화했습니다…\n" +
+              "기술 블로그·릴리스 노트·X 피드처럼 모르는 IT 용어(API, 캐시, 라이브러리, 배포…)가 잔뜩인 글을 그대로 붙여넣으세요."
             }
-            className="h-full w-full resize-none rounded-xl border border-zinc-200 bg-[#F1F2F4] p-4 text-sm leading-relaxed text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100 dark:focus:border-zinc-600"
+            className="h-full w-full resize-none rounded-xl border border-zinc-200 bg-[#F2F0E8] p-4 text-sm leading-relaxed text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100 dark:focus:border-zinc-600"
           />
         )}
       </div>
