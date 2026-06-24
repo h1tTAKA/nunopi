@@ -5,21 +5,6 @@ import type { AgentProviderMetadata } from "./types";
 // by client components. Keep this in sync when provider metadata changes.
 export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   {
-    id: "local-rules",
-    label: "Local Rules",
-    description: "Built-in rule-based analysis without external API calls.",
-    executionLocation: "browser",
-    dataHandling: "local-only",
-    capabilities: {
-      streaming: false,
-      cancellation: false,
-      fileSystemAccess: false,
-      shellAccess: false,
-      requiresApiKey: false,
-      requiresLocalProcess: false,
-    },
-  },
-  {
     id: "claude-agent",
     label: "Claude Agent",
     description:

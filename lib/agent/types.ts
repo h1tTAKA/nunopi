@@ -1,5 +1,4 @@
 export type AgentProviderKind =
-  | "local-rules"
   | "claude-agent"
   | "codex-agent"
   | "openai-app-server"

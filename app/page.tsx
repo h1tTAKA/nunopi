@@ -44,7 +44,7 @@ interface AnalyzeApiErrorResponse {
   };
 }
 
-const DEFAULT_PROVIDER_ID: AgentProviderKind = "local-rules";
+const DEFAULT_PROVIDER_ID: AgentProviderKind = "claude-agent";
 const DEFAULT_CODE = `const [count, setCount] = useState(0);\n\nreturn <button className="px-4 py-2">{count}</button>;`;
 
 function generateAutoTitle(result: import("@/lib/agent").AgentAnalyzeResponse, code: string): string {
