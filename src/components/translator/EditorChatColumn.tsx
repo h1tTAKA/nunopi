@@ -54,11 +54,11 @@ export default function EditorChatColumn({ editor, chat, chatOpen }: EditorChatC
           e.currentTarget.releasePointerCapture(e.pointerId);
           try { localStorage.setItem(SPLIT_KEY, String(Math.round(topPct))); } catch { /* ignore */ }
         }}
-        className={`h-1.5 shrink-0 cursor-row-resize border-y border-zinc-200 transition-colors dark:border-zinc-800 ${
-          dragging ? "bg-blue-400/60" : "bg-zinc-100 hover:bg-blue-400/40 dark:bg-zinc-900"
+        className={`mx-4 h-1.5 shrink-0 cursor-row-resize rounded-full transition-colors ${
+          dragging ? "bg-blue-400/60" : "bg-zinc-200 hover:bg-blue-400/40 dark:bg-zinc-800"
         }`}
       />
-      <div className="min-h-0 flex-1 overflow-hidden">{chat}</div>
+      <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4 pt-2">{chat}</div>
     </div>
   );
 }
