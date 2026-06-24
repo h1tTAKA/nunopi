@@ -3,7 +3,6 @@ import {
   claudeAgentProvider,
   codexAgentProvider,
   createAgentRegistry,
-  localRulesProvider,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
   type AgentAnalyzeRequest,
@@ -30,7 +29,6 @@ interface AgentAnalyzeErrorResponse {
 }
 
 const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
-  "local-rules",
   "claude-agent",
   "codex-agent",
   "openai-app-server",
@@ -370,7 +368,7 @@ function resolveProvider(
   | { ok: true; provider: AgentProvider }
   | { ok: false; message: string } {
   const registry = createAgentRegistry({
-    providers: [localRulesProvider, claudeAgentProvider, codexAgentProvider, openAICompatibleProvider],
+    providers: [claudeAgentProvider, codexAgentProvider, openAICompatibleProvider],
   });
   const provider = registry.getProvider(providerId);
 

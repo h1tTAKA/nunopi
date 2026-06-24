@@ -1,5 +1,4 @@
 import type { TranslatorProviderRegistry } from "@/lib/translator/orchestrator";
-import { localRulesProvider } from "./localRulesProvider";
 import type { AgentProvider, AgentProviderKind } from "./types";
 
 export interface CreateAgentRegistryOptions {
@@ -10,11 +9,12 @@ export interface CreateAgentRegistryOptions {
 export function createAgentRegistry(
   options: CreateAgentRegistryOptions = {},
 ): TranslatorProviderRegistry {
-  const providers = options.providers ?? [localRulesProvider];
+  const providers = options.providers ?? [];
   const providerMap = new Map(
     providers.map((provider) => [provider.metadata.id, provider] as const),
   );
-  const fallbackProviderId = options.fallbackProviderId ?? localRulesProvider.metadata.id;
+  // 폴백 미지정 시 첫 provider(없으면 undefined). route는 providers를 명시 전달한다.
+  const fallbackProviderId = options.fallbackProviderId ?? providers[0]?.metadata.id;
 
   return {
     getProvider(id) {
