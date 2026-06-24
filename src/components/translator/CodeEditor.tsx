@@ -55,9 +55,9 @@ function disableDiagnostics(monaco: Monaco) {
   monaco.languages?.typescript?.javascriptDefaults?.setDiagnosticsOptions(options);
 }
 
-// 라이트 모드 코드 surface를 순백 대신 쿨 라이트 그레이(회색계통)로 — 흰 패널과 구분.
-// vs 내장 light 테마 기반, 배경/거터만 회색으로 맞춤.
-function defineLightTheme(monaco: Monaco) {
+// 코드 편집면을 글 분석 패널(textarea)과 같은 색으로 통일.
+// 라이트=쿨 라이트 그레이 #F1F2F4, 다크=ink-800 #1A1B26(패널 #111219서 살짝 들린 입력면).
+function defineThemes(monaco: Monaco) {
   monaco.editor.defineTheme("nunopi-light", {
     base: "vs",
     inherit: true,
@@ -68,11 +68,21 @@ function defineLightTheme(monaco: Monaco) {
       "editor.lineHighlightBorder": "#00000000",
     },
   });
+  monaco.editor.defineTheme("nunopi-dark", {
+    base: "vs-dark",
+    inherit: true,
+    rules: [],
+    colors: {
+      "editor.background": "#1A1B26",
+      "editorGutter.background": "#1A1B26",
+      "editor.lineHighlightBorder": "#00000000",
+    },
+  });
 }
 
 function beforeMount(monaco: Monaco) {
   disableDiagnostics(monaco);
-  defineLightTheme(monaco);
+  defineThemes(monaco);
 }
 
 function EditorFallback() {
@@ -197,7 +207,7 @@ export default function CodeEditor({
         onChange={(v) => onChange(v ?? "")}
         beforeMount={beforeMount}
         onMount={handleMount}
-        theme={isDark ? "vs-dark" : "nunopi-light"}
+        theme={isDark ? "nunopi-dark" : "nunopi-light"}
         options={{
           readOnly,
           fontSize: 13,
