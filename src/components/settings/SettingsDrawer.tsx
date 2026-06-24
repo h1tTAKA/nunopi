@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AnalyzeMode, ProviderSettings } from "@/lib/agent";
+import { XIcon, BanIcon } from "@/components/learning/icons";
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ function ExclusionGroup({
                 title="제외 해제"
                 aria-label={`${text} 제외 해제`}
               >
-                ✕
+                <XIcon className="h-3.5 w-3.5" />
               </button>
             </span>
           ))}
@@ -112,7 +113,7 @@ export default function SettingsDrawer({
             className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             aria-label="설정 닫기"
           >
-            ✕
+            <XIcon className="h-4 w-4" />
           </button>
         </div>
 
@@ -215,7 +216,7 @@ export default function SettingsDrawer({
               제외 목록
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">
-              글 분석에서 🚫로 제외한 IT 용어는 다음 분석부터 표시되지 않는다. ✕로 해제하면 다시 나온다.
+              글 분석에서 <BanIcon className="inline-block h-3.5 w-3.5 align-[-2px]" />로 제외한 IT 용어는 다음 분석부터 표시되지 않는다. <XIcon className="inline-block h-3.5 w-3.5 align-[-2px]" />로 해제하면 다시 나온다.
             </p>
             <ExclusionGroup
               label="IT 용어"
