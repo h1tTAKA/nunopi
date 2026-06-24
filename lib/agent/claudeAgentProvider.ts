@@ -160,10 +160,10 @@ export const claudeAgentProvider: AgentProvider = {
         streamOnProgress,
         isChat ? CHAT_SYSTEM_PROMPT : undefined,
         fullProgress,
-        // 글 모드는 effort low로 확장 추론(thinking)을 끈다. 측정: 긴 글 첫 출력까지
-        // thinking ~66초 → low면 3초(생각 델타 2개), 용어 17개·품질 동일. 스트리밍이
-        // thinking 중엔 빈 화면이라 체감이 죽던 걸 없앤다.
-        isText ? "low" : undefined,
+        // 분석 모드(코드/글/explain)는 effort low로 확장 추론(thinking)을 끈다. 측정(글): 첫 출력까지
+        // thinking ~66초 → low면 3초, 품질 동일. 코드도 청크 스트리밍이 thinking에 막혀 첫 표시가
+        // 늦던 걸 없앤다. 챗만 기본(대화 답변 질에 thinking 기여).
+        isChat ? undefined : "low",
       );
       return isChat
         ? normalizeChatOutput(rawText, "claude-agent")
