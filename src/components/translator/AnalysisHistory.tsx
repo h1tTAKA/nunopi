@@ -212,7 +212,7 @@ export default function AnalysisHistory({
               ref={menuEntryId === entry.id ? menuRef : undefined}
               className={`rounded-xl border px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900 ${
                 entry.isPinned
-                  ? "border-lime-400 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
+                  ? "border-lime-600 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
                   : "border-zinc-200 bg-zinc-50"
               }`}
             >

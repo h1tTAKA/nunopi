@@ -80,7 +80,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
             onMouseLeave={() => onTokenHover?.(null)}
             className={`relative scroll-mt-2 rounded-2xl border transition ${
               isBookmarked
-                ? "border-lime-400 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
+                ? "border-lime-600 bg-lime-50 dark:border-lime-700 dark:bg-lime-950/20"
                 : isActive
                   ? "border-blue-500 bg-blue-100 dark:border-blue-500 dark:bg-blue-950/30"
                   : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
