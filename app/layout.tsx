@@ -8,7 +8,11 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-display", display: "swap" });
 const notoSansKr = Noto_Sans_KR({
   weight: ["400", "500", "700"],
+  // next/font의 Noto_Sans_KR named subset은 latin/cyrillic 등뿐 — 한글 글리프는
+  // 별도 subset이 아니라 unicode-range 블록으로 항상 @font-face에 포함된다.
+  // subsets는 preload 대상만 제어. 한글 글리프 용량이 커서 preload는 끄고 swap.
   subsets: ["latin"],
+  preload: false,
   variable: "--font-noto",
   display: "swap",
 });
