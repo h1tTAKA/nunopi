@@ -63,7 +63,7 @@ export default function ResizableBody({
   return (
     <div>
       <div
-        style={{ height }}
+        style={{ maxHeight: height }}
         className="nunopi-scroll overflow-y-auto pr-1"
       >
         {children}
