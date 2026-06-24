@@ -109,7 +109,7 @@ export default function SettingsDrawer({
       <div className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[#111219]">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            Provider 설정
+            설정
           </h2>
           <button
             type="button"
@@ -121,9 +121,10 @@ export default function SettingsDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* 화면 카드 */}
+          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               화면
             </h3>
             <div className="space-y-1.5">
@@ -159,10 +160,16 @@ export default function SettingsDrawer({
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              OpenAI-Compatible
+          {/* 프로바이더 카드 — OpenAI-Compatible / Claude / Codex 소제목+구분선으로 */}
+          <section className="space-y-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              프로바이더
             </h3>
+
+            <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              OpenAI-Compatible
+            </h4>
 
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -206,12 +213,14 @@ export default function SettingsDrawer({
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
             </label>
-          </section>
+            </div>
 
-          <section className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="border-t border-zinc-200 dark:border-zinc-800" />
+
+            <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Claude Agent
-            </h3>
+            </h4>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 CLI 경로{" "}
@@ -228,12 +237,14 @@ export default function SettingsDrawer({
                 비워두면 PATH에서 자동 탐색
               </p>
             </label>
-          </section>
+            </div>
 
-          <section className="space-y-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="border-t border-zinc-200 dark:border-zinc-800" />
+
+            <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Codex Agent
-            </h3>
+            </h4>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 CLI 경로{" "}
@@ -250,10 +261,12 @@ export default function SettingsDrawer({
                 비워두면 PATH에서 자동 탐색
               </p>
             </label>
+            </div>
           </section>
 
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          {/* 제외 목록 카드 */}
+          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               제외 목록
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">
