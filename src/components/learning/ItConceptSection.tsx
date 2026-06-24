@@ -69,8 +69,8 @@ export default function ItConceptSection({
                   onClick={() => onBookmarkToggle(concept)}
                   className={`shrink-0 transition ${
                     bookmarkedTitles.includes(concept.title)
-                      ? "text-amber-500 dark:text-amber-400"
-                      : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+                      ? "text-lime-600 dark:text-lime-400"
+                      : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
                   }`}
                   title={bookmarkedTitles.includes(concept.title) ? "북마크 해제" : "IT 용어 사전에 북마크"}
                   aria-label={

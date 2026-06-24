@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconFolder, IconTrash } from "@tabler/icons-react";
+import { StarIcon } from "./icons";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
@@ -458,19 +459,19 @@ export default function LearningPanel({
   const entryHeader = currentHistoryId ? (
     <div className="min-w-0">
     <div className="flex items-center gap-2 min-w-0">
-      {/* 고정 버튼: 비핀 상태에서는 outline ☆, 핀 상태에서는 filled ★ amber */}
+      {/* 고정 버튼: 로고 라임 반짝임. 핀=채움, 비핀=외곽선. */}
       <button
         type="button"
         onClick={onToggleCurrentPin}
-        className={`shrink-0 text-lg leading-none transition ${
+        className={`shrink-0 leading-none transition ${
           currentHistoryIsPinned
-            ? "text-amber-500 dark:text-amber-400"
-            : "text-zinc-400 hover:text-amber-500 dark:text-zinc-500 dark:hover:text-amber-400"
+            ? "text-lime-600 dark:text-lime-400"
+            : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
         }`}
         title={currentHistoryIsPinned ? "고정 해제" : "고정하기"}
         aria-label={currentHistoryIsPinned ? "고정 해제" : "이 분석 고정하기"}
       >
-        {currentHistoryIsPinned ? "★" : "☆"}
+        <StarIcon filled={currentHistoryIsPinned} className="h-[18px] w-[18px]" />
       </button>
       {/* 제목 — 클릭 시 인라인 편집 */}
       {headerEditing ? (
@@ -880,8 +881,8 @@ export default function LearningPanel({
                               onClick={() => setFilterBookmarked((v) => !v)}
                               className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
                                 filterBookmarked
-                                  ? "bg-amber-400 text-white dark:bg-amber-500"
-                                  : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
+                                  ? "bg-lime-600 text-white dark:bg-lime-600"
+                                  : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                               }`}
                             >
                               북마크 {bookmarkedCount}
@@ -974,8 +975,8 @@ export default function LearningPanel({
                           onClick={() => setFilterBookmarked((v) => !v)}
                           className={`inline-flex items-center rounded-lg px-1.5 py-0.5 text-xs font-medium transition ${
                             filterBookmarked
-                              ? "bg-amber-400 text-white dark:bg-amber-500"
-                              : "bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-800/40"
+                              ? "bg-lime-600 text-white dark:bg-lime-600"
+                              : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                           }`}
                         >
                           북마크 {visibleBookmarkCount}

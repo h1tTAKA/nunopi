@@ -120,7 +120,7 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
                 <button
                   type="button"
                   onClick={() => onUnbookmark(token.token)}
-                  className="shrink-0 text-amber-500 transition hover:text-zinc-400 dark:text-amber-400 dark:hover:text-zinc-500"
+                  className="shrink-0 text-lime-600 transition hover:text-zinc-400 dark:text-lime-400 dark:hover:text-zinc-500"
                   title="북마크 해제"
                   aria-label={`${token.token} 북마크 해제`}
                 >
