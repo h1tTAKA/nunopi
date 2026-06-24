@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 
 interface ResizableBodyProps {
   // localStorage 키 식별자 — 섹션마다 고유(lines/tokens/it-terms).
@@ -24,7 +23,6 @@ export default function ResizableBody({
   const [height, setHeight] = useState(defaultHeight);
   // 드래그 중 최신 높이를 항상 보유 — pointerup 영속화 시 클로저 stale 방지(AppShell 패턴).
   const heightRef = useRef(defaultHeight);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
   const startYRef = useRef(0);
   const startHRef = useRef(0);
@@ -38,13 +36,6 @@ export default function ResizableBody({
       setHeight(stored);
     }
   }, [id, minHeight]);
-
-  // 경계/비스크롤이면 wheel을 전체 패널로 넘긴다(기존 토큰 박스 동작 유지).
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    return attachPanelWheelForward(el);
-  }, []);
 
   function handlePointerDown(e: React.PointerEvent) {
     draggingRef.current = true;
@@ -72,9 +63,8 @@ export default function ResizableBody({
   return (
     <div>
       <div
-        ref={scrollRef}
-        style={{ height }}
-        className="nunopi-scroll overflow-y-scroll overscroll-contain pr-1"
+        style={{ maxHeight: height }}
+        className="nunopi-scroll overflow-y-auto pr-1"
       >
         {children}
       </div>
