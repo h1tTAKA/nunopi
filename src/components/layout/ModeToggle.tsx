@@ -1,5 +1,6 @@
 "use client";
 
+import { IconCode, IconFileText } from "@tabler/icons-react";
 import type { AnalyzeMode } from "@/lib/agent";
 
 interface ModeToggleProps {
@@ -8,9 +9,9 @@ interface ModeToggleProps {
   disabled?: boolean;
 }
 
-const MODE_OPTIONS: { value: AnalyzeMode; label: string }[] = [
-  { value: "code", label: "코드 분석" },
-  { value: "text", label: "글 분석" },
+const MODE_OPTIONS: { value: AnalyzeMode; label: string; Icon: typeof IconCode }[] = [
+  { value: "code", label: "코드 분석", Icon: IconCode },
+  { value: "text", label: "글 분석", Icon: IconFileText },
 ];
 
 // 헤더 정중앙 — 코드/글 분석 모드 토글. (히스토리·북마크는 모드별 분리, Issue 76.)
@@ -23,21 +24,24 @@ export default function ModeToggle({ mode, onModeChange, disabled = false }: Mod
     >
       {MODE_OPTIONS.map((opt) => {
         const selected = mode === opt.value;
+        const { Icon } = opt;
         return (
           <button
             key={opt.value}
             type="button"
             role="tab"
             aria-selected={selected}
+            aria-label={opt.label}
+            title={opt.label}
             disabled={disabled}
             onClick={() => onModeChange(opt.value)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${
+            className={`rounded-lg px-3 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-60 ${
               selected
                 ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
                 : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
             }`}
           >
-            {opt.label}
+            <Icon size={18} stroke={2} aria-hidden />
           </button>
         );
       })}
