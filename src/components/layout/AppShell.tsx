@@ -131,7 +131,7 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
         {/* 우측 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스가 wheel을 이 컨테이너로 포워딩. */}
         <aside
           data-panel-scroll
-          className="nunopi-scroll bg-white md:min-h-0 md:flex-1 md:overflow-y-scroll dark:bg-zinc-950"
+          className="nunopi-scroll bg-white md:min-h-0 md:flex-1 md:overflow-y-scroll dark:bg-[#111219]"
         >
           {learningPanel}
         </aside>

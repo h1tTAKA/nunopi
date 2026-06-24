@@ -26,7 +26,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
   const segments = showHighlighted ? highlightTerms(code, terms ?? []) : [];
 
   return (
-    <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-black">
+    <div className="flex h-full flex-col gap-2 bg-zinc-50 p-4 dark:bg-[#111219]">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
           글 입력 (IT 용어가 가득한 글을 붙여넣어 보세요)
