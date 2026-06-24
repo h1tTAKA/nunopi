@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
-import { attachPanelWheelForward } from "@/lib/forwardPanelWheel";
 import { tokenizeCodeLine } from "@/lib/tokenizeCodeLine";
 import CodeBlock from "./CodeBlock";
 
@@ -49,13 +48,6 @@ export default function LineExplanationList({
     onLineFocusRef.current = onLineFocus;
   }, [onLineFocus]);
 
-  // 박스가 경계/비스크롤이면 wheel을 전체 패널로 넘겨 어디서나 패널 스크롤.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    return attachPanelWheelForward(el);
-  }, [visibleItems.length]);
-
   // 패널 스크롤 시 화면 상단에 가장 가까운 가시 카드의 줄을 onLineFocus로 알린다.
   useEffect(() => {
     const container = containerRef.current;
@@ -72,9 +64,9 @@ export default function LineExplanationList({
           if (entry.isIntersecting) visible.add(el);
           else visible.delete(el);
         }
-        // 스크롤 박스 세로 중앙에 가장 가까운 카드를 "지금 보는 줄"로 선택.
-        const boxRect = container.getBoundingClientRect();
-        const boxCenter = boxRect.top + boxRect.height / 2;
+        // 뷰포트 세로 중앙에 가장 가까운 카드를 "지금 보는 줄"로 선택.
+        // (줄별설명 자체 스크롤을 없애고 ResizableBody가 스크롤하므로 root=뷰포트.)
+        const boxCenter = window.innerHeight / 2;
         let best: HTMLElement | null = null;
         let bestDist = Infinity;
         for (const el of visible) {
@@ -92,8 +84,8 @@ export default function LineExplanationList({
           onLineFocusRef.current?.(line);
         }
       },
-      // root를 줄별설명 스크롤 박스로 → 박스 중앙 띠를 지나는 카드를 활성으로(박스 위치 무관).
-      { root: container, rootMargin: "-45% 0px -45% 0px", threshold: 0 },
+      // root=뷰포트. 중앙 띠(-45%/-45%)를 지나는 카드를 활성으로.
+      { root: null, rootMargin: "-45% 0px -45% 0px", threshold: 0 },
     );
     cards.forEach((card) => observer.observe(card));
     return () => observer.disconnect();
@@ -116,10 +108,7 @@ export default function LineExplanationList({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="nunopi-scroll max-h-[45vh] space-y-3 overflow-y-scroll overscroll-contain pr-1"
-    >
+    <div ref={containerRef} className="space-y-3">
       {visibleItems.map((item, i) => {
         // 칩은 모델 출력이 아니라 그 줄 코드를 클라에서 토큰화해 만든다(누락 0, 공백 뺀 전부).
         // 클릭 시 explain-token으로 on-demand 설명(#86).
