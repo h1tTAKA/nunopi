@@ -27,10 +27,25 @@ function shikiLang(language?: string): string {
 
 export default function CodeBlock({ code, language, className }: CodeBlockProps) {
   const [html, setHtml] = useState<string>("");
+  const [isDark, setIsDark] = useState(false);
+
+  // 테마 토글 시 재하이라이트하려면 html.dark 변화를 추적해야 한다. mount 때 색을 한 번만
+  // 읽으면 다크↔라이트 전환 후 Shiki 색이 옛 테마 그대로라 새 배경과 충돌해 안 보인다.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsDark(document.documentElement.classList.contains("dark"));
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    const isDark = document.documentElement.classList.contains("dark");
     codeToHtml(code, {
       lang: shikiLang(language),
       theme: isDark ? "github-dark" : "github-light",
@@ -44,7 +59,7 @@ export default function CodeBlock({ code, language, className }: CodeBlockProps)
     return () => {
       cancelled = true;
     };
-  }, [code, language]);
+  }, [code, language, isDark]);
 
   const wrapperClass = `overflow-x-auto rounded-xl p-3 text-xs [&_pre]:!bg-transparent [&_pre]:!m-0 ${className ?? ""}`;
 
