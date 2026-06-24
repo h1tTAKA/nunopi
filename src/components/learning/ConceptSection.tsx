@@ -91,8 +91,8 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
               aria-label={`${concept.title} 개념 선택`}
               className={`w-full px-4 pt-4 text-left ${hasActions ? "pr-12" : ""}`}
             >
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <p className="min-w-0 break-words text-sm font-medium text-zinc-800 dark:text-zinc-100">
                   {concept.title}
                 </p>
                 <div className="flex items-center gap-1.5 shrink-0">

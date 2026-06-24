@@ -61,8 +61,8 @@ export default function ItConceptSection({
                 : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900"
             }`}
           >
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-medium text-zinc-800 dark:text-zinc-100">{concept.title}</p>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <p className="min-w-0 break-words text-sm font-medium text-zinc-800 dark:text-zinc-100">{concept.title}</p>
               {onBookmarkToggle && (
                 <button
                   type="button"
