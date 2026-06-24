@@ -1,31 +1,73 @@
 import { IconLock, IconMessageCircle } from "@tabler/icons-react";
-import type { SupportedLanguage } from "@/lib/translator/types";
 import type { AgentProviderKind } from "@/lib/agent";
 import CodeEditor from "./CodeEditor";
 import { ProviderSelect, AnalyzeButton, AnalyzeError } from "./AnalyzeControls";
 
+// 에디터 하이라이팅용 언어 선택 — 분석/탐지 도메인(SupportedLanguage)과 별개로
+// 개발자가 흔히 쓰는 언어를 폭넓게 제공. 값은 그대로 CodeEditor가 Monaco id로 매핑.
 export type LanguageChoice =
   | "auto"
   | "react"
   | "typescript"
   | "javascript"
+  | "tailwindcss"
+  | "html"
   | "css"
-  | "tailwindcss";
+  | "scss"
+  | "json"
+  | "yaml"
+  | "markdown"
+  | "python"
+  | "java"
+  | "csharp"
+  | "cpp"
+  | "c"
+  | "go"
+  | "rust"
+  | "ruby"
+  | "php"
+  | "swift"
+  | "kotlin"
+  | "dart"
+  | "sql"
+  | "shell"
+  | "dockerfile";
 
 const LANGUAGE_OPTIONS: { value: LanguageChoice; label: string }[] = [
   { value: "auto", label: "자동 감지" },
-  { value: "react", label: "React (JSX)" },
+  { value: "react", label: "React (JSX/TSX)" },
   { value: "typescript", label: "TypeScript" },
   { value: "javascript", label: "JavaScript" },
+  { value: "python", label: "Python" },
+  { value: "java", label: "Java" },
+  { value: "csharp", label: "C#" },
+  { value: "cpp", label: "C++" },
+  { value: "c", label: "C" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "ruby", label: "Ruby" },
+  { value: "php", label: "PHP" },
+  { value: "swift", label: "Swift" },
+  { value: "kotlin", label: "Kotlin" },
+  { value: "dart", label: "Dart" },
+  { value: "sql", label: "SQL" },
+  { value: "shell", label: "Shell / Bash" },
+  { value: "html", label: "HTML" },
   { value: "css", label: "CSS" },
+  { value: "scss", label: "SCSS" },
   { value: "tailwindcss", label: "Tailwind CSS" },
+  { value: "json", label: "JSON" },
+  { value: "yaml", label: "YAML" },
+  { value: "markdown", label: "Markdown" },
+  { value: "dockerfile", label: "Dockerfile" },
 ];
 
 interface CodeInputAreaProps {
   code: string;
   isLoading: boolean;
   languageChoice: LanguageChoice;
-  editorLanguage: SupportedLanguage;
+  // Monaco 하이라이팅용 언어 문자열(자동 감지면 SupportedLanguage, 아니면 선택값).
+  editorLanguage: string;
   onLanguageChoiceChange: (choice: LanguageChoice) => void;
   onCodeChange: (nextCode: string) => void;
   activeLine?: number | null;

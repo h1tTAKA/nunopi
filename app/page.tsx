@@ -144,7 +144,7 @@ export default function Home() {
 
   // 드롭다운이 "자동 감지"면 기존 detectLanguage로 추론, 아니면 선택값 그대로.
   // 에디터 하이라이팅 용도 — unknown은 typescript로 폴백(스니펫 대부분 JS/TS 계열).
-  const editorLanguage: SupportedLanguage = useMemo(() => {
+  const editorLanguage: string = useMemo(() => {
     if (languageChoice !== "auto") return languageChoice;
     const detected = detectLanguage(code).primary;
     return detected === "unknown" ? "typescript" : detected;

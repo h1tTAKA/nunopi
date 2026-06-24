@@ -27,20 +27,42 @@ interface CodeEditorProps {
   markedLines?: number[];
 }
 
+// 언어 선택값(LanguageChoice) 또는 자동 감지(SupportedLanguage) → Monaco 내장 언어 id.
+const MONACO_LANG: Record<string, string> = {
+  react: "typescript",
+  tsx: "typescript",
+  typescript: "typescript",
+  jsx: "javascript",
+  javascript: "javascript",
+  html: "html",
+  tailwindcss: "html",
+  css: "css",
+  scss: "scss",
+  less: "less",
+  json: "json",
+  yaml: "yaml",
+  markdown: "markdown",
+  python: "python",
+  java: "java",
+  csharp: "csharp",
+  cpp: "cpp",
+  c: "c",
+  go: "go",
+  rust: "rust",
+  ruby: "ruby",
+  php: "php",
+  swift: "swift",
+  kotlin: "kotlin",
+  dart: "dart",
+  sql: "sql",
+  shell: "shell",
+  bash: "shell",
+  dockerfile: "dockerfile",
+  xml: "xml",
+};
+
 function monacoLanguage(language?: string): string {
-  switch (language) {
-    case "react":
-    case "typescript":
-      return "typescript";
-    case "javascript":
-      return "javascript";
-    case "css":
-      return "css";
-    case "tailwindcss":
-      return "html";
-    default:
-      return "plaintext";
-  }
+  return MONACO_LANG[language ?? ""] ?? "plaintext";
 }
 
 // 학습용 스니펫이라 import/컴파일 단위가 없는 경우가 많다.
