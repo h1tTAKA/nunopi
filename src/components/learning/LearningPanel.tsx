@@ -208,7 +208,8 @@ export default function LearningPanel({
     onMarkLines?.(markedKey ? markedKey.split(",").map(Number) : []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markedKey]);
-  const [activeConceptId, setActiveConceptId] = useState<string | null>(null);
+  // 활성(강조) 개념 id들 — 코드 모드는 1개([conceptId]), 글 모드는 용어의 관련 개념 전부.
+  const [activeConceptIds, setActiveConceptIds] = useState<string[]>([]);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
   // 글 모드 IT 용어 북마크 — details만 보관하고 texts는 키에서 파생한다.
@@ -309,7 +310,7 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTokenIds([]);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActiveConceptId(null);
+    setActiveConceptIds([]);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -386,10 +387,10 @@ export default function LearningPanel({
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
     if (activeTokenIds.length === 1 && activeTokenIds[0] === tokenId) {
       setActiveTokenIds([]);
-      setActiveConceptId(null);
+      setActiveConceptIds([]);
     } else {
       setActiveTokenIds([tokenId]);
-      setActiveConceptId(conceptId ?? null);
+      setActiveConceptIds(conceptId ? [conceptId] : []);
     }
   }
 
@@ -402,14 +403,14 @@ export default function LearningPanel({
   }
 
   function handleConceptClick(conceptId: string) {
-    if (activeConceptId === conceptId) {
-      setActiveConceptId(null);
+    if (activeConceptIds.length === 1 && activeConceptIds[0] === conceptId) {
+      setActiveConceptIds([]);
       setActiveTokenIds([]);
     } else {
       const relatedTokenIds = (result?.tokens ?? [])
         .filter((t) => t.conceptId === conceptId)
         .map((t) => t.id);
-      setActiveConceptId(conceptId);
+      setActiveConceptIds([conceptId]);
       setActiveTokenIds(relatedTokenIds);
       // 설명이 없고(정적 사전에도 없음) lazy면 on-demand 설명 요청.
       const concept = safeConcepts.find((c) => c.conceptId === conceptId);
@@ -425,11 +426,14 @@ export default function LearningPanel({
     onTokenExplain?.(text, line);
   }
 
-  // 글 모드: 용어 클릭 → 첫 관련 개념으로 이동(ItConceptSection이 스크롤).
+  // 글 모드: 용어 클릭 → 관련 개념 전부 강조 + 첫 개로 스크롤. 같은 세트 재클릭이면 해제(토글).
   function handleTermClick(conceptIds: string[]) {
-    const first = conceptIds[0];
-    if (!first) return;
-    setActiveConceptId((prev) => (prev === first ? null : first));
+    if (conceptIds.length === 0) return;
+    setActiveConceptIds((prev) => {
+      const sameSet =
+        prev.length === conceptIds.length && prev.every((id) => conceptIds.includes(id));
+      return sameSet ? [] : conceptIds;
+    });
   }
 
   function saveHeaderTitle() {
@@ -917,7 +921,7 @@ export default function LearningPanel({
                 <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
                   <ItConceptSection
                     concepts={result.itConcepts ?? []}
-                    activeConceptId={activeConceptId}
+                    activeConceptIds={activeConceptIds}
                     onBookmarkToggle={handleItConceptBookmarkToggle}
                     bookmarkedTitles={bookmarkedTermTexts}
                     isStreaming={isLoading}
@@ -1020,7 +1024,7 @@ export default function LearningPanel({
             </p>
             <ConceptSection
               concepts={safeConcepts}
-              activeConceptId={activeConceptId}
+              activeConceptId={activeConceptIds[0] ?? null}
               onConceptClick={handleConceptClick}
               explainingConcepts={explainingConcepts}
               bookmarkedConceptTitles={bookmarkedConceptTitles}

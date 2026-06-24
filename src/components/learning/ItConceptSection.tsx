@@ -6,7 +6,8 @@ import { StarIcon } from "./icons";
 
 interface ItConceptSectionProps {
   concepts: ItConcept[];
-  activeConceptId?: string | null;
+  // 클릭한 용어의 관련 개념들(복수) — 전부 하이라이트, 첫 개로 스크롤.
+  activeConceptIds?: string[];
   // 북마크 — 누르면 IT 용어 사전에 저장(용어와 한 사전). title 기준.
   onBookmarkToggle?: (concept: ItConcept) => void;
   bookmarkedTitles?: string[];
@@ -18,16 +19,19 @@ interface ItConceptSectionProps {
 // 배경 개념을 항상 설명과 함께 카드로 보여준다(코드 모드와 달리 설명이 동적).
 export default function ItConceptSection({
   concepts,
-  activeConceptId,
+  activeConceptIds = [],
   onBookmarkToggle,
   bookmarkedTitles = [],
   isStreaming = false,
 }: ItConceptSectionProps) {
+  // 첫 관련 개념으로 스크롤(강조는 전부, 스크롤은 하나만 가능). 배열 참조 매번 새로 생겨도
+  // 첫 id(string) dep라 과발화 안 함.
+  const scrollTarget = activeConceptIds[0];
   useEffect(() => {
-    if (!activeConceptId) return;
-    const el = document.getElementById(`it-concept-${activeConceptId}`);
+    if (!scrollTarget) return;
+    const el = document.getElementById(`it-concept-${scrollTarget}`);
     el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [activeConceptId]);
+  }, [scrollTarget]);
 
   if (concepts.length === 0) {
     return (
@@ -46,7 +50,7 @@ export default function ItConceptSection({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {concepts.map((concept) => {
-        const isActive = activeConceptId === concept.conceptId;
+        const isActive = activeConceptIds.includes(concept.conceptId);
         return (
           <div
             key={concept.conceptId}
