@@ -135,8 +135,8 @@ samp {
 .nunopi-md pre code { background: transparent; padding: 0; font-size: 0.9em; }
 .nunopi-md blockquote { margin: 0.5em 0; padding-left: 0.75em; border-left: 3px solid #d4d4d8; color: #52525b; }
 .dark .nunopi-md blockquote { border-left-color: #52525b; color: #a1a1aa; }
-.nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #e4e4e7; }
-.dark .nunopi-md hr { border-top-color: #3f3f46; }
+.nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #d4d4d8; }
+.dark .nunopi-md hr { border-top-color: #52525b; }
 /* 표 — 말풍선보다 넓으면 가로 스크롤 */
 .nunopi-md table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 0.5em 0; font-size: 0.92em; }
 .nunopi-md th, .nunopi-md td { border: 1px solid #d4d4d8; padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
