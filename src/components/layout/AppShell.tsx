@@ -94,10 +94,10 @@ export default function AppShell({ toolbar, editor, learningPanel }: AppShellPro
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-50 md:h-screen md:min-h-0 dark:bg-black">
+    <div className="flex min-h-screen flex-col bg-zinc-50 md:h-screen md:min-h-0 dark:bg-[#111219]">
       <Header />
 
-      <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#111219]">
         <div className="mx-auto w-full max-w-7xl px-6 py-3">{toolbar}</div>
       </div>
 
