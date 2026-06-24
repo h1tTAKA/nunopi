@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BookmarkedTokenDetail } from "@/lib/bookmarkDetails";
 import type { TokenCategory } from "@/lib/translator/types";
 import { StarIcon } from "./icons";
+import CodeBlock from "./CodeBlock";
 
 interface TokenDictionaryProps {
   details: Record<string, BookmarkedTokenDetail>;
@@ -112,9 +113,7 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
                   </div>
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{token.description}</p>
                   {token.example && (
-                    <pre className="mt-1.5 overflow-x-auto rounded-lg bg-white p-2 text-xs text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300">
-                      {token.example}
-                    </pre>
+                    <CodeBlock code={token.example} className="mt-1.5" />
                   )}
                 </div>
                 <button
