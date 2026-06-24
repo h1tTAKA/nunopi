@@ -1,3 +1,4 @@
+import { IconLock, IconMessageCircle } from "@tabler/icons-react";
 import type { ItTerm } from "@/lib/translator/types";
 import { highlightTerms } from "@/lib/highlightTerms";
 
@@ -36,24 +37,24 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
             <button
               type="button"
               onClick={onClear}
-              className="rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
               title="입력을 비우고 새 글을 분석"
             >
-              🔒 클리어
+              <IconLock size={14} stroke={2} aria-hidden /> 클리어
             </button>
           )}
           {onToggleChat && (
             <button
               type="button"
               onClick={onToggleChat}
-              className={`rounded-lg px-2 py-1 text-xs font-medium transition ${
+              className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
                 chatOpen
                   ? "bg-blue-500 text-white"
                   : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
               }`}
               title="학습 챗 열기/닫기"
             >
-              💬 질문
+              <IconMessageCircle size={14} stroke={2} aria-hidden /> 질문
             </button>
           )}
         </div>

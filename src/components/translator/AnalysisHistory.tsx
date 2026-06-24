@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { IconFolder } from "@tabler/icons-react";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
 
@@ -140,8 +141,8 @@ export default function AnalysisHistory({
               : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
           }`}
         >
-          <button type="button" onClick={() => onSelectCollection?.(c.id)} className="py-0.5 pl-2 pr-1">
-            📁 {c.name}
+          <button type="button" onClick={() => onSelectCollection?.(c.id)} className="inline-flex items-center gap-1 py-0.5 pl-2 pr-1">
+            <IconFolder size={13} stroke={2} aria-hidden /> {c.name}
           </button>
           {onDeleteCollection && (
             <button
@@ -270,7 +271,7 @@ export default function AnalysisHistory({
                     title="목록에 추가/빼기"
                     aria-label="목록에 추가/빼기"
                   >
-                    📁
+                    <IconFolder size={14} stroke={2} aria-hidden />
                   </button>
                 )}
 

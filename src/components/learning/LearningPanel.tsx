@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { IconFolder, IconTrash } from "@tabler/icons-react";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
@@ -509,7 +510,7 @@ export default function LearningPanel({
           title="목록에 담기"
           aria-label="이 분석을 목록에 담기"
         >
-          📁
+          <IconFolder size={15} stroke={2} aria-hidden />
         </button>
       )}
       {/* 현재 분석 삭제 */}
@@ -523,7 +524,7 @@ export default function LearningPanel({
           title="이 분석 삭제"
           aria-label="이 분석 삭제"
         >
-          🗑
+          <IconTrash size={15} stroke={2} aria-hidden />
         </button>
       )}
     </div>
