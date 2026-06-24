@@ -1,3 +1,4 @@
+import { IconSettings } from "@tabler/icons-react";
 import type { AgentProviderKind, AgentProviderMetadata, AnalyzeMode } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 
@@ -125,7 +126,7 @@ export default function ProviderToolbar({
         title="Provider 설정"
         aria-label="Provider 설정 열기"
       >
-        ⚙
+        <IconSettings size={18} stroke={2} aria-hidden />
       </button>
 
       {providerMeta ? <ProviderDataBadge providerMeta={providerMeta} /> : null}
