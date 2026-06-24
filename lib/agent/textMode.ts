@@ -313,17 +313,20 @@ export function normalizeTextOutput(
     );
   }
 
-  const terms = dedupeById(
-    (Array.isArray(parsed.terms) ? parsed.terms : []).filter(isItTerm),
-  ).map((t) => ({
-    // IT 용어는 전부 북마크 가능(모델 재량 무시). conceptIds 누락 시 빈 배열.
-    ...t,
-    conceptIds: t.conceptIds ?? [],
-    bookmarkable: true,
-  }));
   const itConcepts = dedupeByConceptId(
     (Array.isArray(parsed.concepts) ? parsed.concepts : []).filter(isItConcept),
   );
+  // 실제 생성된 개념 id 집합 — 용어의 conceptIds에서 헛 참조(dangling)·중복을 걸러
+  // "관련 개념 N개" 표시 = 실제 강조될 카드 수가 되게 한다(모델이 안 만든 id 참조 제거).
+  const conceptIdSet = new Set(itConcepts.map((c) => c.conceptId));
+  const terms = dedupeById(
+    (Array.isArray(parsed.terms) ? parsed.terms : []).filter(isItTerm),
+  ).map((t) => ({
+    // IT 용어는 전부 북마크 가능(모델 재량 무시). conceptIds는 중복 제거 + 존재하는 개념만.
+    ...t,
+    conceptIds: [...new Set(t.conceptIds ?? [])].filter((id) => conceptIdSet.has(id)),
+    bookmarkable: true,
+  }));
 
   return {
     providerId,
