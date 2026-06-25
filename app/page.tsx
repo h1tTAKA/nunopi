@@ -972,6 +972,11 @@ export default function Home() {
                 mode={mode === "text" ? "text" : "code"}
                 onSend={handleSendChat}
                 onClear={handleClearChat}
+                sessionIds={chatSessions.map((s) => s.id)}
+                activeSessionId={activeSessionIdResolved}
+                onSwitchSession={handleSwitchSession}
+                onNewSession={handleNewSession}
+                onDeleteSession={handleDeleteSession}
               />
             }
           />
