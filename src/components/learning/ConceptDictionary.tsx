@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { BookmarkedConceptDetail } from "@/lib/bookmarkDetails";
 import { StarIcon } from "./icons";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ConceptDictionaryProps {
   details: Record<string, BookmarkedConceptDetail>;
@@ -11,10 +12,10 @@ interface ConceptDictionaryProps {
 
 type SortMode = "latest" | "oldest" | "alpha";
 
-const SORT_LABELS: Record<SortMode, string> = { latest: "최신순", oldest: "과거순", alpha: "가나다순" };
-
 // 북마크한 개념 사전 — title + 설명(드래그 복사 가능) + ★ 해제.
 export default function ConceptDictionary({ details, onUnbookmark }: ConceptDictionaryProps) {
+  const t = useT();
+  const SORT_LABELS: Record<SortMode, string> = { latest: t("sort.latest"), oldest: t("sort.oldest"), alpha: t("sort.alpha") };
   const [sortMode, setSortMode] = useState<SortMode>("latest");
 
   const entries = Object.values(details);
@@ -22,8 +23,8 @@ export default function ConceptDictionary({ details, onUnbookmark }: ConceptDict
   if (entries.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
-        북마크한 개념이 없다.<br />
-        <span className="text-xs">개념 카드의 ★ 버튼으로 북마크할 수 있다.</span>
+        {t("dict.emptyConcept")}<br />
+        <span className="text-xs">{t("dict.hintConcept")}</span>
       </div>
     );
   }
@@ -51,7 +52,7 @@ export default function ConceptDictionary({ details, onUnbookmark }: ConceptDict
             {SORT_LABELS[m]}
           </button>
         ))}
-        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{entries.length}개</span>
+        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("common.count", { n: entries.length })}</span>
       </div>
 
       <div className="space-y-1.5">
@@ -73,8 +74,8 @@ export default function ConceptDictionary({ details, onUnbookmark }: ConceptDict
                 type="button"
                 onClick={() => onUnbookmark(concept.title)}
                 className="shrink-0 text-lime-600 transition hover:text-zinc-400 dark:text-lime-400 dark:hover:text-zinc-500"
-                title="북마크 해제"
-                aria-label={`${concept.title} 북마크 해제`}
+                title={t("dict.removeBookmark")}
+                aria-label={`${concept.title} ${t("dict.removeBookmark")}`}
               >
                 <StarIcon filled />
               </button>

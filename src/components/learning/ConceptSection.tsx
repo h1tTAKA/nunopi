@@ -4,11 +4,7 @@ import { useEffect } from "react";
 import type { ConceptOccurrence } from "@/lib/translator/types";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import { StarIcon, XIcon } from "./icons";
-
-const LEVEL_LABEL: Record<"beginner" | "intermediate", string> = {
-  beginner: "초급",
-  intermediate: "중급",
-};
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
@@ -24,6 +20,7 @@ interface ConceptSectionProps {
 }
 
 export default function ConceptSection({ concepts, activeConceptId, expandedConceptIds, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
+  const t = useT();
   useEffect(() => {
     if (!activeConceptId) return;
     const el = document.getElementById(`concept-${activeConceptId}`);
@@ -108,7 +105,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                           : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                       }`}>
-                        {LEVEL_LABEL[desc.level]}
+                        {t("level." + desc.level)}
                       </span>
                     );
                   })()}

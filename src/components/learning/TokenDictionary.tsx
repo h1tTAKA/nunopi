@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type { BookmarkedTokenDetail } from "@/lib/bookmarkDetails";
-import type { TokenCategory } from "@/lib/translator/types";
 import { StarIcon } from "./icons";
 import CodeBlock from "./CodeBlock";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface TokenDictionaryProps {
   details: Record<string, BookmarkedTokenDetail>;
@@ -13,32 +13,8 @@ interface TokenDictionaryProps {
 
 type SortMode = "latest" | "oldest" | "alpha";
 
-const CATEGORY_LABEL: Record<TokenCategory, string> = {
-  react_hook: "훅",
-  state_variable: "상태 변수",
-  state_setter: "상태 세터",
-  prop: "prop",
-  function: "함수",
-  event_handler: "이벤트 핸들러",
-  jsx_element: "JSX 요소",
-  operator: "연산자",
-  keyword: "키워드",
-  punctuation: "기호",
-  api_call: "API 호출",
-  dependency_array: "의존성 배열",
-  initial_value: "초기값",
-  css_selector: "CSS 선택자",
-  css_property: "CSS 속성",
-  css_value: "CSS 값",
-  tailwind_utility: "Tailwind",
-  tailwind_layout: "Tailwind 레이아웃",
-  tailwind_spacing: "Tailwind 간격",
-  tailwind_color: "Tailwind 색상",
-  tailwind_responsive: "Tailwind 반응형",
-  tailwind_state: "Tailwind 상태",
-};
-
 export default function TokenDictionary({ details, onUnbookmark }: TokenDictionaryProps) {
+  const t = useT();
   const [sortMode, setSortMode] = useState<SortMode>("latest");
 
   const entries = Object.values(details);
@@ -46,8 +22,8 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
   if (entries.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
-        북마크한 토큰이 없다.<br />
-        <span className="text-xs">토큰 카드의 ★ 버튼으로 북마크할 수 있다.</span>
+        {t("dict.emptyToken")}<br />
+        <span className="text-xs">{t("dict.hintToken")}</span>
       </div>
     );
   }
@@ -66,7 +42,7 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
     grouped[cat].push(entry);
   }
 
-  const SORT_LABELS: Record<SortMode, string> = { latest: "최신순", oldest: "과거순", alpha: "가나다순" };
+  const SORT_LABELS: Record<SortMode, string> = { latest: t("sort.latest"), oldest: t("sort.oldest"), alpha: t("sort.alpha") };
 
   return (
     <div className="space-y-4">
@@ -86,7 +62,7 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
             {SORT_LABELS[mode]}
           </button>
         ))}
-        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{entries.length}개</span>
+        <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("common.count", { n: entries.length })}</span>
       </div>
 
       {/* 카테고리별 목록 */}
@@ -94,7 +70,7 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
         <div key={category} className="space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              {CATEGORY_LABEL[category as TokenCategory] ?? category}
+              {t("cat." + category)}
             </span>
             <span className="text-xs text-zinc-300 dark:text-zinc-600">({tokens.length})</span>
           </div>
@@ -120,8 +96,8 @@ export default function TokenDictionary({ details, onUnbookmark }: TokenDictiona
                   type="button"
                   onClick={() => onUnbookmark(token.token)}
                   className="shrink-0 text-lime-600 transition hover:text-zinc-400 dark:text-lime-400 dark:hover:text-zinc-500"
-                  title="북마크 해제"
-                  aria-label={`${token.token} 북마크 해제`}
+                  title={t("dict.removeBookmark")}
+                  aria-label={`${token.token} ${t("dict.removeBookmark")}`}
                 >
                   <StarIcon filled />
                 </button>

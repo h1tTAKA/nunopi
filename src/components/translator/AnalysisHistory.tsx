@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconFolder } from "@tabler/icons-react";
 import { StarIcon } from "@/components/learning/icons";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@/lib/i18n/I18nProvider";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
 
@@ -38,6 +39,7 @@ export default function AnalysisHistory({
   onToggleEntryCollection,
 }: AnalysisHistoryProps) {
   const confirm = useConfirm();
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export default function AnalysisHistory({
             : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
         }`}
       >
-        전체
+        {t("common.all")}
       </button>
       {collections.map((c) => (
         <span
@@ -150,9 +152,9 @@ export default function AnalysisHistory({
           {onDeleteCollection && (
             <button
               type="button"
-              onClick={async () => { if (await confirm({ message: `목록 "${c.name}"을 삭제할까요? 분석 항목 자체는 지워지지 않습니다.`, confirmText: "삭제", danger: true })) onDeleteCollection(c.id); }}
+              onClick={async () => { if (await confirm({ message: t("confirm.deleteCollection", { name: c.name }), confirmText: t("common.delete"), danger: true })) onDeleteCollection(c.id); }}
               className="pr-1.5 opacity-60 hover:opacity-100"
-              title="목록 삭제"
+              title={t("history.deleteCollectionTitle")}
               aria-label={`${c.name} 목록 삭제`}
             >
               ×
@@ -172,7 +174,7 @@ export default function AnalysisHistory({
               if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitBarCreate(); }
               if (e.key === "Escape") { setBarName(""); setBarCreating(false); }
             }}
-            placeholder="목록 이름…"
+            placeholder={t("history.collectionName")}
             className="w-24 rounded-lg border border-blue-300 bg-white px-2 py-0.5 text-xs text-zinc-700 outline-none dark:border-blue-600 dark:bg-zinc-900 dark:text-zinc-200"
           />
         ) : (
@@ -181,7 +183,7 @@ export default function AnalysisHistory({
             onClick={() => setBarCreating(true)}
             className="rounded-lg px-2 py-0.5 text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
           >
-            + 새 목록
+            {t("history.newCollection")}
           </button>
         )
       )}
@@ -195,7 +197,7 @@ export default function AnalysisHistory({
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="제목 또는 provider 검색…"
+        placeholder={t("history.search")}
         className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-700 outline-none transition focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:border-zinc-600"
       />
       {entries.length === 0 ? (
@@ -204,7 +206,7 @@ export default function AnalysisHistory({
         </p>
       ) : filteredEntries.length === 0 ? (
         <p className="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
-          {activeCollectionId ? "이 목록에 담긴 분석이 없다." : "검색 결과가 없다."}
+          {activeCollectionId ? t("history.empty") : t("history.noSearch")}
         </p>
       ) : (
         <div className={`${alwaysOpen ? "" : "max-h-48"} overflow-y-auto space-y-1.5`}>
@@ -229,8 +231,8 @@ export default function AnalysisHistory({
                         ? "text-lime-600 dark:text-lime-400"
                         : "text-zinc-400 hover:text-lime-600 dark:text-zinc-500 dark:hover:text-lime-400"
                     }`}
-                    title={entry.isPinned ? "고정 해제" : "고정하기"}
-                    aria-label={entry.isPinned ? "고정 해제" : "고정하기"}
+                    title={entry.isPinned ? t("history.unpin") : t("history.pin")}
+                    aria-label={entry.isPinned ? t("history.unpin") : t("history.pin")}
                   >
                     <StarIcon filled={entry.isPinned} className="h-4 w-4" />
                   </button>
@@ -250,9 +252,9 @@ export default function AnalysisHistory({
                     {entry.incomplete && (
                       <span
                         className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 shrink-0"
-                        title="멈춘 미완 분석 — 복원해 이어서 분석할 수 있다"
+                        title={t("history.incompleteTitle")}
                       >
-                        미완
+                        {t("history.incomplete")}
                       </span>
                     )}
                     <span className="truncate text-xs text-zinc-400 dark:text-zinc-500 shrink-0">
@@ -271,8 +273,8 @@ export default function AnalysisHistory({
                         ? "text-blue-500 dark:text-blue-400"
                         : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                     }`}
-                    title="목록에 추가/빼기"
-                    aria-label="목록에 추가/빼기"
+                    title={t("history.toggleCollection")}
+                    aria-label={t("history.toggleCollection")}
                   >
                     <IconFolder size={14} stroke={2} aria-hidden />
                   </button>
@@ -282,10 +284,10 @@ export default function AnalysisHistory({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirm({ message: "이 분석 이력을 삭제하시겠습니까? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDelete(entry.id);
+                    if (await confirm({ message: t("confirm.deleteEntry"), confirmText: t("common.delete"), danger: true })) onDelete(entry.id);
                   }}
                   className="shrink-0 text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
-                  aria-label="분석 이력 삭제"
+                  aria-label={t("history.deleteEntry")}
                 >
                   ×
                 </button>
@@ -304,7 +306,7 @@ export default function AnalysisHistory({
                       if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); saveTitle(entry.id); }
                       if (e.key === "Escape") setEditingId(null);
                     }}
-                    placeholder="제목 입력…"
+                    placeholder={t("history.titleInput")}
                     className="w-full rounded-lg border border-blue-300 bg-white px-2 py-0.5 text-xs text-zinc-700 outline-none dark:border-blue-600 dark:bg-zinc-900 dark:text-zinc-200"
                   />
                 ) : (
@@ -312,7 +314,7 @@ export default function AnalysisHistory({
                     type="button"
                     onClick={() => startEditing(entry)}
                     className="w-full text-left truncate text-xs font-mono text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
-                    title="클릭하여 제목 편집"
+                    title={t("history.editTitle")}
                   >
                     {entry.title || codePreview(entry.code)}
                   </button>
@@ -323,18 +325,18 @@ export default function AnalysisHistory({
               {menuEntryId === entry.id && onToggleEntryCollection && (
                 <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-950">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">목록에 담기</p>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("history.addToCollection")}</p>
                     <button
                       type="button"
                       onClick={() => { setEntryNewName(""); setMenuEntryId(null); }}
                       className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-                      aria-label="목록 메뉴 닫기"
+                      aria-label={t("history.closeMenu")}
                     >
                       ×
                     </button>
                   </div>
                   {collections.length === 0 && (
-                    <p className="text-xs text-zinc-400 dark:text-zinc-500">아직 목록이 없다.</p>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("history.noCollections")}</p>
                   )}
                   <div className="flex flex-wrap gap-1.5">
                     {collections.map((c) => {
@@ -364,7 +366,7 @@ export default function AnalysisHistory({
                         if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitEntryCreate(entry.id); }
                         if (e.key === "Escape") { setEntryNewName(""); setMenuEntryId(null); }
                       }}
-                      placeholder="새 목록 만들어 담기 (Enter)"
+                      placeholder={t("history.createAndAdd")}
                       className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                     />
                   )}
@@ -382,16 +384,16 @@ export default function AnalysisHistory({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-            분석 이력{entries.length > 0 ? ` ${entries.length}` : ""}
+            {t("history.title")}{entries.length > 0 ? ` ${entries.length}` : ""}
           </span>
           {entries.length > 0 && (
             <button
               type="button"
               onClick={onClear}
               className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-              aria-label="히스토리 전체 삭제"
+              aria-label={t("history.clearAllTitle")}
             >
-              모두 삭제
+              {t("history.clearAll")}
             </button>
           )}
         </div>
@@ -415,9 +417,9 @@ export default function AnalysisHistory({
             type="button"
             onClick={onClear}
             className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
-            aria-label="히스토리 전체 삭제"
+            aria-label={t("history.clearAllTitle")}
           >
-            모두 삭제
+            {t("history.clearAll")}
           </button>
         )}
       </div>

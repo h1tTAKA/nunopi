@@ -38,9 +38,6 @@ export function ProviderSelect({
 
 // 단일 버튼이 상태에 따라 교체:
 //  분석중→멈추기(회색) / 중단·resumable→이어서하기 / 완료(locked)→재분석 요청(경고 confirm) / else→분석요청하기.
-const REANALYZE_WARNING =
-  "재분석하시게 되면 현재 분석 내용이 사라지고 분석 내용이 달라질 수 있습니다. 재분석하시겠습니까?";
-
 export function AnalyzeButton({
   isLoading,
   resumable = false,
@@ -87,7 +84,7 @@ export function AnalyzeButton({
       <button
         type="button"
         onClick={async () => {
-          if (await confirm({ title: "재분석", message: REANALYZE_WARNING, confirmText: "재분석" })) void onAnalyze();
+          if (await confirm({ title: t("confirm.reanalyzeTitle"), message: t("confirm.reanalyze"), confirmText: t("confirm.reanalyzeTitle") })) void onAnalyze();
         }}
         title="현재 입력을 다시 분석(기존 결과는 사라짐)"
         className="shrink-0 whitespace-nowrap rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"

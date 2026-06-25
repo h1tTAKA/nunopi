@@ -912,7 +912,7 @@ export default function Home() {
                 streaming={chatStreaming}
                 isLoading={chatLoading}
                 disabled={!code.trim()}
-                disabledHint={mode === "text" ? "글을 입력하면 질문할 수 있어요." : "코드를 입력하면 질문할 수 있어요."}
+                mode={mode === "text" ? "text" : "code"}
                 onSend={handleSendChat}
                 onClear={handleClearChat}
               />

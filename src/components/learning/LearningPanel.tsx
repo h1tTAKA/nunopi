@@ -522,7 +522,7 @@ export default function LearningPanel({
         <button
           type="button"
           onClick={async () => {
-            if (await confirm({ message: "이 분석을 삭제할까요? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDeleteHistory(currentHistoryId);
+            if (await confirm({ message: t("confirm.deleteAnalysis"), confirmText: t("common.delete"), danger: true })) onDeleteHistory(currentHistoryId);
           }}
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           title="이 분석 삭제"
@@ -567,7 +567,7 @@ export default function LearningPanel({
               if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitHeaderCreateCollection(); }
               if (e.key === "Escape") { setHeaderNewColl(""); setHeaderCollMenu(false); }
             }}
-            placeholder="새 목록 만들어 담기 (Enter)"
+            placeholder={t("history.createAndAdd")}
             className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           />
         )}

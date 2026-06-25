@@ -12,7 +12,7 @@ interface ChatRoomProps {
   streaming?: string | null;
   isLoading: boolean;
   disabled?: boolean; // 분석 전 등 비활성 사유.
-  disabledHint?: string;
+  mode?: "code" | "text"; // 비활성 안내 문구를 모드별로(코드/글) 다국어로 보여주기 위함.
   onSend: (text: string) => void;
   onClear?: () => void;
 }
@@ -25,8 +25,9 @@ function formatChatAsMarkdown(messages: ChatMessage[]): string {
     .join("\n\n---\n\n");
 }
 
-export default function ChatRoom({ messages, streaming, isLoading, disabled, disabledHint, onSend, onClear }: ChatRoomProps) {
+export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear }: ChatRoomProps) {
   const t = useT();
+  const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -116,7 +117,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
       <div ref={scrollRef} className="nunopi-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {messages.length === 0 && !streaming && (
           <p className="py-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
-            {disabled ? (disabledHint ?? "먼저 입력을 채워 보세요.") : "예) 이게 무슨 뜻이에요? 왜 이렇게 하나요?"}
+            {disabled ? disabledHint : t("chat.exampleHint")}
           </p>
         )}
         {messages.map((m, i) => (
@@ -156,7 +157,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
           }}
           disabled={isLoading || disabled}
           rows={1}
-          placeholder={disabled ? (disabledHint ?? t("chat.placeholder")) : t("chat.placeholder")}
+          placeholder={disabled ? disabledHint : t("chat.placeholder")}
           className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
         />
         <button
