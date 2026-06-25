@@ -520,7 +520,7 @@ export default function LearningPanel({
         <button
           type="button"
           onClick={async () => {
-            if (await confirm({ message: "이 분석을 삭제할까? 되돌릴 수 없다.", confirmText: "삭제", danger: true })) onDeleteHistory(currentHistoryId);
+            if (await confirm({ message: "이 분석을 삭제할까요? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDeleteHistory(currentHistoryId);
           }}
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           title="이 분석 삭제"

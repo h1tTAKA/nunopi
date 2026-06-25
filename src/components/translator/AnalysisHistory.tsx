@@ -150,7 +150,7 @@ export default function AnalysisHistory({
           {onDeleteCollection && (
             <button
               type="button"
-              onClick={async () => { if (await confirm({ message: `목록 "${c.name}"을 삭제할까? (분석 항목 자체는 안 지워짐)`, confirmText: "삭제", danger: true })) onDeleteCollection(c.id); }}
+              onClick={async () => { if (await confirm({ message: `목록 "${c.name}"을 삭제할까요? 분석 항목 자체는 지워지지 않습니다.`, confirmText: "삭제", danger: true })) onDeleteCollection(c.id); }}
               className="pr-1.5 opacity-60 hover:opacity-100"
               title="목록 삭제"
               aria-label={`${c.name} 목록 삭제`}
@@ -282,7 +282,7 @@ export default function AnalysisHistory({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirm({ message: "이 분석 이력을 삭제할까? 되돌릴 수 없다.", confirmText: "삭제", danger: true })) onDelete(entry.id);
+                    if (await confirm({ message: "이 분석 이력을 삭제하시겠습니까? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDelete(entry.id);
                   }}
                   className="shrink-0 text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                   aria-label="분석 이력 삭제"
