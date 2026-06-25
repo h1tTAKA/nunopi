@@ -118,7 +118,7 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
 
 export async function updateHistory(
   id: string,
-  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "collectionIds" | "incomplete">>,
+  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "chatSessions" | "activeChatSessionId" | "collectionIds" | "incomplete">>,
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {
