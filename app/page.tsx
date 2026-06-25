@@ -6,6 +6,7 @@ import ModeToggle from "@/components/layout/ModeToggle";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
@@ -795,6 +796,7 @@ export default function Home() {
   }
 
   return (
+    <I18nProvider>
     <ConfirmProvider>
       <AppShell
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -920,6 +922,7 @@ export default function Home() {
         onThemeChange={changeTheme}
       />
     </ConfirmProvider>
+    </I18nProvider>
   );
 }
 
