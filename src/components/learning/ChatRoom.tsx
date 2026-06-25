@@ -5,6 +5,7 @@ import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import type { ChatMessage } from "@/lib/agent";
 import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 interface ChatRoomProps {
   messages: ChatMessage[];
@@ -35,7 +36,16 @@ function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
 
 export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear, sessionIds = [], activeSessionId = null, onSwitchSession, onNewSession, onDeleteSession }: ChatRoomProps) {
   const t = useT();
+  const confirm = useConfirm();
   const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
+
+  // 세션 삭제는 실수 방지로 확인 모달 — 대화가 사라진다는 안내.
+  async function confirmDeleteSession(id: string) {
+    if (!onDeleteSession) return;
+    if (await confirm({ title: t("confirm.deleteSessionTitle"), message: t("confirm.deleteSession"), confirmText: t("common.delete"), danger: true })) {
+      onDeleteSession(id);
+    }
+  }
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -124,13 +134,13 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
 
       {/* 세션 탭바(#312) — 분석 항목당 다중 세션. 코드 미입력(disabled) 시 숨김. */}
       {!disabled && sessionIds.length > 0 && onSwitchSession && (
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-200 px-2 py-1.5 dark:border-zinc-800">
+        <div className="no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-zinc-200 px-2 py-1 dark:border-zinc-800">
           {sessionIds.map((id, i) => {
             const isActive = id === activeSessionId;
             return (
               <span
                 key={id}
-                className={`group inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition ${
+                className={`group inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0 text-xs font-medium transition ${
                   isActive
                     ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-50 dark:text-zinc-900"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
@@ -142,10 +152,10 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
                 {sessionIds.length > 1 && onDeleteSession && (
                   <button
                     type="button"
-                    onClick={() => onDeleteSession(id)}
+                    onClick={() => { void confirmDeleteSession(id); }}
                     title={t("chat.deleteSession")}
                     aria-label={t("chat.deleteSession")}
-                    className={`rounded transition hover:text-red-500 ${isActive ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-400 opacity-0 group-hover:opacity-100 dark:text-zinc-500"}`}
+                    className={`rounded transition hover:text-red-500 ${isActive ? "inline-flex text-zinc-400 dark:text-zinc-500" : "hidden text-zinc-400 group-hover:inline-flex dark:text-zinc-500"}`}
                   >
                     <IconX size={12} stroke={2.5} aria-hidden />
                   </button>
@@ -158,7 +168,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
               type="button"
               onClick={onNewSession}
               disabled={isLoading}
-              className="shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="shrink-0 whitespace-nowrap rounded-lg px-2 py-0.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               {t("chat.newSession")}
             </button>
