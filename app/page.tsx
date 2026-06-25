@@ -24,6 +24,7 @@ import {
   updateHistory,
   entryChatSessions,
   freshChatSessions,
+  newSessionId,
 } from "@/lib/historyDB";
 import { loadExclusions, saveExclusions } from "@/lib/exclusions";
 import { type Collection, loadCollections, saveCollections } from "@/lib/collections";
@@ -630,8 +631,10 @@ export default function Home() {
     // 활성 세션에 질문 추가.
     const activeMsgs = chatSessions.find((s) => s.id === sid)?.messages ?? [];
     appendToSession(sid, { role: "user", content: text });
-    // 에이전트에 보내는 맥락 — 활성 세션 + 새 질문(commit3에서 전 세션 합본으로 확장).
-    const contextMessages: ChatMessage[] = [...activeMsgs, { role: "user", content: text }];
+    // 에이전트에 보내는 맥락 — 다른 세션 전체 + 활성 세션 + 새 질문(전 세션 합본 참조, #312).
+    // 답변은 활성 세션에만 쌓이고, 다른 세션은 읽기 전용 맥락으로만 쓰인다.
+    const otherMsgs = chatSessions.filter((s) => s.id !== sid).flatMap((s) => s.messages);
+    const contextMessages: ChatMessage[] = [...otherMsgs, ...activeMsgs, { role: "user", content: text }];
     setChatStreaming("");
     setChatLoading(true);
     (async () => {
@@ -692,6 +695,30 @@ export default function Home() {
     // 활성 세션의 메시지만 비운다(다른 세션은 보존). 동기화 effect가 DB/메모리 반영.
     const sid = activeSessionIdResolved;
     setChatSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, messages: [] } : s)));
+    setChatStreaming(null);
+  }
+
+  // 새 세션 추가 → 그 세션을 활성으로.
+  function handleNewSession() {
+    if (chatLoading) return;
+    const sess: ChatSession = { id: newSessionId(), messages: [] };
+    setChatSessions((prev) => [...prev, sess]);
+    setActiveSessionId(sess.id);
+  }
+
+  // 세션 전환.
+  function handleSwitchSession(id: string) {
+    setActiveSessionId(id);
+    setChatStreaming(null);
+  }
+
+  // 세션 삭제 — 마지막 1개는 못 지운다(항상 ≥1). 활성이 지워지면 남은 마지막 세션으로.
+  function handleDeleteSession(id: string) {
+    if (chatLoading) return;
+    if (chatSessions.length <= 1) return;
+    const next = chatSessions.filter((s) => s.id !== id);
+    if (id === activeSessionIdResolved) setActiveSessionId(next[next.length - 1].id);
+    setChatSessions(next);
     setChatStreaming(null);
   }
 
