@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { ItTerm } from "@/lib/translator/types";
 import { BanIcon, StarIcon } from "./icons";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 interface ItTermSectionProps {
   terms: ItTerm[];
@@ -25,6 +26,7 @@ export default function ItTermSection({
   onBookmarkToggle,
   onExclude,
 }: ItTermSectionProps) {
+  const confirm = useConfirm();
   // 글 원문에서 용어를 클릭하면 그 카드로 스크롤(ItConceptSection과 동일 패턴).
   useEffect(() => {
     if (!activeTermId) return;
@@ -77,7 +79,9 @@ export default function ItTermSection({
               {onExclude && (
                 <button
                   type="button"
-                  onClick={() => onExclude(term)}
+                  onClick={async () => {
+                    if (await confirm({ message: `"${term.term}"을(를) 제외할까요? 다음 분석부터 표시되지 않습니다. (설정에서 해제 가능)`, confirmText: "제외", danger: true })) onExclude(term);
+                  }}
                   className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                   title="이 용어 제외 (다음 분석부터 숨김)"
                   aria-label={`${term.term} 제외하기`}
