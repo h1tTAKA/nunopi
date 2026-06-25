@@ -31,6 +31,7 @@ import ConceptSection from "./ConceptSection";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
 import ItConceptSection from "./ItConceptSection";
@@ -157,6 +158,7 @@ export default function LearningPanel({
   onDeleteCollection,
   onToggleEntryCollection,
 }: LearningPanelProps) {
+  const confirm = useConfirm();
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
   // 분석 중 실시간 경과 타이머 — 1초마다 갱신. interval 콜백 setState라 set-state-in-effect 무관.
@@ -517,8 +519,8 @@ export default function LearningPanel({
       {onDeleteHistory && (
         <button
           type="button"
-          onClick={() => {
-            if (window.confirm("이 분석을 삭제할까? 되돌릴 수 없다.")) onDeleteHistory(currentHistoryId);
+          onClick={async () => {
+            if (await confirm({ message: "이 분석을 삭제할까요? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDeleteHistory(currentHistoryId);
           }}
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           title="이 분석 삭제"

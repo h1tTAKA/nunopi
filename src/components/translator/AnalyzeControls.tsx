@@ -2,6 +2,7 @@
 
 import type { AgentProviderKind } from "@/lib/agent";
 import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 
 // 입력 패널 헤더에 분산 배치되는 분석 컨트롤 조각들 — 코드/글 입력 영역 공용.
 // (예전 ProviderToolbar strip을 해체해 여기로 옮김.)
@@ -53,6 +54,7 @@ export function AnalyzeButton({
   onCancel: () => void;
   onResume?: () => void;
 }) {
+  const confirm = useConfirm();
   if (isLoading) {
     return (
       <button
@@ -81,8 +83,8 @@ export function AnalyzeButton({
     return (
       <button
         type="button"
-        onClick={() => {
-          if (window.confirm(REANALYZE_WARNING)) void onAnalyze();
+        onClick={async () => {
+          if (await confirm({ title: "재분석", message: REANALYZE_WARNING, confirmText: "재분석" })) void onAnalyze();
         }}
         title="현재 입력을 다시 분석(기존 결과는 사라짐)"
         className="shrink-0 whitespace-nowrap rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
