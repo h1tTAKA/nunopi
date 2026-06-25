@@ -376,6 +376,8 @@ export default function Home() {
     if (isLoading) {
       return;
     }
+    // 챗 스트리밍 중엔 새 분석 금지 — 세션 리셋으로 진행 답변이 유실된다(#312).
+    if (chatLoading) return;
 
     const startedAt = Date.now();
     setAnalysisStartedAt(startedAt);
