@@ -740,7 +740,7 @@ export default function LearningPanel({
           <div className="flex items-center gap-3">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
             <span className="text-sm text-zinc-600 dark:text-zinc-300">
-              {t("panel.spinAnalyzing")}{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs)}` : ""}
+              {t("panel.spinAnalyzing")}{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs, locale)}` : ""}
               {chunkProgress && chunkProgress.total > 0
                 ? t("panel.chunk", { done: chunkProgress.done, total: chunkProgress.total })
                 : ""}
@@ -837,7 +837,7 @@ export default function LearningPanel({
               {result.usage?.outputTokens != null && (
                 <span>{t("panel.tokensOutput", { n: result.usage.outputTokens })}</span>
               )}
-              {elapsedMs != null && <span>{t("panel.elapsed", { d: formatDuration(elapsedMs) })}</span>}
+              {elapsedMs != null && <span>{t("panel.elapsed", { d: formatDuration(elapsedMs, locale) })}</span>}
               {result.usage?.estimatedCostUsd != null && (
                 <span>${result.usage.estimatedCostUsd.toFixed(4)}</span>
               )}

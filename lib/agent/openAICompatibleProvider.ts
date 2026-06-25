@@ -6,7 +6,7 @@ import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
-import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 import { codeChunkDirectives } from "./codeChunkPrompt";
 
 interface OpenAICompatibleConfig {
@@ -346,7 +346,7 @@ function buildOpenAICompatibleMessages(
   // 챗: 튜터 시스템 + 코드/대화 프롬프트.
   if (request.mode === "chat") {
     return [
-      { role: "system", content: CHAT_SYSTEM_PROMPT },
+      { role: "system", content: chatSystemPrompt(request.locale) },
       { role: "user", content: buildChatPrompt(request) },
     ];
   }
