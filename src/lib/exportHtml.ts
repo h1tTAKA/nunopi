@@ -3,6 +3,9 @@ import type { AgentAnalyzeResponse } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence, ItConcept, ItTerm } from "@/lib/translator/types";
 import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 
+// 화면과 동일한 번역 함수(useT 반환 타입)를 인자로 받아 HTML도 선택 언어로 출력한다.
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
 // 분석 결과(전체 코드 + 학습패널 내용)를 폰에서도 열어 볼 수 있는
 // 자체완결(self-contained) HTML 문서 문자열로 만든다.
 // - shiki codeToHtml은 inline 스타일이라 CDN/JS 없이 오프라인에서도 색칠 유지
@@ -42,122 +45,99 @@ async function highlight(code: string, language: string): Promise<string> {
   }
 }
 
-const CATEGORY_LABEL: Record<string, string> = {
-  react_hook: "React 훅",
-  state_variable: "상태 변수",
-  state_setter: "상태 변경 함수",
-  prop: "prop",
-  function: "함수",
-  event_handler: "이벤트 핸들러",
-  jsx_element: "JSX 요소",
-  operator: "연산자",
-  keyword: "키워드",
-  api_call: "API 호출",
-  dependency_array: "의존성 배열",
-  initial_value: "초기값",
-  css_selector: "CSS 선택자",
-  css_property: "CSS 속성",
-  css_value: "CSS 값",
-  tailwind_utility: "Tailwind 유틸",
-  tailwind_layout: "Tailwind 레이아웃",
-  tailwind_spacing: "Tailwind 여백",
-  tailwind_color: "Tailwind 색상",
-  tailwind_responsive: "Tailwind 반응형",
-  tailwind_state: "Tailwind 상태",
-};
-
-function renderTokens(tokens: CodeToken[]): string {
+function renderTokens(tokens: CodeToken[], t: TFn): string {
   if (tokens.length === 0) return "";
   const cards = tokens
-    .map((t) => {
-      const cat = CATEGORY_LABEL[t.category] ?? escapeHtml(t.category);
-      const example = t.example
-        ? `<pre class="token-example">${escapeHtml(t.example)}</pre>`
+    .map((tok) => {
+      const cat = escapeHtml(t(`cat.${tok.category}`));
+      const example = tok.example
+        ? `<pre class="token-example">${escapeHtml(tok.example)}</pre>`
         : "";
       return `<div class="card">
-        <div class="token-head"><code class="token">${escapeHtml(t.token)}</code><span class="badge">${cat}</span></div>
-        <div class="token-label">${escapeHtml(t.label)}</div>
-        <p>${escapeHtml(t.description)}</p>
+        <div class="token-head"><code class="token">${escapeHtml(tok.token)}</code><span class="badge">${cat}</span></div>
+        <div class="token-label">${escapeHtml(tok.label)}</div>
+        <p>${escapeHtml(tok.description)}</p>
         ${example}
       </div>`;
     })
     .join("\n");
-  return `<section><h2>토큰 사전</h2><div class="cards">${cards}</div></section>`;
+  return `<section><h2>${escapeHtml(t("export.tokenDict"))}</h2><div class="cards">${cards}</div></section>`;
 }
 
-function renderConcepts(concepts: ConceptOccurrence[]): string {
+function renderConcepts(concepts: ConceptOccurrence[], t: TFn): string {
   if (concepts.length === 0) return "";
   const items = concepts
     .map((c) => {
       const desc = c.description ? `<p>${escapeHtml(c.description)}</p>` : "";
       const cLines = c.lines ?? [];
-      const lines = cLines.length > 0 ? `<p class="muted">등장 줄: ${cLines.join(", ")}</p>` : "";
+      const lines = cLines.length > 0 ? `<p class="muted">${escapeHtml(t("export.appearLines", { lines: cLines.join(", ") }))}</p>` : "";
       return `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div>${desc}${lines}</div>`;
     })
     .join("\n");
-  return `<section><h2>개념</h2><div class="cards">${items}</div></section>`;
+  return `<section><h2>${escapeHtml(t("export.concepts"))}</h2><div class="cards">${items}</div></section>`;
 }
 
 // 글(text) 모드 — IT 용어 사전. 화면 ItTermSection에 대응.
-function renderTerms(terms: ItTerm[]): string {
+function renderTerms(terms: ItTerm[], t: TFn): string {
   if (terms.length === 0) return "";
   const cards = terms
-    .map((t) => {
-      const reading = t.reading
-        ? `<span class="badge">${escapeHtml(t.reading)}</span>`
+    .map((term) => {
+      const reading = term.reading
+        ? `<span class="badge">${escapeHtml(term.reading)}</span>`
         : "";
       return `<div class="card">
-        <div class="token-head"><code class="token">${escapeHtml(t.term)}</code>${reading}</div>
-        <p>${escapeHtml(t.explanation)}</p>
+        <div class="token-head"><code class="token">${escapeHtml(term.term)}</code>${reading}</div>
+        <p>${escapeHtml(term.explanation)}</p>
       </div>`;
     })
     .join("\n");
-  return `<section><h2>IT 용어 사전</h2><div class="cards">${cards}</div></section>`;
+  return `<section><h2>${escapeHtml(t("export.termDict"))}</h2><div class="cards">${cards}</div></section>`;
 }
 
 // 글(text) 모드 — 관련 개념. 화면 ItConceptSection에 대응.
-function renderItConcepts(concepts: ItConcept[]): string {
+function renderItConcepts(concepts: ItConcept[], t: TFn): string {
   if (concepts.length === 0) return "";
   const cards = concepts
     .map((c) => {
       return `<div class="card"><div class="token-label">${escapeHtml(c.title)}</div><p>${escapeHtml(c.explanation)}</p></div>`;
     })
     .join("\n");
-  return `<section><h2>관련 개념</h2><div class="cards">${cards}</div></section>`;
+  return `<section><h2>${escapeHtml(t("export.relatedConcepts"))}</h2><div class="cards">${cards}</div></section>`;
 }
 
 function renderLineExplanations(
   result: AgentAnalyzeResponse,
+  t: TFn,
 ): string {
   if (result.lineExplanations.length === 0) return "";
   const items = result.lineExplanations
     .map((item) => {
       return `<div class="exp">
-        <div class="exp-head"><span class="badge">${item.line}번 줄</span></div>
+        <div class="exp-head"><span class="badge">${escapeHtml(t("panel.lineN", { n: item.line }))}</span></div>
         <pre class="exp-code">${escapeHtml(item.code)}</pre>
         <p>${escapeHtml(item.explanation)}</p>
       </div>`;
     })
     .join("\n");
-  return `<section><h2>줄별 설명</h2>${items}</section>`;
+  return `<section><h2>${escapeHtml(t("export.lineExplanations"))}</h2>${items}</section>`;
 }
 
-function renderWarnings(result: AgentAnalyzeResponse): string {
+function renderWarnings(result: AgentAnalyzeResponse, t: TFn): string {
   if (result.warnings.length === 0) return "";
   const items = result.warnings
     .map((w) => `<li>[${escapeHtml(w.code)}] ${escapeHtml(w.message)}</li>`)
     .join("\n");
-  return `<section><h2>경고</h2><ul class="warnings">${items}</ul></section>`;
+  return `<section><h2>${escapeHtml(t("export.warnings"))}</h2><ul class="warnings">${items}</ul></section>`;
 }
 
-function renderMeta(result: AgentAnalyzeResponse): string {
+function renderMeta(result: AgentAnalyzeResponse, t: TFn, dateLocale: string): string {
   const parts = [
-    `언어: ${escapeHtml(result.language)}`,
+    `${t("export.metaLanguage")}: ${escapeHtml(result.language)}`,
     `provider: ${escapeHtml(result.providerId)}`,
-    `생성: ${escapeHtml(new Date(result.createdAt).toLocaleString("ko-KR"))}`,
+    `${t("export.metaCreated")}: ${escapeHtml(new Date(result.createdAt).toLocaleString(dateLocale))}`,
   ];
-  if (result.usage?.inputTokens != null) parts.push(`입력 ${result.usage.inputTokens}토큰`);
-  if (result.usage?.outputTokens != null) parts.push(`출력 ${result.usage.outputTokens}토큰`);
+  if (result.usage?.inputTokens != null) parts.push(escapeHtml(t("panel.tokensInput", { n: result.usage.inputTokens })));
+  if (result.usage?.outputTokens != null) parts.push(escapeHtml(t("panel.tokensOutput", { n: result.usage.outputTokens })));
   return `<p class="meta">${parts.join(" · ")}</p>`;
 }
 
@@ -191,14 +171,17 @@ const STYLE = `
 export async function formatResultAsHtml(
   result: AgentAnalyzeResponse,
   code: string,
-  title?: string,
+  title: string | undefined,
+  t: TFn,
+  dateLocale: string,
 ): Promise<string> {
+  const lang = dateLocale.split("-")[0];
   const isText = result.mode === "text";
   const heading = title?.trim()
     ? title.trim()
     : isText
-      ? "글 분석 결과"
-      : "코드 분석 결과";
+      ? t("export.headingText")
+      : t("export.headingCode");
 
   // 글 모드: 산문이라 shiki·줄번호 재앵커 불필요. 평문 블록으로 입력 글을 보존한다.
   // 코드 모드: 입력 코드 shiki 하이라이팅 + LLM 줄번호를 실제 행에 재앵커(토큰/개념 lines도 보정).
@@ -206,8 +189,8 @@ export async function formatResultAsHtml(
   let bodySections: string;
   let anchored: AgentAnalyzeResponse = result;
   if (isText) {
-    inputSection = `<section><h2>입력 글</h2><pre class="code-fallback">${escapeHtml(code)}</pre></section>`;
-    bodySections = `${renderTerms(result.terms ?? [])}\n${renderItConcepts(result.itConcepts ?? [])}`;
+    inputSection = `<section><h2>${escapeHtml(t("export.inputText"))}</h2><pre class="code-fallback">${escapeHtml(code)}</pre></section>`;
+    bodySections = `${renderTerms(result.terms ?? [], t)}\n${renderItConcepts(result.itConcepts ?? [], t)}`;
   } else {
     const codeHtml = await highlight(code, result.language);
     const { lineExplanations, lineMap } = reanchorLineNumbers(code, result.lineExplanations);
@@ -217,14 +200,14 @@ export async function formatResultAsHtml(
       tokens: result.tokens.map((t) => ({ ...t, lines: remapLines(t.lines, lineMap) })),
       concepts: result.concepts.map((c) => ({ ...c, lines: remapLines(c.lines ?? [], lineMap) })),
     };
-    inputSection = `<section><h2>입력 코드</h2>${codeHtml}</section>`;
-    bodySections = `${renderLineExplanations(anchored)}
-${renderTokens(anchored.tokens)}
-${renderConcepts(anchored.concepts)}`;
+    inputSection = `<section><h2>${escapeHtml(t("export.inputCode"))}</h2>${codeHtml}</section>`;
+    bodySections = `${renderLineExplanations(anchored, t)}
+${renderTokens(anchored.tokens, t)}
+${renderConcepts(anchored.concepts, t)}`;
   }
 
   return `<!doctype html>
-<html lang="ko">
+<html lang="${lang}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -234,12 +217,12 @@ ${renderConcepts(anchored.concepts)}`;
 <body>
 <div class="wrap">
 <h1>${escapeHtml(heading)}</h1>
-${renderMeta(anchored)}
-<div class="summary"><strong>요약</strong><p>${escapeHtml(anchored.summary)}</p></div>
+${renderMeta(anchored, t, dateLocale)}
+<div class="summary"><strong>${escapeHtml(t("export.summary"))}</strong><p>${escapeHtml(anchored.summary)}</p></div>
 ${inputSection}
 ${bodySections}
-${renderWarnings(anchored)}
-<p class="muted" style="margin-top:32px">Nunopi — 바이브코더를 위한 AI 코드 학습 도구</p>
+${renderWarnings(anchored, t)}
+<p class="muted" style="margin-top:32px">${escapeHtml(t("export.footer"))}</p>
 </div>
 </body>
 </html>`;

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconFolder } from "@tabler/icons-react";
 import { StarIcon } from "@/components/learning/icons";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import type { HistoryEntry } from "@/lib/historyDB";
 import type { Collection } from "@/lib/collections";
 
@@ -40,6 +40,8 @@ export default function AnalysisHistory({
 }: AnalysisHistoryProps) {
   const confirm = useConfirm();
   const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "ko-KR";
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -88,10 +90,10 @@ export default function AnalysisHistory({
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterdayStart = new Date(todayStart.getTime() - 86_400_000);
-    const timeStr = d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    const timeStr = d.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" });
     if (d >= todayStart) return timeStr;
-    if (d >= yesterdayStart) return `어제 ${timeStr}`;
-    return d.toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" });
+    if (d >= yesterdayStart) return t("history.yesterday", { time: timeStr });
+    return d.toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" });
   };
 
   function startEditing(entry: HistoryEntry) {

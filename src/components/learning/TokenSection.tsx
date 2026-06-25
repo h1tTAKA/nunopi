@@ -38,7 +38,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        {emptyHint ?? "토큰이 없다."}
+        {emptyHint ?? t("panel.tokenEmpty")}
       </div>
     );
   }
@@ -121,7 +121,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
               )}
               {token.lines.length > 0 && (
                 <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-                  등장: {token.lines.join(", ")}번 줄
+                  {t("panel.linesAppear", { lines: token.lines.join(", ") })}
                 </p>
               )}
             </div>

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import type { ItConcept } from "@/lib/translator/types";
 import { StarIcon } from "./icons";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ItConceptSectionProps {
   concepts: ItConcept[];
@@ -24,6 +25,7 @@ export default function ItConceptSection({
   bookmarkedTitles = [],
   isStreaming = false,
 }: ItConceptSectionProps) {
+  const t = useT();
   // 첫 관련 개념으로 스크롤(강조는 전부, 스크롤은 하나만 가능). 배열 참조 매번 새로 생겨도
   // 첫 id(string) dep라 과발화 안 함.
   const scrollTarget = activeConceptIds[0];
@@ -38,10 +40,10 @@ export default function ItConceptSection({
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         {isStreaming ? (
           <span className="italic text-zinc-400 dark:text-zinc-500">
-            관련 개념은 용어 분석 다음에 추가된다…
+            {t("itconcept.pending")}
           </span>
         ) : (
-          "관련 개념이 없다."
+          t("itconcept.empty")
         )}
       </div>
     );
@@ -86,7 +88,7 @@ export default function ItConceptSection({
             {concept.explanation.trim() ? (
               <p className="mt-1.5 text-xs text-zinc-600 dark:text-zinc-300">{concept.explanation}</p>
             ) : (
-              <p className="mt-1.5 text-xs italic text-zinc-400 dark:text-zinc-500">설명 분석 중…</p>
+              <p className="mt-1.5 text-xs italic text-zinc-400 dark:text-zinc-500">{t("common.analyzing")}</p>
             )}
           </div>
         );

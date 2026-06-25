@@ -5,6 +5,7 @@ import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 import { tokenizeCodeLine } from "@/lib/tokenizeCodeLine";
 import CodeBlock from "./CodeBlock";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface LineExplanationListProps {
   lineExplanations: AgentLineExplanation[];
@@ -38,6 +39,7 @@ export default function LineExplanationList({
   isStreaming = false,
   chunkProgress = null,
 }: LineExplanationListProps) {
+  const t = useT();
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleItems = lineExplanations;
 
@@ -94,15 +96,15 @@ export default function LineExplanationList({
   // 청크 진행 안내 문구(있을 때만).
   const progressLabel =
     chunkProgress && chunkProgress.total > 0
-      ? ` (${chunkProgress.done}/${chunkProgress.total} 조각)`
+      ? t("panel.chunk", { done: chunkProgress.done, total: chunkProgress.total })
       : "";
 
   if (lineExplanations.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
         {isStreaming
-          ? `줄별 설명을 분석하는 중…${progressLabel} 잠시 후 순서대로 표시됩니다.`
-          : "줄 설명이 없다."}
+          ? t("line.analyzing", { label: progressLabel })
+          : t("line.empty")}
       </div>
     );
   }
@@ -138,7 +140,7 @@ export default function LineExplanationList({
           >
             <div className="mb-2 flex items-center justify-between">
               <span className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                {item.line}번 줄
+                {t("panel.lineN", { n: item.line })}
               </span>
               {item.confidence != null && (
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">
@@ -200,7 +202,7 @@ export default function LineExplanationList({
       {isStreaming && (
         <div className="flex items-center gap-2 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
           <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
-          남은 줄별 설명 분석 중…{progressLabel}
+          {t("line.remaining", { label: progressLabel })}
         </div>
       )}
     </div>

@@ -30,7 +30,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
   if (concepts.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        개념이 없다.
+        {t("concept.empty")}
       </div>
     );
   }
@@ -118,7 +118,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
               </div>
               {(concept.lines ?? []).length > 0 && (
                 <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
-                  {(concept.lines ?? []).join(", ")}번 줄
+                  {t("panel.linesN", { lines: (concept.lines ?? []).join(", ") })}
                 </p>
               )}
             </button>
@@ -135,7 +135,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
                 if (explainingConcepts?.includes(concept.conceptId)) {
                   return (
                     <p className="border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
-                      설명 불러오는 중…
+                      {t("concept.loading")}
                     </p>
                   );
                 }

@@ -19,9 +19,11 @@ interface ChatRoomProps {
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
 // 대화를 마크다운 문자열로(어시스턴트 답은 이미 마크다운이라 그대로 → 표/코드 보존).
-function formatChatAsMarkdown(messages: ChatMessage[]): string {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
   return messages
-    .map((m) => `${m.role === "user" ? "**🙋 나**" : "**🤖 튜터**"}\n\n${m.content}`)
+    .map((m) => `${m.role === "user" ? `**🙋 ${t("chat.you")}**` : `**🤖 ${t("chat.tutor")}**`}\n\n${m.content}`)
     .join("\n\n---\n\n");
 }
 
@@ -48,7 +50,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
   async function handleCopy() {
     if (messages.length === 0) return;
     try {
-      await navigator.clipboard.writeText(formatChatAsMarkdown(messages));
+      await navigator.clipboard.writeText(formatChatAsMarkdown(messages, t));
       setCopied(true);
     } catch { /* ignore — clipboard may be unavailable */ }
   }
@@ -136,12 +138,12 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
         {streaming != null && (
           <div className="flex justify-start">
             <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">답변 작성 중…</span>}
+              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">{t("chat.replying")}</span>}
             </div>
           </div>
         )}
         {isLoading && streaming == null && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">답변 작성 중…</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</p>
         )}
       </div>
 
