@@ -324,6 +324,7 @@ export default function Home() {
 
   function handleModeChange(nextMode: AnalyzeMode) {
     if (nextMode === mode) return;
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     setMode(nextMode);
     setErrorMessage(null);
     setAnalysisResult(null);
@@ -337,6 +338,7 @@ export default function Home() {
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     setProviderId(nextProviderId);
     if (errorMessage) {
       setErrorMessage(null);
@@ -724,6 +726,7 @@ export default function Home() {
 
   // 입력 잠금(분석 결과 있을 때) 해제 — 입력을 비우고 깨끗한 새 분석 상태로.
   function handleClearInput() {
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     if (mode === "text") setTextInput("");
     else setCodeInput("");
     setAnalysisResult(null);
