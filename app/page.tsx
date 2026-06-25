@@ -811,6 +811,8 @@ export default function Home() {
   }
 
   function handleRestoreHistory(entry: HistoryEntry) {
+    // 챗 응답 스트리밍 중엔 복원 금지 — 다른 항목 세션으로 덮어쓰면 진행 중 답변이 유실된다(#312).
+    if (chatLoading) return;
     const entryMode = entry.mode ?? "code";
     // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
     setLastElapsedMs(null);
