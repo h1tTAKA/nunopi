@@ -35,7 +35,7 @@ export interface ProviderSettings {
 
 export interface AgentAnalyzeRequest {
   code: string; // 분석 입력 — code 모드는 소스코드, text 모드는 붙여넣은 글.
-  locale: "ko";
+  locale: "ko" | "ja" | "en"; // 분석 출력 언어.
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code".
   targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.

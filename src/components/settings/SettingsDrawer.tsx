@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { AnalyzeMode, ProviderSettings } from "@/lib/agent";
 import { XIcon, BanIcon } from "@/components/learning/icons";
+import { useLocale } from "@/lib/i18n/I18nProvider";
+import { LOCALES, type Locale } from "@/lib/i18n/messages";
 
 interface SettingsDrawerProps {
   isOpen: boolean;
@@ -65,6 +67,7 @@ export default function SettingsDrawer({
   theme,
   onThemeChange,
 }: SettingsDrawerProps) {
+  const { locale, setLocale } = useLocale();
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -158,6 +161,25 @@ export default function SettingsDrawer({
                 })}
               </div>
             </div>
+          </section>
+
+          {/* 언어 카드 */}
+          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              언어
+            </h3>
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              aria-label="언어 선택"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+            >
+              {LOCALES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
           </section>
 
           {/* 프로바이더 카드 — OpenAI-Compatible / Claude / Codex 소제목+구분선으로 */}

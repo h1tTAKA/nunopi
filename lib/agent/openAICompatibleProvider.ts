@@ -1,6 +1,7 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import { outputLanguageDirective } from "./outputLanguage";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
@@ -411,6 +412,7 @@ function buildOpenAICompatibleMessages(
     {
       role: "user",
       content: [
+        outputLanguageDirective(request.locale),
         `Locale: ${request.locale}`,
         `Requested provider: ${request.providerId}`,
         `Detected language: ${request.detectedLanguage ?? "unknown"}`,

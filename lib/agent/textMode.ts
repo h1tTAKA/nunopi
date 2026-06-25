@@ -5,6 +5,7 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentProviderKind } from "./types";
 import type { ItConcept, ItTerm, TranslateWarning } from "@/lib/translator/types";
+import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
@@ -25,8 +26,9 @@ const TEXT_HEADER = [
 function textTail(request: AgentAnalyzeRequest): string[] {
   return [
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
-    `User intent: ${request.userIntent ?? "Explain the IT terms in this text for a beginner in Korean."}`,
+    `User intent: ${request.userIntent ?? "Explain the IT terms in this text for a beginner."}`,
     "",
     "Text to analyze:",
     '"""',

@@ -5,6 +5,7 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import { outputLanguageDirective } from "./outputLanguage";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, mergeTextResults, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
@@ -381,6 +382,7 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     ...codeChunkDirectives(request),
     "Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
     `Detected language: ${request.detectedLanguage ?? "unknown"}`,
