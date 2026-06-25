@@ -27,6 +27,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
   const confirm = useCallback<ConfirmFn>((opts) => {
     return new Promise<boolean>((resolve) => {
+      // 이전 confirm이 아직 열려 있으면 취소로 정리(promise 누수 방지).
+      resolverRef.current?.(false);
       resolverRef.current = resolve;
       setOptions(opts);
     });
