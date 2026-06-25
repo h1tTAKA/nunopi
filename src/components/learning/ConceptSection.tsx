@@ -4,11 +4,7 @@ import { useEffect } from "react";
 import type { ConceptOccurrence } from "@/lib/translator/types";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import { StarIcon, XIcon } from "./icons";
-
-const LEVEL_LABEL: Record<"beginner" | "intermediate", string> = {
-  beginner: "초급",
-  intermediate: "중급",
-};
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
@@ -24,6 +20,7 @@ interface ConceptSectionProps {
 }
 
 export default function ConceptSection({ concepts, activeConceptId, expandedConceptIds, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
+  const t = useT();
   useEffect(() => {
     if (!activeConceptId) return;
     const el = document.getElementById(`concept-${activeConceptId}`);
@@ -33,7 +30,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
   if (concepts.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        개념이 없다.
+        {t("concept.empty")}
       </div>
     );
   }
@@ -108,7 +105,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
                           ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
                           : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                       }`}>
-                        {LEVEL_LABEL[desc.level]}
+                        {t("level." + desc.level)}
                       </span>
                     );
                   })()}
@@ -121,7 +118,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
               </div>
               {(concept.lines ?? []).length > 0 && (
                 <p className="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
-                  {(concept.lines ?? []).join(", ")}번 줄
+                  {t("panel.linesN", { lines: (concept.lines ?? []).join(", ") })}
                 </p>
               )}
             </button>
@@ -138,7 +135,7 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
                 if (explainingConcepts?.includes(concept.conceptId)) {
                   return (
                     <p className="border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
-                      설명 불러오는 중…
+                      {t("concept.loading")}
                     </p>
                   );
                 }

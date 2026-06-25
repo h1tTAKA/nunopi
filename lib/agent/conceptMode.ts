@@ -3,6 +3,7 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProviderKind } from "./types";
 import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
@@ -19,6 +20,7 @@ export function buildExplainConceptPrompt(request: AgentAnalyzeRequest): string 
     '  "description": "string (beginner-friendly Korean explanation of the concept as used here, 1-3 sentences)"',
     "}",
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
     `Detected language: ${request.detectedLanguage ?? "unknown"}`,
     `Concept to explain: ${JSON.stringify(target)}`,

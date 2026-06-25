@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import type { CodeToken, TokenCategory } from "@/lib/translator/types";
+import type { CodeToken } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
 import { StarIcon, XIcon } from "./icons";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface TokenSectionProps {
   tokens: CodeToken[];
@@ -19,32 +20,8 @@ interface TokenSectionProps {
   emptyHint?: string;
 }
 
-const CATEGORY_LABEL: Record<TokenCategory, string> = {
-  react_hook: "훅",
-  state_variable: "상태 변수",
-  state_setter: "상태 세터",
-  prop: "prop",
-  function: "함수",
-  event_handler: "이벤트 핸들러",
-  jsx_element: "JSX 요소",
-  operator: "연산자",
-  keyword: "키워드",
-  punctuation: "기호",
-  api_call: "API 호출",
-  dependency_array: "의존성 배열",
-  initial_value: "초기값",
-  css_selector: "CSS 선택자",
-  css_property: "CSS 속성",
-  css_value: "CSS 값",
-  tailwind_utility: "Tailwind",
-  tailwind_layout: "Tailwind 레이아웃",
-  tailwind_spacing: "Tailwind 간격",
-  tailwind_color: "Tailwind 색상",
-  tailwind_responsive: "Tailwind 반응형",
-  tailwind_state: "Tailwind 상태",
-};
-
 export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onDelete, emptyHint }: TokenSectionProps) {
+  const t = useT();
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
 
@@ -61,7 +38,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
   if (tokens.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        {emptyHint ?? "토큰이 없다."}
+        {emptyHint ?? t("panel.tokenEmpty")}
       </div>
     );
   }
@@ -126,7 +103,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   {token.token}
                 </code>
                 <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                  {CATEGORY_LABEL[token.category] ?? token.category}
+                  {t("cat." + token.category)}
                 </span>
               </div>
               <p className="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-200">
@@ -144,7 +121,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
               )}
               {token.lines.length > 0 && (
                 <p className="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-                  등장: {token.lines.join(", ")}번 줄
+                  {t("panel.linesAppear", { lines: token.lines.join(", ") })}
                 </p>
               )}
             </div>

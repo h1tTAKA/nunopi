@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
+import { outputLanguageDirective } from "./outputLanguage";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
@@ -343,6 +344,7 @@ function buildCodexPrompt(request: AgentAnalyzeRequest): string {
     ...codeChunkDirectives(request),
     "Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
     `Detected language: ${request.detectedLanguage ?? "unknown"}`,

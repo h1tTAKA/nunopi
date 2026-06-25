@@ -4,29 +4,40 @@ import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProviderKind } from "./types";
 import type { TranslateWarning } from "@/lib/translator/types";
 
+const LANG_NAME: Record<AgentAnalyzeRequest["locale"], string> = {
+  ko: "Korean",
+  ja: "Japanese",
+  en: "English",
+};
+
 // claude --system-prompt 등에 쓰는 튜터 시스템 프롬프트(프로즈, JSON 아님).
-export const CHAT_SYSTEM_PROMPT =
-  "You are Nunopi, a friendly coding tutor for a Korean-speaking beginner. Answer clearly and concisely in Korean (plain text / light markdown). Do not output JSON.";
+// 답변 언어는 사용자가 설정한 locale을 따른다(ko/ja/en).
+export function chatSystemPrompt(locale: AgentAnalyzeRequest["locale"]): string {
+  const name = LANG_NAME[locale] ?? "Korean";
+  return `You are Nunopi, a friendly coding tutor for a beginner. Answer clearly and concisely in ${name} (plain text / light markdown). Do not output JSON.`;
+}
 
 // 코드 + 대화 내역으로 챗 프롬프트를 만든다(마지막이 사용자 질문).
+// codex처럼 system prompt를 못 받는 provider도 있어, 언어 지시를 본문에 반드시 포함한다.
 export function buildChatPrompt(request: AgentAnalyzeRequest): string {
+  const name = LANG_NAME[request.locale] ?? "Korean";
   const messages = request.messages ?? [];
   const transcript = messages
-    .map((m) => `${m.role === "user" ? "사용자" : "튜터"}: ${m.content}`)
+    .map((m) => `${m.role === "user" ? "User" : "Tutor"}: ${m.content}`)
     .join("\n");
   return [
-    CHAT_SYSTEM_PROMPT,
+    chatSystemPrompt(request.locale),
     "",
-    "사용자가 학습 중인 코드:",
+    "Code the user is learning:",
     "```",
     request.code,
     "```",
     "",
-    "대화:",
+    "Conversation:",
     transcript,
     "",
-    "위 코드에 대한 사용자의 마지막 질문에 한국어로 답하라. 핵심만 친절하게.",
-    "튜터:",
+    `Answer the user's last question about the code above in ${name}. Be friendly and to the point.`,
+    "Tutor:",
   ].join("\n");
 }
 

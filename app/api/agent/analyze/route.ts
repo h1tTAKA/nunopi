@@ -202,7 +202,7 @@ function isValidAnalyzeRequestPayload(
   if (
     typeof value.code !== "string" ||
     value.code.trim().length === 0 ||
-    value.locale !== "ko"
+    (value.locale !== "ko" && value.locale !== "ja" && value.locale !== "en")
   ) {
     return false;
   }

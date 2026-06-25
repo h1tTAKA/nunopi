@@ -6,6 +6,7 @@ import ModeToggle from "@/components/layout/ModeToggle";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
@@ -92,6 +93,15 @@ export default function Home() {
     useState<AgentAnalyzeResponse | null>(null);
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // 분석 출력 언어 — UI 언어(localStorage)와 동일. page는 I18nProvider 바깥이라 직접 읽는다.
+  function getAnalysisLocale(): "ko" | "ja" | "en" {
+    try {
+      const l = localStorage.getItem("nunopi:locale");
+      return l === "ja" || l === "en" ? l : "ko";
+    } catch {
+      return "ko";
+    }
+  }
   // 테마(라이트/다크) — 설정 드로어에서 토글. html.dark 클래스를 직접 토글하므로
   // Monaco/Shiki의 MutationObserver가 즉시 반응한다. (prepaint는 layout.tsx 스크립트가 처리.)
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -394,7 +404,7 @@ export default function Home() {
           providerId,
           request: {
             code: nextCode,
-            locale: "ko",
+            locale: getAnalysisLocale(),
             providerId,
             mode,
             providerSettings,
@@ -547,7 +557,7 @@ export default function Home() {
             providerId,
             request: {
               code: input,
-              locale: "ko",
+              locale: getAnalysisLocale(),
               providerId,
               mode: "explain-token",
               targetToken: tokenText,
@@ -611,7 +621,7 @@ export default function Home() {
             providerId,
             request: {
               code: input || "(코드 없음)",
-              locale: "ko",
+              locale: getAnalysisLocale(),
               providerId,
               mode: "chat",
               messages: next,
@@ -703,7 +713,7 @@ export default function Home() {
             providerId,
             request: {
               code: input,
-              locale: "ko",
+              locale: getAnalysisLocale(),
               providerId,
               mode: "explain-concept",
               targetConcept: title,
@@ -795,6 +805,7 @@ export default function Home() {
   }
 
   return (
+    <I18nProvider>
     <ConfirmProvider>
       <AppShell
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -901,7 +912,7 @@ export default function Home() {
                 streaming={chatStreaming}
                 isLoading={chatLoading}
                 disabled={!code.trim()}
-                disabledHint={mode === "text" ? "글을 입력하면 질문할 수 있어요." : "코드를 입력하면 질문할 수 있어요."}
+                mode={mode === "text" ? "text" : "code"}
                 onSend={handleSendChat}
                 onClear={handleClearChat}
               />
@@ -920,6 +931,7 @@ export default function Home() {
         onThemeChange={changeTheme}
       />
     </ConfirmProvider>
+    </I18nProvider>
   );
 }
 

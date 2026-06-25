@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconMessageCircle } from "@tabler/icons-react";
 import type { ChatMessage } from "@/lib/agent";
 import Markdown from "./Markdown";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ChatRoomProps {
   messages: ChatMessage[];
@@ -11,20 +12,24 @@ interface ChatRoomProps {
   streaming?: string | null;
   isLoading: boolean;
   disabled?: boolean; // 분석 전 등 비활성 사유.
-  disabledHint?: string;
+  mode?: "code" | "text"; // 비활성 안내 문구를 모드별로(코드/글) 다국어로 보여주기 위함.
   onSend: (text: string) => void;
   onClear?: () => void;
 }
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
 // 대화를 마크다운 문자열로(어시스턴트 답은 이미 마크다운이라 그대로 → 표/코드 보존).
-function formatChatAsMarkdown(messages: ChatMessage[]): string {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
   return messages
-    .map((m) => `${m.role === "user" ? "**🙋 나**" : "**🤖 튜터**"}\n\n${m.content}`)
+    .map((m) => `${m.role === "user" ? `**🙋 ${t("chat.you")}**` : `**🤖 ${t("chat.tutor")}**`}\n\n${m.content}`)
     .join("\n\n---\n\n");
 }
 
-export default function ChatRoom({ messages, streaming, isLoading, disabled, disabledHint, onSend, onClear }: ChatRoomProps) {
+export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear }: ChatRoomProps) {
+  const t = useT();
+  const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -45,7 +50,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
   async function handleCopy() {
     if (messages.length === 0) return;
     try {
-      await navigator.clipboard.writeText(formatChatAsMarkdown(messages));
+      await navigator.clipboard.writeText(formatChatAsMarkdown(messages, t));
       setCopied(true);
     } catch { /* ignore — clipboard may be unavailable */ }
   }
@@ -67,8 +72,8 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-[#111219]">
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-        <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300"><IconMessageCircle size={15} stroke={2} aria-hidden /> 학습 챗</span>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">궁금한 걸 물어보세요</span>
+        <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 dark:text-zinc-300"><IconMessageCircle size={15} stroke={2} aria-hidden /> {t("chat.title")}</span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("chat.subtitle")}</span>
         {messages.length > 0 && (
           <div className="ml-auto flex items-center gap-1">
             <button
@@ -77,7 +82,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
               className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
               title="대화 전체를 마크다운으로 복사"
             >
-              {copied ? "복사됨 ✓" : "MD 복사"}
+              {copied ? t("panel.copied") : t("chat.copyMd")}
             </button>
             {confirmingClear ? (
               <>
@@ -86,14 +91,14 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
                   onClick={() => { setConfirmingClear(false); onClear?.(); }}
                   className="rounded-lg bg-red-500 px-2 py-1 text-xs font-medium text-white transition hover:bg-red-600"
                 >
-                  정말 초기화?
+                  {t("chat.clear")}?
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirmingClear(false)}
                   className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
-                  취소
+                  {t("confirm.cancel")}
                 </button>
               </>
             ) : (
@@ -104,7 +109,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
                 className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-red-400"
                 title="대화 초기화"
               >
-                초기화
+                {t("chat.clear")}
               </button>
             )}
           </div>
@@ -114,7 +119,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
       <div ref={scrollRef} className="nunopi-scroll min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
         {messages.length === 0 && !streaming && (
           <p className="py-6 text-center text-xs text-zinc-400 dark:text-zinc-500">
-            {disabled ? (disabledHint ?? "먼저 입력을 채워 보세요.") : "예) 이게 무슨 뜻이에요? 왜 이렇게 하나요?"}
+            {disabled ? disabledHint : t("chat.exampleHint")}
           </p>
         )}
         {messages.map((m, i) => (
@@ -133,12 +138,12 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
         {streaming != null && (
           <div className="flex justify-start">
             <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">답변 작성 중…</span>}
+              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">{t("chat.replying")}</span>}
             </div>
           </div>
         )}
         {isLoading && streaming == null && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">답변 작성 중…</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</p>
         )}
       </div>
 
@@ -154,7 +159,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
           }}
           disabled={isLoading || disabled}
           rows={1}
-          placeholder={disabled ? (disabledHint ?? "입력 후 질문 가능") : "질문 입력 (Enter 전송, Shift+Enter 줄바꿈)"}
+          placeholder={disabled ? disabledHint : t("chat.placeholder")}
           className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
         />
         <button
@@ -163,7 +168,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, dis
           disabled={isLoading || disabled || !input.trim()}
           className="shrink-0 rounded-xl bg-zinc-900 px-3 py-2 text-xs font-semibold text-zinc-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-50 dark:text-zinc-900"
         >
-          전송
+          {t("chat.send")}
         </button>
       </div>
     </div>

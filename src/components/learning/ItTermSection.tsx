@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import type { ItTerm } from "@/lib/translator/types";
 import { BanIcon, StarIcon } from "./icons";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ItTermSectionProps {
   terms: ItTerm[];
@@ -27,6 +28,7 @@ export default function ItTermSection({
   onExclude,
 }: ItTermSectionProps) {
   const confirm = useConfirm();
+  const t = useT();
   // 글 원문에서 용어를 클릭하면 그 카드로 스크롤(ItConceptSection과 동일 패턴).
   useEffect(() => {
     if (!activeTermId) return;
@@ -37,7 +39,7 @@ export default function ItTermSection({
   if (terms.length === 0) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        추출된 IT 용어가 없다.
+        {t("term.empty")}
       </div>
     );
   }
@@ -80,7 +82,7 @@ export default function ItTermSection({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirm({ title: `"${term.term}" 용어 제외`, message: "이 용어를 제외하시겠습니까?\n해당 용어는 다음 분석부터 분석 대상에서 제외됩니다.\n다시 되돌리려면 설정 > 제외 목록에서 해제할 수 있습니다.", confirmText: "제외", danger: true })) onExclude(term);
+                    if (await confirm({ title: t("confirm.excludeTermTitle", { term: term.term }), message: t("confirm.excludeTerm"), confirmText: t("common.exclude"), danger: true })) onExclude(term);
                   }}
                   className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                   title="이 용어 제외 (다음 분석부터 숨김)"
@@ -107,11 +109,11 @@ export default function ItTermSection({
               {term.explanation.trim() ? (
                 <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300">{term.explanation}</p>
               ) : (
-                <p className="mt-2 text-xs italic text-zinc-400 dark:text-zinc-500">설명 분석 중…</p>
+                <p className="mt-2 text-xs italic text-zinc-400 dark:text-zinc-500">{t("common.analyzing")}</p>
               )}
               {hasConcepts && (
                 <p className="mt-2 text-xs text-blue-500 dark:text-blue-400">
-                  관련 개념 {term.conceptIds.length}개 →
+                  {t("concept.relatedN", { n: term.conceptIds.length })}
                 </p>
               )}
             </button>

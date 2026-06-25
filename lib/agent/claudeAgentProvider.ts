@@ -5,11 +5,12 @@ import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import { outputLanguageDirective } from "./outputLanguage";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, mergeTextResults, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
-import { CHAT_SYSTEM_PROMPT, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 import { codeChunkDirectives } from "./codeChunkPrompt";
 import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
@@ -158,7 +159,7 @@ export const claudeAgentProvider: AgentProvider = {
         prompt,
         options?.signal,
         streamOnProgress,
-        isChat ? CHAT_SYSTEM_PROMPT : undefined,
+        isChat ? chatSystemPrompt(request.locale) : undefined,
         fullProgress,
         // 분석 모드(코드/글/explain)는 effort low로 확장 추론(thinking)을 끈다. 측정(글): 첫 출력까지
         // thinking ~66초 → low면 3초, 품질 동일. 코드도 청크 스트리밍이 thinking에 막혀 첫 표시가
@@ -381,6 +382,7 @@ function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     ...codeChunkDirectives(request),
     "Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
     `Requested provider: ${request.providerId}`,
     `Detected language: ${request.detectedLanguage ?? "unknown"}`,

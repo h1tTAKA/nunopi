@@ -2,6 +2,7 @@ import { IconEraser, IconMessageCircle } from "@tabler/icons-react";
 import type { AgentProviderKind } from "@/lib/agent";
 import CodeEditor from "./CodeEditor";
 import { ProviderSelect, AnalyzeButton, AnalyzeError } from "./AnalyzeControls";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 // 에디터 하이라이팅용 언어 선택 — 분석/탐지 도메인(SupportedLanguage)과 별개로
 // 개발자가 흔히 쓰는 언어를 폭넓게 제공. 값은 그대로 CodeEditor가 Monaco id로 매핑.
@@ -110,11 +111,12 @@ export default function CodeInputArea({
   onResume,
   errorMessage = null,
 }: CodeInputAreaProps) {
+  const t = useT();
   return (
     <div className="flex h-full flex-col gap-2 bg-white p-4 dark:bg-[#111219]">
       <div className="flex items-center justify-between gap-2">
         <span className="shrink-0 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          코드 입력
+          {t("input.codeTitle")}
         </span>
         <div className="flex min-w-0 items-center gap-2">
           <ProviderSelect providerId={providerId} onProviderChange={onProviderChange} disabled={isLoading} />
@@ -134,7 +136,7 @@ export default function CodeInputArea({
           >
             {LANGUAGE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {opt.value === "auto" ? t("input.autoDetect") : opt.label}
               </option>
             ))}
           </select>
@@ -153,7 +155,7 @@ export default function CodeInputArea({
               className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
               title="입력을 비우고 새 코드를 분석"
             >
-              <IconEraser size={14} stroke={2} aria-hidden /> 클리어
+              <IconEraser size={14} stroke={2} aria-hidden /> {t("input.clear")}
             </button>
           )}
           {onToggleChat && (
@@ -167,7 +169,7 @@ export default function CodeInputArea({
               }`}
               title="학습 챗 열기/닫기"
             >
-              <IconMessageCircle size={14} stroke={2} aria-hidden /> 질문
+              <IconMessageCircle size={14} stroke={2} aria-hidden /> {t("input.ask")}
             </button>
           )}
           {errorMessage && <AnalyzeError message={errorMessage} onRetry={onAnalyze} />}

@@ -4,6 +4,7 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
 import type { AgentProviderKind } from "./types";
 import type { CodeToken, TranslateWarning } from "@/lib/translator/types";
+import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
@@ -24,6 +25,7 @@ export function buildExplainTokenPrompt(request: AgentAnalyzeRequest): string {
     '  "example": "string (optional tiny usage example)"',
     "}",
     "",
+    outputLanguageDirective(request.locale),
     `Locale: ${request.locale}`,
     `Detected language: ${request.detectedLanguage ?? "unknown"}`,
     `Token to explain: ${JSON.stringify(target)}`,

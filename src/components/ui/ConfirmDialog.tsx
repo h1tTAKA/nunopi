@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 export interface ConfirmOptions {
   title?: string;
@@ -63,6 +64,7 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const t = useT();
   // Esc=취소, Enter=확인.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -95,7 +97,7 @@ function ConfirmModal({
             onClick={onCancel}
             className="rounded-xl px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
-            {options.cancelText ?? "취소"}
+            {options.cancelText ?? t("confirm.cancel")}
           </button>
           <button
             type="button"
@@ -107,7 +109,7 @@ function ConfirmModal({
                 : "bg-[#3B34E2] hover:bg-[#322bc9]"
             }`}
           >
-            {options.confirmText ?? "확인"}
+            {options.confirmText ?? t("confirm.ok")}
           </button>
         </div>
       </div>

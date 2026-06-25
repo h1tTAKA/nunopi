@@ -32,6 +32,7 @@ import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
 import ItConceptSection from "./ItConceptSection";
@@ -42,25 +43,28 @@ import { formatDuration } from "@/lib/formatDuration";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
 
-function formatResultAsMarkdown(result: AgentAnalyzeResponse): string {
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatResultAsMarkdown(result: AgentAnalyzeResponse, t: TFn): string {
+  const heading = result.mode === "text" ? t("export.headingText") : t("export.headingCode");
   const lines = [
-    `# 코드 분석 결과 (provider: ${result.providerId})`,
-    `감지 언어: ${result.language}`,
+    `# ${heading} (provider: ${result.providerId})`,
+    `${t("export.metaLanguage")}: ${result.language}`,
     "",
-    "## 요약",
+    `## ${t("export.summary")}`,
     result.summary,
   ];
 
   if (result.lineExplanations.length > 0) {
-    lines.push("", "## 줄별 설명");
+    lines.push("", `## ${t("export.lineExplanations")}`);
     for (const item of result.lineExplanations) {
       const escapedCode = item.code.replaceAll("`", "\\`");
-      lines.push("", `### ${item.line}번 줄`, `\`${escapedCode}\``, item.explanation);
+      lines.push("", `### ${t("panel.lineN", { n: item.line })}`, `\`${escapedCode}\``, item.explanation);
     }
   }
 
   if (result.warnings.length > 0) {
-    lines.push("", "## 경고");
+    lines.push("", `## ${t("export.warnings")}`);
     for (const w of result.warnings) {
       lines.push(`- [${w.code}] ${w.message}`);
     }
@@ -159,6 +163,9 @@ export default function LearningPanel({
   onToggleEntryCollection,
 }: LearningPanelProps) {
   const confirm = useConfirm();
+  const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "ko-KR";
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
   // 분석 중 실시간 경과 타이머 — 1초마다 갱신. interval 콜백 setState라 set-state-in-effect 무관.
@@ -267,16 +274,16 @@ export default function LearningPanel({
   async function handleCopyResult() {
     if (!result) return;
     try {
-      await navigator.clipboard.writeText(formatResultAsMarkdown(result));
+      await navigator.clipboard.writeText(formatResultAsMarkdown(result, t));
       setCopied(true);
     } catch { /* ignore — clipboard may be unavailable */ }
   }
 
   async function handleExportHtml() {
     if (!result) return;
-    const html = await formatResultAsHtml(result, code, currentHistoryTitle);
+    const html = await formatResultAsHtml(result, code, currentHistoryTitle, t, dateLocale);
     const datePart = new Date(result.createdAt).toISOString().slice(0, 10).replaceAll("-", "");
-    const titlePart = (currentHistoryTitle?.trim() || "분석")
+    const titlePart = (currentHistoryTitle?.trim() || t("export.fileDefault"))
       .replaceAll(/[\\/:*?"<>|]/g, "")
       .slice(0, 40);
     const filename = `nunopi-${titlePart}-${datePart}.html`;
@@ -496,7 +503,7 @@ export default function LearningPanel({
           className="flex-1 min-w-0 truncate text-left text-sm font-semibold text-zinc-800 hover:text-blue-600 dark:text-zinc-100 dark:hover:text-blue-400"
           title="클릭하여 제목 편집"
         >
-          {currentHistoryTitle || "제목 없음"}
+          {currentHistoryTitle || t("panel.titleNone")}
         </button>
       )}
       {/* 목록에 담기 */}
@@ -520,7 +527,7 @@ export default function LearningPanel({
         <button
           type="button"
           onClick={async () => {
-            if (await confirm({ message: "이 분석을 삭제할까요? 되돌릴 수 없습니다.", confirmText: "삭제", danger: true })) onDeleteHistory(currentHistoryId);
+            if (await confirm({ message: t("confirm.deleteAnalysis"), confirmText: t("common.delete"), danger: true })) onDeleteHistory(currentHistoryId);
           }}
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           title="이 분석 삭제"
@@ -533,9 +540,9 @@ export default function LearningPanel({
     {/* 목록 멤버십 인라인 패널 (AnalysisHistory와 동일 패턴) */}
     {headerCollMenu && onToggleEntryCollection && (
       <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-950">
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">목록에 담기</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("panel.addToCollection")}</p>
         {(collections?.length ?? 0) === 0 && (
-          <p className="text-xs text-zinc-400 dark:text-zinc-500">아직 목록이 없다. 학습관리 탭에서 만들 수 있다.</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("panel.noCollectionsHint")}</p>
         )}
         <div className="flex flex-wrap gap-1.5">
           {(collections ?? []).map((c) => {
@@ -565,7 +572,7 @@ export default function LearningPanel({
               if (e.key === "Enter" && !e.nativeEvent.isComposing) { e.preventDefault(); submitHeaderCreateCollection(); }
               if (e.key === "Escape") { setHeaderNewColl(""); setHeaderCollMenu(false); }
             }}
-            placeholder="새 목록 만들어 담기 (Enter)"
+            placeholder={t("history.createAndAdd")}
             className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 outline-none focus:border-blue-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           />
         )}
@@ -585,7 +592,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        학습 패널
+        {t("panel.tabLearning")}
       </button>
       <button
         type="button"
@@ -596,7 +603,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        학습관리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
+        {t("panel.tabHistory")}{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
       </button>
       <button
         type="button"
@@ -607,7 +614,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        {mode === "text" ? "IT 용어 사전" : "토큰 사전"}
+        {mode === "text" ? t("panel.itTermDict") : t("panel.tokenDict")}
         {(() => {
           const n = mode === "text" ? bookmarkedTermTexts.length : Object.keys(bookmarkedTokenDetails).length;
           return n > 0 ? ` ${n}` : "";
@@ -623,7 +630,7 @@ export default function LearningPanel({
               : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           }`}
         >
-          개념 사전{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
+          {t("panel.tabConceptDict")}{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
         </button>
       )}
     </div>
@@ -701,7 +708,7 @@ export default function LearningPanel({
             onToggleEntryCollection={onToggleEntryCollection}
           />
         ) : (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">분석 이력이 없다.</p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">{t("panel.historyEmpty")}</p>
         )}
       </div>
     );
@@ -713,18 +720,18 @@ export default function LearningPanel({
       {tabBar}
       <div className="space-y-1">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          현재 provider: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
+          {t("panel.currentProvider")}: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
           {mode === "text"
-            ? `현재 입력 글 ${code.trim().length}자`
-            : `현재 입력 코드 ${nonEmptyLineCount}줄`}
+            ? t("panel.inputText", { n: code.trim().length })
+            : t("panel.inputCode", { n: nonEmptyLineCount })}
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          상태: {isLoading ? "분석 중" : result ? "결과 도착" : errorMessage ? "오류" : "대기 중"}
+          {t("panel.status")}: {isLoading ? t("panel.stAnalyzing") : result ? t("panel.stResult") : errorMessage ? t("panel.stError") : t("panel.stIdle")}
         </div>
       </div>
 
@@ -733,19 +740,19 @@ export default function LearningPanel({
           <div className="flex items-center gap-3">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
             <span className="text-sm text-zinc-600 dark:text-zinc-300">
-              분석 중…{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs)}` : ""}
+              {t("panel.spinAnalyzing")}{analysisStartedAt != null ? ` ${formatDuration(liveElapsedMs, locale)}` : ""}
               {chunkProgress && chunkProgress.total > 0
-                ? ` (${chunkProgress.done}/${chunkProgress.total} 조각)`
+                ? t("panel.chunk", { done: chunkProgress.done, total: chunkProgress.total })
                 : ""}
               {mode === "text" && result
                 ? ` · ${
                     result.summary.trim()
-                      ? "요약 정리 중…"
+                      ? t("panel.progSummary")
                       : (result.itConcepts?.length ?? 0) > 0
-                        ? `관련 개념 분석 중 (${result.itConcepts!.length}개)`
+                        ? t("panel.progConcept", { n: result.itConcepts!.length })
                         : (result.terms?.length ?? 0) > 0
-                          ? `용어 분석 중 (${result.terms!.length}개)`
-                          : "용어 추출 중…"
+                          ? t("panel.progTerm", { n: result.terms!.length })
+                          : t("panel.progTermExtract")
                   }`
                 : ""}
             </span>
@@ -783,10 +790,10 @@ export default function LearningPanel({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex shrink-0 items-center gap-2">
                 <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
-                  {result.mode === "text" ? "글" : result.language}
+                  {result.mode === "text" ? t("panel.textLabel") : result.language}
                 </span>
                 <p className="whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                  요약
+                  {t("panel.summary")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -796,7 +803,7 @@ export default function LearningPanel({
                   className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                   aria-label="분석 결과 클립보드에 복사"
                 >
-                  {copied ? "복사됨 ✓" : "분석 결과 복사"}
+                  {copied ? t("panel.copied") : t("panel.copyResult")}
                 </button>
                 <button
                   type="button"
@@ -805,7 +812,7 @@ export default function LearningPanel({
                   aria-label="분석 결과를 HTML 파일로 저장"
                   title="나중에 보며 공부할 수 있게 HTML로 저장"
                 >
-                  HTML 저장
+                  {t("panel.saveHtml")}
                 </button>
               </div>
             </div>
@@ -815,7 +822,7 @@ export default function LearningPanel({
               </p>
             ) : isLoading ? (
               <p className="mt-2 text-sm italic text-zinc-400 dark:text-zinc-500">
-                분석이 끝나면 요약이 여기 정리된다…
+                {t("panel.summaryPending")}
               </p>
             ) : (
               <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -823,14 +830,14 @@ export default function LearningPanel({
               </p>
             )}
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-zinc-400 dark:text-zinc-500">
-              <span>{new Date(result.createdAt).toLocaleString("ko-KR")}</span>
+              <span>{new Date(result.createdAt).toLocaleString(dateLocale)}</span>
               {result.usage?.inputTokens != null && (
-                <span>입력 {result.usage.inputTokens}토큰</span>
+                <span>{t("panel.tokensInput", { n: result.usage.inputTokens })}</span>
               )}
               {result.usage?.outputTokens != null && (
-                <span>출력 {result.usage.outputTokens}토큰</span>
+                <span>{t("panel.tokensOutput", { n: result.usage.outputTokens })}</span>
               )}
-              {elapsedMs != null && <span>소요 {formatDuration(elapsedMs)}</span>}
+              {elapsedMs != null && <span>{t("panel.elapsed", { d: formatDuration(elapsedMs, locale) })}</span>}
               {result.usage?.estimatedCostUsd != null && (
                 <span>${result.usage.estimatedCostUsd.toFixed(4)}</span>
               )}
@@ -873,7 +880,7 @@ export default function LearningPanel({
                     <>
                       <div className="mb-2 flex items-center gap-2 px-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          IT 용어 사전
+                          {t("panel.itTermDict")}
                         </p>
                         {bookmarkedCount > 0 && (
                           <>
@@ -886,7 +893,7 @@ export default function LearningPanel({
                                   : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                               }`}
                             >
-                              북마크 {bookmarkedCount}
+                              {t("panel.bookmarkN", { n: bookmarkedCount })}
                             </button>
                             <button
                               type="button"
@@ -897,7 +904,7 @@ export default function LearningPanel({
                               }}
                               className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                             >
-                              모두 해제
+                              {t("panel.clearAll")}
                             </button>
                           </>
                         )}
@@ -919,7 +926,7 @@ export default function LearningPanel({
               </section>
               <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  관련 개념
+                  {t("panel.relatedConcept")}
                 </p>
                 <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
                   <ItConceptSection
@@ -936,7 +943,7 @@ export default function LearningPanel({
             <>
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              줄별 설명
+              {t("panel.lineExplain")}
             </p>
             <ResizableBody id="lines" defaultHeight={440}>
               <LineExplanationList
@@ -969,7 +976,7 @@ export default function LearningPanel({
                 <>
                   <div className="mb-2 flex items-center gap-2 px-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      토큰 사전
+                      {t("panel.tokenDict")}
                     </p>
                     {visibleBookmarkCount > 0 && (
                       <>
@@ -982,7 +989,7 @@ export default function LearningPanel({
                               : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                           }`}
                         >
-                          북마크 {visibleBookmarkCount}
+                          {t("panel.bookmarkN", { n: visibleBookmarkCount })}
                         </button>
                         <button
                           type="button"
@@ -995,14 +1002,14 @@ export default function LearningPanel({
                           }}
                           className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                         >
-                          모두 해제
+                          {t("panel.clearBookmarks")}
                         </button>
                       </>
                     )}
                   </div>
                   {explainingTokens.length > 0 && (
                     <p className="mb-2 px-1 text-xs text-zinc-400 dark:text-zinc-500">
-                      설명 불러오는 중: {explainingTokens.join(", ")}…
+                      {t("panel.tokenLoading", { list: explainingTokens.join(", ") })}
                     </p>
                   )}
                   <ResizableBody id="tokens" defaultHeight={360}>
@@ -1015,7 +1022,7 @@ export default function LearningPanel({
                       onBookmarkToggle={handleBookmarkToggle}
                       onTokenHover={setHoverLines}
                       onDelete={(token) => onDeleteToken?.(token.token)}
-                      emptyHint="줄별 설명의 태그를 누르면 그 토큰 설명이 여기에 추가된다."
+                      emptyHint={t("panel.tokenEmptyHint")}
                     />
                   </ResizableBody>
                 </>
@@ -1025,7 +1032,7 @@ export default function LearningPanel({
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              개념
+              {t("panel.concept")}
             </p>
             <ConceptSection
               concepts={safeConcepts}
@@ -1043,7 +1050,7 @@ export default function LearningPanel({
         </div>
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          아직 분석 결과가 없다. 버튼을 누르면 분석이 시작되고 결과가 이 패널에 표시된다.
+          {t("panel.noResult")}
         </div>
       )}
     </div>
