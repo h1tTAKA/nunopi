@@ -3,6 +3,7 @@ import type { ItTerm } from "@/lib/translator/types";
 import type { AgentProviderKind } from "@/lib/agent";
 import { highlightTerms } from "@/lib/highlightTerms";
 import { ProviderSelect, AnalyzeButton, AnalyzeError } from "./AnalyzeControls";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface TextInputAreaProps {
   code: string; // 붙여넣은 글(분석 입력).
@@ -30,6 +31,7 @@ interface TextInputAreaProps {
 // 글(IT 용어) 분석 모드 입력 — 산문을 붙여넣는 plain textarea.
 // (코드 모드의 Monaco 에디터는 산문 하이라이팅이 부적합해 별도 컴포넌트로 둔다.)
 export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen, onToggleChat, locked = false, onClear, terms, onTermClick, providerId, onProviderChange, onAnalyze, onCancel, resumable = false, onResume, errorMessage = null }: TextInputAreaProps) {
+  const t = useT();
   const charCount = code.trim().length;
   // 분석 완료(locked)면 textarea 대신 읽기 오버레이로 용어를 하이라이트한다.
   const showHighlighted = locked && (terms?.length ?? 0) > 0;
@@ -39,11 +41,11 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
     <div className="flex h-full flex-col gap-2 bg-white p-4 dark:bg-[#111219]">
       <div className="flex items-center justify-between gap-2">
         <span className="shrink-0 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          글 입력
+          {t("input.textTitle")}
         </span>
         <div className="flex min-w-0 items-center gap-2">
           <ProviderSelect providerId={providerId} onProviderChange={onProviderChange} disabled={isLoading} />
-          <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{charCount}자</span>
+          <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">{t("input.chars", { n: charCount })}</span>
           <AnalyzeButton
             isLoading={isLoading}
             resumable={resumable}
@@ -59,7 +61,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
               className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-600 transition hover:bg-red-100 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/40 dark:hover:text-red-400"
               title="입력을 비우고 새 글을 분석"
             >
-              <IconEraser size={14} stroke={2} aria-hidden /> 클리어
+              <IconEraser size={14} stroke={2} aria-hidden /> {t("input.clear")}
             </button>
           )}
           {onToggleChat && (
@@ -73,7 +75,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
               }`}
               title="학습 챗 열기/닫기"
             >
-              <IconMessageCircle size={14} stroke={2} aria-hidden /> 질문
+              <IconMessageCircle size={14} stroke={2} aria-hidden /> {t("input.ask")}
             </button>
           )}
           {errorMessage && <AnalyzeError message={errorMessage} onRetry={onAnalyze} />}
@@ -108,10 +110,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
             disabled={isLoading}
             readOnly={locked}
             spellCheck={false}
-            placeholder={
-              "예) 이번 업데이트로 백엔드 API 응답 속도를 개선하고 데이터베이스 쿼리를 최적화했어요. 프론트엔드는 컴포넌트를 리팩터링하고 배포를 자동화했습니다…\n" +
-              "기술 블로그·릴리스 노트·X 피드처럼 모르는 IT 용어(API, 캐시, 라이브러리, 배포…)가 잔뜩인 글을 그대로 붙여넣으세요."
-            }
+            placeholder={t("input.textPlaceholder")}
             className="h-full w-full resize-none rounded-xl border border-zinc-200 bg-[#F2F0E8] p-4 text-sm leading-relaxed text-zinc-900 outline-none transition focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100 dark:focus:border-zinc-600"
           />
         )}

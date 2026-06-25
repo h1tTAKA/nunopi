@@ -2,6 +2,7 @@
 
 import { IconCode, IconFileText } from "@tabler/icons-react";
 import type { AnalyzeMode } from "@/lib/agent";
+import { useT } from "@/lib/i18n/I18nProvider";
 
 interface ModeToggleProps {
   mode: AnalyzeMode;
@@ -9,13 +10,14 @@ interface ModeToggleProps {
   disabled?: boolean;
 }
 
-const MODE_OPTIONS: { value: AnalyzeMode; label: string; Icon: typeof IconCode }[] = [
-  { value: "code", label: "코드 분석", Icon: IconCode },
-  { value: "text", label: "글 분석", Icon: IconFileText },
+const MODE_OPTIONS: { value: AnalyzeMode; tKey: string; Icon: typeof IconCode }[] = [
+  { value: "code", tKey: "mode.code", Icon: IconCode },
+  { value: "text", tKey: "mode.text", Icon: IconFileText },
 ];
 
 // 헤더 정중앙 — 코드/글 분석 모드 토글. (히스토리·북마크는 모드별 분리, Issue 76.)
 export default function ModeToggle({ mode, onModeChange, disabled = false }: ModeToggleProps) {
+  const t = useT();
   return (
     <div
       role="tablist"
@@ -25,14 +27,15 @@ export default function ModeToggle({ mode, onModeChange, disabled = false }: Mod
       {MODE_OPTIONS.map((opt) => {
         const selected = mode === opt.value;
         const { Icon } = opt;
+        const label = t(opt.tKey);
         return (
           <button
             key={opt.value}
             type="button"
             role="tab"
             aria-selected={selected}
-            aria-label={opt.label}
-            title={opt.label}
+            aria-label={label}
+            title={label}
             disabled={disabled}
             onClick={() => onModeChange(opt.value)}
             className={`flex items-center justify-center rounded-lg px-7 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-60 ${

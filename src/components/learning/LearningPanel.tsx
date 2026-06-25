@@ -32,6 +32,7 @@ import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@/lib/i18n/I18nProvider";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
 import ItConceptSection from "./ItConceptSection";
@@ -159,6 +160,7 @@ export default function LearningPanel({
   onToggleEntryCollection,
 }: LearningPanelProps) {
   const confirm = useConfirm();
+  const t = useT();
   const nonEmptyLineCount = code.trim().split(/\r?\n/).filter(Boolean).length;
 
   // 분석 중 실시간 경과 타이머 — 1초마다 갱신. interval 콜백 setState라 set-state-in-effect 무관.
@@ -585,7 +587,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        학습 패널
+        {t("panel.tabLearning")}
       </button>
       <button
         type="button"
@@ -596,7 +598,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        학습관리{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
+        {t("panel.tabHistory")}{modeHistoryEntries.length > 0 ? ` ${modeHistoryEntries.length}` : ""}
       </button>
       <button
         type="button"
@@ -607,7 +609,7 @@ export default function LearningPanel({
             : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
         }`}
       >
-        {mode === "text" ? "IT 용어 사전" : "토큰 사전"}
+        {mode === "text" ? t("panel.itTermDict") : t("panel.tokenDict")}
         {(() => {
           const n = mode === "text" ? bookmarkedTermTexts.length : Object.keys(bookmarkedTokenDetails).length;
           return n > 0 ? ` ${n}` : "";
@@ -623,7 +625,7 @@ export default function LearningPanel({
               : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
           }`}
         >
-          개념 사전{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
+          {t("panel.tabConceptDict")}{bookmarkedConceptTitles.length > 0 ? ` ${bookmarkedConceptTitles.length}` : ""}
         </button>
       )}
     </div>
@@ -713,18 +715,18 @@ export default function LearningPanel({
       {tabBar}
       <div className="space-y-1">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          현재 provider: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
+          {t("panel.currentProvider")}: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
         </p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
           {mode === "text"
-            ? `현재 입력 글 ${code.trim().length}자`
-            : `현재 입력 코드 ${nonEmptyLineCount}줄`}
+            ? t("panel.inputText", { n: code.trim().length })
+            : t("panel.inputCode", { n: nonEmptyLineCount })}
         </div>
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          상태: {isLoading ? "분석 중" : result ? "결과 도착" : errorMessage ? "오류" : "대기 중"}
+          {t("panel.status")}: {isLoading ? t("panel.stAnalyzing") : result ? t("panel.stResult") : errorMessage ? t("panel.stError") : t("panel.stIdle")}
         </div>
       </div>
 
@@ -786,7 +788,7 @@ export default function LearningPanel({
                   {result.mode === "text" ? "글" : result.language}
                 </span>
                 <p className="whitespace-nowrap text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                  요약
+                  {t("panel.summary")}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -796,7 +798,7 @@ export default function LearningPanel({
                   className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
                   aria-label="분석 결과 클립보드에 복사"
                 >
-                  {copied ? "복사됨 ✓" : "분석 결과 복사"}
+                  {copied ? t("panel.copied") : t("panel.copyResult")}
                 </button>
                 <button
                   type="button"
@@ -805,7 +807,7 @@ export default function LearningPanel({
                   aria-label="분석 결과를 HTML 파일로 저장"
                   title="나중에 보며 공부할 수 있게 HTML로 저장"
                 >
-                  HTML 저장
+                  {t("panel.saveHtml")}
                 </button>
               </div>
             </div>
@@ -873,7 +875,7 @@ export default function LearningPanel({
                     <>
                       <div className="mb-2 flex items-center gap-2 px-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          IT 용어 사전
+                          {t("panel.itTermDict")}
                         </p>
                         {bookmarkedCount > 0 && (
                           <>
@@ -886,7 +888,7 @@ export default function LearningPanel({
                                   : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                               }`}
                             >
-                              북마크 {bookmarkedCount}
+                              {t("panel.bookmarkN", { n: bookmarkedCount })}
                             </button>
                             <button
                               type="button"
@@ -897,7 +899,7 @@ export default function LearningPanel({
                               }}
                               className="text-xs text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300"
                             >
-                              모두 해제
+                              {t("panel.clearAll")}
                             </button>
                           </>
                         )}
@@ -919,7 +921,7 @@ export default function LearningPanel({
               </section>
               <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  관련 개념
+                  {t("panel.relatedConcept")}
                 </p>
                 <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
                   <ItConceptSection
@@ -936,7 +938,7 @@ export default function LearningPanel({
             <>
           <section className="rounded-2xl border border-zinc-200 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
             <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              줄별 설명
+              {t("panel.lineExplain")}
             </p>
             <ResizableBody id="lines" defaultHeight={440}>
               <LineExplanationList
@@ -969,7 +971,7 @@ export default function LearningPanel({
                 <>
                   <div className="mb-2 flex items-center gap-2 px-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                      토큰 사전
+                      {t("panel.tokenDict")}
                     </p>
                     {visibleBookmarkCount > 0 && (
                       <>
@@ -982,7 +984,7 @@ export default function LearningPanel({
                               : "bg-lime-100 text-lime-700 hover:bg-lime-200 dark:bg-lime-900/40 dark:text-lime-300 dark:hover:bg-lime-800/40"
                           }`}
                         >
-                          북마크 {visibleBookmarkCount}
+                          {t("panel.bookmarkN", { n: visibleBookmarkCount })}
                         </button>
                         <button
                           type="button"
@@ -1025,7 +1027,7 @@ export default function LearningPanel({
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              개념
+              {t("panel.concept")}
             </p>
             <ConceptSection
               concepts={safeConcepts}
@@ -1043,7 +1045,7 @@ export default function LearningPanel({
         </div>
       ) : (
         <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300">
-          아직 분석 결과가 없다. 버튼을 누르면 분석이 시작되고 결과가 이 패널에 표시된다.
+          {t("panel.noResult")}
         </div>
       )}
     </div>

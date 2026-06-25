@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { AnalyzeMode, ProviderSettings } from "@/lib/agent";
-import { XIcon, BanIcon } from "@/components/learning/icons";
-import { useLocale } from "@/lib/i18n/I18nProvider";
+import { XIcon } from "@/components/learning/icons";
+import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { LOCALES, type Locale } from "@/lib/i18n/messages";
 
 interface SettingsDrawerProps {
@@ -25,13 +25,14 @@ function ExclusionGroup({
   items: string[];
   onRemove: (text: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-1.5">
       <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
         {label} ({items.length})
       </span>
       {items.length === 0 ? (
-        <p className="text-xs text-zinc-400 dark:text-zinc-500">제외한 항목이 없다.</p>
+        <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.excludeEmpty")}</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {items.map((text) => (
@@ -68,6 +69,7 @@ export default function SettingsDrawer({
   onThemeChange,
 }: SettingsDrawerProps) {
   const { locale, setLocale } = useLocale();
+  const t = useT();
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -112,13 +114,13 @@ export default function SettingsDrawer({
       <div className="fixed inset-y-0 right-0 z-[60] flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[#111219]">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            설정
+            {t("settings.title")}
           </h2>
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            aria-label="설정 닫기"
+            aria-label={t("settings.close")}
           >
             <XIcon className="h-4 w-4" />
           </button>
@@ -128,18 +130,18 @@ export default function SettingsDrawer({
           {/* 화면 카드 */}
           <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              화면
+              {t("settings.screen")}
             </h3>
             <div className="space-y-1.5">
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">테마</span>
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.theme")}</span>
               <div
                 role="radiogroup"
                 aria-label="테마"
                 className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
               >
                 {([
-                  { value: "dark", label: "다크" },
-                  { value: "light", label: "라이트" },
+                  { value: "dark", label: t("settings.dark") },
+                  { value: "light", label: t("settings.light") },
                 ] as const).map((opt) => {
                   const selected = theme === opt.value;
                   return (
@@ -166,7 +168,7 @@ export default function SettingsDrawer({
           {/* 언어 카드 */}
           <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              언어
+              {t("settings.language")}
             </h3>
             <select
               value={locale}
@@ -185,7 +187,7 @@ export default function SettingsDrawer({
           {/* 프로바이더 카드 — OpenAI-Compatible / Claude / Codex 소제목+구분선으로 */}
           <section className="space-y-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              프로바이더
+              {t("settings.provider")}
             </h3>
 
             <div className="space-y-4">
@@ -211,7 +213,7 @@ export default function SettingsDrawer({
 
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                모델
+                {t("settings.model")}
               </span>
               <input
                 type="text"
@@ -225,7 +227,7 @@ export default function SettingsDrawer({
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 API Key{" "}
-                <span className="text-zinc-400 dark:text-zinc-500">(선택)</span>
+                <span className="text-zinc-400 dark:text-zinc-500">{t("settings.optional")}</span>
               </span>
               <input
                 type="password"
@@ -245,8 +247,8 @@ export default function SettingsDrawer({
             </h4>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                CLI 경로{" "}
-                <span className="text-zinc-400 dark:text-zinc-500">(선택)</span>
+                {t("settings.cliPath")}{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">{t("settings.optional")}</span>
               </span>
               <input
                 type="text"
@@ -256,7 +258,7 @@ export default function SettingsDrawer({
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                비워두면 PATH에서 자동 탐색
+                {t("settings.cliHint")}
               </p>
             </label>
             </div>
@@ -269,8 +271,8 @@ export default function SettingsDrawer({
             </h4>
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                CLI 경로{" "}
-                <span className="text-zinc-400 dark:text-zinc-500">(선택)</span>
+                {t("settings.cliPath")}{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">{t("settings.optional")}</span>
               </span>
               <input
                 type="text"
@@ -280,7 +282,7 @@ export default function SettingsDrawer({
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
               <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                비워두면 PATH에서 자동 탐색
+                {t("settings.cliHint")}
               </p>
             </label>
             </div>
@@ -289,20 +291,20 @@ export default function SettingsDrawer({
           {/* 제외 목록 카드 */}
           <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              제외 목록
+              {t("settings.exclude")}
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">
-              글 분석에서 <BanIcon className="inline-block h-3.5 w-3.5 align-[-2px]" />로 제외한 IT 용어는 다음 분석부터 표시되지 않는다. <XIcon className="inline-block h-3.5 w-3.5 align-[-2px]" />로 해제하면 다시 나온다.
+              {t("settings.excludeHint")}
             </p>
             <ExclusionGroup
-              label="IT 용어"
+              label={t("settings.excludeTerm")}
               items={excludedTerms}
               onRemove={(text) => onRemoveExclusion?.("text", text)}
             />
           </section>
 
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
-            설정값은 브라우저 localStorage에 저장된다.
+            {t("settings.storageNote")}
           </p>
         </div>
 
@@ -312,7 +314,7 @@ export default function SettingsDrawer({
             onClick={handleSave}
             className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-50 transition hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-900"
           >
-            저장
+            {t("settings.save")}
           </button>
         </div>
       </div>
