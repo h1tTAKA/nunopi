@@ -92,11 +92,20 @@ export default function ItTermSection({
                 </button>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onTermClick?.(term.conceptIds)}
+            {/* 카드 본문 — 텍스트 드래그 복사를 위해 button 대신 div(role=button).
+                드래그로 텍스트를 선택 중이면 클릭 네비게이션은 건너뛴다. */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => { if (window.getSelection()?.toString()) return; onTermClick?.(term.conceptIds); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  if (!window.getSelection()?.toString()) onTermClick?.(term.conceptIds);
+                }
+              }}
               aria-label={`${term.term} 용어`}
-              className={`w-full p-4 text-left ${(term.bookmarkable && onBookmarkToggle) || onExclude ? "pr-12" : ""}`}
+              className={`w-full cursor-pointer select-text p-4 text-left ${(term.bookmarkable && onBookmarkToggle) || onExclude ? "pr-12" : ""}`}
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <code className="max-w-full break-all rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
@@ -116,7 +125,7 @@ export default function ItTermSection({
                   {t("concept.relatedN", { n: term.conceptIds.length })}
                 </p>
               )}
-            </button>
+            </div>
           </div>
         );
       })}
