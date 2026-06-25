@@ -1,18 +1,46 @@
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage } from "@/lib/agent";
 
+// 학습 챗 세션 — 한 분석 안에서 주제별로 나눈 독립 대화 묶음(#312).
+// 이름은 저장하지 않고 배열 인덱스+1로 "세션 N" 라벨링한다.
+export interface ChatSession {
+  id: string;
+  messages: ChatMessage[];
+}
+
 export interface HistoryEntry {
   id: string;
   code: string;
   providerId: AgentProviderKind;
   mode?: AnalyzeMode; // 기본 "code". Issue 76에서 모드별 필터에 사용.
   result: AgentAnalyzeResponse;
-  chat?: ChatMessage[]; // 학습 챗 스레드(분석마다 보존).
+  chat?: ChatMessage[]; // (deprecated) 구 단일 챗 스레드 — chatSessions 마이그레이션 소스로만 읽음.
+  chatSessions?: ChatSession[]; // 학습 챗 세션 목록(분석마다 보존, #312).
+  activeChatSessionId?: string; // 마지막으로 보던 세션 id.
   collectionIds?: string[]; // 속한 사용자 목록(카테고리) id들.
   incomplete?: boolean; // 멈춰서 부분만 저장된 미완 분석(이어서 가능).
   createdAt: string;
   isPinned?: boolean;
   title?: string;
 }
+
+function newSessionId(): string {
+  try { return crypto.randomUUID(); } catch { return `s_${Date.now()}_${Math.floor(Math.random() * 1e6)}`; }
+}
+
+// 엔트리의 챗을 세션 목록으로 정규화(항상 ≥1 세션 보장).
+// 구 `chat` 단일 스레드는 세션 1개로 흡수. 둘 다 없으면 빈 세션 1개.
+export function entryChatSessions(entry: Pick<HistoryEntry, "chat" | "chatSessions">): ChatSession[] {
+  if (entry.chatSessions && entry.chatSessions.length > 0) return entry.chatSessions;
+  if (entry.chat && entry.chat.length > 0) return [{ id: newSessionId(), messages: entry.chat }];
+  return [{ id: newSessionId(), messages: [] }];
+}
+
+// 빈 세션 1개로 시작하는 새 세션 목록(새 분석/클리어용).
+export function freshChatSessions(): ChatSession[] {
+  return [{ id: newSessionId(), messages: [] }];
+}
+
+export { newSessionId };
 
 const DB_NAME = "nunopi-history";
 const DB_VERSION = 1;
@@ -90,7 +118,7 @@ export async function getAllHistory(): Promise<HistoryEntry[]> {
 
 export async function updateHistory(
   id: string,
-  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "collectionIds" | "incomplete">>,
+  changes: Partial<Pick<HistoryEntry, "isPinned" | "title" | "result" | "chat" | "chatSessions" | "activeChatSessionId" | "collectionIds" | "incomplete">>,
 ): Promise<void> {
   const db = await openDB();
   return new Promise((resolve, reject) => {

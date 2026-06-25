@@ -16,11 +16,15 @@ import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
+  type ChatSession,
   saveToHistory,
   getAllHistory,
   deleteFromHistory,
   clearHistory,
   updateHistory,
+  entryChatSessions,
+  freshChatSessions,
+  newSessionId,
 } from "@/lib/historyDB";
 import { loadExclusions, saveExclusions } from "@/lib/exclusions";
 import { type Collection, loadCollections, saveCollections } from "@/lib/collections";
@@ -142,11 +146,15 @@ export default function Home() {
   // 직접 합쳐 유지/HTML 포함/삭제를 한 소스로 다룬다. explainingTokens는 로딩 표시용.
   const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
   const [explainingConcepts, setExplainingConcepts] = useState<string[]>([]);
-  // 학습 챗 — 분석(히스토리 항목)마다 스레드. chatStreaming은 타이핑 중 답변.
+  // 학습 챗 — 분석(히스토리 항목)마다 세션 목록(#312). chatStreaming은 타이핑 중 답변.
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>(freshChatSessions);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatStreaming, setChatStreaming] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  // 활성 세션 — 명시 선택이 없으면 첫 세션. activeMessages는 ChatRoom에 전달.
+  const activeSessionIdResolved = activeSessionId ?? chatSessions[0]?.id ?? null;
+  const activeMessages = chatSessions.find((s) => s.id === activeSessionIdResolved)?.messages ?? [];
   // 사용자 목록(카테고리) — 분석결과 분류용. 정의는 localStorage, 멤버십은 HistoryEntry.collectionIds.
   const [collections, setCollections] = useState<Collection[]>([]);
   // 글 원문에서 클릭한 IT 용어 — 학습패널이 그 용어 카드로 스크롤(왼↔오 연결).
@@ -185,16 +193,17 @@ export default function Home() {
     );
   }, [analysisResult, currentHistoryId, isLoading]);
 
-  // 챗 스레드도 현재 항목에 동기화 — 다른 거 보고 돌아와도 대화 유지(#90 패턴).
+  // 챗 세션도 현재 항목에 동기화 — 다른 거 보고 돌아와도 세션·활성탭 유지(#90/#312 패턴).
   useEffect(() => {
     if (!currentHistoryId) return;
-    const saved = chatMessages;
-    updateHistory(currentHistoryId, { chat: saved }).catch(() => {});
+    const saved = chatSessions;
+    const activeId = activeSessionIdResolved ?? undefined;
+    updateHistory(currentHistoryId, { chatSessions: saved, activeChatSessionId: activeId }).catch(() => {});
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistoryEntries((prev) =>
-      prev.map((e) => (e.id === currentHistoryId ? { ...e, chat: saved } : e)),
+      prev.map((e) => (e.id === currentHistoryId ? { ...e, chatSessions: saved, activeChatSessionId: activeId } : e)),
     );
-  }, [chatMessages, currentHistoryId]);
+  }, [chatSessions, activeSessionIdResolved, currentHistoryId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -303,7 +312,8 @@ export default function Home() {
       setAnalysisResult(null);
       setExplainingTokens([]);
     setExplainingConcepts([]);
-    setChatMessages([]);
+    setChatSessions(freshChatSessions());
+    setActiveSessionId(null);
     setChatStreaming(null);
     }
     // 코드가 바뀌면 이전 부분 결과 기준 "이어서"는 무효.
@@ -314,18 +324,21 @@ export default function Home() {
 
   function handleModeChange(nextMode: AnalyzeMode) {
     if (nextMode === mode) return;
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     setMode(nextMode);
     setErrorMessage(null);
     setAnalysisResult(null);
     setCurrentHistoryId(null);
     setExplainingTokens([]);
     setExplainingConcepts([]);
-    setChatMessages([]);
+    setChatSessions(freshChatSessions());
+    setActiveSessionId(null);
     setChatStreaming(null);
     setActiveCollectionId(null); // 다른 모드 목록 필터가 남지 않게 해제.
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     setProviderId(nextProviderId);
     if (errorMessage) {
       setErrorMessage(null);
@@ -334,7 +347,8 @@ export default function Home() {
       setAnalysisResult(null);
     }
     setCurrentHistoryId(null);
-    setChatMessages([]);
+    setChatSessions(freshChatSessions());
+    setActiveSessionId(null);
     setChatStreaming(null);
   }
 
@@ -362,6 +376,8 @@ export default function Home() {
     if (isLoading) {
       return;
     }
+    // 챗 스트리밍 중엔 새 분석 금지 — 세션 리셋으로 진행 답변이 유실된다(#312).
+    if (chatLoading) return;
 
     const startedAt = Date.now();
     setAnalysisStartedAt(startedAt);
@@ -381,7 +397,8 @@ export default function Home() {
     setExplainingTokens([]);
     setExplainingConcepts([]);
     if (!resumeFrom) {
-      setChatMessages([]);
+      setChatSessions(freshChatSessions());
+      setActiveSessionId(null);
       setChatStreaming(null);
     }
 
@@ -605,11 +622,23 @@ export default function Home() {
     );
   }
 
+  // 세션 sid에 메시지 1개 append.
+  function appendToSession(sid: string, msg: ChatMessage) {
+    setChatSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, messages: [...s.messages, msg] } : s)));
+  }
+
   function handleSendChat(text: string) {
     if (chatLoading) return;
     const input = code.trim();
-    const next: ChatMessage[] = [...chatMessages, { role: "user", content: text }];
-    setChatMessages(next);
+    const sid = activeSessionIdResolved;
+    if (!sid) return;
+    // 활성 세션에 질문 추가.
+    const activeMsgs = chatSessions.find((s) => s.id === sid)?.messages ?? [];
+    appendToSession(sid, { role: "user", content: text });
+    // 에이전트에 보내는 맥락 — 다른 세션 전체 + 활성 세션 + 새 질문(전 세션 합본 참조, #312).
+    // 답변은 활성 세션에만 쌓이고, 다른 세션은 읽기 전용 맥락으로만 쓰인다.
+    const otherMsgs = chatSessions.filter((s) => s.id !== sid).flatMap((s) => s.messages);
+    const contextMessages: ChatMessage[] = [...otherMsgs, ...activeMsgs, { role: "user", content: text }];
     setChatStreaming("");
     setChatLoading(true);
     (async () => {
@@ -624,13 +653,13 @@ export default function Home() {
               locale: getAnalysisLocale(),
               providerId,
               mode: "chat",
-              messages: next,
+              messages: contextMessages,
               providerSettings,
             },
           }),
         });
         if (!res.ok || !res.body) {
-          setChatMessages([...next, { role: "assistant", content: "답변 요청이 실패했다." }]);
+          appendToSession(sid, { role: "assistant", content: "답변 요청이 실패했다." });
           return;
         }
         const reader = res.body.getReader();
@@ -656,9 +685,9 @@ export default function Home() {
             } catch { /* skip */ }
           }
         }
-        setChatMessages([...next, { role: "assistant", content: answer || "(빈 응답)" }]);
+        appendToSession(sid, { role: "assistant", content: answer || "(빈 응답)" });
       } catch {
-        setChatMessages([...next, { role: "assistant", content: "답변 중 오류가 발생했다." }]);
+        appendToSession(sid, { role: "assistant", content: "답변 중 오류가 발생했다." });
       } finally {
         setChatStreaming(null);
         setChatLoading(false);
@@ -667,19 +696,46 @@ export default function Home() {
   }
 
   function handleClearChat() {
-    setChatMessages([]);
+    // 활성 세션의 메시지만 비운다(다른 세션은 보존). 동기화 effect가 DB/메모리 반영.
+    const sid = activeSessionIdResolved;
+    setChatSessions((prev) => prev.map((s) => (s.id === sid ? { ...s, messages: [] } : s)));
     setChatStreaming(null);
-    // 빈 배열은 [chatMessages] 동기화 effect가 현재 항목 DB/메모리에 반영한다.
+  }
+
+  // 새 세션 추가 → 그 세션을 활성으로.
+  function handleNewSession() {
+    if (chatLoading) return;
+    const sess: ChatSession = { id: newSessionId(), messages: [] };
+    setChatSessions((prev) => [...prev, sess]);
+    setActiveSessionId(sess.id);
+  }
+
+  // 세션 전환.
+  function handleSwitchSession(id: string) {
+    setActiveSessionId(id);
+    setChatStreaming(null);
+  }
+
+  // 세션 삭제 — 마지막 1개는 못 지운다(항상 ≥1). 활성이 지워지면 남은 마지막 세션으로.
+  function handleDeleteSession(id: string) {
+    if (chatLoading) return;
+    if (chatSessions.length <= 1) return;
+    const next = chatSessions.filter((s) => s.id !== id);
+    if (id === activeSessionIdResolved) setActiveSessionId(next[next.length - 1].id);
+    setChatSessions(next);
+    setChatStreaming(null);
   }
 
   // 입력 잠금(분석 결과 있을 때) 해제 — 입력을 비우고 깨끗한 새 분석 상태로.
   function handleClearInput() {
+    if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
     if (mode === "text") setTextInput("");
     else setCodeInput("");
     setAnalysisResult(null);
     setErrorMessage(null);
     setCurrentHistoryId(null);
-    setChatMessages([]);
+    setChatSessions(freshChatSessions());
+    setActiveSessionId(null);
     setChatStreaming(null);
     setExplainingTokens([]);
     setExplainingConcepts([]);
@@ -760,6 +816,8 @@ export default function Home() {
   }
 
   function handleRestoreHistory(entry: HistoryEntry) {
+    // 챗 응답 스트리밍 중엔 복원 금지 — 다른 항목 세션으로 덮어쓰면 진행 중 답변이 유실된다(#312).
+    if (chatLoading) return;
     const entryMode = entry.mode ?? "code";
     // 복원 결과는 일회성 소요시간 표시 대상이 아니다 — stale 표시 방지.
     setLastElapsedMs(null);
@@ -769,7 +827,13 @@ export default function Home() {
     setExplainingTokens([]);
     setExplainingConcepts([]);
     setChatStreaming(null);
-    setChatMessages(entry.chat ?? []);
+    const sessions = entryChatSessions(entry);
+    setChatSessions(sessions);
+    setActiveSessionId(
+      entry.activeChatSessionId && sessions.some((s) => s.id === entry.activeChatSessionId)
+        ? entry.activeChatSessionId
+        : sessions[0].id,
+    );
     // ref를 동기로 먼저 세팅 — 복원 직후 입력이 locked(readOnly)가 되고, Monaco가 그
     // 상태에서 setValue로 쏘는 onChange(stale 콜백)가 결과를 클리어하지 못하게 한다.
     if (entryMode === "text") { textInputRef.current = entry.code; setTextInput(entry.code); }
@@ -908,13 +972,18 @@ export default function Home() {
             }
             chat={
               <ChatRoom
-                messages={chatMessages}
+                messages={activeMessages}
                 streaming={chatStreaming}
                 isLoading={chatLoading}
                 disabled={!code.trim()}
                 mode={mode === "text" ? "text" : "code"}
                 onSend={handleSendChat}
                 onClear={handleClearChat}
+                sessionIds={chatSessions.map((s) => s.id)}
+                activeSessionId={activeSessionIdResolved}
+                onSwitchSession={handleSwitchSession}
+                onNewSession={handleNewSession}
+                onDeleteSession={handleDeleteSession}
               />
             }
           />

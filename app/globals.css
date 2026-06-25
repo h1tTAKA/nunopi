@@ -115,6 +115,10 @@ samp {
   background: rgba(161, 161, 170, 0.7);
 }
 
+/* 스크롤바 완전 숨김 — 가로 스크롤되는 세션 탭바 등(스크롤은 되되 바는 안 보임). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
 .nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
 .nunopi-md > :first-child { margin-top: 0; }
