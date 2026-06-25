@@ -117,6 +117,9 @@ const ko: Dict = {
   "chat.replying": "답변 작성 중…",
   "chat.you": "나",
   "chat.tutor": "튜터",
+  "chat.session": "세션 {n}",
+  "chat.newSession": "+ 새 세션",
+  "chat.deleteSession": "세션 삭제",
 
   "history.title": "분석 이력",
   "history.clearAll": "모두 삭제",
@@ -324,6 +327,9 @@ const ja: Dict = {
   "chat.replying": "回答を作成中…",
   "chat.you": "わたし",
   "chat.tutor": "チューター",
+  "chat.session": "セッション {n}",
+  "chat.newSession": "+ 新規セッション",
+  "chat.deleteSession": "セッション削除",
 
   "history.title": "分析履歴",
   "history.clearAll": "すべて削除",
@@ -531,6 +537,9 @@ const en: Dict = {
   "chat.replying": "Writing a reply…",
   "chat.you": "Me",
   "chat.tutor": "Tutor",
+  "chat.session": "Session {n}",
+  "chat.newSession": "+ New session",
+  "chat.deleteSession": "Delete session",
 
   "history.title": "History",
   "history.clearAll": "Clear all",
