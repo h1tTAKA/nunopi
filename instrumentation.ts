@@ -3,7 +3,7 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return; // edge/브라우저 런타임 제외
   try {
-    const { getSnaServer } = await import("./src/lib/sna/server");
+    const { getSnaServer } = await import("@/lib/sna/server");
     const sna = await getSnaServer();
     console.log("[sna] embedded runtime ready on", sna.port);
   } catch (e) {

@@ -8,7 +8,13 @@ import { resolveClaudeCli, startSnaServer, type SnaServerHandle } from "@sna-sdk
 const g = globalThis as unknown as { __snaServer?: Promise<SnaServerHandle> };
 
 export function getSnaServer(): Promise<SnaServerHandle> {
-  if (!g.__snaServer) g.__snaServer = boot();
+  if (!g.__snaServer) {
+    // 부팅 실패 시 캐시를 비워 다음 호출에 재시도 가능하게(거부 promise 영구 캐시 방지).
+    g.__snaServer = boot().catch((err) => {
+      g.__snaServer = undefined;
+      throw err;
+    });
+  }
   return g.__snaServer;
 }
 
@@ -18,7 +24,8 @@ async function boot(): Promise<SnaServerHandle> {
   const claudePath = explicit || resolveClaudeCli().path;
 
   const dbPath = process.env.NUNOPI_SNA_DB ?? "./.sna/nunopi.db";
-  try { mkdirSync(dirname(dbPath), { recursive: true }); } catch { /* already exists */ }
+  // recursive:true는 이미 존재해도 throw 안 함 → 실패(권한 등)는 그대로 올려 boot가 거부되게.
+  mkdirSync(dirname(dbPath), { recursive: true });
 
   return startSnaServer({
     appId: "nunopi",
