@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // 에이전트 런타임 SDK는 별도 node 프로세스를 fork로 띄운다(네이티브 better-sqlite3 포함).
+  // 번들에 넣지 않고 런타임에 node_modules에서 require하도록 외부화.
+  serverExternalPackages: ["@sna-sdk/core", "@sna-sdk/client", "better-sqlite3"],
 };
 
 export default nextConfig;
