@@ -22,6 +22,7 @@ export type {
   ProviderSettings,
 } from "./schema";
 export { claudeAgentProvider, codexAgentProvider, openAICompatibleProvider };
+export { snaAgentProvider } from "./snaAgentProvider";
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
 export { analyzeCodeChunked, shouldChunkCodeAnalysis } from "./chunkedCodeAnalyze";

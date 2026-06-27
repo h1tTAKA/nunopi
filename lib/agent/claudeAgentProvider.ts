@@ -17,7 +17,7 @@ import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/trans
 const CLAUDE_COMMAND_CANDIDATES = ["claude", "claude.cmd", "claude.exe"] as const;
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;
 
-interface ClaudeAvailabilityResult {
+export interface ClaudeAvailabilityResult {
   available: boolean;
   commandPath?: string;
   message: string;
@@ -353,7 +353,7 @@ async function runClaudeCli(
   });
 }
 
-function buildClaudePrompt(request: AgentAnalyzeRequest): string {
+export function buildClaudePrompt(request: AgentAnalyzeRequest): string {
   return [
     "You are Nunopi's Claude analysis provider.",
     "Explain unfamiliar code for a beginner in Korean.",
@@ -419,7 +419,7 @@ function buildPendingClaudeResponse(
   };
 }
 
-function normalizeClaudeOutput(
+export function normalizeClaudeOutput(
   rawText: string,
   request: AgentAnalyzeRequest,
   availability: ClaudeAvailabilityResult,

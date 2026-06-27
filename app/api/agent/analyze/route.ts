@@ -1,6 +1,6 @@
 import {
   analyzeCodeChunked,
-  claudeAgentProvider,
+  snaAgentProvider,
   codexAgentProvider,
   createAgentRegistry,
   openAICompatibleProvider,
@@ -368,7 +368,8 @@ function resolveProvider(
   | { ok: true; provider: AgentProvider }
   | { ok: false; message: string } {
   const registry = createAgentRegistry({
-    providers: [claudeAgentProvider, codexAgentProvider, openAICompatibleProvider],
+    // claude-agent id는 이제 임베드 런타임 provider가 처리(분석). chat은 내부 위임.
+    providers: [snaAgentProvider, codexAgentProvider, openAICompatibleProvider],
   });
   const provider = registry.getProvider(providerId);
 
