@@ -87,7 +87,8 @@ async function runViaSna(
     if (type === "assistant_delta") {
       streamed = true;
       full += (ev.delta as string | undefined) ?? "";
-      opts.onProgress?.(opts.fullProgress ? full : ((ev.delta as string | undefined) ?? ""));
+      // 비-full(코드/explain 진행 라벨)은 누적 끝 200자만 — runClaudeCli와 동일(델타 조각 X).
+      opts.onProgress?.(opts.fullProgress ? full : full.slice(-200));
     } else if (type === "assistant" && !streamed) {
       full = (ev.message as string | undefined) ?? "";
       opts.onProgress?.(full);
