@@ -11,10 +11,10 @@ import {
 } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
+import { buildChatPrompt, chatSystemPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
 import {
   buildClaudePrompt,
   normalizeClaudeOutput,
-  claudeAgentProvider,
   type ClaudeAvailabilityResult,
 } from "./claudeAgentProvider";
 
@@ -87,7 +87,8 @@ async function runViaSna(
     if (type === "assistant_delta") {
       streamed = true;
       full += (ev.delta as string | undefined) ?? "";
-      opts.onProgress?.(opts.fullProgress ? full : ((ev.delta as string | undefined) ?? ""));
+      // 비-full(코드/explain 진행 라벨)은 누적 끝 200자만 — runClaudeCli와 동일(델타 조각 X).
+      opts.onProgress?.(opts.fullProgress ? full : full.slice(-200));
     } else if (type === "assistant" && !streamed) {
       full = (ev.message as string | undefined) ?? "";
       opts.onProgress?.(full);
@@ -104,6 +105,7 @@ async function runViaSna(
 // SNA가 도달 불가일 때(서버 미기동 등) 모드별 에러 응답 — 기존 availability 실패 분기와 동일 형태.
 function unavailableResponse(request: AgentAnalyzeRequest, message: string): AgentAnalyzeResponse {
   const warn = [{ code: "PARTIAL_PARSE" as const, message }];
+  if (request.mode === "chat") return chatModeResponse("claude-agent", message, warn);
   if (request.mode === "explain-concept") return conceptModeResponse("claude-agent", [], warn);
   if (request.mode === "explain-token") return tokenModeResponse("claude-agent", [], warn);
   if (request.mode === "text") return textModeResponse("claude-agent", message, warn);
@@ -140,9 +142,7 @@ export const snaAgentProvider: AgentProvider = {
     request: AgentAnalyzeRequest,
     options?: AgentAnalyzeCallOptions,
   ): Promise<AgentAnalyzeResponse> {
-    // chat은 이번 범위 밖 — 기존 provider로 위임.
-    if (request.mode === "chat") return claudeAgentProvider.analyze(request, options);
-
+    const isChat = request.mode === "chat";
     const isText = request.mode === "text";
     const isExplainToken = request.mode === "explain-token";
     const isExplainConcept = request.mode === "explain-concept";
@@ -155,13 +155,15 @@ export const snaAgentProvider: AgentProvider = {
       return unavailableResponse(request, message);
     }
 
-    const prompt = isExplainConcept
-      ? buildExplainConceptPrompt(request)
-      : isExplainToken
-        ? buildExplainTokenPrompt(request)
-        : isText
-          ? buildTextPrompt(request)
-          : buildClaudePrompt(request);
+    const prompt = isChat
+      ? buildChatPrompt(request)
+      : isExplainConcept
+        ? buildExplainConceptPrompt(request)
+        : isExplainToken
+          ? buildExplainTokenPrompt(request)
+          : isText
+            ? buildTextPrompt(request)
+            : buildClaudePrompt(request);
 
     const mockText = process.env.NUNOPI_CLAUDE_MOCK_RESPONSE?.trim();
     // 정규화에 필요한 stub availability(메시지 cosmetic 용도로만 사용됨).
@@ -172,19 +174,22 @@ export const snaAgentProvider: AgentProvider = {
     };
 
     if (mockText) {
-      return isExplainConcept
-        ? normalizeExplainConceptOutput(mockText, "claude-agent", request)
-        : isExplainToken
-          ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
-          : isText
-            ? normalizeTextOutput(mockText, "claude-agent", request)
-            : normalizeClaudeOutput(mockText, request, stubAvailability, prompt);
+      return isChat
+        ? normalizeChatOutput(mockText, "claude-agent")
+        : isExplainConcept
+          ? normalizeExplainConceptOutput(mockText, "claude-agent", request)
+          : isExplainToken
+            ? normalizeExplainTokenOutput(mockText, "claude-agent", request)
+            : isText
+              ? normalizeTextOutput(mockText, "claude-agent", request)
+              : normalizeClaudeOutput(mockText, request, stubAvailability, prompt);
     }
 
     try {
       // 글 모드: 누적 텍스트를 점진 파싱해 용어/개념을 onPartial로 흘린다(기존 로직 동일).
       let streamOnProgress = options?.onProgress;
-      let fullProgress = false;
+      // 챗은 답변 토큰을 누적 전체로 흘려 page의 chatStreaming이 타이핑처럼 보이게 한다.
+      let fullProgress = isChat;
       const prior = isText ? request.resumeFrom : undefined;
       if (isText && options?.onPartial) {
         const onPartial = options.onPartial;
@@ -210,14 +215,17 @@ export const snaAgentProvider: AgentProvider = {
       }
 
       const { text: rawText, usage } = await runViaSna(prompt, {
-        systemPrompt: CODE_SYSTEM_PROMPT,
+        // 챗은 언어별 튜터 시스템프롬프트 + thinking 살림(effort 미강제). 분석은 JSON 지시 + low.
+        systemPrompt: isChat ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
         signal: options?.signal,
         onProgress: streamOnProgress,
         fullProgress,
-        effort: true, // 분석은 low
+        effort: !isChat,
       });
 
-      return isExplainConcept
+      return isChat
+        ? normalizeChatOutput(rawText, "claude-agent")
+        : isExplainConcept
         ? normalizeExplainConceptOutput(rawText, "claude-agent", request)
         : isExplainToken
           ? normalizeExplainTokenOutput(rawText, "claude-agent", request)
@@ -231,6 +239,7 @@ export const snaAgentProvider: AgentProvider = {
       if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
       const message = err instanceof Error ? err.message : "runtime run failed";
       const warn = [{ code: "PARSE_FAILED" as const, message }];
+      if (isChat) return chatModeResponse("claude-agent", `런타임 실패: ${message}`, warn);
       if (isExplainConcept) return conceptModeResponse("claude-agent", [], warn);
       if (isExplainToken) return tokenModeResponse("claude-agent", [], warn);
       if (isText) return textModeResponse("claude-agent", `런타임 실패: ${message}`, warn);
