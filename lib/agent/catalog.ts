@@ -38,7 +38,7 @@ export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
   },
   {
     id: "openai-compatible",
-    label: "Open Code",
+    label: "Local LLM",
     description:
       "Provider scaffold for OpenAI-style local or remote LLM endpoints such as Ollama gateways, vLLM, LiteLLM, or Hermes servers.",
     executionLocation: "local-server",

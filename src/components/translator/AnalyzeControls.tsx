@@ -29,7 +29,7 @@ export function ProviderSelect({
     >
       {PROVIDER_CATALOG.map((p) => (
         <option key={p.id} value={p.id}>
-          {p.label}
+          {t(`provider.${p.id}`)}
         </option>
       ))}
     </select>

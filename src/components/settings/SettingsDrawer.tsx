@@ -192,8 +192,9 @@ export default function SettingsDrawer({
 
             <div className="space-y-4">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              OpenAI-Compatible
+              {t("provider.openai-compatible")}
             </h4>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("provider.localLlmHint")}</p>
 
             <label className="block space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
