@@ -16,7 +16,7 @@ import {
   buildClaudePrompt,
   normalizeClaudeOutput,
   type ClaudeAvailabilityResult,
-} from "./claudeAgentProvider";
+} from "./codePrompt";
 
 // 분석/챗 런타임을 임베드 에이전트 런타임 서버(runOnce 스트림)로 처리하는 provider.
 // claude-code / codex 두 런타임을 같은 로직으로 굴리되, runOnce 옵션만 런타임별로 분기한다.
