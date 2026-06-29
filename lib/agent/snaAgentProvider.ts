@@ -40,16 +40,15 @@ function mapUsage(data: unknown): AgentUsage | undefined {
   const d = data as Record<string, unknown>;
   const inputTokens = toNum(d.inputTokens);
   const outputTokens = toNum(d.outputTokens);
-  const estimatedCostUsd = toNum(d.costUsd);
   const total = (inputTokens ?? 0) + (outputTokens ?? 0);
-  if (inputTokens === undefined && outputTokens === undefined && estimatedCostUsd === undefined) {
+  if (inputTokens === undefined && outputTokens === undefined) {
     return undefined;
   }
+  // 구독 런타임이라 SNA가 보고하는 costUsd는 실제 청구가 아닌 추정치 → 비용 미표시 원칙상 매핑 안 함.
   return {
     inputTokens,
     outputTokens,
     totalTokens: total > 0 ? total : undefined,
-    estimatedCostUsd,
   };
 }
 
