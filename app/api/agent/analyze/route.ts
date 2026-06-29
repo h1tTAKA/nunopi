@@ -1,7 +1,7 @@
 import {
   analyzeCodeChunked,
   snaClaudeProvider,
-  codexAgentProvider,
+  snaCodexProvider,
   createAgentRegistry,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
@@ -368,9 +368,8 @@ function resolveProvider(
   | { ok: true; provider: AgentProvider }
   | { ok: false; message: string } {
   const registry = createAgentRegistry({
-    // claude-agent는 임베드 런타임 provider. codex-agent는 클린-실행 설정(MCP/스킬 off)이
-    // 정리될 때까지 구 provider 유지(별 이슈) — snaCodexProvider는 그때 교체.
-    providers: [snaClaudeProvider, codexAgentProvider, openAICompatibleProvider],
+    // claude-agent·codex-agent 모두 임베드 런타임 provider 경유(codex 모델은 NUNOPI_CODEX_MODEL).
+    providers: [snaClaudeProvider, snaCodexProvider, openAICompatibleProvider],
   });
   const provider = registry.getProvider(providerId);
 
