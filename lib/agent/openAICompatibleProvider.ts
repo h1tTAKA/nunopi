@@ -54,7 +54,7 @@ interface OpenAICompatibleChatCompletionResponse {
 export const openAICompatibleProvider: AgentProvider = {
   metadata: {
     id: "openai-compatible",
-    label: "OpenAI-Compatible",
+    label: "Local LLM",
     description:
       "Provider scaffold for OpenAI-style local or remote LLM endpoints such as Ollama gateways, vLLM, LiteLLM, or Hermes servers.",
     executionLocation: "local-server",
