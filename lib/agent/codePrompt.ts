@@ -29,7 +29,7 @@ interface ClaudeNormalizedPayload {
 
 export function buildClaudePrompt(request: AgentAnalyzeRequest): string {
   return [
-    "You are Nunopi's Claude analysis provider.",
+    "You are Nunopi's code analysis provider.",
     "Explain unfamiliar code for a beginner in Korean.",
     "Return JSON only.",
     "",
