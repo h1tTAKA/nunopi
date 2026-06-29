@@ -720,7 +720,7 @@ export default function LearningPanel({
       {tabBar}
       <div className="space-y-1">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {t("panel.currentProvider")}: <span className="font-medium text-zinc-700 dark:text-zinc-200">{providerId}</span>
+          {t("panel.currentProvider")}: <span className="font-medium text-zinc-700 dark:text-zinc-200">{t(`provider.${providerId}`)}</span>
         </p>
       </div>
 
