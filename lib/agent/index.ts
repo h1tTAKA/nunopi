@@ -1,5 +1,3 @@
-import { claudeAgentProvider } from "./claudeAgentProvider";
-import { codexAgentProvider } from "./codexAgentProvider";
 import { openAICompatibleProvider } from "./openAICompatibleProvider";
 
 export type {
@@ -21,7 +19,7 @@ export type {
   ChatMessage,
   ProviderSettings,
 } from "./schema";
-export { claudeAgentProvider, codexAgentProvider, openAICompatibleProvider };
+export { openAICompatibleProvider };
 export { snaAgentProvider, snaClaudeProvider, snaCodexProvider } from "./snaAgentProvider";
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
