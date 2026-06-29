@@ -1,6 +1,6 @@
 import {
   analyzeCodeChunked,
-  snaAgentProvider,
+  snaClaudeProvider,
   codexAgentProvider,
   createAgentRegistry,
   openAICompatibleProvider,
@@ -368,8 +368,9 @@ function resolveProvider(
   | { ok: true; provider: AgentProvider }
   | { ok: false; message: string } {
   const registry = createAgentRegistry({
-    // claude-agent id는 이제 임베드 런타임 provider가 처리(분석). chat은 내부 위임.
-    providers: [snaAgentProvider, codexAgentProvider, openAICompatibleProvider],
+    // claude-agent는 임베드 런타임 provider. codex-agent는 클린-실행 설정(MCP/스킬 off)이
+    // 정리될 때까지 구 provider 유지(별 이슈) — snaCodexProvider는 그때 교체.
+    providers: [snaClaudeProvider, codexAgentProvider, openAICompatibleProvider],
   });
   const provider = registry.getProvider(providerId);
 

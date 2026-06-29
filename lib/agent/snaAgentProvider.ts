@@ -72,8 +72,12 @@ async function runViaSna(
 
   // low 기준 reasoningLevel: claude=1, codex=2 (SNA 매핑표상 둘 다 "low" 근접).
   const reasoningLevel = opts.effort ? (isCodex ? 2 : 1) : undefined;
-  const claudeOnly = isCodex
-    ? {}
+  // runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex엔
+  // claude 모델이 가서 400("claude model not supported"). 그래서 codex는 모델을 명시해야 한다.
+  // 환경마다 다르므로 env override(기본은 codex의 현행 기본 모델).
+  const codexModel = process.env.NUNOPI_CODEX_MODEL?.trim() || "gpt-5.5";
+  const runtimeOpts = isCodex
+    ? { model: codexModel }
     : {
         model: "sonnet",
         // 토큰 최적화: 유저 설정/CLAUDE.md/훅 미로드 + 툴 정의 0(PoC 실측 cacheRead 16143→0).
@@ -91,7 +95,7 @@ async function runViaSna(
     systemPrompt: opts.systemPrompt ?? CODE_SYSTEM_PROMPT,
     reasoningLevel,
     timeout: 600_000, // 큰/청크 분석 대비 충분히 크게.
-    ...claudeOnly,
+    ...runtimeOpts,
   })) {
     if (opts.signal?.aborted) throw new Error("분석이 취소되었습니다.");
     const type = ev.type as string | undefined;
