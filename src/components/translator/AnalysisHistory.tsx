@@ -249,7 +249,7 @@ export default function AnalysisHistory({
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="inline-flex items-center rounded bg-zinc-200 px-1 py-0.5 text-xs text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 shrink-0">
-                      {entry.providerId}
+                      {t(`provider.${entry.providerId}`)}
                     </span>
                     {entry.incomplete && (
                       <span
