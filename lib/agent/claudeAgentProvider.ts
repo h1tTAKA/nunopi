@@ -4,7 +4,7 @@ import { constants as fsConstants } from "node:fs";
 import { delimiter, join } from "node:path";
 
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
-import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
+import type { AgentAnalyzeCallOptions, AgentProvider, AgentProviderKind } from "./types";
 import { outputLanguageDirective } from "./outputLanguage";
 import { dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, mergeTextResults, normalizeTextOutput, parseTextStreamPartial, textModeResponse } from "./textMode";
@@ -425,12 +425,13 @@ export function normalizeClaudeOutput(
   availability: ClaudeAvailabilityResult,
   prompt: string,
   usage?: AgentUsage,
+  providerId: AgentProviderKind = "claude-agent",
 ): AgentAnalyzeResponse {
   const parsed = parseClaudePayload(rawText);
 
   if (!parsed) {
     return {
-      providerId: "claude-agent",
+      providerId,
       language: request.detectedLanguage ?? "unknown",
       summary: `Claude runtime detected at ${availability.commandPath}, but the returned payload did not match Nunopi's expected JSON schema.`,
       lineExplanations: [],
@@ -449,7 +450,7 @@ export function normalizeClaudeOutput(
   }
 
   return {
-    providerId: "claude-agent",
+    providerId,
     mode: "code",
     language: parsed.language ?? request.detectedLanguage ?? "unknown",
     title: typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : undefined,
