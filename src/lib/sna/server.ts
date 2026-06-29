@@ -1,7 +1,7 @@
 import "server-only";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { resolveClaudeCli, resolveCodexCli, startSnaServer, type SnaServerHandle } from "@sna-sdk/core/node";
+import { resolveClaudeCli, resolveCodexCli, resolveOpenCodeCli, startSnaServer, type SnaServerHandle } from "@sna-sdk/core/node";
 
 // 에이전트 런타임 서버를 nunopi 서버 프로세스에서 1회 fork로 띄운다.
 // dev HMR / 멀티워커가 모듈을 재평가해도 fork가 중복되지 않게 globalThis에 promise를 캐시.
@@ -26,6 +26,11 @@ async function boot(): Promise<SnaServerHandle> {
   try {
     codexPath = process.env.NUNOPI_CODEX_COMMAND?.trim() || resolveCodexCli().path;
   } catch { codexPath = process.env.NUNOPI_CODEX_COMMAND?.trim() || undefined; }
+  // opencode도 미설치 가능 → resolver 실패 삼킴.
+  let openCodePath: string | undefined;
+  try {
+    openCodePath = process.env.NUNOPI_OPENCODE_COMMAND?.trim() || resolveOpenCodeCli().path;
+  } catch { openCodePath = process.env.NUNOPI_OPENCODE_COMMAND?.trim() || undefined; }
 
   const dbPath = process.env.NUNOPI_SNA_DB ?? "./.sna/nunopi.db";
   // recursive:true는 이미 존재해도 throw 안 함 → 실패(권한 등)는 그대로 올려 boot가 거부되게.
@@ -35,7 +40,11 @@ async function boot(): Promise<SnaServerHandle> {
     appId: "nunopi",
     port: Number(process.env.NUNOPI_SNA_PORT ?? 3099),
     dbPath,
-    runtimePaths: { claudeCode: claudePath, ...(codexPath ? { codex: codexPath } : {}) },
+    runtimePaths: {
+      claudeCode: claudePath,
+      ...(codexPath ? { codex: codexPath } : {}),
+      ...(openCodePath ? { openCode: openCodePath } : {}),
+    },
     onLog: (line) => { if (/ready|error|fail/i.test(line)) console.log("[sna]", line); },
   });
 }
