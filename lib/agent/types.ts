@@ -1,6 +1,7 @@
 export type AgentProviderKind =
   | "claude-agent"
   | "codex-agent"
+  | "opencode-agent"
   | "openai-app-server"
   | "openai-api-key"
   | "hermes-local"

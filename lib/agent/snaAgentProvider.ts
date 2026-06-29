@@ -22,7 +22,7 @@ import {
 // claude-code / codex 두 런타임을 같은 로직으로 굴리되, runOnce 옵션만 런타임별로 분기한다.
 // 프롬프트 빌더·정규화·partial 파싱·머지는 전부 기존 모듈 재사용.
 
-type SnaRuntime = "claude-code" | "codex";
+type SnaRuntime = "claude-code" | "codex" | "opencode";
 
 const CODE_SYSTEM_PROMPT = "You are a code analysis assistant. Return JSON only.";
 
@@ -68,22 +68,24 @@ async function runViaSna(
 ): Promise<RunResult> {
   if (opts.signal?.aborted) throw new Error("분석이 취소되었습니다.");
   const client = await getSnaClient();
+  const isClaude = opts.runtime === "claude-code";
   const isCodex = opts.runtime === "codex";
 
-  // low 기준 reasoningLevel: claude=1, codex=2 (SNA 매핑표상 둘 다 "low" 근접).
-  const reasoningLevel = opts.effort ? (isCodex ? 2 : 1) : undefined;
-  // runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex엔
-  // claude 모델이 가서 400("claude model not supported"). 그래서 codex는 모델을 명시해야 한다.
-  // 환경마다 다르므로 env override(기본은 codex의 현행 기본 모델).
+  // low 기준 reasoningLevel: claude=1, codex=2 (SNA 매핑표). opencode는 미강제(모델별 상이).
+  const reasoningLevel = opts.effort && isClaude ? 1 : opts.effort && isCodex ? 2 : undefined;
+  // runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex/opencode엔
+  // 그 모델이 가서 실패("not supported"/"Model not found"). 그래서 비-claude는 모델 명시 필수.
+  // 환경마다 다르므로 env override(기본은 각 런타임의 합리적 기본).
   const codexModel = process.env.NUNOPI_CODEX_MODEL?.trim() || "gpt-5.5";
-  const runtimeOpts = isCodex
-    ? { model: codexModel }
-    : {
+  const openCodeModel = process.env.NUNOPI_OPENCODE_MODEL?.trim() || "opencode/deepseek-v4-flash-free";
+  const runtimeOpts = isClaude
+    ? {
         model: "sonnet",
         // 토큰 최적화: 유저 설정/CLAUDE.md/훅 미로드 + 툴 정의 0(PoC 실측 cacheRead 16143→0).
         providerOptions: { settingSources: [""], strictMcpConfig: true } as Record<string, unknown>,
         extraArgs: ["--tools", ""],
-      };
+      }
+    : { model: isCodex ? codexModel : openCodeModel }; // codex/opencode: 모델만 명시(claude 플래그 미전달)
 
   let full = "";
   let streamed = false;
@@ -299,6 +301,13 @@ export const snaCodexProvider = createSnaProvider({
   runtime: "codex",
   label: "Codex Agent (runtime)",
   mockEnv: "NUNOPI_CODEX_MOCK_RESPONSE",
+});
+
+export const snaOpenCodeProvider = createSnaProvider({
+  id: "opencode-agent",
+  runtime: "opencode",
+  label: "OpenCode Agent (runtime)",
+  mockEnv: "NUNOPI_OPENCODE_MOCK_RESPONSE",
 });
 
 // 하위 호환 별칭(기존 import 경로 유지).

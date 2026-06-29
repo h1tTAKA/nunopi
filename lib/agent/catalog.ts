@@ -37,6 +37,22 @@ export const PROVIDER_CATALOG: readonly AgentProviderMetadata[] = [
     },
   },
   {
+    id: "opencode-agent",
+    label: "OpenCode",
+    description:
+      "OpenCode agentic CLI runtime via the embedded runtime server. Model set by NUNOPI_OPENCODE_MODEL (default opencode/deepseek-v4-flash-free).",
+    executionLocation: "local-server",
+    dataHandling: "remote-provider",
+    capabilities: {
+      streaming: true,
+      cancellation: true,
+      fileSystemAccess: false,
+      shellAccess: false,
+      requiresApiKey: false,
+      requiresLocalProcess: true,
+    },
+  },
+  {
     id: "openai-compatible",
     label: "Local LLM",
     description:

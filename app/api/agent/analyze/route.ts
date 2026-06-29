@@ -2,6 +2,7 @@ import {
   analyzeCodeChunked,
   snaClaudeProvider,
   snaCodexProvider,
+  snaOpenCodeProvider,
   createAgentRegistry,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
@@ -31,6 +32,7 @@ interface AgentAnalyzeErrorResponse {
 const ALLOWED_PROVIDER_IDS: AgentProviderKind[] = [
   "claude-agent",
   "codex-agent",
+  "opencode-agent",
   "openai-app-server",
   "openai-api-key",
   "hermes-local",
@@ -369,7 +371,7 @@ function resolveProvider(
   | { ok: false; message: string } {
   const registry = createAgentRegistry({
     // claude-agent·codex-agent 모두 임베드 런타임 provider 경유(codex 모델은 NUNOPI_CODEX_MODEL).
-    providers: [snaClaudeProvider, snaCodexProvider, openAICompatibleProvider],
+    providers: [snaClaudeProvider, snaCodexProvider, snaOpenCodeProvider, openAICompatibleProvider],
   });
   const provider = registry.getProvider(providerId);
 
