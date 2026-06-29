@@ -211,7 +211,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
               ? normalizeExplainTokenOutput(mockText, providerId, request)
               : isText
                 ? normalizeTextOutput(mockText, providerId, request)
-                : normalizeClaudeOutput(mockText, request, stubAvailability, prompt);
+                : normalizeClaudeOutput(mockText, request, stubAvailability, prompt, undefined, providerId);
       }
 
       try {
@@ -263,7 +263,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
                     const fresh = normalizeTextOutput(rawText, providerId, request, usage);
                     return prior ? mergeTextResults(prior, fresh) : fresh;
                   })()
-                : normalizeClaudeOutput(rawText, request, stubAvailability, prompt, usage);
+                : normalizeClaudeOutput(rawText, request, stubAvailability, prompt, usage, providerId);
       } catch (err) {
         if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
         const message = err instanceof Error ? err.message : "runtime run failed";
