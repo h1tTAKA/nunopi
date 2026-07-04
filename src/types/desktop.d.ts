@@ -2,7 +2,7 @@
 interface NunopiDesktopApi {
   isDesktop: true;
   getRuntimePaths(): Promise<{ claudeCode?: string; codex?: string; opencode?: string }>;
-  setRuntimePaths(paths: { claudeCode?: string; codex?: string; opencode?: string }): Promise<{ ok: boolean }>;
+  setRuntimePaths(paths: { claudeCode?: string; codex?: string; opencode?: string }): Promise<{ ok: boolean; saved: Record<string, string> }>;
   relaunch(): Promise<void>;
 }
 

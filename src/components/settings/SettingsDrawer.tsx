@@ -114,7 +114,7 @@ export default function SettingsDrawer({
       claudeCode: claudeCliPath.trim() || undefined,
       codex: codexCliPath.trim() || undefined,
       opencode: openCodeCliPath.trim() || undefined,
-    }).catch(() => {});
+    }).catch((e) => console.warn("[settings] desktop runtime-paths save failed:", e));
     onClose();
   }
 

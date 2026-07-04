@@ -50,7 +50,11 @@ function loadSavedRuntimePaths() {
       if (typeof raw?.[k] === "string" && raw[k].trim()) out[k] = raw[k].trim();
     }
     return out;
-  } catch { return {}; }
+  } catch (e) {
+    // 파일 없음(첫 실행)은 정상. 그 외(손상 json 등)는 경고만 남기고 빈 설정으로.
+    if (e?.code !== "ENOENT") console.warn("[runtime-paths] load failed:", String(e));
+    return {};
+  }
 }
 function saveRuntimePaths(paths) {
   const out = {};
