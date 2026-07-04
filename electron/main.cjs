@@ -13,7 +13,9 @@ let win = null;
 async function startStandaloneServer() {
   const getPort = (await import("get-port")).default;
   const port = await getPort();
-  const serverJs = join(app.getAppPath(), ".next", "standalone", "server.js");
+  // main.cjs는 <appRoot>/electron/ 에 위치 → standalone은 <appRoot>/.next/standalone.
+  // (패키징 시 리소스 경로 보정은 ③에서.)
+  const serverJs = join(__dirname, "..", ".next", "standalone", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,
