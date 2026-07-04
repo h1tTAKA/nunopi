@@ -45,9 +45,11 @@ async function startRuntimeServer() {
 async function startStandaloneServer(extraEnv) {
   const getPort = (await import("get-port")).default;
   const port = await getPort();
-  // main.cjs는 <appRoot>/electron/ 에 위치 → standalone은 <appRoot>/.next/standalone.
-  // (패키징 시 리소스 경로 보정은 ③에서.)
-  const serverJs = join(__dirname, "..", ".next", "standalone", "server.js");
+  // 패키지: standalone은 extraResources로 process.resourcesPath/standalone.
+  // 미패키지(electron electron/main.cjs): <appRoot>/.next/standalone.
+  const serverJs = app.isPackaged
+    ? join(process.resourcesPath, "standalone", "server.js")
+    : join(__dirname, "..", ".next", "standalone", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,

@@ -1,0 +1,31 @@
+appId: ai.neuradex.nunopi
+productName: nunopi
+directories:
+  output: dist_electron
+  buildResources: build
+
+# asar에 들어갈 것(앱 소스 + prod node_modules).
+files:
+  - electron/**
+  - package.json
+  - node_modules/**
+
+# asar 밖으로(네이티브 .node·fork 대상은 asar 안에서 못 돎).
+asarUnpack:
+  - node_modules/@sna-sdk/core/**
+  - node_modules/better-sqlite3/**
+
+# Next standalone 서버(fork 대상)는 리소스로 동봉 → process.resourcesPath/standalone.
+# (static·public은 빌드 스크립트가 standalone 안으로 복사해둠)
+extraResources:
+  - from: .next/standalone
+    to: standalone
+
+# 네이티브 모듈(better-sqlite3)을 electron ABI로 rebuild.
+npmRebuild: true
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dir   # 1차 검증(빠름). dmg는 검증 후 활성화.
+  # 코드사이닝/노터라이즈는 배포 임박 시(④/비범위).
