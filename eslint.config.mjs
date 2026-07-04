@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "electron/**",
     "scripts/**",
     ".sna/**",
+    "dist_electron/**",
   ]),
 ]);
 

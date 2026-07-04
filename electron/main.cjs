@@ -10,6 +10,20 @@ const {
 } = require("@sna-sdk/core/electron");
 const { spawn } = require("node:child_process");
 const { join } = require("node:path");
+const net = require("node:net");
+
+// 빈 포트 하나 확보(패키지엔 devDep get-port가 없으므로 노드 net로 자체 구현).
+function getFreePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close(() => resolve(port));
+    });
+  });
+}
 
 const DEV_URL = process.env.ELECTRON_START_URL; // 있으면 dev 모드
 let serverProc = null;
@@ -35,6 +49,7 @@ async function startRuntimeServer() {
   // (미rebuild면 "compiled for a different Node.js version"). ③에서 nativeBinding 추가.
   return startSnaServer({
     appId: "nunopi",
+    port: await getFreePort(), // 3099 고정 대신 빈 포트(충돌 방지)
     dbPath: join(app.getPath("userData"), "sna.db"),
     runtimePaths,
     onLog: (l) => { if (/ready|error|fail/i.test(l)) console.log("[sna]", l); },
@@ -43,11 +58,12 @@ async function startRuntimeServer() {
 
 // standalone 서버 spawn(prod). extraEnv(런타임 커넥션)를 주입. 준비되면 baseUrl 반환.
 async function startStandaloneServer(extraEnv) {
-  const getPort = (await import("get-port")).default;
-  const port = await getPort();
-  // main.cjs는 <appRoot>/electron/ 에 위치 → standalone은 <appRoot>/.next/standalone.
-  // (패키징 시 리소스 경로 보정은 ③에서.)
-  const serverJs = join(__dirname, "..", ".next", "standalone", "server.js");
+  const port = await getFreePort();
+  // 패키지: standalone은 extraResources로 process.resourcesPath/standalone.
+  // 미패키지(electron electron/main.cjs): <appRoot>/.next/standalone.
+  const serverJs = app.isPackaged
+    ? join(process.resourcesPath, "standalone", "server.js")
+    : join(__dirname, "..", ".next", "standalone", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,
