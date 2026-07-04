@@ -32,6 +32,7 @@
     "@types/react-dom": "^19",
     "concurrently": "^10.0.3",
     "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "get-port": "^7.2.0",

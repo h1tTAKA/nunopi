@@ -50,3 +50,6 @@ tmp/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# electron-builder output
+dist_electron/
