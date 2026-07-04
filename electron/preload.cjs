@@ -1,7 +1,10 @@
-// 최소 preload. nunopi는 localhost로 자족 동작하므로 현재 노출 API 없음.
-// 추후 데스크톱 전용 기능(파일 저장 다이얼로그 등) 필요 시 contextBridge로 노출.
-const { contextBridge } = require("electron");
+// preload — renderer에 최소 데스크톱 API 노출(contextIsolation 유지).
+// 런타임 CLI 경로 설정(재시작 후 적용)과 재시작만.
+const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("nunopiDesktop", {
   isDesktop: true,
+  getRuntimePaths: () => ipcRenderer.invoke("runtime-paths:get"),
+  setRuntimePaths: (paths) => ipcRenderer.invoke("runtime-paths:set", paths),
+  relaunch: () => ipcRenderer.invoke("app:relaunch"),
 });

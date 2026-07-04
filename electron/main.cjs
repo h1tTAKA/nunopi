@@ -1,7 +1,8 @@
 // 일렉트론 셸 — nunopi(Next 앱)를 데스크톱 창으로 감싼다.
 // dev: ELECTRON_START_URL(예: http://localhost:3000) 로드(next dev 병행, HMR).
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, shell, ipcMain } = require("electron");
+const { readFileSync, writeFileSync, mkdirSync } = require("node:fs");
 const {
   startSnaServer,
   resolveClaudeCli,
@@ -35,15 +36,43 @@ function safeResolve(fn) {
   try { const r = fn(); return r?.path; } catch { return undefined; }
 }
 
+// 유저가 설정 UI에서 지정한 런타임 CLI 경로 — userData/runtime-paths.json 영속.
+// 부팅 시 saved > env(NUNOPI_*_COMMAND) > resolver 우선순위로 반영("재시작 후 적용").
+const RUNTIME_PATH_KEYS = ["claudeCode", "codex", "opencode"];
+function runtimePathsFile() {
+  return join(app.getPath("userData"), "runtime-paths.json");
+}
+function loadSavedRuntimePaths() {
+  try {
+    const raw = JSON.parse(readFileSync(runtimePathsFile(), "utf8"));
+    const out = {};
+    for (const k of RUNTIME_PATH_KEYS) {
+      if (typeof raw?.[k] === "string" && raw[k].trim()) out[k] = raw[k].trim();
+    }
+    return out;
+  } catch { return {}; }
+}
+function saveRuntimePaths(paths) {
+  const out = {};
+  for (const k of RUNTIME_PATH_KEYS) {
+    if (typeof paths?.[k] === "string" && paths[k].trim()) out[k] = paths[k].trim();
+  }
+  mkdirSync(app.getPath("userData"), { recursive: true });
+  writeFileSync(runtimePathsFile(), JSON.stringify(out, null, 2));
+  return out;
+}
+
 // 런타임 서버를 electron main이 소유(전체 node_modules + asar/native 자동 처리).
 // standalone Next는 이 서버에 env로 연결(자체 임베드는 트레이스 누락으로 불가).
 async function startRuntimeServer() {
+  const saved = loadSavedRuntimePaths();
   const runtimePaths = {
-    claudeCode: safeResolve(resolveClaudeCli),
-    codex: safeResolve(resolveCodexCli),
-    opencode: safeResolve(resolveOpenCodeCli),
+    claudeCode: saved.claudeCode || process.env.NUNOPI_CLAUDE_COMMAND?.trim() || safeResolve(resolveClaudeCli),
+    codex: saved.codex || process.env.NUNOPI_CODEX_COMMAND?.trim() || safeResolve(resolveCodexCli),
+    opencode: saved.opencode || process.env.NUNOPI_OPENCODE_COMMAND?.trim() || safeResolve(resolveOpenCodeCli),
   };
   for (const k of Object.keys(runtimePaths)) if (!runtimePaths[k]) delete runtimePaths[k];
+  console.log("[sna] runtimePaths:", JSON.stringify(runtimePaths));
   // 주의: forked 런타임 서버는 better-sqlite3(네이티브)를 로드한다. 패키징(③)에서
   // electron ABI로 rebuild한 뒤 { nativeBinding } 경로를 넘겨야 electron-owned 실행이 됨
   // (미rebuild면 "compiled for a different Node.js version"). ③에서 nativeBinding 추가.
@@ -126,6 +155,11 @@ async function boot() {
   });
   createWindow(base);
 }
+
+// 설정 UI(renderer) ↔ main IPC — 런타임 CLI 경로 저장/조회 + 재시작.
+ipcMain.handle("runtime-paths:get", () => loadSavedRuntimePaths());
+ipcMain.handle("runtime-paths:set", (_e, paths) => ({ ok: true, saved: saveRuntimePaths(paths) }));
+ipcMain.handle("app:relaunch", () => { app.relaunch(); app.quit(); });
 
 // 단일 인스턴스.
 if (!app.requestSingleInstanceLock()) {
