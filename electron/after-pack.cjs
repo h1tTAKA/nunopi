@@ -5,6 +5,11 @@ const { cpSync, existsSync } = require("node:fs");
 const { join } = require("node:path");
 
 exports.default = async function afterPack(context) {
+  // 현재 mac dir/dmg 타깃만 지원. Windows/Linux 추가 시(④/비범위) 리소스 경로 분기 필요.
+  if (context.electronPlatformName !== "darwin") {
+    console.warn("[after-pack] non-darwin 타깃 — standalone/node_modules 복사 로직 미지원(경로 분기 필요)");
+    return;
+  }
   const src = join(process.cwd(), ".next", "standalone", "node_modules");
   if (!existsSync(src)) throw new Error(`[after-pack] ${src} 없음 — electron:build 먼저`);
   const productName = context.packager.appInfo.productFilename; // "nunopi"
