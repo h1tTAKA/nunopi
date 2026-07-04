@@ -338,7 +338,7 @@ function isOptionalProviderSettings(value: unknown): boolean {
     ) return false;
   }
 
-  for (const key of ["claude-agent", "codex-agent"] as const) {
+  for (const key of ["claude-agent", "codex-agent", "opencode-agent"] as const) {
     const agent = value[key];
     if (agent !== undefined) {
       if (!isRecord(agent)) return false;

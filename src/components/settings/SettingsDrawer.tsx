@@ -85,6 +85,10 @@ export default function SettingsDrawer({
   const [codexCliPath, setCodexCliPath] = useState(
     settings["codex-agent"]?.cliPath ?? "",
   );
+  const [openCodeCliPath, setOpenCodeCliPath] = useState(
+    settings["opencode-agent"]?.cliPath ?? "",
+  );
+  const desktop = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
 
   if (!isOpen) return null;
 
@@ -101,7 +105,16 @@ export default function SettingsDrawer({
       "codex-agent": {
         cliPath: codexCliPath.trim() || undefined,
       },
+      "opencode-agent": {
+        cliPath: openCodeCliPath.trim() || undefined,
+      },
     });
+    // 데스크톱: 런타임 서버(main 소유)가 재시작 시 읽는 userData에도 영속(재시작 후 적용).
+    desktop?.setRuntimePaths({
+      claudeCode: claudeCliPath.trim() || undefined,
+      codex: codexCliPath.trim() || undefined,
+      opencode: openCodeCliPath.trim() || undefined,
+    }).catch(() => {});
     onClose();
   }
 
@@ -287,6 +300,46 @@ export default function SettingsDrawer({
               </p>
             </label>
             </div>
+
+            <div className="border-t border-zinc-200 dark:border-zinc-800" />
+
+            <div className="space-y-4">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t("provider.opencode-agent")}
+            </h4>
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                {t("settings.cliPath")}{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">{t("settings.optional")}</span>
+              </span>
+              <input
+                type="text"
+                value={openCodeCliPath}
+                onChange={(e) => setOpenCodeCliPath(e.target.value)}
+                placeholder="/opt/homebrew/bin/opencode"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              />
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                {t("settings.cliHint")}
+              </p>
+            </label>
+            </div>
+
+            {/* 데스크톱 앱: 경로 변경은 런타임 서버 재기동이 필요 → 재시작 후 적용. */}
+            {desktop && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/20">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {t("settings.cliPathRestartHint")}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { void desktop.relaunch(); }}
+                  className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-amber-700"
+                >
+                  {t("settings.relaunchNow")}
+                </button>
+              </div>
+            )}
           </section>
 
           {/* 제외 목록 카드 */}
