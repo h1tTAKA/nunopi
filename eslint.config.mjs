@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 데스크톱 셸/빌드 스크립트 — CommonJS 노드/일렉트론 인프라(앱 lint 범위 밖).
+    "electron/**",
+    "scripts/**",
+    ".sna/**",
   ]),
 ]);
 
