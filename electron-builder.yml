@@ -20,9 +20,16 @@ asarUnpack:
 extraResources:
   - from: .next/standalone
     to: standalone
+    filter:
+      - "**/*"        # node_modules 포함 강제(기본 pruning 무력화)
+      - ".next/**"    # dotdir(.next/서버청크·static) 명시 포함
+      - "!**/*.map"
 
 # 네이티브 모듈(better-sqlite3)을 electron ABI로 rebuild.
 npmRebuild: true
+
+# extraResources가 strip한 standalone/node_modules를 패킹 후 복원.
+afterPack: electron/after-pack.cjs
 
 mac:
   category: public.app-category.developer-tools

@@ -9,7 +9,9 @@
     "lint": "eslint",
     "electron:dev": "concurrently -k \"next dev\" \"wait-on http://localhost:3000 && ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
     "electron:build": "next build && node scripts/copy-standalone-assets.mjs",
-    "electron:prod": "npm run electron:build && electron electron/main.cjs"
+    "electron:prod": "npm run electron:build && electron electron/main.cjs",
+    "electron:dist:dir": "npm run electron:build && electron-builder --dir --config electron-builder.yml",
+    "electron:dist": "npm run electron:build && electron-builder --config electron-builder.yml"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -39,5 +41,6 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "wait-on": "^9.0.10"
-  }
+  },
+  "main": "electron/main.cjs"
 }
