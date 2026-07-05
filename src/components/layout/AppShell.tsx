@@ -54,7 +54,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     const storedTop = Number(localStorage.getItem(TOP_SPLIT_STORAGE_KEY));
     if (Number.isFinite(storedTop) && storedTop >= MIN_PCT && storedTop <= MAX_PCT) {
       topPctRef.current = storedTop;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTopPct(storedTop);
     }
     const mq = window.matchMedia("(orientation: landscape)");
@@ -62,27 +62,6 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  // main(max-w-7xl)이 중앙정렬이라 넓은 화면에선 양옆에 빈 거터가 생긴다.
-  // 그 거터 위 wheel은 body로 가 아무것도 스크롤 안 됨 → 우측 학습패널로 넘긴다.
-  // (좁은 화면은 거터가 없어 이 효과는 자연히 no-op.)
-  useEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
-    const panel = main.querySelector<HTMLElement>("[data-panel-scroll]");
-    if (!panel) return;
-    const onWheel = (e: WheelEvent) => {
-      const rect = main.getBoundingClientRect();
-      // main 세로 범위(에디터+패널 행) 안에서 좌우 거터에 있을 때만 → 패널로.
-      const inRow = e.clientY >= rect.top && e.clientY <= rect.bottom;
-      const inGutter = e.clientX < rect.left || e.clientX > rect.right;
-      if (!inRow || !inGutter) return;
-      panel.scrollTop += e.deltaY;
-      e.preventDefault();
-    };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
   }, []);
 
   // 드래그 중 텍스트 선택을 막아 끌기 경험을 깔끔하게 한다.
@@ -153,7 +132,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
 
       <main
         ref={mainRef}
-        className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col landscape:flex-row"
+        className="flex w-full min-h-0 flex-1 flex-col landscape:flex-row"
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
@@ -197,7 +176,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           )}
         </div>
 
-        {/* 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스가 wheel을 이 컨테이너로 포워딩. */}
+        {/* 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스(forwardPanelWheel)가 wheel을 이 컨테이너로 넘긴다. */}
         <aside
           data-panel-scroll
           className="nunopi-scroll min-h-0 flex-1 overflow-y-scroll bg-white dark:bg-[#111219]"
