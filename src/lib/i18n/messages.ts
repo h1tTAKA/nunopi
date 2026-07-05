@@ -68,6 +68,8 @@ const ko: Dict = {
   "settings.save": "저장",
   "settings.storageNote": "설정값은 브라우저 localStorage에 저장된다.",
 
+  "layout.splitHandle": "입력과 학습 패널 크기 조절",
+
   "panel.tabLearning": "학습 패널",
   "panel.tabHistory": "학습관리",
   "panel.tabTokenDict": "토큰 사전",
@@ -287,6 +289,8 @@ const ja: Dict = {
   "settings.save": "保存",
   "settings.storageNote": "設定はブラウザのlocalStorageに保存されます。",
 
+  "layout.splitHandle": "入力と学習パネルのサイズ調整",
+
   "panel.tabLearning": "学習パネル",
   "panel.tabHistory": "学習管理",
   "panel.tabTokenDict": "トークン辞書",
@@ -505,6 +509,8 @@ const en: Dict = {
   "settings.excludeEmpty": "No excluded items.",
   "settings.save": "Save",
   "settings.storageNote": "Settings are saved in your browser's localStorage.",
+
+  "layout.splitHandle": "Resize input / learning panel",
 
   "panel.tabLearning": "Learning",
   "panel.tabHistory": "History",
