@@ -6,6 +6,8 @@ interface EditorChatColumnProps {
   editor: React.ReactNode;
   chat: React.ReactNode;
   chatOpen: boolean;
+  // 입력 패널 접힘(#350) — 챗이 열려 있으면 에디터 없이 챗만 풀높이로.
+  editorCollapsed?: boolean;
 }
 
 const SPLIT_KEY = "nunopi:editor-chat-top-pct";
@@ -14,7 +16,7 @@ const MAX = 80;
 
 // 왼쪽 컬럼을 세로 분할 — 위 에디터 / 아래 학습 챗. 챗이 닫히면 에디터 풀높이.
 // 상하 드래그로 비율 조절(localStorage 보존). 우측 학습패널은 안 건드린다.
-export default function EditorChatColumn({ editor, chat, chatOpen }: EditorChatColumnProps) {
+export default function EditorChatColumn({ editor, chat, chatOpen, editorCollapsed = false }: EditorChatColumnProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [topPct, setTopPct] = useState(() => {
     if (typeof window === "undefined") return 55;
@@ -22,6 +24,11 @@ export default function EditorChatColumn({ editor, chat, chatOpen }: EditorChatC
     return Number.isFinite(stored) && stored >= MIN && stored <= MAX ? stored : 55;
   });
   const [dragging, setDragging] = useState(false);
+
+  // 접힘 — 챗 열림이면 챗만(학습패널 보며 질문). 챗 닫힘이면 AppShell이 영역째 숨김(방어적 null).
+  if (editorCollapsed) {
+    return chatOpen ? <div className="h-full min-h-0 overflow-hidden px-4 py-4">{chat}</div> : null;
+  }
 
   if (!chatOpen) {
     return <div className="h-full">{editor}</div>;
