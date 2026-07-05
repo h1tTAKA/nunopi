@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
-import { IconCaretLeftFilled, IconCaretRightFilled, IconCaretUpFilled, IconCaretDownFilled } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface AppShellProps {
@@ -174,13 +174,13 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
               onClick={onToggleEditorCollapsed}
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-blue-500 dark:hover:text-blue-400 ${
-                isLandscape ? "h-12 w-4" : "h-4 w-12"
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg bg-zinc-100 text-zinc-600 transition hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 ${
+                isLandscape ? "h-11 w-5" : "h-5 w-11"
               }`}
             >
               {isLandscape
-                ? (editorCollapsed ? <IconCaretRightFilled size={12} aria-hidden /> : <IconCaretLeftFilled size={12} aria-hidden />)
-                : (editorCollapsed ? <IconCaretDownFilled size={12} aria-hidden /> : <IconCaretUpFilled size={12} aria-hidden />)}
+                ? (editorCollapsed ? <IconChevronRight size={14} stroke={2} aria-hidden /> : <IconChevronLeft size={14} stroke={2} aria-hidden />)
+                : (editorCollapsed ? <IconChevronDown size={14} stroke={2} aria-hidden /> : <IconChevronUp size={14} stroke={2} aria-hidden />)}
             </button>
           )}
         </div>
