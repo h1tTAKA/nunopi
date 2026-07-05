@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
-import { IconChevronsLeft, IconChevronsRight, IconChevronsUp, IconChevronsDown } from "@tabler/icons-react";
+import { IconCaretLeftFilled, IconCaretRightFilled, IconCaretUpFilled, IconCaretDownFilled } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface AppShellProps {
@@ -186,13 +186,13 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
               type="button"
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-zinc-400 transition-colors hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 ${
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 transition-colors hover:text-blue-500 hover:ring-blue-400 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-blue-400 dark:hover:ring-blue-500 ${
                 isLandscape ? "h-10 w-4 cursor-col-resize" : "h-4 w-10 cursor-row-resize"
               } ${hideEditorPane ? "cursor-pointer" : ""}`}
             >
               {isLandscape
-                ? (editorCollapsed ? <IconChevronsRight size={15} stroke={2} aria-hidden /> : <IconChevronsLeft size={15} stroke={2} aria-hidden />)
-                : (editorCollapsed ? <IconChevronsDown size={15} stroke={2} aria-hidden /> : <IconChevronsUp size={15} stroke={2} aria-hidden />)}
+                ? (editorCollapsed ? <IconCaretRightFilled size={12} aria-hidden /> : <IconCaretLeftFilled size={12} aria-hidden />)
+                : (editorCollapsed ? <IconCaretDownFilled size={12} aria-hidden /> : <IconCaretUpFilled size={12} aria-hidden />)}
             </button>
           )}
         </div>
