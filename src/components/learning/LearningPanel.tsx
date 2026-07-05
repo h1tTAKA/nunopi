@@ -928,7 +928,10 @@ export default function LearningPanel({
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                   {t("panel.relatedConcept")}
                 </p>
-                <div className="nunopi-scroll max-h-[45vh] overflow-y-scroll overscroll-contain pr-1">
+                {/* 내부 스크롤 캡(max-h+overscroll) 금지 — 박스가 뷰포트 하단에 걸치면
+                    내부 바닥에서 패널 스크롤 전파가 막혀 꼬리가 영영 안 보인다(#356).
+                    마지막 섹션이므로 패널(aside) 단일 스크롤로 흐르게 둔다. */}
+                <div className="pr-1">
                   <ItConceptSection
                     concepts={result.itConcepts ?? []}
                     activeConceptIds={activeConceptIds}
