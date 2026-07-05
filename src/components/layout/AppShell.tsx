@@ -41,8 +41,6 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   const topPctRef = useRef(DEFAULT_TOP_PCT);
   const [isLandscape, setIsLandscape] = useState(true);
   const [dragging, setDragging] = useState(false);
-  // 클릭 vs 드래그 판별 — pointerdown 시점 기록(좌표 + 접기 버튼 위에서 시작했는지).
-  const pressRef = useRef<{ x: number; y: number; onButton: boolean } | null>(null);
 
   useEffect(() => {
     const storedLeft = Number(localStorage.getItem(SPLIT_STORAGE_KEY));
@@ -99,10 +97,9 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   const hideEditorPane = editorCollapsed && !chatOpen;
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    const onButton = (event.target as HTMLElement).closest("button") != null;
-    pressRef.current = { x: event.clientX, y: event.clientY, onButton };
+    if (hideEditorPane) return; // 영역 없음 — 드래그 무의미
     event.currentTarget.setPointerCapture(event.pointerId);
-    if (!hideEditorPane) setDragging(true); // 접힘+챗닫힘은 드래그 없음(클릭 판정만)
+    setDragging(true);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -124,19 +121,8 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    event.currentTarget.releasePointerCapture(event.pointerId);
-    const press = pressRef.current;
-    pressRef.current = null;
-    // 버튼에서 눌러 거의 안 움직였으면 클릭 = 접기/펼치기 토글.
-    if (press?.onButton) {
-      const dist = Math.hypot(event.clientX - press.x, event.clientY - press.y);
-      if (dist < 5) {
-        setDragging(false);
-        onToggleEditorCollapsed?.();
-        return;
-      }
-    }
     if (!dragging) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
     try {
       if (isLandscape) {
@@ -184,11 +170,15 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           {onToggleEditorCollapsed && (
             <button
               type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onToggleEditorCollapsed}
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 transition-colors hover:text-blue-500 hover:ring-blue-400 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-blue-400 dark:hover:ring-blue-500 ${
-                isLandscape ? "h-10 w-4 cursor-col-resize" : "h-4 w-10 cursor-row-resize"
-              } ${hideEditorPane ? "cursor-pointer" : ""}`}
+              className={`absolute z-10 flex cursor-pointer items-center justify-center rounded-full bg-zinc-100 text-zinc-400 ring-1 ring-zinc-200 transition-colors hover:text-blue-500 hover:ring-blue-400 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:text-blue-400 dark:hover:ring-blue-500 ${
+                isLandscape
+                  ? "left-1/2 top-3 h-9 w-4 -translate-x-1/2"
+                  : "left-3 top-1/2 h-4 w-9 -translate-y-1/2"
+              }`}
             >
               {isLandscape
                 ? (editorCollapsed ? <IconCaretRightFilled size={12} aria-hidden /> : <IconCaretLeftFilled size={12} aria-hidden />)
