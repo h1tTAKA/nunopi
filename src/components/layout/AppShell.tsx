@@ -11,8 +11,8 @@ interface AppShellProps {
   onOpenSettings: () => void;
 }
 
-// 넓은 화면(md+): 좌(에디터)/우(학습패널) 가로 스플릿 — leftPct.
-// 좁은 화면(md 미만, 화면 분할/모바일): 위(에디터)/아래(학습패널) 세로 스플릿 — topPct.
+// 가로형 창(landscape — 정상/4분할): 좌(에디터)/우(학습패널) 스플릿 — leftPct.
+// 세로형 창(portrait — 세로 2분할/폰): 위(에디터)/아래(학습패널) 스플릿 — topPct.
 // 두 축 모두 뷰포트 고정(앱형) + 사이 핸들 드래그로 배분, 비율은 localStorage 영속.
 const SPLIT_STORAGE_KEY = "nunopi:split-left-pct";
 const TOP_SPLIT_STORAGE_KEY = "nunopi:split-top-pct";
@@ -33,7 +33,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   // 최신 값을 항상 보유 — pointerup 시 클로저 stale 없이 영속화하기 위함.
   const leftPctRef = useRef(DEFAULT_LEFT_PCT);
   const topPctRef = useRef(DEFAULT_TOP_PCT);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(true);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -49,8 +49,8 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTopPct(storedTop);
     }
-    const mq = window.matchMedia("(min-width: 768px)");
-    const apply = () => setIsDesktop(mq.matches);
+    const mq = window.matchMedia("(orientation: landscape)");
+    const apply = () => setIsLandscape(mq.matches);
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
@@ -95,7 +95,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragging || !mainRef.current) return;
     const rect = mainRef.current.getBoundingClientRect();
-    if (isDesktop) {
+    if (isLandscape) {
       // 가로 스플릿 — X 기준 좌측 폭 %.
       if (rect.width === 0) return;
       const pct = clampPct(((event.clientX - rect.left) / rect.width) * 100);
@@ -115,7 +115,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     event.currentTarget.releasePointerCapture(event.pointerId);
     setDragging(false);
     try {
-      if (isDesktop) {
+      if (isLandscape) {
         localStorage.setItem(SPLIT_STORAGE_KEY, String(Math.round(leftPctRef.current)));
       } else {
         localStorage.setItem(TOP_SPLIT_STORAGE_KEY, String(Math.round(topPctRef.current)));
@@ -129,11 +129,11 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
 
       <main
         ref={mainRef}
-        className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col md:flex-row"
+        className="mx-auto flex w-full max-w-7xl min-h-0 flex-1 flex-col landscape:flex-row"
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
-          style={isDesktop ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
+          style={isLandscape ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
           className="min-h-0 overflow-hidden border-zinc-200 dark:border-zinc-800"
         >
           {editor}
@@ -142,13 +142,13 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
         {/* 드래그 핸들 — 넓은 화면은 세로바(좌우 배분), 좁은 화면은 가로바(상하 배분). */}
         <div
           role="separator"
-          aria-orientation={isDesktop ? "vertical" : "horizontal"}
+          aria-orientation={isLandscape ? "vertical" : "horizontal"}
           aria-label={t("layout.splitHandle")}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           className={`shrink-0 transition-colors ${
-            isDesktop
+            isLandscape
               ? "w-1.5 cursor-col-resize border-x"
               : "h-1.5 cursor-row-resize border-y"
           } border-zinc-200 dark:border-zinc-800 ${
