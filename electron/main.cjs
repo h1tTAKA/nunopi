@@ -26,6 +26,37 @@ function getFreePort() {
   });
 }
 
+// 특정 포트가 비어 있는지 확인.
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.on("error", () => resolve(false));
+    srv.listen(port, "127.0.0.1", () => srv.close(() => resolve(true)));
+  });
+}
+
+// Next 서버 포트는 origin(host:port)이 곧 IndexedDB/localStorage 저장소 키라
+// 매 실행 같아야 이력·북마크가 유지된다. 첫 실행에 빈 포트를 잡아 userData에
+// 영속하고 이후 재사용. (SNA 포트는 origin 무관이라 동적 유지.)
+async function getStableAppPort() {
+  const file = join(app.getPath("userData"), "app-port.json");
+  try {
+    const saved = JSON.parse(readFileSync(file, "utf8"))?.port;
+    if (Number.isInteger(saved) && (await isPortFree(saved))) return saved;
+    if (Number.isInteger(saved)) {
+      // 점유(외부 앱, 레어) — 새 포트로 갱신. origin이 바뀌어 기존 저장소와 분리되므로 경고.
+      console.warn(`[electron] saved app port ${saved} in use — reallocating (stored data origin will change)`);
+    }
+  } catch { /* 첫 실행 */ }
+  const port = await getFreePort();
+  try {
+    mkdirSync(app.getPath("userData"), { recursive: true });
+    writeFileSync(file, JSON.stringify({ port }));
+  } catch (e) { console.warn("[electron] app-port persist failed:", String(e)); }
+  return port;
+}
+
 const DEV_URL = process.env.ELECTRON_START_URL; // 있으면 dev 모드
 let serverProc = null;
 let snaHandle = null;
@@ -91,7 +122,7 @@ async function startRuntimeServer() {
 
 // standalone 서버 spawn(prod). extraEnv(런타임 커넥션)를 주입. 준비되면 baseUrl 반환.
 async function startStandaloneServer(extraEnv) {
-  const port = await getFreePort();
+  const port = await getStableAppPort();
   // 패키지: standalone은 extraResources로 process.resourcesPath/standalone.
   // 미패키지(electron electron/main.cjs): <appRoot>/.next/standalone.
   const serverJs = app.isPackaged
