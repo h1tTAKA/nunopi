@@ -11,7 +11,9 @@
     "electron:build": "next build && node scripts/copy-standalone-assets.mjs",
     "electron:prod": "npm run electron:build && electron electron/main.cjs",
     "electron:dist:dir": "npm run electron:build && electron-builder --dir --config electron-builder.yml",
-    "electron:dist": "npm run electron:build && electron-builder --config electron-builder.yml"
+    "electron:dist": "npm run electron:build && electron-builder --config electron-builder.yml",
+    "postelectron:dist:dir": "npm rebuild better-sqlite3",
+    "postelectron:dist": "npm rebuild better-sqlite3"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
