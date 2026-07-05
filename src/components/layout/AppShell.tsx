@@ -54,7 +54,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     const storedTop = Number(localStorage.getItem(TOP_SPLIT_STORAGE_KEY));
     if (Number.isFinite(storedTop) && storedTop >= MIN_PCT && storedTop <= MAX_PCT) {
       topPctRef.current = storedTop;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setTopPct(storedTop);
     }
     const mq = window.matchMedia("(orientation: landscape)");
