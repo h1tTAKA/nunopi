@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
+import { IconChevronLeft, IconChevronRight, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface AppShellProps {
@@ -173,11 +174,13 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
               onClick={onToggleEditorCollapsed}
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-[10px] leading-none text-zinc-500 shadow-sm transition hover:bg-blue-50 hover:text-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-blue-400 ${
-                isLandscape ? "h-8 w-4" : "h-4 w-8"
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 shadow-sm transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:border-blue-500 dark:hover:text-blue-400 ${
+                isLandscape ? "h-9 w-5" : "h-5 w-9"
               }`}
             >
-              {isLandscape ? (editorCollapsed ? "▶" : "◀") : (editorCollapsed ? "▼" : "▲")}
+              {isLandscape
+                ? (editorCollapsed ? <IconChevronRight size={14} stroke={2} aria-hidden /> : <IconChevronLeft size={14} stroke={2} aria-hidden />)
+                : (editorCollapsed ? <IconChevronDown size={14} stroke={2} aria-hidden /> : <IconChevronUp size={14} stroke={2} aria-hidden />)}
             </button>
           )}
         </div>
