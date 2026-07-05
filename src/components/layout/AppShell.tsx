@@ -174,7 +174,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
               onClick={onToggleEditorCollapsed}
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 ${
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-zinc-300 bg-transparent text-zinc-400 transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-zinc-600 dark:text-zinc-400 dark:hover:border-blue-500 dark:hover:text-blue-400 ${
                 isLandscape ? "h-11 w-5" : "h-5 w-11"
               }`}
             >
