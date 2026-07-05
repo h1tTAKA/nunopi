@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
-import { IconChevronLeft, IconChevronRight, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
+import { IconChevronsLeft, IconChevronsRight, IconChevronsUp, IconChevronsDown } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface AppShellProps {
@@ -186,13 +186,13 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
               type="button"
               aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
               title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
-              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-200/90 text-zinc-500 transition-colors hover:bg-blue-500 hover:text-white dark:bg-zinc-700/90 dark:text-zinc-300 dark:hover:bg-blue-500 dark:hover:text-white ${
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center text-zinc-400 transition-colors hover:text-blue-500 dark:text-zinc-500 dark:hover:text-blue-400 ${
                 isLandscape ? "h-10 w-4 cursor-col-resize" : "h-4 w-10 cursor-row-resize"
               } ${hideEditorPane ? "cursor-pointer" : ""}`}
             >
               {isLandscape
-                ? (editorCollapsed ? <IconChevronRight size={14} stroke={2} aria-hidden /> : <IconChevronLeft size={14} stroke={2} aria-hidden />)
-                : (editorCollapsed ? <IconChevronDown size={14} stroke={2} aria-hidden /> : <IconChevronUp size={14} stroke={2} aria-hidden />)}
+                ? (editorCollapsed ? <IconChevronsRight size={15} stroke={2} aria-hidden /> : <IconChevronsLeft size={15} stroke={2} aria-hidden />)
+                : (editorCollapsed ? <IconChevronsDown size={15} stroke={2} aria-hidden /> : <IconChevronsUp size={15} stroke={2} aria-hidden />)}
             </button>
           )}
         </div>
