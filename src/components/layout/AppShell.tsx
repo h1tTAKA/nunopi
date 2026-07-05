@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Header from "./Header";
+import { IconChevronLeft, IconChevronRight, IconChevronUp, IconChevronDown } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface AppShellProps {
@@ -9,6 +10,11 @@ interface AppShellProps {
   learningPanel: React.ReactNode;
   modeToggle?: React.ReactNode;
   onOpenSettings: () => void;
+  // 입력 패널 접기 — 접힘+챗닫힘이면 왼쪽 영역을 통째로 숨겨 학습패널 풀와이드.
+  // 접힘+챗열림이면 영역은 유지(내용은 EditorChatColumn이 챗만 렌더).
+  editorCollapsed?: boolean;
+  chatOpen?: boolean;
+  onToggleEditorCollapsed?: () => void;
 }
 
 // 가로형 창(landscape — 정상/4분할): 좌(에디터)/우(학습패널) 스플릿 — leftPct.
@@ -25,7 +31,7 @@ function clampPct(value: number): number {
   return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
 }
 
-export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings }: AppShellProps) {
+export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed }: AppShellProps) {
   const t = useT();
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
@@ -35,6 +41,8 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   const topPctRef = useRef(DEFAULT_TOP_PCT);
   const [isLandscape, setIsLandscape] = useState(true);
   const [dragging, setDragging] = useState(false);
+  // 클릭 vs 드래그 판별 — pointerdown 시점 기록(좌표 + 접기 버튼 위에서 시작했는지).
+  const pressRef = useRef<{ x: number; y: number; onButton: boolean } | null>(null);
 
   useEffect(() => {
     const storedLeft = Number(localStorage.getItem(SPLIT_STORAGE_KEY));
@@ -87,9 +95,14 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     };
   }, [dragging]);
 
+  // 접힘+챗닫힘 — 왼쪽 영역 자체가 없으므로 드래그(비율 조절)는 무의미.
+  const hideEditorPane = editorCollapsed && !chatOpen;
+
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const onButton = (event.target as HTMLElement).closest("button") != null;
+    pressRef.current = { x: event.clientX, y: event.clientY, onButton };
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDragging(true);
+    if (!hideEditorPane) setDragging(true); // 접힘+챗닫힘은 드래그 없음(클릭 판정만)
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
@@ -111,8 +124,19 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging) return;
     event.currentTarget.releasePointerCapture(event.pointerId);
+    const press = pressRef.current;
+    pressRef.current = null;
+    // 버튼에서 눌러 거의 안 움직였으면 클릭 = 접기/펼치기 토글.
+    if (press?.onButton) {
+      const dist = Math.hypot(event.clientX - press.x, event.clientY - press.y);
+      if (dist < 5) {
+        setDragging(false);
+        onToggleEditorCollapsed?.();
+        return;
+      }
+    }
+    if (!dragging) return;
     setDragging(false);
     try {
       if (isLandscape) {
@@ -133,8 +157,8 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
-          style={isLandscape ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
-          className="min-h-0 overflow-hidden border-zinc-200 dark:border-zinc-800"
+          style={hideEditorPane ? undefined : isLandscape ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
+          className={`min-h-0 overflow-hidden border-zinc-200 dark:border-zinc-800 ${hideEditorPane ? "hidden" : ""}`}
         >
           {editor}
         </div>
@@ -147,16 +171,31 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className={`shrink-0 transition-colors ${
+          className={`relative shrink-0 transition-colors ${
             isLandscape
-              ? "w-1.5 cursor-col-resize border-x"
-              : "h-1.5 cursor-row-resize border-y"
+              ? `${hideEditorPane ? "w-4" : "w-1.5"} ${hideEditorPane ? "" : "cursor-col-resize"} border-x`
+              : `${hideEditorPane ? "h-4" : "h-1.5"} ${hideEditorPane ? "" : "cursor-row-resize"} border-y`
           } border-zinc-200 dark:border-zinc-800 ${
             dragging
               ? "bg-blue-400/60"
               : "bg-zinc-100 hover:bg-blue-400/40 dark:bg-zinc-900"
           }`}
-        />
+        >
+          {onToggleEditorCollapsed && (
+            <button
+              type="button"
+              aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
+              title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 shadow-sm  transition-colors hover:border-blue-400 hover:text-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-500 dark:hover:border-blue-500 dark:hover:text-blue-400 ${
+                isLandscape ? "h-12 w-5 cursor-col-resize" : "h-5 w-12 cursor-row-resize"
+              }`}
+            >
+              {isLandscape
+                ? (editorCollapsed ? <IconChevronRight size={14} stroke={2} aria-hidden /> : <IconChevronLeft size={14} stroke={2} aria-hidden />)
+                : (editorCollapsed ? <IconChevronDown size={14} stroke={2} aria-hidden /> : <IconChevronUp size={14} stroke={2} aria-hidden />)}
+            </button>
+          )}
+        </div>
 
         {/* 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스가 wheel을 이 컨테이너로 포워딩. */}
         <aside
