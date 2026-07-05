@@ -34,5 +34,5 @@ afterPack: electron/after-pack.cjs
 mac:
   category: public.app-category.developer-tools
   target:
-    - dir   # 1차 검증(빠름). dmg는 검증 후 활성화.
-  # 코드사이닝/노터라이즈는 배포 임박 시(④/비범위).
+    - dir   # 빠른 로컬 검증용
+    - dmg   # 배포물(미노터라이즈 — 서명/노터라이즈는 배포 임박 시)

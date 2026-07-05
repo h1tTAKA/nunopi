@@ -31,6 +31,9 @@ export interface ProviderSettings {
   "codex-agent"?: {
     cliPath?: string;
   };
+  "opencode-agent"?: {
+    cliPath?: string;
+  };
 }
 
 export interface AgentAnalyzeRequest {
