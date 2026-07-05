@@ -177,7 +177,7 @@ export default function CodeInputArea({
       </div>
 
       {/* flex-1로 데스크톱 높이를 채우고, 모바일(높이 미고정)에선 min-h로 바닥 확보 */}
-      <div className="min-h-[320px] flex-1">
+      <div className="min-h-[160px] flex-1 md:min-h-[320px]">
         <CodeEditor
           value={code}
           onChange={onCodeChange}

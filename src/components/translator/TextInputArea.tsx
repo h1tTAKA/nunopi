@@ -83,7 +83,7 @@ export default function TextInputArea({ code, isLoading, onCodeChange, chatOpen,
       </div>
 
       {/* flex-1로 데스크톱 높이를 채우고, 모바일에선 min-h로 바닥 확보 */}
-      <div className="min-h-[320px] flex-1">
+      <div className="min-h-[160px] flex-1 md:min-h-[320px]">
         {showHighlighted ? (
           // 읽기 오버레이 — 분석된 용어를 클릭 가능한 하이라이트로. 줄바꿈/공백 보존.
           <div className="nunopi-scroll h-full w-full overflow-y-auto whitespace-pre-wrap rounded-xl border border-zinc-200 bg-[#F2F0E8] p-4 text-sm leading-relaxed text-zinc-900 dark:border-zinc-800 dark:bg-[#1A1B26] dark:text-zinc-100">

@@ -109,7 +109,7 @@ function beforeMount(monaco: Monaco) {
 
 function EditorFallback() {
   return (
-    <div className="flex min-h-[320px] w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-400 dark:border-zinc-800 dark:bg-[#111219] dark:text-zinc-500">
+    <div className="flex min-h-[160px] md:min-h-[320px] w-full items-center justify-center rounded-2xl border border-zinc-200 bg-white text-sm text-zinc-400 dark:border-zinc-800 dark:bg-[#111219] dark:text-zinc-500">
       에디터 로딩 중…
     </div>
   );
