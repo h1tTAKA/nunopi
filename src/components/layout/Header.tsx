@@ -13,7 +13,7 @@ export default function Header({ modeToggle, onOpenSettings }: HeaderProps) {
   const t = useT();
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-[#111219]/80">
-      <div className="relative container mx-auto flex h-14 items-center justify-between px-4">
+      <div className="relative flex h-14 w-full items-center justify-between px-4">
         {/* 브랜드 로고 lockup. 라이트=네이비 워드마크(투명), 다크=흰 워드마크(투명). */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
