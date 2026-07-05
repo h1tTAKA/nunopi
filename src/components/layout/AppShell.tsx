@@ -58,6 +58,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
 
   // main(max-w-7xl)이 중앙정렬이라 넓은 화면에선 양옆에 빈 거터가 생긴다.
   // 그 거터 위 wheel은 body로 가 아무것도 스크롤 안 됨 → 우측 학습패널로 넘긴다.
+  // (좁은 화면은 거터가 없어 이 효과는 자연히 no-op.)
   useEffect(() => {
     const main = mainRef.current;
     if (!main) return;
