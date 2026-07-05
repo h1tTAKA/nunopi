@@ -9,6 +9,11 @@ interface AppShellProps {
   learningPanel: React.ReactNode;
   modeToggle?: React.ReactNode;
   onOpenSettings: () => void;
+  // 입력 패널 접기 — 접힘+챗닫힘이면 왼쪽 영역을 통째로 숨겨 학습패널 풀와이드.
+  // 접힘+챗열림이면 영역은 유지(내용은 EditorChatColumn이 챗만 렌더).
+  editorCollapsed?: boolean;
+  chatOpen?: boolean;
+  onToggleEditorCollapsed?: () => void;
 }
 
 // 가로형 창(landscape — 정상/4분할): 좌(에디터)/우(학습패널) 스플릿 — leftPct.
@@ -25,7 +30,7 @@ function clampPct(value: number): number {
   return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
 }
 
-export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings }: AppShellProps) {
+export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed }: AppShellProps) {
   const t = useT();
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
@@ -87,7 +92,11 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     };
   }, [dragging]);
 
+  // 접힘+챗닫힘 — 왼쪽 영역 자체가 없으므로 드래그(비율 조절)는 무의미.
+  const hideEditorPane = editorCollapsed && !chatOpen;
+
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (hideEditorPane) return; // 펼치기 버튼만 유효
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragging(true);
   }
@@ -133,8 +142,8 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
-          style={isLandscape ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
-          className="min-h-0 overflow-hidden border-zinc-200 dark:border-zinc-800"
+          style={hideEditorPane ? undefined : isLandscape ? { width: `${leftPct}%` } : { height: `${topPct}%` }}
+          className={`min-h-0 overflow-hidden border-zinc-200 dark:border-zinc-800 ${hideEditorPane ? "hidden" : ""}`}
         >
           {editor}
         </div>
@@ -147,16 +156,31 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
-          className={`shrink-0 transition-colors ${
+          className={`relative shrink-0 transition-colors ${
             isLandscape
-              ? "w-1.5 cursor-col-resize border-x"
-              : "h-1.5 cursor-row-resize border-y"
+              ? `${hideEditorPane ? "w-4" : "w-1.5"} ${hideEditorPane ? "" : "cursor-col-resize"} border-x`
+              : `${hideEditorPane ? "h-4" : "h-1.5"} ${hideEditorPane ? "" : "cursor-row-resize"} border-y`
           } border-zinc-200 dark:border-zinc-800 ${
             dragging
               ? "bg-blue-400/60"
               : "bg-zinc-100 hover:bg-blue-400/40 dark:bg-zinc-900"
           }`}
-        />
+        >
+          {onToggleEditorCollapsed && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onToggleEditorCollapsed}
+              aria-label={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
+              title={t(editorCollapsed ? "layout.expandEditor" : "layout.collapseEditor")}
+              className={`absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-zinc-300 bg-white text-[10px] leading-none text-zinc-500 shadow-sm transition hover:bg-blue-50 hover:text-blue-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-blue-400 ${
+                isLandscape ? "h-8 w-4" : "h-4 w-8"
+              }`}
+            >
+              {isLandscape ? (editorCollapsed ? "▶" : "◀") : (editorCollapsed ? "▼" : "▲")}
+            </button>
+          )}
+        </div>
 
         {/* 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스가 wheel을 이 컨테이너로 포워딩. */}
         <aside

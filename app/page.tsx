@@ -148,6 +148,8 @@ export default function Home() {
   const [explainingConcepts, setExplainingConcepts] = useState<string[]>([]);
   // 학습 챗 — 분석(히스토리 항목)마다 세션 목록(#312). chatStreaming은 타이핑 중 답변.
   const [chatOpen, setChatOpen] = useState(false);
+  // 입력 패널 접기 — 학습패널 풀와이드(챗 열림 시 챗만 왼쪽 유지). localStorage 영속.
+  const [editorCollapsed, setEditorCollapsed] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(freshChatSessions);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatStreaming, setChatStreaming] = useState<string | null>(null);
@@ -172,6 +174,19 @@ export default function Home() {
   useEffect(() => {
     getAllHistory().then(setHistoryEntries).catch(() => {});
   }, []);
+
+  // 접기 상태 복원/영속.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
+  }, []);
+  function toggleEditorCollapsed() {
+    setEditorCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem("nunopi:editor-collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+      return next;
+    });
+  }
 
   // 입력 state → ref 미러 동기화. 편집·클리어·모드전환 등 일반 경로를 자동 커버.
   // (복원은 readOnly setValue 타이밍 탓에 핸들러에서 ref를 동기로 직접 세팅한다.)
@@ -873,6 +888,9 @@ export default function Home() {
     <ConfirmProvider>
       <AppShell
         onOpenSettings={() => setIsSettingsOpen(true)}
+        editorCollapsed={editorCollapsed}
+        chatOpen={chatOpen}
+        onToggleEditorCollapsed={toggleEditorCollapsed}
         modeToggle={
           <ModeToggle mode={mode} onModeChange={handleModeChange} disabled={isLoading} />
         }
@@ -925,6 +943,7 @@ export default function Home() {
         editor={
           <EditorChatColumn
             chatOpen={chatOpen}
+            editorCollapsed={editorCollapsed}
             editor={
               mode === "text" ? (
                 <TextInputArea
