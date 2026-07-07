@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { dueCards } from "@/lib/srs/due";
@@ -47,6 +47,9 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
   const [stats, setStats] = useState({ again: 0, hard: 0, good: 0 });
   const [done, setDone] = useState(initialQueue.length === 0);
   const [tossing, setTossing] = useState<Grade | null>(null); // 진행 중 toss(연타 가드)
+  // toss 타이머 — 언마운트 시 정리(dead 컴포넌트 setState 방지).
+  const tossTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (tossTimer.current) window.clearTimeout(tossTimer.current); }, []);
 
   const card = round[idx];
 
@@ -87,7 +90,7 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
         return;
       }
       setTossing(g);
-      window.setTimeout(() => commitGrade(g), TOSS_MS);
+      tossTimer.current = window.setTimeout(() => commitGrade(g), TOSS_MS);
     },
     [flipped, tossing, reduced, commitGrade],
   );
