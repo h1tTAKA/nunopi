@@ -11,6 +11,7 @@ import SessionDone from "./SessionDone";
 import FlashCard from "./FlashCard";
 import CardFan from "./CardFan";
 import GradePiles from "./GradePiles";
+import CardInfoPanel from "./CardInfoPanel";
 
 interface CardSessionProps {
   sources: SrsSource[];
@@ -148,10 +149,15 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
         </span>
       </div>
 
-      {/* 스테이지 — 부채꼴(배경) 위에 카드(중앙) + 더미(우측). */}
+      {/* 스테이지 — 부채꼴(배경) 위에 카드(중앙) + 더미(우측) + 정보(우상단). */}
       <div className="relative flex flex-1 items-center justify-center">
         {/* 남은 카드 부채꼴 — 카드 뒤 배경 */}
         <CardFan remaining={round.length - idx - 1} />
+
+        {/* 현재 카드 정보 — 우상단(넓은 화면만) */}
+        <div className="absolute right-0 top-0 z-10 hidden xl:block">
+          <CardInfoPanel card={card} />
+        </div>
 
         {/* 중앙 카드 + 채점바 */}
         <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-5">

@@ -2,26 +2,29 @@ import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/type
 
 export interface BookmarkedTokenDetail extends CodeToken {
   bookmarkedAt: string;
+  sourceTitle?: string; // 담을 때의 분석 제목(출처, 옵셔널 — 기존 데이터 하위호환)
 }
 
 // 글(IT 용어) 모드 북마크 — 코드 토큰 북마크와 다른 키에 저장해 모드별로 분리한다.
 export interface BookmarkedTermDetail extends ItTerm {
   bookmarkedAt: string;
+  sourceTitle?: string;
 }
 
 // 개념 북마크 — 코드 모드 개념. 키 = 개념 title.
 export interface BookmarkedConceptDetail extends ConceptOccurrence {
   bookmarkedAt: string;
+  sourceTitle?: string;
 }
 
 const DETAILS_KEY = "nunopi:bookmark-token-details";
 const TERM_DETAILS_KEY = "nunopi:bookmark-term-details";
 const CONCEPT_DETAILS_KEY = "nunopi:bookmark-concept-details";
 
-export function saveTokenDetail(token: CodeToken): void {
+export function saveTokenDetail(token: CodeToken, sourceTitle?: string): void {
   try {
     const existing = loadTokenDetails();
-    existing[token.token] = { ...token, bookmarkedAt: new Date().toISOString() };
+    existing[token.token] = { ...token, bookmarkedAt: new Date().toISOString(), sourceTitle };
     localStorage.setItem(DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }
@@ -49,10 +52,10 @@ export function clearTokenDetails(): void {
 
 // --- 글 모드 IT 용어 북마크 (키 = term 문자열) ---
 
-export function saveTermDetail(term: ItTerm): void {
+export function saveTermDetail(term: ItTerm, sourceTitle?: string): void {
   try {
     const existing = loadTermDetails();
-    existing[term.term] = { ...term, bookmarkedAt: new Date().toISOString() };
+    existing[term.term] = { ...term, bookmarkedAt: new Date().toISOString(), sourceTitle };
     localStorage.setItem(TERM_DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }
@@ -80,10 +83,10 @@ export function clearTermDetails(): void {
 
 // --- 개념 북마크 (키 = 개념 title) ---
 
-export function saveConceptDetail(concept: ConceptOccurrence): void {
+export function saveConceptDetail(concept: ConceptOccurrence, sourceTitle?: string): void {
   try {
     const existing = loadConceptDetails();
-    existing[concept.title] = { ...concept, bookmarkedAt: new Date().toISOString() };
+    existing[concept.title] = { ...concept, bookmarkedAt: new Date().toISOString(), sourceTitle };
     localStorage.setItem(CONCEPT_DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }

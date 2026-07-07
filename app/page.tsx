@@ -959,7 +959,11 @@ export default function Home() {
           onClearHistory={handleClearHistory}
           onUpdateHistory={handleUpdateHistory}
           currentHistoryId={currentHistoryId}
-          currentHistoryTitle={historyEntries.find(e => e.id === currentHistoryId)?.title}
+          currentHistoryTitle={
+            historyEntries.find(e => e.id === currentHistoryId)?.title
+            // 미저장 분석이면 히스토리 제목이 없으므로 결과에서 확정 제목을 만든다(북마크 출처용).
+            ?? (analysisResult ? generateAutoTitle(analysisResult, code) : undefined)
+          }
           currentHistoryIsPinned={historyEntries.find(e => e.id === currentHistoryId)?.isPinned ?? false}
           onSetCurrentTitle={(title) => { if (currentHistoryId) handleUpdateHistory(currentHistoryId, { title: title || undefined }); }}
           onToggleCurrentPin={() => {

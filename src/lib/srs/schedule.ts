@@ -26,6 +26,8 @@ export function initialState(now: Date): SrsState {
     nextReviewAt: startOfLocalDay(now).toISOString(),
     lastReviewedAt: null,
     streak: 0,
+    reviews: 0,
+    grades: { again: 0, hard: 0, good: 0 },
   };
 }
 
@@ -39,11 +41,15 @@ export function applyGrade(state: SrsState, grade: Grade, now: Date): SrsState {
   // hard → 유지
 
   const interval = BOX_INTERVALS[box - 1];
+  // 채점 누적(기존 데이터 하위호환 — 없으면 0부터).
+  const prev = state.grades ?? { again: 0, hard: 0, good: 0 };
   return {
     box,
     nextReviewAt: reviewDateISO(now, interval),
     lastReviewedAt: now.toISOString(),
     streak: grade === "good" ? state.streak + 1 : 0,
+    reviews: (state.reviews ?? 0) + 1,
+    grades: { ...prev, [grade]: prev[grade] + 1 },
   };
 }
 
