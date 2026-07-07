@@ -41,7 +41,7 @@ export default function GradePiles({ stats, landing }: GradePilesProps) {
                     >
                       {topCard && (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src="/brand/nunopi-symbol-transparent.png" alt="" className="h-6 w-6 object-contain opacity-25" />
+                        <img src="/brand/nunopi-symbol-transparent.png" alt="" className="h-6 w-6 object-contain opacity-20 [filter:brightness(0)]" />
                       )}
                     </span>
                   );
