@@ -22,6 +22,8 @@ const ko: Dict = {
   "header.settings": "설정",
   "mode.code": "코드 분석",
   "mode.text": "글 분석",
+  "mode.memorize": "암기",
+  "mem.comingSoon": "암기 카드 곧 제공됩니다.",
 
   "input.codeTitle": "코드 입력",
   "input.textTitle": "글 입력",
@@ -245,6 +247,8 @@ const ja: Dict = {
   "header.settings": "設定",
   "mode.code": "コード分析",
   "mode.text": "文章分析",
+  "mode.memorize": "暗記",
+  "mem.comingSoon": "暗記カードは近日公開。",
 
   "input.codeTitle": "コード入力",
   "input.textTitle": "文章入力",
@@ -468,6 +472,8 @@ const en: Dict = {
   "header.settings": "Settings",
   "mode.code": "Code",
   "mode.text": "Text",
+  "mode.memorize": "Memorize",
+  "mem.comingSoon": "Flashcards coming soon.",
 
   "input.codeTitle": "Code input",
   "input.textTitle": "Text input",

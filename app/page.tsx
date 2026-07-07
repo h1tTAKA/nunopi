@@ -11,6 +11,9 @@ import CodeInputArea, { type LanguageChoice } from "@/components/translator/Code
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
 import ChatRoom from "@/components/learning/ChatRoom";
+import MemorizeView from "@/components/memorize/MemorizeView";
+import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
+import { deckStats } from "@/lib/srs/due";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
 import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -150,6 +153,10 @@ export default function Home() {
   const [chatOpen, setChatOpen] = useState(false);
   // 입력 패널 접기 — 학습패널 풀와이드(챗 열림 시 챗만 왼쪽 유지). localStorage 영속.
   const [editorCollapsed, setEditorCollapsed] = useState(false);
+  // 화면 전환 축(코드/글/암기). code·text는 분석 모드(mode)와 연동, memorize는 분석 안 함.
+  const [viewMode, setViewMode] = useState<ViewMode>("code");
+  // 암기 탭 배지 — 오늘 복습할 전체 due 수(0이면 숨김). 뷰 진입 시 갱신.
+  const [memorizeDue, setMemorizeDue] = useState(0);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(freshChatSessions);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatStreaming, setChatStreaming] = useState<string | null>(null);
@@ -179,7 +186,27 @@ export default function Home() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
+    const storedView = localStorage.getItem(VIEW_MODE_KEY);
+    if (storedView === "text" || storedView === "memorize") {
+       
+      setViewMode(storedView);
+      if (storedView === "text") setMode("text");
+    }
   }, []);
+
+  // 암기 탭 배지 due 수 — 뷰 전환 시 재계산(localStorage는 클라에서만).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMemorizeDue(deckStats("all", new Date()).due);
+  }, [viewMode]);
+
+  function handleViewModeChange(next: ViewMode) {
+    if (next === viewMode) return;
+    setViewMode(next);
+    try { localStorage.setItem(VIEW_MODE_KEY, next); } catch { /* ignore */ }
+    // 코드/글은 분석 모드와 연동(암기는 분석 상태 보존).
+    if (next === "code" || next === "text") handleModeChange(next);
+  }
   function toggleEditorCollapsed() {
     setEditorCollapsed((v) => {
       const next = !v;
@@ -223,7 +250,7 @@ export default function Home() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setExcludedTerms(loadExclusions("text"));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setCollections(loadCollections());
   }, []);
 
@@ -891,8 +918,15 @@ export default function Home() {
         editorCollapsed={editorCollapsed}
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
+        memorize={viewMode === "memorize"}
+        memorizeView={<MemorizeView />}
         modeToggle={
-          <ModeToggle mode={mode} onModeChange={handleModeChange} disabled={isLoading} />
+          <ModeToggle
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+            disabled={isLoading}
+            memorizeBadge={memorizeDue}
+          />
         }
         learningPanel={
         <LearningPanel
