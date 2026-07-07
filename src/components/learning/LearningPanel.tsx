@@ -364,8 +364,11 @@ export default function LearningPanel({
     for (const tm of result.terms ?? []) if (backfillTermSource(tm.term, title)) changed = true;
     for (const ic of result.itConcepts ?? []) if (backfillTermSource(ic.title, title)) changed = true;
     if (changed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBookmarkedTokenDetails(loadTokenDetails());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBookmarkedConceptDetails(loadConceptDetails());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBookmarkedTermDetails(loadTermDetails());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
