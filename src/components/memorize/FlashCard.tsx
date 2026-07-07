@@ -14,12 +14,12 @@ interface FlashCardProps {
 export default function FlashCard({ front, back, flipped, onFlip, reduced }: FlashCardProps) {
   const t = useT();
   return (
-    <div className="min-h-[240px] flex-1 [perspective:1200px]">
+    <div className="mx-auto aspect-[5/7] w-full max-w-xs [perspective:1200px]">
       <button
         type="button"
         onClick={() => !flipped && onFlip()}
         aria-label={flipped ? back : front}
-        className={`relative h-full min-h-[240px] w-full [transform-style:preserve-3d] ${
+        className={`relative h-full w-full [transform-style:preserve-3d] ${
           reduced ? "" : "transition-transform duration-500"
         } ${flipped ? "[transform:rotateY(180deg)]" : ""} ${flipped ? "cursor-default" : "cursor-pointer"}`}
       >

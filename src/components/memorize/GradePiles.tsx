@@ -5,43 +5,50 @@ import type { Grade } from "@/lib/srs/types";
 
 interface GradePilesProps {
   stats: { again: number; hard: number; good: number };
-  landing: Grade | null; // 방금 toss된 더미 — 살짝 튀는 강조
-  row?: boolean; // true면 가로 배치(좁은 화면용)
+  landing: Grade | null; // 방금 toss된 더미 — 튀는 강조
 }
 
-const PILES: { grade: Grade; tKey: string; ring: string; chip: string }[] = [
-  { grade: "again", tKey: "mem.again", ring: "border-rose-300 dark:border-rose-800", chip: "bg-rose-500" },
-  { grade: "hard", tKey: "mem.hard", ring: "border-amber-300 dark:border-amber-800", chip: "bg-amber-500" },
-  { grade: "good", tKey: "mem.good", ring: "border-emerald-300 dark:border-emerald-800", chip: "bg-emerald-500" },
+const PILES: { grade: Grade; tKey: string; border: string; text: string; chip: string }[] = [
+  { grade: "again", tKey: "mem.again", border: "border-rose-300 dark:border-rose-700", text: "text-rose-500 dark:text-rose-400", chip: "bg-rose-500" },
+  { grade: "hard", tKey: "mem.hard", border: "border-amber-300 dark:border-amber-700", text: "text-amber-500 dark:text-amber-400", chip: "bg-amber-500" },
+  { grade: "good", tKey: "mem.good", border: "border-emerald-300 dark:border-emerald-700", text: "text-emerald-500 dark:text-emerald-400", chip: "bg-emerald-500" },
 ];
 
-// 다시/애매/완벽 3더미 — 채점 카드가 쌓이는 곳. 카운트만큼 카드가 겹쳐 쌓인 그림.
-export default function GradePiles({ stats, landing, row = false }: GradePilesProps) {
+// 다시/애매/완벽 3더미 — 채점 카드가 날아와 쌓이는 곳(우측). 카운트만큼 카드가 겹쳐 쌓임.
+export default function GradePiles({ stats, landing }: GradePilesProps) {
   const t = useT();
   return (
-    <div className={row ? "flex gap-5" : "flex flex-col gap-3"}>
-      {PILES.map(({ grade, tKey, ring, chip }) => {
+    <div className="flex flex-col gap-6">
+      {PILES.map(({ grade, tKey, border, text, chip }) => {
         const n = stats[grade];
-        const stack = Math.min(n, 5); // 시각 상한 — 5장까지 겹쳐 표현
+        const stack = Math.min(n, 6); // 시각 상한
+        const active = landing === grade;
         return (
-          <div key={grade} className="flex items-center gap-2">
-            <div className="relative h-10 w-8">
-              {Array.from({ length: Math.max(1, stack) }).map((_, i) => (
-                <span
-                  key={i}
-                  className={`absolute h-9 w-7 rounded-md border bg-white dark:bg-[#15161d] ${ring} ${
-                    n === 0 ? "opacity-30" : ""
-                  } ${landing === grade && i === stack - 1 ? "transition-transform duration-200 -translate-y-1" : ""}`}
-                  style={{ left: i * 2, top: i * 1.5 }}
-                />
-              ))}
+          <div key={grade} className="flex items-center gap-3">
+            {/* 더미 그림 — 카드가 살짝 어긋나게 쌓임 */}
+            <div className="relative h-28 w-24 shrink-0">
+              {n === 0 ? (
+                <span className={`absolute left-0 top-2 h-20 w-14 rounded-lg border-2 border-dashed ${border} opacity-40`} />
+              ) : (
+                Array.from({ length: stack }).map((_, i) => {
+                  const lift = active && i === stack - 1 ? " translateY(-8px)" : "";
+                  return (
+                    <span
+                      key={i}
+                      className={`absolute h-20 w-14 rounded-lg border bg-white shadow-md transition-transform duration-200 dark:bg-[#1b1d26] ${border}`}
+                      style={{ left: i * 5, top: i * 3, transform: `rotate(${(i - (stack - 1) / 2) * 4}deg)${lift}` }}
+                    />
+                  );
+                })
+              )}
             </div>
-            <span className="flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {t(tKey)}
-              <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white ${chip}`}>
+            {/* 라벨 + 수 */}
+            <div className="flex flex-col gap-0.5">
+              <span className={`text-sm font-semibold ${text}`}>{t(tKey)}</span>
+              <span className={`inline-flex h-5 w-fit min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white ${chip}`}>
                 {n}
               </span>
-            </span>
+            </div>
           </div>
         );
       })}

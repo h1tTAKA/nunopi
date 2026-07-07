@@ -20,11 +20,11 @@ interface CardSessionProps {
 // toss 애니 시간(ms) — 채점 카드가 더미로 날아가는 시간.
 const TOSS_MS = 320;
 
-// toss 방향 — 각 채점의 카드가 날아갈 transform.
+// toss 방향 — 각 채점의 카드가 우측 해당 더미로 날아가는 transform(위=다시 … 아래=완벽).
 const TOSS_TRANSFORM: Record<Grade, string> = {
-  again: "translate(-40%, 120%) rotate(-18deg)",
-  hard: "translate(60%, 120%) rotate(6deg)",
-  good: "translate(120%, 60%) rotate(18deg)",
+  again: "translate(340px, -150px) rotate(16deg) scale(0.5)",
+  hard: "translate(340px, 0px) rotate(16deg) scale(0.5)",
+  good: "translate(340px, 150px) rotate(16deg) scale(0.5)",
 };
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
@@ -147,14 +147,15 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
         </span>
       </div>
 
-      {/* 스테이지 — 세로 중앙. 부채꼴 → 카드(중앙)+더미(우측) → 채점바. */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-6">
+      {/* 스테이지 — 부채꼴(배경) 위에 카드(중앙) + 더미(우측). */}
+      <div className="relative flex flex-1 items-center justify-center">
+        {/* 남은 카드 부채꼴 — 카드 뒤 배경 */}
         <CardFan remaining={round.length - idx - 1} />
 
-        <div className="relative flex w-full items-center justify-center">
-          {/* 카드 — 중앙, 넉넉한 폭 */}
+        {/* 중앙 카드 + 채점바 */}
+        <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-5">
           <div
-            className={`w-full max-w-2xl ${reduced ? "" : "transition-all"}`}
+            className={`w-full ${reduced ? "" : "transition-all"}`}
             style={
               tossing && !reduced
                 ? { transform: TOSS_TRANSFORM[tossing], opacity: 0, transitionDuration: `${TOSS_MS}ms` }
@@ -163,19 +164,13 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
           >
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped(true)} reduced={reduced} />
           </div>
-          {/* 더미 — 넓은 화면은 카드 우측에 절대배치(카드 중앙 유지) */}
-          <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 xl:block">
-            <GradePiles stats={stats} landing={tossing} />
-          </div>
+          <div className="w-full">{gradeBar}</div>
         </div>
 
-        {/* 좁은 화면 — 더미를 가로로 카드 아래 */}
-        <div className="xl:hidden">
-          <GradePiles stats={stats} landing={tossing} row />
+        {/* 우측 더미 — 채점 카드가 날아와 쌓임 */}
+        <div className="absolute right-0 top-1/2 z-10 -translate-y-1/2">
+          <GradePiles stats={stats} landing={tossing} />
         </div>
-
-        {/* 채점바 — 카드 폭에 맞춤 */}
-        <div className="w-full max-w-2xl">{gradeBar}</div>
       </div>
     </div>
   );
