@@ -130,6 +130,22 @@ export default function Home() {
   const [languageChoice, setLanguageChoice] = useState<LanguageChoice>("auto");
   // 진행 중인 분석을 멈추기 위한 AbortController 보관.
   const abortRef = useRef<AbortController | null>(null);
+  // 모드(코드/글)별 분석 상태 스냅샷 — 모드 전환 시 저장/복원해 하던 분석 보존(#374).
+  type AnalysisSnapshot = {
+    analysisResult: AgentAnalyzeResponse | null;
+    currentHistoryId: string | null;
+    explainingTokens: string[];
+    explainingConcepts: string[];
+    chatSessions: ChatSession[];
+    activeSessionId: string | null;
+    chatStreaming: string | null;
+    activeCollectionId: string | null;
+    errorMessage: string | null;
+    resumable: boolean;
+    lastElapsedMs: number | null;
+    chunkProgress: { done: number; total: number } | null;
+  };
+  const analysisSnapshotRef = useRef<Record<"code" | "text", AnalysisSnapshot | null>>({ code: null, text: null });
   // 분석 중 provider가 흘리는 최신 진행 출력 한 줄.
   const [progressLine, setProgressLine] = useState("");
   // 에디터 ↔ 학습패널 줄 링크. source로 양방향 동기화 루프를 끊는다.
@@ -364,19 +380,47 @@ export default function Home() {
     setCurrentHistoryId(null);
   }
 
-  function handleModeChange(nextMode: AnalyzeMode) {
+  function handleModeChange(nextMode: "code" | "text") {
     if (nextMode === mode) return;
     if (chatLoading) return; // 챗 스트리밍 중 세션 리셋 방지(진행 답변 유실 #312).
+    // 떠나는 모드의 분석 상태를 스냅샷에 저장. (mode는 code/text만 — 분석 모드.)
+    const fromMode: "code" | "text" = mode === "text" ? "text" : "code";
+    analysisSnapshotRef.current[fromMode] = {
+      analysisResult, currentHistoryId, explainingTokens, explainingConcepts,
+      chatSessions, activeSessionId, chatStreaming, activeCollectionId,
+      errorMessage, resumable, lastElapsedMs, chunkProgress,
+    };
     setMode(nextMode);
-    setErrorMessage(null);
-    setAnalysisResult(null);
-    setCurrentHistoryId(null);
-    setExplainingTokens([]);
-    setExplainingConcepts([]);
-    setChatSessions(freshChatSessions());
-    setActiveSessionId(null);
-    setChatStreaming(null);
-    setActiveCollectionId(null); // 다른 모드 목록 필터가 남지 않게 해제.
+    const snap = analysisSnapshotRef.current[nextMode];
+    if (snap) {
+      // 이전에 하던 그 모드의 분석 상태 복원.
+      setAnalysisResult(snap.analysisResult);
+      setCurrentHistoryId(snap.currentHistoryId);
+      setExplainingTokens(snap.explainingTokens);
+      setExplainingConcepts(snap.explainingConcepts);
+      setChatSessions(snap.chatSessions);
+      setActiveSessionId(snap.activeSessionId);
+      setChatStreaming(snap.chatStreaming);
+      setActiveCollectionId(snap.activeCollectionId);
+      setErrorMessage(snap.errorMessage);
+      setResumable(snap.resumable);
+      setLastElapsedMs(snap.lastElapsedMs);
+      setChunkProgress(snap.chunkProgress);
+    } else {
+      // 처음 가는 모드 — 초기화(기존 동작).
+      setErrorMessage(null);
+      setAnalysisResult(null);
+      setCurrentHistoryId(null);
+      setExplainingTokens([]);
+      setExplainingConcepts([]);
+      setChatSessions(freshChatSessions());
+      setActiveSessionId(null);
+      setChatStreaming(null);
+      setActiveCollectionId(null);
+      setResumable(false);
+      setLastElapsedMs(null);
+      setChunkProgress(null);
+    }
   }
 
   function handleProviderChange(nextProviderId: AgentProviderKind) {
