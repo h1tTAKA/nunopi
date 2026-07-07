@@ -347,7 +347,7 @@ export default function LearningPanel({
 
   // 북마크에 담을 "출처"(분석 제목) — 저장된 히스토리 제목 우선, 없으면 결과 자체 제목.
   function bookmarkSourceTitle(): string | undefined {
-    return currentHistoryTitle?.trim() || result.title?.trim() || undefined;
+    return currentHistoryTitle?.trim() || result?.title?.trim() || undefined;
   }
 
   function handleBookmarkToggle(token: CodeToken) {
