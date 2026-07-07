@@ -15,6 +15,9 @@ interface AppShellProps {
   editorCollapsed?: boolean;
   chatOpen?: boolean;
   onToggleEditorCollapsed?: () => void;
+  // 암기 모드 — true면 에디터/학습패널 스플릿 대신 memorizeView를 전폭 렌더.
+  memorize?: boolean;
+  memorizeView?: React.ReactNode;
 }
 
 // 가로형 창(landscape — 정상/4분할): 좌(에디터)/우(학습패널) 스플릿 — leftPct.
@@ -31,7 +34,7 @@ function clampPct(value: number): number {
   return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
 }
 
-export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed }: AppShellProps) {
+export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed, memorize = false, memorizeView }: AppShellProps) {
   const t = useT();
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
@@ -130,6 +133,11 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     <div className="flex h-screen min-h-0 flex-col bg-white dark:bg-[#111219]">
       <Header modeToggle={modeToggle} onOpenSettings={onOpenSettings} />
 
+      {memorize ? (
+        <main className="flex w-full min-h-0 flex-1 flex-col overflow-y-auto">
+          {memorizeView}
+        </main>
+      ) : (
       <main
         ref={mainRef}
         className="flex w-full min-h-0 flex-1 flex-col landscape:flex-row"
@@ -184,6 +192,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           {learningPanel}
         </aside>
       </main>
+      )}
     </div>
   );
 }
