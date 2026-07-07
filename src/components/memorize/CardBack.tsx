@@ -5,8 +5,8 @@
 export default function CardBack() {
   return (
     <span className="absolute inset-0 overflow-hidden rounded-[inherit] bg-white">
-      <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-zinc-300" />
-      <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-zinc-200/70" />
+      <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/60" />
+      <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/35" />
       <span className="absolute left-1/2 top-1/2 flex h-2/5 w-2/5 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" className="h-full w-full object-contain" />
