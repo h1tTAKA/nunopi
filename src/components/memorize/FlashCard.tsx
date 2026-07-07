@@ -10,7 +10,9 @@ interface FlashCardProps {
   reduced: boolean; // prefers-reduced-motion — true면 회전 애니 생략
 }
 
-// 3D 플립 카드 — 앞(용어)/뒤(용어+설명). rotateY 회전. 2안 미니멀 내용 + 1안 플립 감.
+const SYMBOL = "/brand/nunopi-symbol-transparent.png";
+
+// 3D 플립 카드 — 흰색 포커카드. 앞: 나노피 심볼 위 + 용어. 뒤: 좌상단 작은 심볼 + 용어 + 설명.
 export default function FlashCard({ front, back, flipped, onFlip, reduced }: FlashCardProps) {
   const t = useT();
   return (
@@ -23,15 +25,19 @@ export default function FlashCard({ front, back, flipped, onFlip, reduced }: Fla
           reduced ? "" : "transition-transform duration-500"
         } ${flipped ? "[transform:rotateY(180deg)]" : ""} ${flipped ? "cursor-default" : "cursor-pointer"}`}
       >
-        {/* 앞면 — 용어 */}
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-2xl border border-zinc-200 bg-white p-6 text-center [backface-visibility:hidden] dark:border-zinc-800 dark:bg-[#15161d]">
-          <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{front}</span>
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.flipHint")}</span>
+        {/* 앞면 — 심볼 + 용어 */}
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl [backface-visibility:hidden]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={SYMBOL} alt="" className="h-12 w-12 object-contain" />
+          <span className="text-xl font-bold text-zinc-900">{front}</span>
+          <span className="text-xs text-zinc-400">{t("mem.flipHint")}</span>
         </span>
-        {/* 뒷면 — 용어 + 설명 */}
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 text-center [backface-visibility:hidden] [transform:rotateY(180deg)] dark:border-zinc-800 dark:bg-[#15161d]">
-          <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">{front}</span>
-          <span className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
+        {/* 뒷면 — 좌상단 작은 심볼 + 용어 + 설명 */}
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 pt-10 text-center shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={SYMBOL} alt="" className="absolute left-4 top-4 h-6 w-6 object-contain opacity-80" />
+          <span className="text-base font-bold text-zinc-900">{front}</span>
+          <span className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-600">
             {back || t("mem.noExplanation")}
           </span>
         </span>

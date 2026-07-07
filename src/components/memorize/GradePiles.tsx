@@ -32,12 +32,18 @@ export default function GradePiles({ stats, landing }: GradePilesProps) {
               ) : (
                 Array.from({ length: stack }).map((_, i) => {
                   const lift = active && i === stack - 1 ? " translateY(-8px)" : "";
+                  const topCard = i === stack - 1;
                   return (
                     <span
                       key={i}
-                      className={`absolute h-20 w-14 rounded-lg border bg-white shadow-md transition-transform duration-200 dark:bg-[#1b1d26] ${border}`}
+                      className={`absolute flex h-20 w-14 items-center justify-center rounded-lg border-2 bg-white shadow-md transition-transform duration-200 ${border}`}
                       style={{ left: i * 5, top: i * 3, transform: `rotate(${(i - (stack - 1) / 2) * 4}deg)${lift}` }}
-                    />
+                    >
+                      {topCard && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src="/brand/nunopi-symbol-transparent.png" alt="" className="h-6 w-6 object-contain opacity-25" />
+                      )}
+                    </span>
                   );
                 })
               )}

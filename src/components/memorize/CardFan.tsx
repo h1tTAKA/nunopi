@@ -20,7 +20,7 @@ export default function CardFan({ remaining }: { remaining: number }) {
           return (
             <span
               key={i}
-              className="absolute aspect-[5/7] w-64 rounded-2xl border border-zinc-300 bg-gradient-to-b from-white to-zinc-100 shadow-lg dark:border-zinc-700 dark:from-zinc-800 dark:to-zinc-950"
+              className="absolute flex aspect-[5/7] w-64 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-lg"
               style={{
                 // 아래 중앙 피벗 기준 회전 → 위로 아치. 가운데 카드보다 살짝 위로 올려 크라운.
                 transform: `translate(-50%, -104%) rotate(${angle}deg)`,
@@ -28,7 +28,10 @@ export default function CardFan({ remaining }: { remaining: number }) {
                 left: 0,
                 top: 0,
               }}
-            />
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/nunopi-symbol-transparent.png" alt="" className="h-14 w-14 object-contain opacity-15" />
+            </span>
           );
         })}
       </div>
