@@ -7,8 +7,8 @@ import { deckStats } from "@/lib/srs/due";
 import { DECK_SOURCES, type Deck, type SrsSource } from "@/lib/srs/types";
 
 interface DeckSelectProps {
-  // 선택한 덱 + 세부 출처로 세션 시작.
-  onStart: (deck: Deck, sources: SrsSource[]) => void;
+  // 선택한 덱 + 세부 출처 + 복습 모드(due/all)로 세션 시작.
+  onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all") => void;
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
@@ -21,6 +21,8 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 export default function DeckSelect({ onStart }: DeckSelectProps) {
   const t = useT();
   const [selected, setSelected] = useState<Deck>("code");
+  // 복습 모드 — due(오늘) / all(상시 전체).
+  const [mode, setMode] = useState<"due" | "all">("due");
   // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리).
   const [codeSources, setCodeSources] = useState<Set<SrsSource>>(new Set(["token", "concept"]));
 
@@ -49,7 +51,8 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   }
 
   const selectedStats = stats[selected];
-  const canStart = selectedStats.due > 0;
+  // due 모드는 오늘 복습 카드가 있어야, all 모드는 카드가 하나라도 있으면 시작.
+  const canStart = mode === "all" ? selectedStats.total > 0 : selectedStats.due > 0;
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4 p-6">
@@ -113,13 +116,36 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         </div>
       )}
 
+      {/* 복습 모드 — 오늘 due / 전체 상시 */}
+      <div className="inline-flex self-center rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+        {(["due", "all"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            aria-pressed={mode === m}
+            className={`rounded-md px-4 py-1.5 font-medium transition ${
+              mode === m
+                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                : "text-zinc-500 dark:text-zinc-400"
+            }`}
+          >
+            {t(m === "due" ? "mem.modeDue" : "mem.modeAll")}
+          </button>
+        ))}
+      </div>
+
       <button
         type="button"
         disabled={!canStart}
-        onClick={() => onStart(selected, effectiveSources(selected))}
-        className="mt-2 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={() => onStart(selected, effectiveSources(selected), mode)}
+        className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {selectedStats.total > 0 && selectedStats.due === 0 ? t("mem.noDueToday") : t("mem.start")}
+        {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0
+          ? t("mem.noDueToday")
+          : mode === "all"
+            ? `${t("mem.start")} · ${selectedStats.total}`
+            : t("mem.start")}
       </button>
     </div>
   );
