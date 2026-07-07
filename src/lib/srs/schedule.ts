@@ -32,7 +32,8 @@ export function initialState(now: Date): SrsState {
 // 채점 → 다음 상태.
 // again: box1 강등 / hard: 박스 유지 / good: 승급(최대 MAX_BOX).
 export function applyGrade(state: SrsState, grade: Grade, now: Date): SrsState {
-  let box = state.box;
+  // 손상 store 방어 — box를 항상 1..MAX_BOX로 클램프(BOX_INTERVALS[box-1] NaN 방지).
+  let box = Math.min(MAX_BOX, Math.max(1, Math.round(state.box) || 1));
   if (grade === "again") box = 1;
   else if (grade === "good") box = Math.min(MAX_BOX, box + 1);
   // hard → 유지
@@ -48,5 +49,7 @@ export function applyGrade(state: SrsState, grade: Grade, now: Date): SrsState {
 
 // 오늘(로컬 자정 기준) 복습 대상인가.
 export function isDue(state: SrsState, now: Date): boolean {
-  return startOfLocalDay(new Date(state.nextReviewAt)).getTime() <= startOfLocalDay(now).getTime();
+  const next = startOfLocalDay(new Date(state.nextReviewAt)).getTime();
+  if (Number.isNaN(next)) return true; // 손상 날짜 → 안전하게 복습 대상으로(누락 방지).
+  return next <= startOfLocalDay(now).getTime();
 }

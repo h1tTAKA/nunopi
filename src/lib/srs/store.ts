@@ -9,7 +9,9 @@ export function loadSrsState(): Record<string, SrsState> {
   try {
     const raw = localStorage.getItem(SRS_KEY);
     return raw ? (JSON.parse(raw) as Record<string, SrsState>) : {};
-  } catch {
+  } catch (e) {
+    // 손상 JSON — 조용히 {}로 덮으면 진도 유실. 경고 남기고 빈 상태로(저장은 채점 시에만).
+    console.warn("[srs] state load failed:", String(e));
     return {};
   }
 }
