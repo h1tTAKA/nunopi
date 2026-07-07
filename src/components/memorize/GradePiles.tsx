@@ -2,6 +2,7 @@
 
 import { useT } from "@/lib/i18n/I18nProvider";
 import type { Grade } from "@/lib/srs/types";
+import CardBack from "./CardBack";
 
 interface GradePilesProps {
   stats: { again: number; hard: number; good: number };
@@ -36,13 +37,10 @@ export default function GradePiles({ stats, landing }: GradePilesProps) {
                   return (
                     <span
                       key={i}
-                      className="absolute flex h-20 w-14 items-center justify-center rounded-lg border border-zinc-200 bg-white shadow-md transition-transform duration-200"
+                      className="absolute h-20 w-14 rounded-lg border border-zinc-200 bg-white shadow-md transition-transform duration-200"
                       style={{ left: i * 5, top: i * 3, transform: `rotate(${(i - (stack - 1) / 2) * 4}deg)${lift}` }}
                     >
-                      {topCard && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" className="h-7 w-7 object-contain" />
-                      )}
+                      {topCard && <CardBack />}
                     </span>
                   );
                 })

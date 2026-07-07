@@ -25,19 +25,22 @@ export default function FlashCard({ front, back, flipped, onFlip, reduced }: Fla
           reduced ? "" : "transition-transform duration-500"
         } ${flipped ? "[transform:rotateY(180deg)]" : ""} ${flipped ? "cursor-default" : "cursor-pointer"}`}
       >
-        {/* 앞면 — 심볼 + 용어 */}
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl [backface-visibility:hidden]">
+        {/* 앞면 — 심볼 + 용어. 가장자리 장식 프레임(텍스트는 중앙 여백에 또렷). */}
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-xl [backface-visibility:hidden]">
+          <span className="pointer-events-none absolute inset-2.5 rounded-xl border-2 border-blue-500/25" />
+          <span className="pointer-events-none absolute inset-[14px] rounded-lg border border-blue-500/15" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={SYMBOL} alt="" className="h-12 w-12 object-contain" />
-          <span className="text-xl font-bold text-zinc-900">{front}</span>
-          <span className="text-xs text-zinc-400">{t("mem.flipHint")}</span>
+          <img src={SYMBOL} alt="" className="relative h-12 w-12 object-contain" />
+          <span className="relative text-xl font-bold text-zinc-900">{front}</span>
+          <span className="relative text-xs text-zinc-400">{t("mem.flipHint")}</span>
         </span>
-        {/* 뒷면 — 좌상단 작은 심볼 + 용어 + 설명 */}
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 pt-10 text-center shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        {/* 뒷면 — 좌상단 작은 심볼 + 용어 + 설명. 얇은 프레임. */}
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-7 pt-11 text-center shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
+          <span className="pointer-events-none absolute inset-2.5 rounded-xl border border-blue-500/20" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={SYMBOL} alt="" className="absolute left-4 top-4 h-6 w-6 object-contain opacity-70" />
-          <span className="text-base font-bold text-zinc-900">{front}</span>
-          <span className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-600">
+          <img src={SYMBOL} alt="" className="absolute left-5 top-5 h-6 w-6 object-contain opacity-70" />
+          <span className="relative text-base font-bold text-zinc-900">{front}</span>
+          <span className="relative whitespace-pre-wrap text-sm leading-relaxed text-zinc-600">
             {back || t("mem.noExplanation")}
           </span>
         </span>

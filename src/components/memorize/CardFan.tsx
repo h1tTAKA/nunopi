@@ -1,5 +1,7 @@
 "use client";
 
+import CardBack from "./CardBack";
+
 // 남은 카드 부채꼴 — 실제 남은 장수만큼, 가운데 카드 뒤에 넓게 펼쳐 크라운처럼.
 // 카드 크기는 가운데 카드와 비슷하게(가려도 옆/위로 삐져나와 보이게 넓은 각도).
 const MAX_FAN = 24;
@@ -20,7 +22,7 @@ export default function CardFan({ remaining }: { remaining: number }) {
           return (
             <span
               key={i}
-              className="absolute flex aspect-[5/7] w-64 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-lg"
+              className="absolute aspect-[5/7] w-64 rounded-2xl border border-zinc-200 shadow-lg"
               style={{
                 // 아래 중앙 피벗 기준 회전 → 위로 아치. 가운데 카드보다 살짝 위로 올려 크라운.
                 transform: `translate(-50%, -104%) rotate(${angle}deg)`,
@@ -29,8 +31,7 @@ export default function CardFan({ remaining }: { remaining: number }) {
                 top: 0,
               }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" className="h-14 w-14 object-contain opacity-10" />
+              <CardBack />
             </span>
           );
         })}
