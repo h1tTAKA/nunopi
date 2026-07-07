@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { dueCards } from "@/lib/srs/due";
@@ -146,8 +147,18 @@ export default function CardSession({ sources, mode = "due", active = true, onEx
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 px-6 py-5">
-      {/* 진행률 */}
+      {/* 진행률 + 덱 선택으로 돌아가기 */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label={t("mem.backToDecks")}
+          title={t("mem.backToDecks")}
+          className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          <IconArrowLeft size={15} stroke={2} aria-hidden />
+          {t("mem.backToDecks")}
+        </button>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
           <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
         </div>
