@@ -10,7 +10,7 @@ interface FlashCardProps {
   reduced: boolean; // prefers-reduced-motion — true면 회전 애니 생략
 }
 
-const SYMBOL = "/brand/nunopi-symbol-black.png";
+const SYMBOL = "/brand/nunopi-symbol-transparent.png";
 
 // 3D 플립 카드 — 흰색 포커카드. 앞: 나노피 심볼 위 + 용어. 뒤: 좌상단 작은 심볼 + 용어 + 설명.
 export default function FlashCard({ front, back, flipped, onFlip, reduced }: FlashCardProps) {
