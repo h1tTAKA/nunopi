@@ -19,11 +19,11 @@ export default function FlashCard({ front, back, flipped, onFlip, reduced }: Fla
     <div className="mx-auto aspect-[5/7] w-full max-w-xs [perspective:1200px]">
       <button
         type="button"
-        onClick={() => !flipped && onFlip()}
+        onClick={onFlip}
         aria-label={flipped ? back : front}
-        className={`relative h-full w-full [transform-style:preserve-3d] ${
+        className={`relative h-full w-full cursor-pointer [transform-style:preserve-3d] ${
           reduced ? "" : "transition-transform duration-500"
-        } ${flipped ? "[transform:rotateY(180deg)]" : ""} ${flipped ? "cursor-default" : "cursor-pointer"}`}
+        } ${flipped ? "[transform:rotateY(180deg)]" : ""}`}
       >
         {/* 앞면 — 심볼 + 용어. 가장자리 장식 프레임(텍스트는 중앙 여백에 또렷). */}
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-xl [backface-visibility:hidden]">

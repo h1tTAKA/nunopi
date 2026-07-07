@@ -101,7 +101,7 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
     function onKey(e: KeyboardEvent) {
       if (e.code === "Space") {
         e.preventDefault();
-        if (!flipped && !tossing) setFlipped(true);
+        if (!tossing) setFlipped((v) => !v);
         return;
       }
       if (e.key === "1") grade("again");
@@ -162,7 +162,7 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
                 : undefined
             }
           >
-            <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped(true)} reduced={reduced} />
+            <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
           <div className="w-full">{gradeBar}</div>
         </div>
