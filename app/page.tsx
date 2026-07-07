@@ -963,7 +963,7 @@ export default function Home() {
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
-        memorizeView={<MemorizeView />}
+        memorizeView={<MemorizeView active={viewMode === "memorize"} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
