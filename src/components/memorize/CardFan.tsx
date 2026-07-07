@@ -30,7 +30,7 @@ export default function CardFan({ remaining }: { remaining: number }) {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/nunopi-symbol-transparent.png" alt="" className="h-14 w-14 object-contain opacity-10 [filter:brightness(0)]" />
+              <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" className="h-14 w-14 object-contain opacity-10" />
             </span>
           );
         })}
