@@ -28,6 +28,7 @@ export interface Card {
   front: string; // 앞면(용어)
   back: string; // 뒷면(설명)
   bookmarkedAt?: string; // 습득(북마크) 날짜 ISO — 정보 패널용
+  sourceTitle?: string; // 담은 분석의 제목(출처) — 정보 패널용
   state: SrsState;
 }
 

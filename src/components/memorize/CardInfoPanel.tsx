@@ -23,9 +23,17 @@ export default function CardInfoPanel({ card }: { card: Card }) {
     : "—";
 
   return (
-    <div className="flex w-52 flex-col gap-2 rounded-xl border border-zinc-200 bg-white/60 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-zinc-700 dark:text-zinc-200">{t(SOURCE_LABEL[card.source])}</span>
+    <div className="flex w-56 flex-col gap-2 rounded-xl border border-zinc-200 bg-white/60 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
+      {/* 출처 = 담은 분석의 제목 */}
+      <div className="flex flex-col gap-0.5">
+        <span className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.source")}</span>
+        <span className="line-clamp-2 font-semibold text-zinc-700 dark:text-zinc-200">
+          {card.sourceTitle?.trim() || t("mem.sourceUnknown")}
+        </span>
+      </div>
+      {/* 분류 · 습득일 */}
+      <div className="flex items-center justify-between text-zinc-500 dark:text-zinc-400">
+        <span>{t("mem.category")}: {t(SOURCE_LABEL[card.source])}</span>
         <span className="text-zinc-400 dark:text-zinc-500">{acquired}</span>
       </div>
       <div className="text-zinc-500 dark:text-zinc-400">

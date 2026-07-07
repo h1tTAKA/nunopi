@@ -350,7 +350,7 @@ export default function LearningPanel({
     // Compute isAdding synchronously before queueing updater
     const isAdding = !bookmarkedTokenTexts.includes(tokenText);
     // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
-    if (isAdding) saveTokenDetail(token);
+    if (isAdding) saveTokenDetail(token, currentHistoryTitle);
     else removeTokenDetail(tokenText);
     // Update details state immediately after localStorage is mutated
     setBookmarkedTokenDetails(loadTokenDetails());
@@ -368,7 +368,7 @@ export default function LearningPanel({
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
   function handleTermBookmarkToggle(term: ItTerm) {
     const isAdding = !bookmarkedTermDetails[term.term];
-    if (isAdding) saveTermDetail(term);
+    if (isAdding) saveTermDetail(term, currentHistoryTitle);
     else removeTermDetail(term.term);
     const next = loadTermDetails();
     setBookmarkedTermDetails(next);
@@ -385,7 +385,7 @@ export default function LearningPanel({
       bookmarkable: true,
     };
     const isAdding = !bookmarkedTermDetails[concept.title];
-    if (isAdding) saveTermDetail(asTerm);
+    if (isAdding) saveTermDetail(asTerm, currentHistoryTitle);
     else removeTermDetail(concept.title);
     const next = loadTermDetails();
     setBookmarkedTermDetails(next);
@@ -405,7 +405,7 @@ export default function LearningPanel({
   // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
   function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
     const isAdding = !bookmarkedConceptDetails[concept.title];
-    if (isAdding) saveConceptDetail(concept);
+    if (isAdding) saveConceptDetail(concept, currentHistoryTitle);
     else removeConceptDetail(concept.title);
     setBookmarkedConceptDetails(loadConceptDetails());
   }
