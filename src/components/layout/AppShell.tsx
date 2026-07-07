@@ -133,14 +133,16 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
     <div className="flex h-screen min-h-0 flex-col bg-white dark:bg-[#111219]">
       <Header modeToggle={modeToggle} onOpenSettings={onOpenSettings} />
 
-      {memorize ? (
-        <main className="flex w-full min-h-0 flex-1 flex-col overflow-y-auto">
-          {memorizeView}
-        </main>
-      ) : (
+      {/* 암기 뷰 — 항상 마운트하고 비활성 시 hidden(세션/카드 상태 보존 #374).
+          Tailwind flex와 hidden 충돌 때문에 display를 조건부 클래스로 토글. */}
+      <main className={`w-full min-h-0 flex-1 flex-col overflow-y-auto ${memorize ? "flex" : "hidden"}`}>
+        {memorizeView}
+      </main>
+
+      {/* 분석(코드/글) 스플릿 — 암기 중엔 hidden. */}
       <main
         ref={mainRef}
-        className="flex w-full min-h-0 flex-1 flex-col landscape:flex-row"
+        className={`w-full min-h-0 flex-1 flex-col landscape:flex-row ${memorize ? "hidden" : "flex"}`}
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
@@ -192,7 +194,6 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
           {learningPanel}
         </aside>
       </main>
-      )}
     </div>
   );
 }

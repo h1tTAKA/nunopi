@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { dueCards } from "@/lib/srs/due";
@@ -17,6 +18,8 @@ interface CardSessionProps {
   sources: SrsSource[];
   // due: 오늘 복습 대상만(에빙하우스) · all: 덱 전체 상시 복습.
   mode?: "due" | "all";
+  // 암기 탭이 화면에 활성인지 — 비활성(다른 모드 보는 중)이면 키보드 무시.
+  active?: boolean;
   onExit: () => void;
 }
 
@@ -32,7 +35,7 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
@@ -104,7 +107,7 @@ export default function CardSession({ sources, mode = "due", onExit }: CardSessi
 
   // 키보드 — 스페이스=뒤집기, 1/2/3=채점.
   useEffect(() => {
-    if (done) return;
+    if (done || !active) return; // 비활성 뷰(다른 모드 보는 중)면 키 무시
     function onKey(e: KeyboardEvent) {
       if (e.code === "Space") {
         e.preventDefault();
@@ -117,7 +120,7 @@ export default function CardSession({ sources, mode = "due", onExit }: CardSessi
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [done, flipped, tossing, grade]);
+  }, [done, active, flipped, tossing, grade]);
 
   if (done) {
     return <SessionDone stats={stats} total={initialQueue.length} onExit={onExit} />;
@@ -144,8 +147,18 @@ export default function CardSession({ sources, mode = "due", onExit }: CardSessi
 
   return (
     <div className="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 px-6 py-5">
-      {/* 진행률 */}
+      {/* 진행률 + 덱 선택으로 돌아가기 */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label={t("mem.backToDecks")}
+          title={t("mem.backToDecks")}
+          className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        >
+          <IconArrowLeft size={15} stroke={2} aria-hidden />
+          {t("mem.backToDecks")}
+        </button>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
           <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
         </div>
