@@ -6,6 +6,7 @@ import type { Grade } from "@/lib/srs/types";
 interface GradePilesProps {
   stats: { again: number; hard: number; good: number };
   landing: Grade | null; // 방금 toss된 더미 — 살짝 튀는 강조
+  row?: boolean; // true면 가로 배치(좁은 화면용)
 }
 
 const PILES: { grade: Grade; tKey: string; ring: string; chip: string }[] = [
@@ -15,10 +16,10 @@ const PILES: { grade: Grade; tKey: string; ring: string; chip: string }[] = [
 ];
 
 // 다시/애매/완벽 3더미 — 채점 카드가 쌓이는 곳. 카운트만큼 카드가 겹쳐 쌓인 그림.
-export default function GradePiles({ stats, landing }: GradePilesProps) {
+export default function GradePiles({ stats, landing, row = false }: GradePilesProps) {
   const t = useT();
   return (
-    <div className="flex flex-col gap-3">
+    <div className={row ? "flex gap-5" : "flex flex-col gap-3"}>
       {PILES.map(({ grade, tKey, ring, chip }) => {
         const n = stats[grade];
         const stack = Math.min(n, 5); // 시각 상한 — 5장까지 겹쳐 표현

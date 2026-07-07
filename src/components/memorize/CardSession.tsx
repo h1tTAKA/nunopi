@@ -118,8 +118,24 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
 
   const progress = round.length > 0 ? ((idx + (flipped ? 0.5 : 0)) / round.length) * 100 : 0;
 
+  const gradeBar = flipped ? (
+    <div className="grid grid-cols-3 gap-3">
+      <GradeButton onClick={() => grade("again")} label={t("mem.again")} keyHint="1" tone="rose" disabled={!!tossing} />
+      <GradeButton onClick={() => grade("hard")} label={t("mem.hard")} keyHint="2" tone="amber" disabled={!!tossing} />
+      <GradeButton onClick={() => grade("good")} label={t("mem.good")} keyHint="3" tone="emerald" disabled={!!tossing} />
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setFlipped(true)}
+      className="w-full rounded-xl bg-zinc-900 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+    >
+      {t("mem.flip")}
+    </button>
+  );
+
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 p-6">
+    <div className="mx-auto flex h-full w-full max-w-6xl flex-col gap-4 px-6 py-5">
       {/* 진행률 */}
       <div className="flex items-center gap-3">
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
@@ -131,42 +147,36 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
         </span>
       </div>
 
-      {/* 남은 카드 부채꼴 */}
-      <CardFan remaining={round.length - idx - 1} />
+      {/* 스테이지 — 세로 중앙. 부채꼴 → 카드(중앙)+더미(우측) → 채점바. */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-6">
+        <CardFan remaining={round.length - idx - 1} />
 
-      {/* 가운데 카드 + 우측 더미 */}
-      <div className="flex flex-1 items-stretch gap-4">
-        <div
-          className={`flex-1 ${reduced ? "" : "transition-all"} `}
-          style={
-            tossing && !reduced
-              ? { transform: TOSS_TRANSFORM[tossing], opacity: 0, transitionDuration: `${TOSS_MS}ms` }
-              : undefined
-          }
-        >
-          <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped(true)} reduced={reduced} />
+        <div className="relative flex w-full items-center justify-center">
+          {/* 카드 — 중앙, 넉넉한 폭 */}
+          <div
+            className={`w-full max-w-2xl ${reduced ? "" : "transition-all"}`}
+            style={
+              tossing && !reduced
+                ? { transform: TOSS_TRANSFORM[tossing], opacity: 0, transitionDuration: `${TOSS_MS}ms` }
+                : undefined
+            }
+          >
+            <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped(true)} reduced={reduced} />
+          </div>
+          {/* 더미 — 넓은 화면은 카드 우측에 절대배치(카드 중앙 유지) */}
+          <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 xl:block">
+            <GradePiles stats={stats} landing={tossing} />
+          </div>
         </div>
-        <div className="flex items-center">
-          <GradePiles stats={stats} landing={tossing} />
+
+        {/* 좁은 화면 — 더미를 가로로 카드 아래 */}
+        <div className="xl:hidden">
+          <GradePiles stats={stats} landing={tossing} row />
         </div>
+
+        {/* 채점바 — 카드 폭에 맞춤 */}
+        <div className="w-full max-w-2xl">{gradeBar}</div>
       </div>
-
-      {/* 채점 / 뒤집기 */}
-      {flipped ? (
-        <div className="grid grid-cols-3 gap-2">
-          <GradeButton onClick={() => grade("again")} label={t("mem.again")} keyHint="1" tone="rose" disabled={!!tossing} />
-          <GradeButton onClick={() => grade("hard")} label={t("mem.hard")} keyHint="2" tone="amber" disabled={!!tossing} />
-          <GradeButton onClick={() => grade("good")} label={t("mem.good")} keyHint="3" tone="emerald" disabled={!!tossing} />
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setFlipped(true)}
-          className="rounded-xl bg-zinc-900 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          {t("mem.flip")}
-        </button>
-      )}
     </div>
   );
 }
