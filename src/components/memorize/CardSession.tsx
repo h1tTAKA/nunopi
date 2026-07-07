@@ -116,7 +116,8 @@ export default function CardSession({ sources, onExit }: CardSessionProps) {
     return <SessionDone stats={stats} total={initialQueue.length} onExit={onExit} />;
   }
 
-  const progress = round.length > 0 ? ((idx + (flipped ? 0.5 : 0)) / round.length) * 100 : 0;
+  // 채점으로 카드가 소진된 만큼만 진행(뒤집기는 진행과 무관).
+  const progress = round.length > 0 ? (idx / round.length) * 100 : 0;
 
   const gradeBar = flipped ? (
     <div className="grid grid-cols-3 gap-3">
