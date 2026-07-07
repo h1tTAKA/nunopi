@@ -15,6 +15,8 @@ import CardInfoPanel from "./CardInfoPanel";
 
 interface CardSessionProps {
   sources: SrsSource[];
+  // due: 오늘 복습 대상만(에빙하우스) · all: 덱 전체 상시 복습.
+  mode?: "due" | "all";
   onExit: () => void;
 }
 
@@ -30,10 +32,14 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
-  const initialQueue = useMemo(() => dueCards(collectCards(sources, now), now), [sources, now]);
+  // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
+  const initialQueue = useMemo(() => {
+    const all = collectCards(sources, now);
+    return mode === "all" ? all : dueCards(all, now);
+  }, [sources, now, mode]);
   // 모션 최소화 설정 — 플립/toss 애니 생략.
   const reduced = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,

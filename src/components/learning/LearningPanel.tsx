@@ -21,6 +21,9 @@ import {
   saveConceptDetail,
   removeConceptDetail,
   loadConceptDetails,
+  backfillTokenSource,
+  backfillTermSource,
+  backfillConceptSource,
 } from "@/lib/bookmarkDetails";
 import type { CodeToken, ConceptOccurrence, ItConcept, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
@@ -349,6 +352,24 @@ export default function LearningPanel({
   function bookmarkSourceTitle(): string | undefined {
     return currentHistoryTitle?.trim() || result?.title?.trim() || undefined;
   }
+
+  // 출처 소급 채움 — 이 분석에 등장한 북마크 중 sourceTitle이 없는 것(예전에 담은 것)을
+  // 현재 분석 제목으로 채운다. 최초 출처 보존(이미 값 있으면 유지).
+  useEffect(() => {
+    const title = currentHistoryTitle?.trim() || result?.title?.trim();
+    if (!title || !result) return;
+    let changed = false;
+    for (const tk of result.tokens ?? []) if (backfillTokenSource(tk.token, title)) changed = true;
+    for (const c of result.concepts ?? []) if (backfillConceptSource(c.title, title)) changed = true;
+    for (const tm of result.terms ?? []) if (backfillTermSource(tm.term, title)) changed = true;
+    for (const ic of result.itConcepts ?? []) if (backfillTermSource(ic.title, title)) changed = true;
+    if (changed) {
+      setBookmarkedTokenDetails(loadTokenDetails());
+      setBookmarkedConceptDetails(loadConceptDetails());
+      setBookmarkedTermDetails(loadTermDetails());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result, currentHistoryTitle]);
 
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;

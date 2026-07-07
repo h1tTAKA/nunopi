@@ -111,3 +111,30 @@ export function loadConceptDetails(): Record<string, BookmarkedConceptDetail> {
 export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
 }
+
+// --- 출처 소급 채움 ---
+// 이미 담긴 북마크(신규 추가가 아니라 예전에 담아 sourceTitle이 없는 것)를, 그 용어가
+// 등장한 분석을 다시 볼 때 현재 분석 제목으로 채운다. 이미 값이 있으면 건드리지 않는다(최초 출처 보존).
+// 반환: 하나라도 채웠으면 true(호출부가 화면 상태 갱신할지 판단).
+function backfill<T extends { sourceTitle?: string }>(
+  key: string,
+  map: Record<string, T>,
+  itemKey: string,
+  title: string,
+): boolean {
+  const entry = map[itemKey];
+  if (!entry || entry.sourceTitle) return false;
+  entry.sourceTitle = title;
+  try { localStorage.setItem(key, JSON.stringify(map)); } catch { /* ignore */ }
+  return true;
+}
+
+export function backfillTokenSource(tokenText: string, title: string): boolean {
+  return backfill(DETAILS_KEY, loadTokenDetails(), tokenText, title);
+}
+export function backfillTermSource(termText: string, title: string): boolean {
+  return backfill(TERM_DETAILS_KEY, loadTermDetails(), termText, title);
+}
+export function backfillConceptSource(title0: string, title: string): boolean {
+  return backfill(CONCEPT_DETAILS_KEY, loadConceptDetails(), title0, title);
+}
