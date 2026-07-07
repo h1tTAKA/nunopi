@@ -16,13 +16,14 @@ function cardKey(source: SrsSource, term: string): string {
 }
 
 // 한 출처의 북마크 → 카드(앞=용어, 뒤=설명). 설명 없으면 빈 문자열.
-function collectSource(source: SrsSource): { key: string; source: SrsSource; front: string; back: string }[] {
+function collectSource(source: SrsSource): { key: string; source: SrsSource; front: string; back: string; bookmarkedAt?: string }[] {
   if (source === "token") {
     return Object.values(loadTokenDetails()).map((t) => ({
       key: cardKey("token", t.token),
       source,
       front: t.token,
       back: t.description ?? "",
+      bookmarkedAt: t.bookmarkedAt,
     }));
   }
   if (source === "concept") {
@@ -31,6 +32,7 @@ function collectSource(source: SrsSource): { key: string; source: SrsSource; fro
       source,
       front: c.title,
       back: c.description ?? "",
+      bookmarkedAt: c.bookmarkedAt,
     }));
   }
   // term — 글 IT용어 + 관련개념(asTerm 병합).
@@ -39,6 +41,7 @@ function collectSource(source: SrsSource): { key: string; source: SrsSource; fro
     source,
     front: t.term,
     back: t.explanation ?? "",
+    bookmarkedAt: t.bookmarkedAt,
   }));
 }
 

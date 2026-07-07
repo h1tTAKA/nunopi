@@ -17,6 +17,8 @@ export interface SrsState {
   nextReviewAt: string; // ISO — 이 날(로컬 자정) 이후 복습 대상
   lastReviewedAt: string | null;
   streak: number; // 연속 "완벽" 횟수(통계용)
+  reviews?: number; // 총 채점 횟수(카드 정보 패널용, 옵셔널 — 기존 데이터 하위호환)
+  grades?: { again: number; hard: number; good: number }; // 채점별 누적
 }
 
 // 수집기가 북마크 store + srs-state를 조인해 만든 복습 카드.
@@ -25,6 +27,7 @@ export interface Card {
   source: SrsSource;
   front: string; // 앞면(용어)
   back: string; // 뒷면(설명)
+  bookmarkedAt?: string; // 습득(북마크) 날짜 ISO — 정보 패널용
   state: SrsState;
 }
 
