@@ -1,14 +1,14 @@
 "use client";
 
-// 남은 카드 부채꼴 — 실제 남은 장수만큼, 가운데 카드 뒤 배경으로 넓게 펼침.
-// 하단 한 점을 피벗으로 rotate시켜 트럼프 손패처럼 아치.
-const MAX_FAN = 24; // 레이아웃 안전 상한(초과분은 그냥 이 각도 안에 더 촘촘히)
+// 남은 카드 부채꼴 — 실제 남은 장수만큼, 가운데 카드 뒤에 넓게 펼쳐 크라운처럼.
+// 카드 크기는 가운데 카드와 비슷하게(가려도 옆/위로 삐져나와 보이게 넓은 각도).
+const MAX_FAN = 24;
 
 export default function CardFan({ remaining }: { remaining: number }) {
   if (remaining <= 0) return null;
   const n = Math.min(remaining, MAX_FAN);
-  // 장수 많을수록 넓게(최대 ±62°). 1장이면 0°.
-  const spread = n === 1 ? 0 : Math.min(62, 8 + n * 3);
+  // 넓게 펼쳐야 가운데 카드 밖으로 삐져나온다(최대 ±78°).
+  const spread = n === 1 ? 0 : Math.min(78, 14 + n * 4);
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
   return (
@@ -20,10 +20,10 @@ export default function CardFan({ remaining }: { remaining: number }) {
           return (
             <span
               key={i}
-              className="absolute h-52 w-36 rounded-xl border border-zinc-300 bg-gradient-to-b from-white to-zinc-100 shadow-md dark:border-zinc-700 dark:from-zinc-800 dark:to-zinc-950"
+              className="absolute aspect-[5/7] w-64 rounded-2xl border border-zinc-300 bg-gradient-to-b from-white to-zinc-100 shadow-lg dark:border-zinc-700 dark:from-zinc-800 dark:to-zinc-950"
               style={{
-                // 아래 중앙 피벗 기준으로 회전 → 위로 아치. translateY로 카드 뒤로 올림.
-                transform: `translate(-50%, -100%) rotate(${angle}deg)`,
+                // 아래 중앙 피벗 기준 회전 → 위로 아치. 가운데 카드보다 살짝 위로 올려 크라운.
+                transform: `translate(-50%, -104%) rotate(${angle}deg)`,
                 transformOrigin: "bottom center",
                 left: 0,
                 top: 0,
