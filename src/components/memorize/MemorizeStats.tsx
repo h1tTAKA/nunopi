@@ -174,24 +174,21 @@ function Section({ title, help, children }: { title: string; help?: string; chil
   );
 }
 
-// SVG 도넛 — 둥근 끝(rounded cap) + 세그먼트 사이 간격으로 모던하게. 데이터 없으면 옅은 링.
+// SVG 도넛 — 사이버틱 네온: 연속 링 + 세그먼트별 색 글로우(drop-shadow). 데이터 없으면 옅은 링.
 function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value: number; color: string }[]; total: number; size?: number; stroke?: number }) {
   const cxy = size / 2;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const active = segments.filter((s) => s.value > 0);
-  // 세그먼트 여러 개면 사이 간격(둥근 끝이 들어갈 공간). 하나뿐이면 간격 없이 꽉 찬 링.
-  const gap = active.length > 1 ? stroke * 0.9 : 0;
+  const glow = Math.max(3, stroke * 0.35);
   let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
-      <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-100 dark:text-zinc-800/70" />
+      {/* 트랙 — 어두운 베이스 */}
+      <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-200/70 dark:text-zinc-800" />
       {total > 0 &&
         segments.map((s, i) => {
           if (s.value === 0) return null;
-          const full = (s.value / total) * c;
-          // 간격만큼 줄인 길이(둥근 끝 공간). 아주 작은 세그먼트도 점으로 보이게 최소 길이.
-          const len = Math.max(stroke * 0.2, full - gap);
+          const len = (s.value / total) * c;
           const seg = (
             <circle
               key={i}
@@ -201,14 +198,17 @@ function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value:
               fill="none"
               stroke={s.color}
               strokeWidth={stroke}
-              strokeLinecap="round"
               strokeDasharray={`${len} ${c - len}`}
-              strokeDashoffset={-(offset + gap / 2)}
+              strokeDashoffset={-offset}
+              style={{ filter: `drop-shadow(0 0 ${glow}px ${s.color})` }}
             />
           );
-          offset += full;
+          offset += len;
           return seg;
         })}
+      {/* 안쪽 얇은 하이라이트 링 — 사이버 느낌 */}
+      <circle cx={cxy} cy={cxy} r={r - stroke / 2 - 1} fill="none" strokeWidth={1} className="stroke-white/10 dark:stroke-white/15" />
+      <circle cx={cxy} cy={cxy} r={r + stroke / 2 + 1} fill="none" strokeWidth={1} className="stroke-white/5 dark:stroke-white/10" />
     </svg>
   );
 }
