@@ -35,9 +35,26 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
 export default function DeckSelect({ onStart }: DeckSelectProps) {
   const t = useT();
-  const [selected, setSelected] = useState<Deck>("code");
+  const [selected, setSelectedRaw] = useState<Deck>("code");
   // 복습 모드 — due(오늘) / all(상시 전체).
-  const [mode, setMode] = useState<"due" | "all">("due");
+  const [mode, setModeRaw] = useState<"due" | "all">("due");
+  // 덱/범위 영속(세션 다녀와도 옵션 유지).
+  useEffect(() => {
+    const d = localStorage.getItem("nunopi:mem-deck");
+    const m = localStorage.getItem("nunopi:mem-range");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (d === "code" || d === "text" || d === "all") setSelectedRaw(d);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (m === "due" || m === "all") setModeRaw(m);
+  }, []);
+  function setSelected(d: Deck) {
+    setSelectedRaw(d);
+    try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
+  }
+  function setMode(m: "due" | "all") {
+    setModeRaw(m);
+    try { localStorage.setItem("nunopi:mem-range", m); } catch { /* ignore */ }
+  }
   // 카드 제시 순서 — localStorage 영속.
   const [order, setOrder] = useState<CardOrder>("newest");
   useEffect(() => {
@@ -69,8 +86,18 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       return next;
     });
   }
-  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리).
+  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리). localStorage 영속.
   const [codeSources, setCodeSources] = useState<Set<SrsSource>>(new Set(["token", "concept"]));
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("nunopi:mem-code-sources");
+      if (raw) {
+        const arr = JSON.parse(raw) as SrsSource[];
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        if (Array.isArray(arr)) setCodeSources(new Set(arr));
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   // 선택 덱의 유효 출처 — 코드덱은 토글 반영, 그 외는 덱 전체 출처.
   const effectiveSources = (deck: Deck): SrsSource[] =>
@@ -97,6 +124,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       const next = new Set(prev);
       if (next.has(s)) next.delete(s);
       else next.add(s);
+      try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   }
