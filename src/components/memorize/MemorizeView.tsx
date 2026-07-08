@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
-import type { Deck, SrsSource } from "@/lib/srs/types";
+import type { CardOrder, Deck, SrsSource } from "@/lib/srs/types";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 type MemPhase = "select" | "session";
@@ -12,7 +12,7 @@ type ReviewMode = "due" | "all";
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
 export default function MemorizeView({ active = true, providerId, providerSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
   const [phase, setPhase] = useState<MemPhase>("select");
-  const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean } | null>(null);
+  const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder } | null>(null);
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -21,13 +21,13 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   }, []);
   if (!mounted) return null;
 
-  function handleStart(deck: Deck, sources: SrsSource[], mode: ReviewMode, resume: boolean) {
-    setSession({ deck, sources, mode, resume });
+  function handleStart(deck: Deck, sources: SrsSource[], mode: ReviewMode, resume: boolean, order: CardOrder) {
+    setSession({ deck, sources, mode, resume, order });
     setPhase("session");
   }
 
   if (phase === "session" && session) {
-    return <CardSession active={active} deck={session.deck} resume={session.resume} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} onExit={() => setPhase("select")} />;
+    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} onExit={() => setPhase("select")} />;
   }
 
   // 덱 선택 — 우측 패널. 왼쪽 빈 공간은 추후 암기 학습 통계 그래프 자리.

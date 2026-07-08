@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
-import { dueCards } from "@/lib/srs/due";
+import { dueCards, orderCards } from "@/lib/srs/due";
 import { applyGrade } from "@/lib/srs/schedule";
 import { updateCardState } from "@/lib/srs/store";
-import type { Card, Deck, Grade, SrsSource } from "@/lib/srs/types";
+import type { Card, CardOrder, Deck, Grade, SrsSource } from "@/lib/srs/types";
 import { loadMemSession, saveMemSession, clearMemSession } from "@/lib/memSession";
 import SessionDone from "./SessionDone";
 import FlashCard from "./FlashCard";
@@ -26,6 +26,7 @@ interface CardSessionProps {
   active?: boolean;
   deck: Deck;
   resume?: boolean; // true면 저장된 세션 이어하기, false/없으면 새로.
+  order?: CardOrder; // 새 세션 카드 제시 순서(resume은 저장 순서 유지).
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onExit: () => void;
@@ -43,7 +44,7 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, providerId, providerSettings, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", providerId, providerSettings, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원, 아니면 fresh(due/all).
@@ -58,7 +59,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         return { round, againPile, idx: Math.min(saved.idx, round.length - 1), roundNo: saved.roundNo, stats: saved.stats };
       }
     }
-    const queue = mode === "all" ? all : dueCards(all, now);
+    const queue = orderCards(mode === "all" ? all : dueCards(all, now), order);
     return { round: queue, againPile: [] as Card[], idx: 0, roundNo: 1, stats: { again: 0, hard: 0, good: 0 } };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
