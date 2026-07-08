@@ -146,6 +146,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
 
       {/* 옵션 — 라벨 행으로 그룹화 */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.options")}</h3>
         {/* 세부 출처(코드덱만) */}
         {selected === "code" && (
           <div className="flex items-center gap-3">
