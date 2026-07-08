@@ -13,6 +13,8 @@ import FlashCard from "./FlashCard";
 import CardFan from "./CardFan";
 import GradePiles from "./GradePiles";
 import CardInfoPanel from "./CardInfoPanel";
+import CardExplainPanel from "./CardExplainPanel";
+import type { AgentProviderKind } from "@/lib/agent";
 
 interface CardSessionProps {
   sources: SrsSource[];
@@ -20,6 +22,7 @@ interface CardSessionProps {
   mode?: "due" | "all";
   // 암기 탭이 화면에 활성인지 — 비활성(다른 모드 보는 중)이면 키보드 무시.
   active?: boolean;
+  providerId: AgentProviderKind;
   onExit: () => void;
 }
 
@@ -35,7 +38,7 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, providerId, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
@@ -176,6 +179,11 @@ export default function CardSession({ sources, mode = "due", active = true, onEx
         {/* 현재 카드 정보 — 우상단(넓은 화면만) */}
         <div className="absolute right-0 top-0 z-10 hidden xl:block">
           <CardInfoPanel card={card} />
+        </div>
+
+        {/* 카드 디폴트 설명 — 좌상단(넓은 화면만), 반투명으로 뒤 부채꼴 비침 */}
+        <div className="absolute left-0 top-0 z-10 hidden xl:block">
+          <CardExplainPanel card={card} providerId={providerId} />
         </div>
 
         {/* 중앙 카드 + 채점바 */}
