@@ -150,11 +150,11 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               }`}
             >
               <Icon size={22} stroke={2} className="shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden />
-              <span className="flex-1 text-sm font-medium text-zinc-800 dark:text-zinc-100">{t(tKey)}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{t(tKey)}</span>
               {s.total === 0 ? (
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.emptyBookmarks")}</span>
+                <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">{t("mem.emptyBookmarks")}</span>
               ) : (
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
                   <span className="font-semibold text-[#3B34E2] dark:text-[#8b86f5]">{t("mem.today")} {s.due}</span>
                   {" · "}
                   {t("mem.total")} {s.total}
