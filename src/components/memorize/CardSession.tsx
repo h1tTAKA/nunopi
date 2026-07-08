@@ -114,6 +114,9 @@ export default function CardSession({ sources, mode = "due", active = true, prov
   useEffect(() => {
     if (done || !active) return; // 비활성 뷰(다른 모드 보는 중)면 키 무시
     function onKey(e: KeyboardEvent) {
+      // 챗 입력 등 폼 요소에 포커스 중이면 단축키 무시(스페이스 띄어쓰기가 카드 뒤집기 안 되게).
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       if (e.code === "Space") {
         e.preventDefault();
         if (!tossing) setFlipped((v) => !v);
