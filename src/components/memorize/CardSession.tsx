@@ -7,7 +7,8 @@ import { collectCards } from "@/lib/srs/collect";
 import { dueCards } from "@/lib/srs/due";
 import { applyGrade } from "@/lib/srs/schedule";
 import { updateCardState } from "@/lib/srs/store";
-import type { Card, Grade, SrsSource } from "@/lib/srs/types";
+import type { Card, Deck, Grade, SrsSource } from "@/lib/srs/types";
+import { loadMemSession, saveMemSession, clearMemSession } from "@/lib/memSession";
 import SessionDone from "./SessionDone";
 import FlashCard from "./FlashCard";
 import CardFan from "./CardFan";
@@ -23,6 +24,8 @@ interface CardSessionProps {
   mode?: "due" | "all";
   // 암기 탭이 화면에 활성인지 — 비활성(다른 모드 보는 중)이면 키보드 무시.
   active?: boolean;
+  deck: Deck;
+  resume?: boolean; // true면 저장된 세션 이어하기, false/없으면 새로.
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onExit: () => void;
@@ -40,31 +43,59 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, providerId, providerSettings, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, providerId, providerSettings, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
-  // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
-  const initialQueue = useMemo(() => {
+  // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원, 아니면 fresh(due/all).
+  const init = useMemo(() => {
     const all = collectCards(sources, now);
-    return mode === "all" ? all : dueCards(all, now);
-  }, [sources, now, mode]);
+    const byKey = new Map(all.map((c) => [c.key, c]));
+    const saved = resume ? loadMemSession(deck, mode) : null;
+    if (saved && saved.roundKeys.length > 0) {
+      const round = saved.roundKeys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
+      const againPile = saved.againKeys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
+      if (round.length > 0) {
+        return { round, againPile, idx: Math.min(saved.idx, round.length - 1), roundNo: saved.roundNo, stats: saved.stats };
+      }
+    }
+    const queue = mode === "all" ? all : dueCards(all, now);
+    return { round: queue, againPile: [] as Card[], idx: 0, roundNo: 1, stats: { again: 0, hard: 0, good: 0 } };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 모션 최소화 설정 — 플립/toss 애니 생략.
   const reduced = useMemo(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     [],
   );
 
-  const [round, setRound] = useState<Card[]>(initialQueue);
-  const [againPile, setAgainPile] = useState<Card[]>([]);
-  const [idx, setIdx] = useState(0);
+  const [round, setRound] = useState<Card[]>(init.round);
+  const [againPile, setAgainPile] = useState<Card[]>(init.againPile);
+  const [idx, setIdx] = useState(init.idx);
   const [flipped, setFlipped] = useState(false);
-  const [roundNo, setRoundNo] = useState(1);
-  const [stats, setStats] = useState({ again: 0, hard: 0, good: 0 });
-  const [done, setDone] = useState(initialQueue.length === 0);
+  const [roundNo, setRoundNo] = useState(init.roundNo);
+  const [stats, setStats] = useState(init.stats);
+  const [done, setDone] = useState(init.round.length === 0);
   const [tossing, setTossing] = useState<Grade | null>(null); // 진행 중 toss(연타 가드)
   // toss 타이머 — 언마운트 시 정리(dead 컴포넌트 setState 방지).
   const tossTimer = useRef<number | null>(null);
   useEffect(() => () => { if (tossTimer.current) window.clearTimeout(tossTimer.current); }, []);
+
+  // 진행 상태 영속 — 완료면 삭제, 아니면 현재 라운드/위치/통계 저장(채점마다 갱신).
+  useEffect(() => {
+    if (done) {
+      clearMemSession(deck, mode);
+      return;
+    }
+    saveMemSession(deck, mode, {
+      sources,
+      roundKeys: round.map((c) => c.key),
+      idx,
+      roundNo,
+      stats,
+      againKeys: againPile.map((c) => c.key),
+      savedAt: now.toISOString(),
+    });
+  }, [done, round, idx, roundNo, stats, againPile, deck, mode, sources, now]);
 
   const card = round[idx];
 
@@ -131,7 +162,7 @@ export default function CardSession({ sources, mode = "due", active = true, prov
   }, [done, active, flipped, tossing, grade]);
 
   if (done) {
-    return <SessionDone stats={stats} total={initialQueue.length} onExit={onExit} />;
+    return <SessionDone stats={stats} total={init.round.length} onExit={onExit} />;
   }
 
   // 채점으로 카드가 소진된 만큼만 진행(뒤집기는 진행과 무관).
