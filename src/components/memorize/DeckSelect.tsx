@@ -103,11 +103,13 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     }),
     [now, codeSources],
   );
-  // 선택 덱의 분류별 카드 수(체크박스 배지).
+  // 선택 덱의 분류별 카드 수(체크박스 배지) — 범위(mode) 반영해 시작 수와 일치.
   const catCounts = useMemo(
-    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined),
-    [selected, now, codeSources],
+    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined, mode),
+    [selected, now, codeSources, mode],
   );
+  // 전체 칩/분류 합 = 범위 반영 총수(오늘=due, 전체=total).
+  const scopedTotal = catCounts.again + catCounts.hard + catCounts.good + catCounts.none;
 
   function toggleSource(s: SrsSource) {
     const next = new Set(codeSources);
@@ -257,7 +259,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               }`}
             >
               {cats.size === 0 && <IconCheck size={12} stroke={2.5} aria-hidden />}
-              {t("mem.catAll")} {selectedStats.total}
+              {t("mem.catAll")} {scopedTotal}
             </button>
             {CATEGORIES.map((c) => {
               const on = cats.has(c.value);
