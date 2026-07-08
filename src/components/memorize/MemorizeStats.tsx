@@ -7,6 +7,7 @@ import { boxDistribution, summary, dueForecast } from "@/lib/srs/stats";
 import { BOX_INTERVALS } from "@/lib/srs/schedule";
 import { activityHeatmap, currentStreak } from "@/lib/srs/activityLog";
 import type { Deck, SrsSource } from "@/lib/srs/types";
+import HelpTooltip from "./HelpTooltip";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
@@ -58,7 +59,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
       </div>
 
       {/* Leitner 박스 분포 */}
-      <Section title={t("mem.statBoxDist")}>
+      <Section title={t("mem.statBoxDist")} help={t("mem.stageHelp")}>
         <div className="flex flex-col gap-1.5">
           {boxes.map((n, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -160,10 +161,13 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, help, children }: { title: string; help?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{title}</h3>
+      <h3 className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+        {title}
+        {help && <HelpTooltip text={help} align="left" />}
+      </h3>
       {children}
     </div>
   );
