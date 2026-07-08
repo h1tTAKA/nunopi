@@ -79,7 +79,7 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
   }
 
   return (
-    <div className="nunopi-explain flex w-96 flex-col gap-2 rounded-xl border border-zinc-200/40 bg-white/80 p-3 text-xs backdrop-blur-md dark:border-zinc-700/40 dark:bg-zinc-900/80">
+    <div className="flex w-96 flex-col gap-2 rounded-xl border border-zinc-200/40 bg-white/80 p-3 text-xs backdrop-blur-md dark:border-zinc-700/40 dark:bg-zinc-900/80">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           {t("mem.explainTitle")}
