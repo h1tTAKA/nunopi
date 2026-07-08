@@ -43,7 +43,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
 
   if (sum.total === 0) {
     return (
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
         <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
         <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.statEmpty")}</p>
       </div>
@@ -55,7 +55,9 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   const fcMax = Math.max(1, ...forecast.map((f) => f.count));
 
   return (
-    <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-5 overflow-y-auto pr-1">
+    <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-4 overflow-y-auto pr-1">
+      {/* 학습 통계 패널 */}
+      <div className="flex flex-col gap-5 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
       {/* 상단 2단 — 좌: 총 카드 + 분류 도넛 / 우: 암기 단계 + 복습 예정 */}
@@ -132,24 +134,27 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
           </Section>
         </div>
       </div>
+      </div>
 
-      {/* 학습 활동 히트맵 + 연속 스트릭 (전역) */}
-      <Section title={t("mem.statHeatmap")}>
-        {streak > 0 && (
-          <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
-            🔥 {t("mem.statStreakDays").replace("{n}", String(streak))}
-          </span>
-        )}
-        <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
-          {heatmap.map((cell) => (
-            <div
-              key={cell.date}
-              title={`${cell.date} · ${cell.count}`}
-              className={`h-2.5 w-2.5 rounded-sm ${heatColor(cell.count)}`}
-            />
-          ))}
-        </div>
-      </Section>
+      {/* 학습 활동 패널 (전역 — 모든 복습) */}
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
+        <Section title={t("mem.statHeatmap")}>
+          {streak > 0 && (
+            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
+              🔥 {t("mem.statStreakDays").replace("{n}", String(streak))}
+            </span>
+          )}
+          <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
+            {heatmap.map((cell) => (
+              <div
+                key={cell.date}
+                title={`${cell.date} · ${cell.count}`}
+                className={`h-2.5 w-2.5 rounded-sm ${heatColor(cell.count)}`}
+              />
+            ))}
+          </div>
+        </Section>
+      </div>
     </div>
   );
 }
