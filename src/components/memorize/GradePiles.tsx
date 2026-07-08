@@ -27,19 +27,20 @@ export default function GradePiles({ stats, landing, row = false }: GradePilesPr
         const active = landing === grade;
         return (
           <div key={grade} className={row ? "flex flex-col items-center gap-1.5 justify-self-center" : "flex items-center gap-3"}>
-            {/* 더미 그림 — 흰 카드가 살짝 어긋나게 쌓임(색 테두리·심볼 없음) */}
+            {/* 더미 그림 — 카드가 컨테이너 중앙 기준으로 살짝 어긋나게 쌓임(버튼 중앙에 정렬). */}
             <div className="relative h-28 w-24 shrink-0">
               {n === 0 ? (
-                <span className="absolute left-0 top-2 h-20 w-14 rounded-lg border border-dashed border-zinc-600 opacity-40" />
+                <span className="absolute left-1/2 top-2 h-20 w-14 -translate-x-1/2 rounded-lg border border-dashed border-zinc-600 opacity-40" />
               ) : (
                 Array.from({ length: stack }).map((_, i) => {
                   const lift = active && i === stack - 1 ? " translateY(-8px)" : "";
+                  const offX = (i - (stack - 1) / 2) * 5; // 중앙 기준 좌우 오프셋
                   const topCard = i === stack - 1;
                   return (
                     <span
                       key={i}
-                      className="absolute h-20 w-14 rounded-lg border border-zinc-200 bg-white shadow-md transition-transform duration-200"
-                      style={{ left: i * 5, top: i * 3, transform: `rotate(${(i - (stack - 1) / 2) * 4}deg)${lift}` }}
+                      className="absolute left-1/2 h-20 w-14 rounded-lg border border-zinc-200 bg-white shadow-md transition-transform duration-200"
+                      style={{ top: i * 3, transform: `translateX(calc(-50% + ${offX}px)) rotate(${(i - (stack - 1) / 2) * 4}deg)${lift}` }}
                     >
                       {topCard && <CardBack />}
                     </span>
