@@ -353,16 +353,22 @@ export default function LearningPanel({
     return currentHistoryTitle?.trim() || result?.title?.trim() || undefined;
   }
 
+  // 북마크에 담을 "출처 id"(분석 히스토리 id) — 나중에 카드에서 그 분석으로 이동할 때 쓴다.
+  function bookmarkSourceId(): string | undefined {
+    return currentHistoryId ?? undefined;
+  }
+
   // 출처 소급 채움 — 이 분석에 등장한 북마크 중 sourceTitle이 없는 것(예전에 담은 것)을
   // 현재 분석 제목으로 채운다. 최초 출처 보존(이미 값 있으면 유지).
   useEffect(() => {
     const title = currentHistoryTitle?.trim() || result?.title?.trim();
     if (!title || !result) return;
     let changed = false;
-    for (const tk of result.tokens ?? []) if (backfillTokenSource(tk.token, title)) changed = true;
-    for (const c of result.concepts ?? []) if (backfillConceptSource(c.title, title)) changed = true;
-    for (const tm of result.terms ?? []) if (backfillTermSource(tm.term, title)) changed = true;
-    for (const ic of result.itConcepts ?? []) if (backfillTermSource(ic.title, title)) changed = true;
+    const id = currentHistoryId ?? undefined;
+    for (const tk of result.tokens ?? []) if (backfillTokenSource(tk.token, title, id)) changed = true;
+    for (const c of result.concepts ?? []) if (backfillConceptSource(c.title, title, id)) changed = true;
+    for (const tm of result.terms ?? []) if (backfillTermSource(tm.term, title, id)) changed = true;
+    for (const ic of result.itConcepts ?? []) if (backfillTermSource(ic.title, title, id)) changed = true;
     if (changed) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setBookmarkedTokenDetails(loadTokenDetails());
@@ -372,14 +378,14 @@ export default function LearningPanel({
       setBookmarkedTermDetails(loadTermDetails());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, currentHistoryTitle]);
+  }, [result, currentHistoryTitle, currentHistoryId]);
 
   function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
     // Compute isAdding synchronously before queueing updater
     const isAdding = !bookmarkedTokenTexts.includes(tokenText);
     // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
-    if (isAdding) saveTokenDetail(token, bookmarkSourceTitle());
+    if (isAdding) saveTokenDetail(token, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTokenDetail(tokenText);
     // Update details state immediately after localStorage is mutated
     setBookmarkedTokenDetails(loadTokenDetails());
@@ -397,7 +403,7 @@ export default function LearningPanel({
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
   function handleTermBookmarkToggle(term: ItTerm) {
     const isAdding = !bookmarkedTermDetails[term.term];
-    if (isAdding) saveTermDetail(term, bookmarkSourceTitle());
+    if (isAdding) saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTermDetail(term.term);
     const next = loadTermDetails();
     setBookmarkedTermDetails(next);
@@ -414,7 +420,7 @@ export default function LearningPanel({
       bookmarkable: true,
     };
     const isAdding = !bookmarkedTermDetails[concept.title];
-    if (isAdding) saveTermDetail(asTerm, bookmarkSourceTitle());
+    if (isAdding) saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTermDetail(concept.title);
     const next = loadTermDetails();
     setBookmarkedTermDetails(next);
@@ -434,7 +440,7 @@ export default function LearningPanel({
   // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
   function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
     const isAdding = !bookmarkedConceptDetails[concept.title];
-    if (isAdding) saveConceptDetail(concept, bookmarkSourceTitle());
+    if (isAdding) saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
     else removeConceptDetail(concept.title);
     setBookmarkedConceptDetails(loadConceptDetails());
   }
