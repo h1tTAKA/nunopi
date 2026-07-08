@@ -3,28 +3,28 @@
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n/I18nProvider";
+import type { Card } from "@/lib/srs/types";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import CardExplainPanel from "./CardExplainPanel";
+import MemorizeChat from "./MemorizeChat";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 // 도착 후 화면 중앙에서 멈춰 있는 자세(살짝 기운 채 확대). 낙하는 이 자세에서 이어진다.
 const REST = "translate3d(0px,-6px,0) rotateZ(-4deg) scale(2.85)";
 
-// 날아오는 카드에 그릴 최소 내용 — 면 렌더에 앞(용어)/뒤(설명)만 필요.
-export interface FlyContent {
-  front: string;
-  back: string;
-}
-
-interface Fly extends FlyContent {
+interface Fly {
   id: number;
+  card: Card; // 실제 카드 — 면 렌더 + 추가설명/챗 패널에 사용
   inKf: Keyframe[]; // 도착 애니(출발점 → 중앙 정지)
   sway: number; // 낙하 방향(좌/우)
   fallY: number; // 낙하 목표 y(화면 밖)
 }
 
-// throwCard(content, origin?): origin(DOMRect) 위치에서 카드가 3D로 날아와 중앙에 멈춘다.
-// 멈춘 카드를 클릭하면 아래로 떨어져 사라진다. origin 생략 시 등록된 originRef(부채꼴 자리)에서 출발.
+// throwCard(card, origin?): origin(DOMRect) 위치에서 카드가 3D로 날아와 중앙에 멈춘다.
+// 멈추면 왼쪽에 추가설명, 우하단에 챗봇(플래시카드 세션과 동일). 오버레이 클릭 시 낙하·사라짐.
+// origin 생략 시 등록된 originRef(부채꼴 자리)에서 출발.
 interface FlyApi {
-  throwCard: (content: FlyContent, origin?: DOMRect) => void;
+  throwCard: (card: Card, origin?: DOMRect) => void;
   originRef: React.RefObject<HTMLElement | null>; // 출발점으로 쓸 요소(부채꼴 컨테이너) 등록용
 }
 
@@ -35,7 +35,15 @@ export function useFlyCard(): FlyApi {
 
 // 카드 던지기 애니를 화면 어디서든 공유 — 포탈 오버레이 + Web Animations API 재생을 소유.
 // DeckFan(부채꼴)·MemorizeInsights(인사이트 항목)가 같은 연출을 재사용한다.
-export function FlyCardProvider({ children }: { children: React.ReactNode }) {
+export function FlyCardProvider({
+  providerId,
+  providerSettings,
+  children,
+}: {
+  providerId: AgentProviderKind;
+  providerSettings: ProviderSettings;
+  children: React.ReactNode;
+}) {
   const t = useT();
   const [fly, setFly] = useState<Fly | null>(null);
   const [arrived, setArrived] = useState(false); // 중앙 도착·정지 완료(이후 클릭하면 낙하)
@@ -46,7 +54,7 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
   const inAnimRef = useRef<Animation | null>(null); // 도착 애니 핸들 — 낙하 시작 전 정리용
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const throwCard = useCallback((content: FlyContent, origin?: DOMRect) => {
+  const throwCard = useCallback((card: Card, origin?: DOMRect) => {
     if (reduced || typeof window === "undefined") return;
     // 출발점: 넘겨받은 origin, 없으면 등록된 originRef(부채꼴), 그것도 없으면 화면 중앙.
     const r = origin ?? originRef.current?.getBoundingClientRect();
@@ -71,7 +79,7 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
     ];
     setArrived(false);
     setDropping(false);
-    setFly({ id: ++flyId.current, inKf, sway, fallY, front: content.front, back: content.back });
+    setFly({ id: ++flyId.current, card, inKf, sway, fallY });
   }, [reduced]);
 
   // 도착 애니 — fly 세팅 시 재생, 끝나면 중앙에 정지 유지(fill forwards) + arrived 플래그.
@@ -103,16 +111,18 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
   }, [dropping, fly]);
 
   const api = useMemo<FlyApi>(() => ({ throwCard, originRef }), [throwCard]);
+  const peek = !!fly && arrived && !dropping; // 중앙 정지 상태 — 추가설명/챗 노출
 
   return (
     <FlyCtx.Provider value={api}>
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center ${arrived && !dropping ? "cursor-pointer bg-black/30" : "pointer-events-none"}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center ${peek ? "cursor-pointer bg-black/40" : "pointer-events-none"}`}
           style={{ perspective: "1200px" }}
-          onClick={() => { if (arrived && !dropping) setDropping(true); }}
+          onClick={() => { if (peek) setDropping(true); }}
         >
+          {/* 중앙 카드(확대) */}
           <div
             ref={cardRef}
             className="relative aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700"
@@ -124,15 +134,29 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-3.5 py-4 text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={SYMBOL} alt="" className="h-5 w-5 shrink-0 object-contain" />
-              <span className="text-[11px] font-bold leading-tight text-zinc-900">{fly.front}</span>
+              <span className="text-[11px] font-bold leading-tight text-zinc-900">{fly.card.front}</span>
               <span className="line-clamp-6 whitespace-pre-wrap text-[7px] leading-snug text-zinc-600">
-                {fly.back || t("mem.noExplanation")}
+                {fly.card.back || t("mem.noExplanation")}
               </span>
             </div>
           </div>
-          {/* 도착·정지 후 안내 — 클릭하면 닫힘(확대된 카드와 안 겹치게 하단 고정) */}
-          {arrived && !dropping && (
-            <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-xs font-medium text-white/80">{t("mem.flyDismiss")}</span>
+
+          {/* 도착·정지 후 — 플래시카드 세션처럼 왼쪽 추가설명 + 우하단 챗 + 안내(패널 클릭은 낙하 안 되게 stopPropagation). */}
+          {peek && (
+            <>
+              <div
+                className="absolute left-6 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <CardExplainPanel card={fly.card} providerId={providerId} flipped />
+              </div>
+              <div className="cursor-auto" onClick={(e) => e.stopPropagation()}>
+                <MemorizeChat card={fly.card} providerId={providerId} providerSettings={providerSettings} />
+              </div>
+              <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-xs font-medium text-white/80">
+                {t("mem.flyDismiss")}
+              </span>
+            </>
           )}
         </div>,
         document.body,

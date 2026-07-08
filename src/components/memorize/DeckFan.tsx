@@ -25,7 +25,7 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
   function launch(e: React.MouseEvent<HTMLSpanElement>) {
     if (cards.length === 0) return;
     const card = cards[Math.floor(Math.random() * cards.length)]; // 클릭마다 랜덤 카드 1장
-    throwCard({ front: card.front, back: card.back }, e.currentTarget.getBoundingClientRect());
+    throwCard(card, e.currentTarget.getBoundingClientRect());
   }
 
   if (cards.length <= 0) return null;
