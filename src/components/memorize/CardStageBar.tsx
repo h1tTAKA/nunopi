@@ -38,14 +38,14 @@ export default function CardStageBar({ card }: { card: Card }) {
               <div
                 className={`w-full rounded-sm transition-all ${
                   current
-                    ? "bg-blue-500 dark:bg-blue-400"
+                    ? "bg-[#3B34E2]"
                     : filled
-                      ? "bg-blue-300 dark:bg-blue-700"
+                      ? "bg-[#3B34E2]/35"
                       : "bg-zinc-100 dark:bg-zinc-800"
                 }`}
                 style={{ height: `${8 + stage * 6}px` }}
               />
-              <span className={`text-[9px] tabular-nums ${current ? "font-semibold text-blue-500 dark:text-blue-400" : "text-zinc-400 dark:text-zinc-500"}`}>
+              <span className={`text-[9px] tabular-nums ${current ? "font-semibold text-[#3B34E2] dark:text-[#8b86f5]" : "text-zinc-400 dark:text-zinc-500"}`}>
                 {stage}
               </span>
             </div>

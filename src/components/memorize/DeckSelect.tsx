@@ -145,7 +145,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(deck); } }}
               className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition ${
                 active
-                  ? "border-blue-400 bg-blue-50/60 dark:border-blue-500 dark:bg-blue-950/20"
+                  ? "border-[#3B34E2] bg-[#3B34E2]/10 dark:border-[#3B34E2] dark:bg-[#3B34E2]/15"
                   : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
               }`}
             >
@@ -155,7 +155,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.emptyBookmarks")}</span>
               ) : (
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  <span className="font-semibold text-blue-500 dark:text-blue-400">{t("mem.today")} {s.due}</span>
+                  <span className="font-semibold text-[#3B34E2] dark:text-[#8b86f5]">{t("mem.today")} {s.due}</span>
                   {" · "}
                   {t("mem.total")} {s.total}
                 </span>
@@ -165,7 +165,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
-                  className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                  className="shrink-0 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
                 >
                   {t("mem.resume")}
                 </button>
@@ -192,7 +192,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
                     onClick={() => toggleSource(s)}
                     aria-pressed={on}
                     className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      on ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                      on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}
                   >
                     {on && <IconCheck size={13} stroke={2.5} aria-hidden />}
@@ -254,7 +254,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               onClick={selectAllCats}
               aria-pressed={cats.size === 0}
               className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
-                cats.size === 0 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                cats.size === 0 ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
               }`}
             >
               {cats.size === 0 && <IconCheck size={12} stroke={2.5} aria-hidden />}
@@ -269,7 +269,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
                   onClick={() => toggleCat(c.value)}
                   aria-pressed={on}
                   className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
-                    on ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
                   }`}
                 >
                   {on && <IconCheck size={12} stroke={2.5} aria-hidden />}
@@ -286,7 +286,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         type="button"
         disabled={!canStart}
         onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
-        className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-1 rounded-xl bg-[#3B34E2] py-2.5 text-sm font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {mode === "due" && selectedStats.total > 0 && startCount === 0
           ? t("mem.noDueToday")

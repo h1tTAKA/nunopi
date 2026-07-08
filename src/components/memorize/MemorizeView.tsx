@@ -58,13 +58,13 @@ export default function MemorizeView({ active = true, providerId, providerSettin
 
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
   return (
-    <div className="flex h-full w-full items-start gap-6 px-6 py-8">
-      {/* 왼쪽: 학습 통계 (선택 덱 실시간) */}
+    <div className="flex h-full w-full items-start gap-8 px-8 py-8">
+      {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부 */}
       <div className="hidden min-h-0 flex-1 xl:block">
         <MemorizeStats deck={deck} sources={deck === "code" ? [...codeSources] : undefined} />
       </div>
-      {/* 오른쪽: 덱 선택 패널 */}
-      <div className="mx-auto w-full max-w-lg xl:mx-0 xl:mr-[8%]">
+      {/* 오른쪽: 덱 선택 패널 — 오른쪽 끝까지(전폭). 좁은 화면은 중앙. */}
+      <div className="mx-auto w-full max-w-lg shrink-0 xl:mx-0 xl:w-[30rem] xl:max-w-none">
         <DeckSelect
           deck={deck}
           onDeckChange={setDeck}
