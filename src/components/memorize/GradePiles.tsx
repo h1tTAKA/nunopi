@@ -7,6 +7,7 @@ import CardBack from "./CardBack";
 interface GradePilesProps {
   stats: { again: number; hard: number; good: number };
   landing: Grade | null; // 방금 toss된 더미 — 튀는 강조
+  row?: boolean; // 가로 배치(하단 중앙용)
 }
 
 const PILES: { grade: Grade; tKey: string; text: string; chip: string }[] = [
@@ -15,11 +16,11 @@ const PILES: { grade: Grade; tKey: string; text: string; chip: string }[] = [
   { grade: "good", tKey: "mem.good", text: "text-emerald-500 dark:text-emerald-400", chip: "bg-emerald-500" },
 ];
 
-// 다시/애매/완벽 3더미 — 채점 카드가 날아와 쌓이는 곳(우측). 카운트만큼 카드가 겹쳐 쌓임.
-export default function GradePiles({ stats, landing }: GradePilesProps) {
+// 다시/애매/완벽 3더미 — 채점 카드가 날아와 쌓이는 곳. 카운트만큼 카드가 겹쳐 쌓임.
+export default function GradePiles({ stats, landing, row = false }: GradePilesProps) {
   const t = useT();
   return (
-    <div className="flex flex-col gap-6">
+    <div className={row ? "flex items-start justify-center gap-10" : "flex flex-col gap-6"}>
       {PILES.map(({ grade, tKey, text, chip }) => {
         const n = stats[grade];
         const stack = Math.min(n, 6); // 시각 상한

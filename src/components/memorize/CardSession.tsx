@@ -31,11 +31,11 @@ interface CardSessionProps {
 // toss 애니 시간(ms) — 채점 카드가 더미로 날아가는 시간.
 const TOSS_MS = 320;
 
-// toss 방향 — 각 채점의 카드가 우측 해당 더미로 날아가는 transform(위=다시 … 아래=완벽).
+// toss 방향 — 각 채점 카드가 하단 중앙 3더미(좌:다시 · 중:애매 · 우:완벽)로 날아가는 transform.
 const TOSS_TRANSFORM: Record<Grade, string> = {
-  again: "translate(340px, -150px) rotate(16deg) scale(0.5)",
-  hard: "translate(340px, 0px) rotate(16deg) scale(0.5)",
-  good: "translate(340px, 150px) rotate(16deg) scale(0.5)",
+  again: "translate(-160px, 420px) rotate(-14deg) scale(0.35)",
+  hard: "translate(0px, 440px) rotate(4deg) scale(0.35)",
+  good: "translate(160px, 420px) rotate(14deg) scale(0.35)",
 };
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
@@ -206,11 +206,10 @@ export default function CardSession({ sources, mode = "due", active = true, prov
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
           <div className="w-full">{gradeBar}</div>
-        </div>
-
-        {/* 우측 더미 — 채점 카드가 날아와 쌓임 */}
-        <div className="absolute right-0 top-1/2 z-10 -translate-y-1/2">
-          <GradePiles stats={stats} landing={tossing} />
+          {/* 3분류 더미 — 채점바 아래 중앙(가로). 채점 카드가 여기로 날아와 쌓임. */}
+          <div className="mt-4">
+            <GradePiles stats={stats} landing={tossing} row />
+          </div>
         </div>
       </div>
     </div>
