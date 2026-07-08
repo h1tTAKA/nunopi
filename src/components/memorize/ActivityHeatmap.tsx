@@ -120,13 +120,16 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
         >
           <div className="mb-0.5 font-semibold text-zinc-700 dark:text-zinc-100">{hover.cell.date}</div>
           <div className="flex gap-2 text-zinc-500 dark:text-zinc-300">
+            <span>{t("mem.statReviews")} {hover.cell.count}</span>
             <span>{t("mem.statAdded")} {hover.cell.added}</span>
           </div>
-          <div className="flex gap-2">
-            <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {hover.cell.again}</span>
-            <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {hover.cell.hard}</span>
-            <span className="text-emerald-500 dark:text-emerald-400">{t("mem.good")} {hover.cell.good}</span>
-          </div>
+          {hover.cell.again + hover.cell.hard + hover.cell.good > 0 && (
+            <div className="flex gap-2">
+              <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {hover.cell.again}</span>
+              <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {hover.cell.hard}</span>
+              <span className="text-emerald-500 dark:text-emerald-400">{t("mem.good")} {hover.cell.good}</span>
+            </div>
+          )}
         </div>,
         document.body,
       )}
