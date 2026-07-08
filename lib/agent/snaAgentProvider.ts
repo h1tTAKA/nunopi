@@ -12,6 +12,7 @@ import {
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { buildChatPrompt, chatSystemPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { buildCardExplainPrompt } from "./cardExplainMode";
 import {
   buildClaudePrompt,
   normalizeClaudeOutput,
@@ -177,6 +178,9 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       const isText = request.mode === "text";
       const isExplainToken = request.mode === "explain-token";
       const isExplainConcept = request.mode === "explain-concept";
+      // 카드 디폴트 설명 — 챗처럼 자연어 마크다운을 fullProgress로 스트리밍(타이핑).
+      const isCardExplain = request.mode === "explain-card";
+      const isChatLike = isChat || isCardExplain;
 
       // 런타임 서버 도달 가능성 확인.
       try {
@@ -186,7 +190,9 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         return unavailableResponse(request, message, providerId);
       }
 
-      const prompt = isChat
+      const prompt = isCardExplain
+        ? buildCardExplainPrompt(request)
+        : isChat
         ? buildChatPrompt(request)
         : isExplainConcept
           ? buildExplainConceptPrompt(request)
@@ -205,7 +211,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       };
 
       if (mockText) {
-        return isChat
+        return isChatLike
           ? normalizeChatOutput(mockText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(mockText, providerId, request)
@@ -218,8 +224,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
 
       try {
         let streamOnProgress = options?.onProgress;
-        // 챗은 답변 토큰을 누적 전체로 흘려 page의 chatStreaming이 타이핑처럼 보이게 한다.
-        let fullProgress = isChat;
+        // 챗/카드설명은 답변을 누적 전체로 흘려 타이핑처럼 보이게 한다.
+        let fullProgress = isChatLike;
         const prior = isText ? request.resumeFrom : undefined;
         if (isText && options?.onPartial) {
           const onPartial = options.onPartial;
@@ -247,14 +253,14 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         const { text: rawText, usage } = await runViaSna(prompt, {
           runtime: cfg.runtime,
           // 챗은 언어별 튜터 시스템프롬프트 + thinking 살림(effort 미강제). 분석은 JSON 지시 + low.
-          systemPrompt: isChat ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
+          systemPrompt: isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
           signal: options?.signal,
           onProgress: streamOnProgress,
           fullProgress,
-          effort: !isChat,
+          effort: !isChatLike,
         });
 
-        return isChat
+        return isChatLike
           ? normalizeChatOutput(rawText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(rawText, providerId, request)
@@ -270,7 +276,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
         const message = err instanceof Error ? err.message : "runtime run failed";
         const warn = [{ code: "PARSE_FAILED" as const, message }];
-        if (isChat) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
+        if (isChatLike) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
         if (isExplainConcept) return conceptModeResponse(providerId, [], warn);
         if (isExplainToken) return tokenModeResponse(providerId, [], warn);
         if (isText) return textModeResponse(providerId, `런타임 실패: ${message}`, warn);

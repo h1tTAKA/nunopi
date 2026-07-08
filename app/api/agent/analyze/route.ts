@@ -201,11 +201,13 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
-  if (
-    typeof value.code !== "string" ||
-    value.code.trim().length === 0 ||
-    (value.locale !== "ko" && value.locale !== "ja" && value.locale !== "en")
-  ) {
+  // explain-card는 코드/글 입력 없이 용어 하나만 설명하므로 빈 code 허용(대신 targetTerm 필수).
+  if (value.mode === "explain-card") {
+    if (typeof value.targetTerm !== "string" || value.targetTerm.trim().length === 0) return false;
+  } else if (typeof value.code !== "string" || value.code.trim().length === 0) {
+    return false;
+  }
+  if (typeof value.code !== "string" || (value.locale !== "ko" && value.locale !== "ja" && value.locale !== "en")) {
     return false;
   }
 
@@ -227,12 +229,17 @@ function isValidAnalyzeRequestPayload(
     value.mode !== "text" &&
     value.mode !== "explain-token" &&
     value.mode !== "explain-concept" &&
-    value.mode !== "chat"
+    value.mode !== "chat" &&
+    value.mode !== "explain-card"
   ) {
     return false;
   }
 
   if (value.targetToken !== undefined && typeof value.targetToken !== "string") {
+    return false;
+  }
+
+  if (value.targetTerm !== undefined && typeof value.targetTerm !== "string") {
     return false;
   }
 
