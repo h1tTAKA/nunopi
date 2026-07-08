@@ -193,9 +193,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           <CardExplainPanel card={card} providerId={providerId} flipped={flipped} />
         </div>
 
-        {/* 중앙 카드 + 채점바. 컬럼은 넓게(max-w-lg) — 카드는 자체 max-w-xs로 중앙 유지되고
-            채점바·더미(3열)는 넓게 퍼져 다시/완벽이 애매(중앙) 기준으로 벌어진다. */}
-        <div className="relative z-10 flex w-full max-w-lg flex-col items-center gap-5">
+        {/* 중앙 카드 + 채점바(카드 폭 그대로). 더미만 넓게 벌린다. */}
+        <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-5">
           <div
             className={`w-full ${reduced ? "" : "transition-all"}`}
             style={
@@ -207,8 +206,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
           <div className="w-full">{gradeBar}</div>
-          {/* 3분류 더미 — 채점바와 같은 3열 그리드로 정렬(각 더미가 해당 버튼 아래). */}
-          <div className="mt-4 w-full">
+          {/* 3분류 더미 — 상단 버튼은 카드 폭 그대로, 더미만 좌우로 더 벌린다(중앙 애매 기준). */}
+          <div className="mt-4 w-[26rem] max-w-[90vw]">
             <GradePiles stats={stats} landing={tossing} row />
           </div>
         </div>
