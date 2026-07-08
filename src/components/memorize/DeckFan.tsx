@@ -6,14 +6,14 @@ import CardBack from "./CardBack";
 
 const MAX_FAN = 14; // 시각 상한(초과해도 이만큼만 펼침)
 
-interface Fly { x: number; y: number; w: number; h: number }
+interface Fly { id: number; vars: React.CSSProperties }
 
 // 덱 선택 화면 장식 — 선택 덱 카드 수만큼 부채꼴로 펼침 + 마운트/덱변경 시 펼침 애니.
 // 카드 클릭 시 그 위치에서 화면 한가운데로 확대되며 날아오는 오버레이 애니(포탈).
 // key={deck}로 리마운트해 덱 바꿀 때마다 다시 펼쳐진다.
 export default function DeckFan({ count }: { count: number }) {
   const [opened, setOpened] = useState(false);
-  const [fly, setFly] = useState<(Fly & { id: number; vars: React.CSSProperties }) | null>(null);
+  const [fly, setFly] = useState<Fly | null>(null);
   const flyId = useRef(0);
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -24,9 +24,8 @@ export default function DeckFan({ count }: { count: number }) {
     return () => window.clearTimeout(id);
   }, [reduced]);
 
-  function launch(e: React.MouseEvent<HTMLSpanElement>) {
+  function launch() {
     if (reduced) return;
-    const r = e.currentTarget.getBoundingClientRect();
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const side = Math.random() < 0.5 ? -1 : 1; // 좌/우 어느 쪽에서 날아올지
     // 클릭마다 경로/회전 랜덤 → 매번 다른 3D 궤적.
@@ -39,7 +38,7 @@ export default function DeckFan({ count }: { count: number }) {
       "--ry": `${side * rnd(220, 560)}deg`,
       "--rz": `${rnd(-70, 70)}deg`,
     } as React.CSSProperties;
-    setFly({ x: r.left, y: r.top, w: r.width, h: r.height, id: ++flyId.current, vars });
+    setFly({ id: ++flyId.current, vars });
   }
 
   if (count <= 0) return null;
@@ -80,11 +79,9 @@ export default function DeckFan({ count }: { count: number }) {
           <div
             key={fly.id}
             onAnimationEnd={() => setFly((f) => (f && f.id === fly.id ? null : f))}
-            className="overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
+            className="aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
             style={{
               ...fly.vars,
-              width: fly.w,
-              height: fly.h,
               transformStyle: "preserve-3d",
               animation: "deck-throw 1.7s cubic-bezier(0.16,1,0.3,1) forwards",
             }}
