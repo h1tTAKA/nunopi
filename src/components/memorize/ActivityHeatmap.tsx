@@ -7,9 +7,9 @@ import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { yearActivity, activityYearRange, currentStreak, type HeatCell } from "@/lib/srs/activityLog";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
-const CELL = 10; // 셀 한 변(px)
-const GAP = 2; // 셀 간격(px)
-const SLOT = CELL + GAP; // 주 열 폭
+const CELL = 10; // 셀 높이(px) — 폭은 열 1fr로 유동
+const GAP = 3; // 셀 간격(px)
+const WEEKDAY_W = 20; // 좌측 요일 라벨 열 폭(px)
 
 // 잔디 4단계 색(0/1-2/3-5/6+) — 분석모드 북마크 lime(밝은 연두) 계열.
 function heatColor(n: number): string {
@@ -70,45 +70,52 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
         </div>
       </div>
 
-      {/* 잔디 */}
-      <div className="overflow-x-auto pb-1">
-        <div className="inline-flex flex-col gap-1">
-          {/* 월 라벨 — 주 열에 맞춰 절대 배치 */}
-          <div className="relative h-3" style={{ marginLeft: 24, width: weeks.length * SLOT }}>
-            {months.map((m) => (
-              <span
-                key={m.week}
-                className="absolute whitespace-nowrap text-[9px] text-zinc-400 dark:text-zinc-500"
-                style={{ left: m.week * SLOT }}
-              >
-                {monthName(m.month)}
+      {/* 잔디 — 패널 폭에 맞춰 반응형(열 1fr로 채움, 짤림/스크롤 없음). */}
+      <div className="flex flex-col gap-1">
+        {/* 월 라벨 — 요일 열(w-5) 만큼 밀고, 주 위치는 %로(유동 열에 정렬) */}
+        <div className="relative h-3" style={{ marginLeft: WEEKDAY_W + 4 }}>
+          {months.map((m) => (
+            <span
+              key={m.week}
+              className="absolute whitespace-nowrap text-[9px] text-zinc-400 dark:text-zinc-500"
+              style={{ left: `${(m.week / weeks.length) * 100}%` }}
+            >
+              {monthName(m.month)}
+            </span>
+          ))}
+        </div>
+        {/* 요일 라벨 + 그리드 */}
+        <div className="flex gap-1">
+          <div className="grid shrink-0 grid-rows-7 text-[9px] text-zinc-400 dark:text-zinc-500" style={{ gap: GAP, width: WEEKDAY_W }}>
+            {Array.from({ length: 7 }, (_, d) => (
+              <span key={d} className="flex items-center leading-none" style={{ height: CELL }}>
+                {d === 1 || d === 3 || d === 5 ? dow(d) : ""}
               </span>
             ))}
           </div>
-          {/* 요일 라벨 + 그리드 */}
-          <div className="flex gap-1">
-            <div className="grid w-5 grid-rows-7 text-[9px] text-zinc-400 dark:text-zinc-500" style={{ gap: GAP }}>
-              {Array.from({ length: 7 }, (_, d) => (
-                <span key={d} className="flex items-center leading-none" style={{ height: CELL }}>
-                  {d === 1 || d === 3 || d === 5 ? dow(d) : ""}
-                </span>
-              ))}
-            </div>
-            <div className="grid grid-flow-col grid-rows-7" style={{ gap: GAP }}>
-              {weeks.flatMap((w, wi) =>
-                w.map((cell, di) => (
-                  <div
-                    key={`${wi}-${di}`}
-                    onMouseEnter={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
-                    onMouseMove={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
-                    onMouseLeave={() => setHover(null)}
-                    className={`rounded-[2px] ${cell.date ? heatColor(cell.count) : "bg-transparent"}`}
-                    style={{ width: CELL, height: CELL }}
-                  />
-                )),
-              )}
-            </div>
+          {/* 열=주 1fr로 폭 채움. 셀 폭 유동, 높이 고정. */}
+          <div className="grid min-w-0 flex-1 grid-flow-col grid-rows-7" style={{ gap: GAP, gridAutoColumns: "minmax(0,1fr)" }}>
+            {weeks.flatMap((w, wi) =>
+              w.map((cell, di) => (
+                <div
+                  key={`${wi}-${di}`}
+                  onMouseEnter={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                  onMouseMove={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                  onMouseLeave={() => setHover(null)}
+                  className={`rounded-[2px] ${cell.date ? heatColor(cell.count) : "bg-transparent"}`}
+                  style={{ height: CELL }}
+                />
+              )),
+            )}
           </div>
+        </div>
+        {/* Less → More 범례(우측) */}
+        <div className="mt-1 flex items-center justify-end gap-1 text-[9px] text-zinc-400 dark:text-zinc-500">
+          <span>{t("mem.statLess")}</span>
+          {["bg-zinc-100 dark:bg-zinc-800", "bg-lime-200 dark:bg-lime-900", "bg-lime-400 dark:bg-lime-700", "bg-lime-500 dark:bg-lime-400"].map((c, i) => (
+            <span key={i} className={`h-2.5 w-2.5 rounded-[2px] ${c}`} />
+          ))}
+          <span>{t("mem.statMore")}</span>
         </div>
       </div>
 

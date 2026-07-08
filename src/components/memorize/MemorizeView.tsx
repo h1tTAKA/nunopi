@@ -60,13 +60,13 @@ export default function MemorizeView({ active = true, providerId, providerSettin
 
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
   return (
-    <div className="flex h-full w-full items-start gap-8 px-8 py-8">
-      {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부 */}
-      <div className="hidden min-h-0 flex-1 xl:block">
+    <div className="flex h-full w-full items-stretch justify-center gap-8 overflow-hidden px-8 py-6">
+      {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부, 상단 정렬(오른쪽 덱 패널과 top 맞춤) */}
+      <div className="hidden min-h-0 flex-1 flex-col justify-start xl:flex">
         <MemorizeStats deck={deck} sources={deck === "code" ? [...codeSources] : undefined} />
       </div>
-      {/* 오른쪽: 덱 선택 패널 — 오른쪽 끝까지(전폭). 좁은 화면은 중앙. */}
-      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:w-[30rem] xl:max-w-none">
+      {/* 오른쪽: 덱 선택 + 부채꼴 — 왼쪽과 같은 세로 범위(h-full), 덱패널 위·부채꼴 남는공간 채움. */}
+      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:h-full xl:w-[30rem] xl:max-w-none">
         <DeckSelect
           deck={deck}
           onDeckChange={setDeck}
@@ -74,8 +74,8 @@ export default function MemorizeView({ active = true, providerId, providerSettin
           onCodeSourcesChange={setCodeSources}
           onStart={handleStart}
         />
-        {/* 덱 패널 밑 부채꼴 장식 — 선택 덱 카드 수(넓은 화면만). 덱 바뀌면 리마운트해 재애니. */}
-        <div className="hidden xl:block">
+        {/* 덱 패널 밑 부채꼴 장식 — 남는 세로 공간 채워 중앙 배치(넓은 화면만, 넘치면 클립). */}
+        <div className="hidden min-h-0 flex-1 items-center justify-center overflow-hidden xl:flex">
           <DeckFan key={deck} count={deckStats(deck, now, deck === "code" ? [...codeSources] : undefined).total} />
         </div>
       </div>

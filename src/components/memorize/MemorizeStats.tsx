@@ -57,9 +57,9 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   const fcMax = Math.max(1, ...forecast.map((f) => f.count));
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {/* 학습 통계 패널 */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="flex flex-col gap-3.5 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-3.5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
       {/* 상단 2단 — 좌: 총 카드 + 분류 도넛 / 우: 암기 단계 + 복습 예정 */}
@@ -139,7 +139,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
       </div>
 
       {/* 학습 활동 패널 (전역 — 모든 복습) */}
-      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="rounded-2xl border border-zinc-200 bg-zinc-50/40 p-3.5 dark:border-zinc-800 dark:bg-zinc-900/30">
         <ActivityHeatmap now={now} />
       </div>
 

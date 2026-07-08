@@ -30,7 +30,9 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
       <Widget title={t("mem.insWeak")}>
         {weak.length === 0 ? <Empty t={t} /> : weak.map((c) => (
           <Row key={c.key} front={c.front}
-            right={<span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {c.again}</span>} />
+            right={c.again > 0
+              ? <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {c.again}</span>
+              : <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {c.hard}</span>} />
         ))}
       </Widget>
 
@@ -46,12 +48,15 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
         {maturity.every((m) => m.total === 0) ? <Empty t={t} /> : maturity.map((m) => {
           const pct = m.total > 0 ? Math.round((m.mature / m.total) * 100) : 0;
           return (
-            <div key={m.deck} className="flex items-center gap-2">
-              <span className="w-8 shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">{m.deck === "code" ? t("mem.deckCode") : t("mem.deckText")}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+            <div key={m.deck} className="flex flex-col gap-1">
+              {/* 이름은 바 위에(길어서 옆에 두면 레이아웃 깨짐) */}
+              <div className="flex items-baseline justify-between text-[10px]">
+                <span className="truncate text-zinc-400 dark:text-zinc-500">{m.deck === "code" ? t("mem.deckCode") : t("mem.deckText")}</span>
+                <span className="shrink-0 tabular-nums text-zinc-500 dark:text-zinc-400">{pct}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                 <div className="h-full rounded" style={{ width: `${pct}%`, background: ACCENT }} />
               </div>
-              <span className="w-8 shrink-0 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">{pct}%</span>
             </div>
           );
         })}

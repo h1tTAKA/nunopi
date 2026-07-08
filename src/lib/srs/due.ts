@@ -29,12 +29,15 @@ export function filterByCategory(cards: Card[], selected: Set<CardCategory>): Ca
   return cards.filter((c) => selected.has(cardCategory(c)));
 }
 
-// 덱의 분류별 카드 수(체크박스 배지용). due 무관 — 덱 전체 기준.
-export function categoryCounts(deck: Deck, now: Date, sources?: SrsSource[]): Record<CardCategory, number> {
+// 덱의 분류별 카드 수(체크박스 배지용). mode="due"면 오늘 복습 대상만 집계(시작 수와 일치),
+// "all"(기본)이면 덱 전체.
+export function categoryCounts(deck: Deck, now: Date, sources?: SrsSource[], mode: "due" | "all" = "all"): Record<CardCategory, number> {
   const deckSources = DECK_SOURCES[deck];
   const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
+  const all = collectCards(effective, now);
+  const base = mode === "due" ? dueCards(all, now) : all;
   const counts: Record<CardCategory, number> = { again: 0, hard: 0, good: 0, none: 0 };
-  for (const c of collectCards(effective, now)) counts[cardCategory(c)]++;
+  for (const c of base) counts[cardCategory(c)]++;
   return counts;
 }
 

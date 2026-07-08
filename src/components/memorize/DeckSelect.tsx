@@ -103,11 +103,13 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     }),
     [now, codeSources],
   );
-  // 선택 덱의 분류별 카드 수(체크박스 배지).
+  // 선택 덱의 분류별 카드 수(체크박스 배지) — 범위(mode) 반영해 시작 수와 일치.
   const catCounts = useMemo(
-    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined),
-    [selected, now, codeSources],
+    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined, mode),
+    [selected, now, codeSources, mode],
   );
+  // 전체 칩/분류 합 = 범위 반영 총수(오늘=due, 전체=total).
+  const scopedTotal = catCounts.again + catCounts.hard + catCounts.good + catCounts.none;
 
   function toggleSource(s: SrsSource) {
     const next = new Set(codeSources);
@@ -150,11 +152,11 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               }`}
             >
               <Icon size={22} stroke={2} className="shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden />
-              <span className="flex-1 text-sm font-medium text-zinc-800 dark:text-zinc-100">{t(tKey)}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{t(tKey)}</span>
               {s.total === 0 ? (
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.emptyBookmarks")}</span>
+                <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">{t("mem.emptyBookmarks")}</span>
               ) : (
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
                   <span className="font-semibold text-[#3B34E2] dark:text-[#8b86f5]">{t("mem.today")} {s.due}</span>
                   {" · "}
                   {t("mem.total")} {s.total}
@@ -175,9 +177,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         })}
       </div>
 
-      {/* 옵션 — 라벨 행으로 그룹화 */}
+      {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.options")}</h3>
         {/* 세부 출처(코드덱만) */}
         {selected === "code" && (
           <div className="flex items-center gap-3">
@@ -258,7 +259,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               }`}
             >
               {cats.size === 0 && <IconCheck size={12} stroke={2.5} aria-hidden />}
-              {t("mem.catAll")} {selectedStats.total}
+              {t("mem.catAll")} {scopedTotal}
             </button>
             {CATEGORIES.map((c) => {
               const on = cats.has(c.value);
