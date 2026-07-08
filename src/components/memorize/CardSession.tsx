@@ -230,7 +230,7 @@ function GradeButton({ onClick, label, keyHint, tone, disabled }: { onClick: () 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${TONES[tone]}`}
+      className={`mx-auto flex w-24 flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${TONES[tone]}`}
     >
       {label}
       <span className="text-[10px] opacity-60">{keyHint}</span>
