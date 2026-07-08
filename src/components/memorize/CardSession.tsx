@@ -213,7 +213,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
           {t("mem.backToDecks")}
         </button>
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-          <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, backgroundImage: "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)" }} />
         </div>
         <span className="text-xs tabular-nums text-zinc-400 dark:text-zinc-500">
           {idx + 1}/{round.length}
