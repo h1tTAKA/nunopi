@@ -100,7 +100,9 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
       <Section title={t("mem.statForecast")}>
         <div className="flex items-end gap-1.5" style={{ height: "72px" }}>
           {forecast.map((f, i) => {
-            const d = new Date(f.date);
+            // "yyyy-mm-dd"를 로컬 날짜로 파싱(new Date(문자열)은 UTC라 음수 UTC서 요일 밀림).
+            const [yy, mm, dd] = f.date.split("-").map(Number);
+            const d = new Date(yy, mm - 1, dd);
             const wd = d.toLocaleDateString(LOCALE_TAG[locale] ?? "en-US", { weekday: "short" });
             return (
               <div key={f.date} className="flex flex-1 flex-col items-center gap-1">
