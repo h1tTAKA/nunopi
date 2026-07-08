@@ -7,6 +7,7 @@ import { collectCards } from "@/lib/srs/collect";
 import { dueCards, orderCards, filterByCategory, type CardCategory } from "@/lib/srs/due";
 import { applyGrade } from "@/lib/srs/schedule";
 import { updateCardState } from "@/lib/srs/store";
+import { logReview } from "@/lib/srs/activityLog";
 import type { Card, CardOrder, Deck, Grade, SrsSource } from "@/lib/srs/types";
 import { loadMemSession, saveMemSession, clearMemSession } from "@/lib/memSession";
 import SessionDone from "./SessionDone";
@@ -110,6 +111,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
     (g: Grade) => {
       if (!card) return;
       updateCardState(card.key, applyGrade(card.state, g, now));
+      logReview(now); // 날짜별 복습 카운트(히트맵/스트릭용)
       setStats((s) => ({ ...s, [g]: s[g] + 1 }));
       const requeue = g === "again";
       const nextIdx = idx + 1;

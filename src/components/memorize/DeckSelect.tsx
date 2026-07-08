@@ -22,6 +22,11 @@ const ORDERS: { value: CardOrder; tKey: string }[] = [
 ];
 
 interface DeckSelectProps {
+  // 덱/세부출처는 controlled — MemorizeView가 소유(왼쪽 통계 패널과 실시간 공유).
+  deck: Deck;
+  onDeckChange: (d: Deck) => void;
+  codeSources: Set<SrsSource>;
+  onCodeSourcesChange: (s: Set<SrsSource>) => void;
   // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 + 카드 순서로 세션 시작.
   onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean, order: CardOrder, categories: CardCategory[]) => void;
 }
@@ -33,20 +38,15 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 ];
 
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
-export default function DeckSelect({ onStart }: DeckSelectProps) {
+export default function DeckSelect({ deck: selected, onDeckChange, codeSources, onCodeSourcesChange, onStart }: DeckSelectProps) {
   const t = useT();
-  // lazy 초기화로 첫 렌더부터 저장값 반영(깜빡임 방지). DeckSelect는 mounted-gate 뒤라 localStorage 안전.
-  const [selected, setSelectedRaw] = useState<Deck>(() => {
-    const d = localStorage.getItem("nunopi:mem-deck");
-    return d === "code" || d === "text" || d === "all" ? d : "code";
-  });
+  // 덱은 controlled(MemorizeView 소유). 나머지 옵션은 DeckSelect 내부 + localStorage 영속(lazy 초기화).
   const [mode, setModeRaw] = useState<"due" | "all">(() => {
     const m = localStorage.getItem("nunopi:mem-range");
     return m === "all" ? "all" : "due";
   });
   function setSelected(d: Deck) {
-    setSelectedRaw(d);
-    try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
+    onDeckChange(d);
   }
   function setMode(m: "due" | "all") {
     setModeRaw(m);
@@ -87,15 +87,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     setCats(next);
     persistCats(next);
   }
-  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째. localStorage 영속(lazy 초기화).
-  const [codeSources, setCodeSources] = useState<Set<SrsSource>>(() => {
-    try {
-      const raw = localStorage.getItem("nunopi:mem-code-sources");
-      const arr = raw ? (JSON.parse(raw) as SrsSource[]) : null;
-      if (Array.isArray(arr)) return new Set(arr);
-    } catch { /* ignore */ }
-    return new Set(["token", "concept"]);
-  });
+  // 코드덱 세부 출처(토큰/개념)는 controlled — MemorizeView 소유(통계 공유). 글덱은 term 통째.
 
   // 선택 덱의 유효 출처 — 코드덱은 토글 반영, 그 외는 덱 전체 출처.
   const effectiveSources = (deck: Deck): SrsSource[] =>
@@ -118,13 +110,10 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   );
 
   function toggleSource(s: SrsSource) {
-    setCodeSources((prev) => {
-      const next = new Set(prev);
-      if (next.has(s)) next.delete(s);
-      else next.add(s);
-      try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...next])); } catch { /* ignore */ }
-      return next;
-    });
+    const next = new Set(codeSources);
+    if (next.has(s)) next.delete(s);
+    else next.add(s);
+    onCodeSourcesChange(next);
   }
 
   const selectedStats = stats[selected];
