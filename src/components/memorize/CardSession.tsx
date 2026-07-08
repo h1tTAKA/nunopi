@@ -193,8 +193,9 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           <CardExplainPanel card={card} providerId={providerId} flipped={flipped} />
         </div>
 
-        {/* 중앙 카드 + 채점바 */}
-        <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-5">
+        {/* 중앙 카드 + 채점바. 컬럼은 넓게(max-w-lg) — 카드는 자체 max-w-xs로 중앙 유지되고
+            채점바·더미(3열)는 넓게 퍼져 다시/완벽이 애매(중앙) 기준으로 벌어진다. */}
+        <div className="relative z-10 flex w-full max-w-lg flex-col items-center gap-5">
           <div
             className={`w-full ${reduced ? "" : "transition-all"}`}
             style={
