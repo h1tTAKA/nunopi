@@ -14,7 +14,8 @@ import CardFan from "./CardFan";
 import GradePiles from "./GradePiles";
 import CardInfoPanel from "./CardInfoPanel";
 import CardExplainPanel from "./CardExplainPanel";
-import type { AgentProviderKind } from "@/lib/agent";
+import MemorizeChat from "./MemorizeChat";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 interface CardSessionProps {
   sources: SrsSource[];
@@ -23,6 +24,7 @@ interface CardSessionProps {
   // 암기 탭이 화면에 활성인지 — 비활성(다른 모드 보는 중)이면 키보드 무시.
   active?: boolean;
   providerId: AgentProviderKind;
+  providerSettings: ProviderSettings;
   onExit: () => void;
 }
 
@@ -38,7 +40,7 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, providerId, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, providerId, providerSettings, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
@@ -149,6 +151,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
   );
 
   return (
+    <>
+    {active && <MemorizeChat card={card} providerId={providerId} providerSettings={providerSettings} />}
     <div className="flex h-full w-full flex-col gap-4 px-8 py-5">
       {/* 진행률 + 덱 선택으로 돌아가기 — 스테이지는 전폭이지만 이 바는 예전 비율(중앙 max-w). */}
       <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
@@ -207,6 +211,7 @@ export default function CardSession({ sources, mode = "due", active = true, prov
         </div>
       </div>
     </div>
+    </>
   );
 }
 
