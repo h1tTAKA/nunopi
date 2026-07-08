@@ -30,7 +30,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 카드가 바뀌면 스레드 리셋 + 진행 중 요청 취소.
+  // 카드가 바뀌면 스레드 리셋 + 진행 중 요청 취소. 언마운트(탭 이탈/세션 종료) 시에도 abort(요청 누수 방지).
   useEffect(() => {
     abortRef.current?.abort();
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -38,6 +38,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
     setStreaming(null);
     setLoading(false);
     /* eslint-enable react-hooks/set-state-in-effect */
+    return () => abortRef.current?.abort();
   }, [card.key]);
 
   function handleClear() {
