@@ -37,7 +37,7 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
       {/* 헤더 — 제목 · 스트릭 · 연도 네비 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.statHeatmap")}</h3>
+          <h3 className="text-sm font-semibold text-zinc-700 dark:text-white">{t("mem.statHeatmap")}</h3>
           {streak > 0 && (
             <span className="inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
               🔥 {t("mem.statStreakDays").replace("{n}", String(streak))}
