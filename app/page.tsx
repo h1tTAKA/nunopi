@@ -945,6 +945,14 @@ export default function Home() {
     setCurrentHistoryId(entry.id);
   }
 
+  // 암기 카드 → 그 카드를 담은 분석 히스토리로 이동. 뷰를 코드/글로 전환하고 엔트리를 복원한다.
+  function handleGoToSource(sourceId: string) {
+    const entry = historyEntries.find((e) => e.id === sourceId);
+    if (!entry) return; // 히스토리 20개 캡에 밀려 삭제됐으면 조용히 무시(버튼도 안 뜨는 게 정상).
+    handleViewModeChange((entry.mode ?? "code") === "text" ? "text" : "code");
+    handleRestoreHistory(entry);
+  }
+
   function handleDeleteHistory(id: string) {
     deleteFromHistory(id).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
     // 지금 화면에 보고 있는 분석을 지웠으면 화면(입력+결과)도 비운다 — 안 그러면 삭제했는데 그대로 남음.
@@ -975,7 +983,7 @@ export default function Home() {
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
-        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} />}
+        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}

@@ -11,7 +11,7 @@ type MemPhase = "select" | "session";
 type ReviewMode = "due" | "all";
 
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
-export default function MemorizeView({ active = true, providerId, providerSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
+export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string) => void }) {
   const [phase, setPhase] = useState<MemPhase>("select");
   const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder; categories: CardCategory[] } | null>(null);
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
@@ -28,7 +28,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   }
 
   if (phase === "session" && session) {
-    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} onExit={() => setPhase("select")} />;
+    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={onGoToSource} onExit={() => setPhase("select")} />;
   }
 
   // 덱 선택 — 우측 패널. 왼쪽 빈 공간은 추후 암기 학습 통계 그래프 자리.

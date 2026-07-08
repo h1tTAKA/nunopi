@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconArrowLeft } from "@tabler/icons-react";
+import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { dueCards, orderCards, filterByCategory, type CardCategory } from "@/lib/srs/due";
@@ -30,6 +30,8 @@ interface CardSessionProps {
   categories?: CardCategory[]; // 포함할 분류(빈 배열=전체). resume은 무시.
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  sourceIds: Set<string>; // 현존하는 분석 히스토리 id들 — 출처 이동 버튼 노출 판별용.
+  onGoToSource: (sourceId: string) => void; // 카드 출처(분석)로 화면 전환.
   onExit: () => void;
 }
 
@@ -45,7 +47,7 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], providerId, providerSettings, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], providerId, providerSettings, sourceIds, onGoToSource, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원, 아니면 fresh(due/all).
@@ -172,6 +174,9 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   // 채점으로 카드가 소진된 만큼만 진행(뒤집기는 진행과 무관).
   const progress = round.length > 0 ? (idx / round.length) * 100 : 0;
 
+  // 출처(분석)로 이동 가능 여부 — sourceId가 있고 그 히스토리가 아직 존재할 때만.
+  const canGoToSource = !!card.sourceId && sourceIds.has(card.sourceId);
+
   const gradeBar = flipped ? (
     <div className="grid grid-cols-3 gap-3">
       <GradeButton onClick={() => grade("again")} label={t("mem.again")} keyHint="1" tone="rose" disabled={!!tossing} />
@@ -240,6 +245,17 @@ export default function CardSession({ sources, mode = "due", active = true, deck
           >
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
+          {/* 출처로 이동 — 이 카드를 담은 분석 히스토리로 화면 전환(존재할 때만). */}
+          {canGoToSource && (
+            <button
+              type="button"
+              onClick={() => onGoToSource(card.sourceId!)}
+              className="flex items-center gap-1 text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
+            >
+              {t("mem.goToSource")}
+              <IconExternalLink size={13} stroke={2} aria-hidden />
+            </button>
+          )}
           {/* 채점(다시/애매/완벽)은 아래 더미와 같은 폭으로 정렬, 뒤집기 버튼은 카드 폭 유지. */}
           <div className={flipped ? "w-[32rem] max-w-[90vw]" : "w-full"}>{gradeBar}</div>
           {/* 3분류 더미 — 채점 버튼과 같은 폭·3열로 정렬(각 더미가 해당 버튼 아래). */}
