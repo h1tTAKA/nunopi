@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { deckStats, categoryCounts, type CardCategory } from "@/lib/srs/due";
@@ -35,32 +35,41 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
 export default function DeckSelect({ onStart }: DeckSelectProps) {
   const t = useT();
-  const [selected, setSelected] = useState<Deck>("code");
-  // 복습 모드 — due(오늘) / all(상시 전체).
-  const [mode, setMode] = useState<"due" | "all">("due");
-  // 카드 제시 순서 — localStorage 영속.
-  const [order, setOrder] = useState<CardOrder>("newest");
-  useEffect(() => {
+  // lazy 초기화로 첫 렌더부터 저장값 반영(깜빡임 방지). DeckSelect는 mounted-gate 뒤라 localStorage 안전.
+  const [selected, setSelectedRaw] = useState<Deck>(() => {
+    const d = localStorage.getItem("nunopi:mem-deck");
+    return d === "code" || d === "text" || d === "all" ? d : "code";
+  });
+  const [mode, setModeRaw] = useState<"due" | "all">(() => {
+    const m = localStorage.getItem("nunopi:mem-range");
+    return m === "all" ? "all" : "due";
+  });
+  function setSelected(d: Deck) {
+    setSelectedRaw(d);
+    try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
+  }
+  function setMode(m: "due" | "all") {
+    setModeRaw(m);
+    try { localStorage.setItem("nunopi:mem-range", m); } catch { /* ignore */ }
+  }
+  // 카드 제시 순서 — localStorage 영속(lazy 초기화).
+  const [order, setOrder] = useState<CardOrder>(() => {
     const s = localStorage.getItem(ORDER_KEY);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (s === "newest" || s === "oldest" || s === "random") setOrder(s);
-  }, []);
+    return s === "newest" || s === "oldest" || s === "random" ? s : "newest";
+  });
   function pickOrder(o: CardOrder) {
     setOrder(o);
     try { localStorage.setItem(ORDER_KEY, o); } catch { /* ignore */ }
   }
-  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속.
-  const [cats, setCats] = useState<Set<CardCategory>>(new Set(["again", "hard", "good", "none"]));
-  useEffect(() => {
+  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속(lazy 초기화).
+  const [cats, setCats] = useState<Set<CardCategory>>(() => {
     try {
       const raw = localStorage.getItem(CATS_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw) as CardCategory[];
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(arr)) setCats(new Set(arr));
-      }
+      const arr = raw ? (JSON.parse(raw) as CardCategory[]) : null;
+      if (Array.isArray(arr)) return new Set(arr);
     } catch { /* ignore */ }
-  }, []);
+    return new Set(["again", "hard", "good", "none"]);
+  });
   function toggleCat(c: CardCategory) {
     setCats((prev) => {
       const next = new Set(prev);
@@ -69,8 +78,15 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       return next;
     });
   }
-  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리).
-  const [codeSources, setCodeSources] = useState<Set<SrsSource>>(new Set(["token", "concept"]));
+  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째. localStorage 영속(lazy 초기화).
+  const [codeSources, setCodeSources] = useState<Set<SrsSource>>(() => {
+    try {
+      const raw = localStorage.getItem("nunopi:mem-code-sources");
+      const arr = raw ? (JSON.parse(raw) as SrsSource[]) : null;
+      if (Array.isArray(arr)) return new Set(arr);
+    } catch { /* ignore */ }
+    return new Set(["token", "concept"]);
+  });
 
   // 선택 덱의 유효 출처 — 코드덱은 토글 반영, 그 외는 덱 전체 출처.
   const effectiveSources = (deck: Deck): SrsSource[] =>
@@ -97,6 +113,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       const next = new Set(prev);
       if (next.has(s)) next.delete(s);
       else next.add(s);
+      try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...next])); } catch { /* ignore */ }
       return next;
     });
   }
@@ -144,88 +161,98 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         })}
       </div>
 
-      {/* 코드덱 세부 출처 토글 */}
-      {selected === "code" && (
-        <div className="flex items-center justify-center gap-2">
-          {(["token", "concept"] as SrsSource[]).map((s) => {
-            const on = codeSources.has(s);
-            return (
+      {/* 옵션 — 라벨 행으로 그룹화 */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.options")}</h3>
+        {/* 세부 출처(코드덱만) */}
+        {selected === "code" && (
+          <div className="flex items-center gap-3">
+            <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblSource")}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {(["token", "concept"] as SrsSource[]).map((s) => {
+                const on = codeSources.has(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleSource(s)}
+                    aria-pressed={on}
+                    className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      on ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    {on && <IconCheck size={13} stroke={2.5} aria-hidden />}
+                    {t(s === "token" ? "mem.srcToken" : "mem.srcConcept")}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 복습 범위 */}
+        <div className="flex items-center gap-3">
+          <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblRange")}</span>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+            {(["due", "all"] as const).map((m) => (
               <button
-                key={s}
+                key={m}
                 type="button"
-                onClick={() => toggleSource(s)}
-                aria-pressed={on}
-                className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  on
-                    ? "bg-blue-500 text-white"
-                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+                className={`rounded-md px-4 py-1.5 font-medium transition ${
+                  mode === m ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 dark:text-zinc-400"
                 }`}
               >
-                {on && <IconCheck size={13} stroke={2.5} aria-hidden />}
-                {t(s === "token" ? "mem.srcToken" : "mem.srcConcept")}
+                {t(m === "due" ? "mem.modeDue" : "mem.modeAll")}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
-      )}
 
-      {/* 복습 모드 — 오늘 due / 전체 상시 */}
-      <div className="inline-flex self-center rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-        {(["due", "all"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`rounded-md px-4 py-1.5 font-medium transition ${
-              mode === m
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-                : "text-zinc-500 dark:text-zinc-400"
-            }`}
-          >
-            {t(m === "due" ? "mem.modeDue" : "mem.modeAll")}
-          </button>
-        ))}
-      </div>
+        {/* 순서 */}
+        <div className="flex items-center gap-3">
+          <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblOrder")}</span>
+          <div className="inline-flex rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+            {ORDERS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => pickOrder(o.value)}
+                aria-pressed={order === o.value}
+                className={`rounded-md px-3 py-1.5 font-medium transition ${
+                  order === o.value ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 dark:text-zinc-400"
+                }`}
+              >
+                {t(o.tKey)}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* 카드 순서 — 최신순/과거순/무작위 */}
-      <div className="inline-flex self-center rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
-        {ORDERS.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => pickOrder(o.value)}
-            aria-pressed={order === o.value}
-            className={`rounded-md px-3 py-1.5 font-medium transition ${
-              order === o.value
-                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
-                : "text-zinc-500 dark:text-zinc-400"
-            }`}
-          >
-            {t(o.tKey)}
-          </button>
-        ))}
-      </div>
-
-      {/* 분류 필터 — 다시/애매/완벽/미분류 체크박스 */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {CATEGORIES.map((c) => {
-          const on = cats.has(c.value);
-          return (
-            <button
-              key={c.value}
-              type="button"
-              onClick={() => toggleCat(c.value)}
-              aria-pressed={on}
-              className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                on ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-              }`}
-            >
-              {on && <IconCheck size={13} stroke={2.5} aria-hidden />}
-              {t(c.tKey)} {catCounts[c.value]}
-            </button>
-          );
-        })}
+        {/* 상태(분류) */}
+        <div className="flex items-center gap-3">
+          <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblCategory")}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map((c) => {
+              const on = cats.has(c.value);
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => toggleCat(c.value)}
+                  aria-pressed={on}
+                  className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                    on ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {on && <IconCheck size={12} stroke={2.5} aria-hidden />}
+                  {t(c.tKey)} {catCounts[c.value]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {resumable ? (
