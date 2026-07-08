@@ -143,7 +143,8 @@ samp {
    챗(ChatRoom)은 불투명 버블 위라 위 기본(불투명 박스) 유지. code.hljs 는 github-dark가
    background(#0d1117)를 깔므로 명시적으로 투명 덮어쓰기. */
 .nunopi-explain .nunopi-md pre { background: transparent; border-color: rgba(0,0,0,0.1); }
-.dark .nunopi-explain .nunopi-md pre { border-color: rgba(255,255,255,0.12); }
+/* .dark 접두사로 특이도를 .dark .nunopi-md pre(#18181b)보다 높여 확실히 투명이 이기게. */
+.dark .nunopi-explain .nunopi-md pre { background: transparent; border-color: rgba(255,255,255,0.12); }
 .nunopi-explain .nunopi-md pre code.hljs { background: transparent; }
 .nunopi-md blockquote { margin: 0.5em 0; padding-left: 0.75em; border-left: 3px solid #d4d4d8; color: #52525b; }
 .dark .nunopi-md blockquote { border-left-color: #52525b; color: #a1a1aa; }
