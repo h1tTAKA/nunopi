@@ -123,7 +123,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         const pile = requeue ? [...againPile, card] : againPile;
         if (requeue && againPile.length === 0) {
           // 마지막 한 장을 '다시' — 다른 재복습 카드가 없으면 한 장짜리 무한 라운드가 되므로 종료.
-          // applyGrade가 box1·오늘 due로 재예약했으니 다음 세션/"오늘 복습"에서 다시 나온다.
+          // applyGrade가 box1(간격 1일=내일 due)로 재예약했으니 다음 복습에서 다시 나온다.
           setDone(true);
         } else if (pile.length > 0) {
           setRound(pile);
