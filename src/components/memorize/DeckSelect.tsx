@@ -127,7 +127,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
   const resumeTarget = findMemSession(selected);
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <h2 className="text-center text-sm font-semibold text-zinc-700 dark:text-zinc-200">
         {t("mem.selectDeck")}
       </h2>
