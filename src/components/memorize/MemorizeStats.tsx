@@ -105,22 +105,26 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
           </Section>
 
           <Section title={t("mem.statForecast")}>
-            <div className="flex items-end gap-1.5" style={{ height: "72px" }}>
+            <div className="flex items-end gap-2">
               {forecast.map((f, i) => {
                 // "yyyy-mm-dd"를 로컬 날짜로 파싱(new Date(문자열)은 UTC라 음수 UTC서 요일 밀림).
                 const [yy, mm, dd] = f.date.split("-").map(Number);
                 const d = new Date(yy, mm - 1, dd);
-                const wd = d.toLocaleDateString(LOCALE_TAG[locale] ?? "en-US", { weekday: "short" });
+                const label = i === 0 ? t("mem.today") : d.toLocaleDateString(LOCALE_TAG[locale] ?? "en-US", { weekday: "short" });
+                const today = i === 0;
                 return (
-                  <div key={f.date} className="flex flex-1 flex-col items-center gap-1">
-                    <span className="text-[9px] tabular-nums text-zinc-400 dark:text-zinc-500">{f.count || ""}</span>
-                    <div className="flex w-full flex-1 items-end">
+                  <div key={f.date} className="flex flex-1 flex-col items-center gap-1.5">
+                    <span className={`text-[10px] font-semibold tabular-nums ${today ? "text-blue-500 dark:text-blue-400" : f.count > 0 ? "text-zinc-500 dark:text-zinc-300" : "text-zinc-300 dark:text-zinc-600"}`}>
+                      {f.count > 0 ? t("mem.statCount").replace("{n}", String(f.count)) : "·"}
+                    </span>
+                    {/* 고정 높이 트랙(%높이가 죽지 않게) + 옅은 배경 baseline */}
+                    <div className="flex h-16 w-full items-end overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800/60">
                       <div
-                        className={`w-full rounded-t ${i === 0 ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-700"}`}
-                        style={{ height: `${Math.max(f.count > 0 ? 8 : 2, (f.count / fcMax) * 100)}%` }}
+                        className={`w-full rounded-md transition-all ${today ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-600"}`}
+                        style={{ height: `${f.count > 0 ? Math.max(10, (f.count / fcMax) * 100) : 0}%` }}
                       />
                     </div>
-                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500">{wd}</span>
+                    <span className={`text-[10px] ${today ? "font-semibold text-blue-500 dark:text-blue-400" : "text-zinc-400 dark:text-zinc-500"}`}>{label}</span>
                   </div>
                 );
               })}
