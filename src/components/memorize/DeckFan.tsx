@@ -23,8 +23,8 @@ export default function DeckFan({ count }: { count: number }) {
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
   return (
-    <div className="flex flex-col items-center gap-3 pt-4" aria-hidden>
-      <div className="relative h-40 w-full">
+    <div className="pt-6" aria-hidden>
+      <div className="relative h-64 w-full">
         {/* 피벗: 하단 중앙, 카드들이 위로 아치 */}
         <div className="absolute bottom-0 left-1/2 h-0 w-0">
           {Array.from({ length: n }).map((_, i) => {
@@ -32,7 +32,7 @@ export default function DeckFan({ count }: { count: number }) {
             return (
               <span
                 key={i}
-                className="absolute aspect-[5/7] w-24 rounded-xl border border-zinc-200 shadow-md dark:border-zinc-700"
+                className="absolute aspect-[5/7] w-36 rounded-2xl border border-zinc-200 shadow-lg dark:border-zinc-700"
                 style={{
                   transform: `translate(-50%, -100%) rotate(${opened ? angle : 0}deg)`,
                   transformOrigin: "bottom center",
@@ -47,7 +47,6 @@ export default function DeckFan({ count }: { count: number }) {
           })}
         </div>
       </div>
-      <span className="text-xs tabular-nums text-zinc-400 dark:text-zinc-500">{count}</span>
     </div>
   );
 }

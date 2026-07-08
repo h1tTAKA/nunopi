@@ -57,9 +57,9 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   const fcMax = Math.max(1, ...forecast.map((f) => f.count));
 
   return (
-    <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-4 overflow-y-auto pr-1">
+    <div className="flex flex-col gap-3">
       {/* 학습 통계 패널 */}
-      <div className="flex flex-col gap-5 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-4 dark:border-zinc-800 dark:bg-zinc-900/30">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
       {/* 상단 2단 — 좌: 총 카드 + 분류 도넛 / 우: 암기 단계 + 복습 예정 */}
@@ -68,10 +68,10 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
         <div className="flex items-center justify-center gap-5">
           <div className="flex shrink-0 flex-col gap-1">
             <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
-            <span className="text-6xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
+            <span className="text-5xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
           </div>
           <div className="flex items-center gap-4">
-            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={168} stroke={20} />
+            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={128} stroke={15} />
             <div className="flex flex-col gap-1.5">
               {CAT_META.map((c) => (
                 <div key={c.key} className="flex items-center gap-2 text-sm">
