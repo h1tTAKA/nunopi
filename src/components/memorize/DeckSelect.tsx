@@ -61,22 +61,31 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     setOrder(o);
     try { localStorage.setItem(ORDER_KEY, o); } catch { /* ignore */ }
   }
-  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속(lazy 초기화).
+  // 분류 필터 — 빈 Set = "전체"(필터 없음). 기본 전체. localStorage 영속(lazy 초기화).
   const [cats, setCats] = useState<Set<CardCategory>>(() => {
     try {
       const raw = localStorage.getItem(CATS_KEY);
       const arr = raw ? (JSON.parse(raw) as CardCategory[]) : null;
       if (Array.isArray(arr)) return new Set(arr);
     } catch { /* ignore */ }
-    return new Set(["again", "hard", "good", "none"]);
+    return new Set();
   });
+  function persistCats(next: Set<CardCategory>) {
+    try { localStorage.setItem(CATS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+  }
   function toggleCat(c: CardCategory) {
     setCats((prev) => {
       const next = new Set(prev);
       if (next.has(c)) next.delete(c); else next.add(c);
-      try { localStorage.setItem(CATS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      persistCats(next);
       return next;
     });
+  }
+  // "전체" 선택 — 개별 분류 해제(빈 Set = 필터 없음).
+  function selectAllCats() {
+    const next = new Set<CardCategory>();
+    setCats(next);
+    persistCats(next);
   }
   // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째. localStorage 영속(lazy 초기화).
   const [codeSources, setCodeSources] = useState<Set<SrsSource>>(() => {
@@ -238,6 +247,18 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         <div className="flex items-center gap-3">
           <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblCategory")}</span>
           <div className="flex flex-wrap gap-1.5">
+            {/* 전체 = 빈 필터. 누르면 개별 선택 해제. */}
+            <button
+              type="button"
+              onClick={selectAllCats}
+              aria-pressed={cats.size === 0}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                cats.size === 0 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+              }`}
+            >
+              {cats.size === 0 && <IconCheck size={12} stroke={2.5} aria-hidden />}
+              {t("mem.catAll")} {selectedStats.total}
+            </button>
             {CATEGORIES.map((c) => {
               const on = cats.has(c.value);
               return (
