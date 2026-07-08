@@ -45,12 +45,10 @@ function addDays(d: Date, delta: number): Date {
   return base;
 }
 
-// 최근 weeks주 히트맵 — 오늘이 포함된 주의 토요일까지 채운 (weeks*7) 셀. 각 셀 {date, count}.
-// 열=주, 행=요일(일~토)로 렌더하기 좋게 오래된→최신 순.
+// (레거시) 최근 weeks주 히트맵 — #405에서 yearActivity로 대체 예정.
 export function activityHeatmap(now: Date, weeks = 17): { date: string; count: number }[] {
   const map = loadActivity();
   const today = startOfLocalDay(now);
-  // 이번 주 토요일(주 끝)로 정렬 — getDay: 0=일..6=토.
   const endOfWeek = addDays(today, 6 - today.getDay());
   const totalCells = weeks * 7;
   const start = addDays(endOfWeek, -(totalCells - 1));
@@ -61,6 +59,50 @@ export function activityHeatmap(now: Date, weeks = 17): { date: string; count: n
     cells.push({ date: k, count: map[k] ?? 0 });
   }
   return cells;
+}
+
+export interface HeatCell {
+  date: string | null; // 해당 연도 밖(그리드 패딩)이면 null
+  count: number;
+}
+
+// 특정 연도의 깃헙 잔디식 매트릭스 — 주(열) × 요일(행, 일~토). 1/1이 든 주의 일요일부터
+// 12/31이 든 주의 토요일까지. 연도 밖 칸은 date=null. months: 월이 바뀌는 주 인덱스+월(0~11).
+export function yearActivity(year: number): { weeks: HeatCell[][]; months: { week: number; month: number }[] } {
+  const map = loadActivity();
+  const jan1 = new Date(year, 0, 1);
+  const dec31 = new Date(year, 11, 31);
+  const start = addDays(jan1, -jan1.getDay()); // 1/1이 든 주의 일요일
+  const end = addDays(dec31, 6 - dec31.getDay()); // 12/31이 든 주의 토요일
+  const weeks: HeatCell[][] = [];
+  let week: HeatCell[] = [];
+  for (let cur = start; cur.getTime() <= end.getTime(); cur = addDays(cur, 1)) {
+    const inYear = cur.getFullYear() === year;
+    const k = dayKey(cur);
+    week.push({ date: inYear ? k : null, count: inYear ? map[k] ?? 0 : 0 });
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  const months: { week: number; month: number }[] = [];
+  let prev = -1;
+  weeks.forEach((w, wi) => {
+    const first = w.find((c) => c.date);
+    if (!first || !first.date) return;
+    const mo = Number(first.date.slice(5, 7)) - 1;
+    if (mo !== prev) { months.push({ week: wi, month: mo }); prev = mo; }
+  });
+  return { weeks, months };
+}
+
+// 연도 네비 범위 — 데이터 있는 가장 이른 해 ~ 올해.
+export function activityYearRange(now: Date): { min: number; max: number } {
+  const map = loadActivity();
+  const max = startOfLocalDay(now).getFullYear();
+  let min = max;
+  for (const k of Object.keys(map)) {
+    const y = Number(k.slice(0, 4));
+    if (Number.isFinite(y) && y < min) min = y;
+  }
+  return { min, max };
 }
 
 // 연속 복습 일수 — 오늘(또는 오늘 아직 안 했으면 어제)부터 뒤로 count>0이 이어진 날 수.
