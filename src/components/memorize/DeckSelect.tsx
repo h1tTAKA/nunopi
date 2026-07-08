@@ -44,11 +44,8 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     const m = localStorage.getItem("nunopi:mem-range");
     return m === "all" ? "all" : "due";
   });
-  // 옵션 패널 펼침 여부 — "새로하기"를 눌러야 옵션+시작하기가 나온다(기본 접힘).
-  const [expanded, setExpanded] = useState(false);
   function setSelected(d: Deck) {
     setSelectedRaw(d);
-    setExpanded(false); // 덱 바꾸면 옵션 접기(새로하기로 다시 펼침).
     try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
   }
   function setMode(m: "due" | "all") {
@@ -174,35 +171,21 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
                   {t("mem.total")} {s.total}
                 </span>
               )}
-              {/* 선택 덱: 이어서하기(세션 있을 때) + 새로하기 — 옵션과 독립. */}
-              {active && s.total > 0 && (
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {resumeTarget && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
-                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
-                    >
-                      {t("mem.resume")}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
-                    aria-expanded={expanded}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                  >
-                    {t("mem.startFresh")}
-                  </button>
-                </div>
+              {/* 선택 덱 + 진행 중 세션: 이어서하기만(옵션과 독립, 저장 세션 그대로). */}
+              {active && s.total > 0 && resumeTarget && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
+                  className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                >
+                  {t("mem.resume")}
+                </button>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* 옵션 + 시작하기 — "새로하기"로 펼쳤을 때만. */}
-      {expanded && (<>
       {/* 옵션 — 라벨 행으로 그룹화 */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.options")}</h3>
@@ -320,7 +303,6 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
           ? t("mem.noDueToday")
           : `${t("mem.start")} · ${startCount}`}
       </button>
-      </>)}
     </div>
   );
 }
