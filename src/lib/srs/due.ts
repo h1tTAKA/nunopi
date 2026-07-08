@@ -18,6 +18,15 @@ export function filterByCategory(cards: Card[], selected: Set<CardCategory>): Ca
   return cards.filter((c) => selected.has(cardCategory(c)));
 }
 
+// 덱의 분류별 카드 수(체크박스 배지용). due 무관 — 덱 전체 기준.
+export function categoryCounts(deck: Deck, now: Date, sources?: SrsSource[]): Record<CardCategory, number> {
+  const deckSources = DECK_SOURCES[deck];
+  const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
+  const counts: Record<CardCategory, number> = { again: 0, hard: 0, good: 0, none: 0 };
+  for (const c of collectCards(effective, now)) counts[cardCategory(c)]++;
+  return counts;
+}
+
 // 카드 제시 순서 적용. 최신순/과거순은 습득일(bookmarkedAt) 기준, 무작위는 Fisher-Yates.
 export function orderCards(cards: Card[], order: CardOrder): Card[] {
   const arr = [...cards];

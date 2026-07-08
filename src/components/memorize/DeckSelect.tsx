@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import { deckStats, type CardCategory } from "@/lib/srs/due";
+import { deckStats, categoryCounts, type CardCategory } from "@/lib/srs/due";
 import { hasMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
@@ -85,6 +85,11 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       all: deckStats("all", now),
     }),
     [now, codeSources],
+  );
+  // 선택 덱의 분류별 카드 수(체크박스 배지).
+  const catCounts = useMemo(
+    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined),
+    [selected, now, codeSources],
   );
 
   function toggleSource(s: SrsSource) {
@@ -217,7 +222,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
               }`}
             >
               {on && <IconCheck size={13} stroke={2.5} aria-hidden />}
-              {t(c.tKey)}
+              {t(c.tKey)} {catCounts[c.value]}
             </button>
           );
         })}
