@@ -27,33 +27,34 @@ export default function DeckFan({ count }: { count: number }) {
   // fly가 세팅되면 WAAPI로 재생 → 끝나면 제거(프리즈 없음).
   useLayoutEffect(() => {
     if (!fly || !cardRef.current) return;
-    const anim = cardRef.current.animate(fly.kf, {
-      duration: 1550,
-      easing: "cubic-bezier(0.34,1.1,0.5,1)",
-      fill: "forwards",
-    });
+    const anim = cardRef.current.animate(fly.kf, { duration: 2700, fill: "forwards" });
     const done = () => setFly((f) => (f && f.id === fly.id ? null : f));
     anim.addEventListener("finish", done);
     anim.addEventListener("cancel", done);
     return () => anim.cancel();
   }, [fly]);
 
-  function launch() {
-    if (reduced) return;
+  function launch(e: React.MouseEvent<HTMLSpanElement>) {
+    if (reduced || typeof window === "undefined") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    // 클릭한 카드 중심 → 화면 중앙 기준 px 오프셋(그 자리에서 출발).
+    const sx = r.left + r.width / 2 - window.innerWidth / 2;
+    const sy = r.top + r.height / 2 - window.innerHeight / 2;
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
-    const side = Math.random() < 0.5 ? -1 : 1;
-    const sx = side * rnd(45, 75), sy = rnd(-45, 15);
-    const mx = -side * rnd(10, 32), my = rnd(-18, 18);
-    const rx = rnd(-45, 45), ry = side * rnd(220, 560), rz = rnd(-70, 70);
-    // 날아옴 → 가운데 부딪힘(기울어져 확대) → 살짝 들림 → 중력 낙하로 화면 밖.
+    const sway = Math.random() < 0.5 ? -1 : 1;
+    const spin = (Math.random() < 0.5 ? -1 : 1) * rnd(160, 460); // 날아오며 회전(패턴 랜덤)
+    const s1 = rnd(60, 140), s2 = rnd(40, 100); // 바람 흔들림 폭(px)
+    const fallY = window.innerHeight * 1.25; // 화면 밑으로 완전히
+    // 카드 자리 → 바람에 흔들리며 곡선으로 → 가운데 부딪힘 → 살짝 들림 → 천천히 낙하 → 화면 밖.
     const kf: Keyframe[] = [
-      { offset: 0, opacity: 0, transform: `translate3d(${sx}vw,${sy}vh,-520px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg) scale(0.35)` },
-      { offset: 0.1, opacity: 1, transform: `translate3d(${sx * 0.7}vw,${sy * 0.7}vh,-460px) rotateX(${rx * 0.8}deg) rotateY(${ry * 0.8}deg) rotateZ(${rz * 0.8}deg) scale(0.5)` },
-      { offset: 0.42, opacity: 1, transform: `translate3d(${mx}vw,${my}vh,-150px) rotateX(${rx / 2}deg) rotateY(${ry / 2}deg) rotateZ(${rz / 2}deg) scale(1.5)` },
-      { offset: 0.58, opacity: 1, transform: `translate3d(0,0,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.98)` },
-      { offset: 0.64, opacity: 1, transform: `translate3d(0,-1.8vh,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.76)` },
-      { offset: 0.7, opacity: 1, transform: `translate3d(0,-3vh,0) rotateZ(-6deg) scale(2.86)` },
-      { offset: 1, opacity: 1, transform: `translate3d(4vw,135vh,0) rotateZ(26deg) scale(2.5)` },
+      { offset: 0, opacity: 0.35, transform: `translate3d(${sx}px,${sy}px,-120px) rotateZ(${rnd(-25, 25)}deg) scale(0.6)`, easing: "cubic-bezier(0.3,0.7,0.4,1)" },
+      { offset: 0.1, opacity: 1, transform: `translate3d(${sx * 0.7 + sway * s1}px,${sy * 0.7 - s1}px,-90px) rotateY(${spin * 0.4}deg) rotateZ(${sway * 12}deg) scale(0.9)`, easing: "ease-in-out" },
+      { offset: 0.26, opacity: 1, transform: `translate3d(${sx * 0.35 - sway * s2}px,${sy * 0.4 + s2 * 0.4}px,-40px) rotateY(${spin * 0.7}deg) rotateZ(${-sway * 8}deg) scale(1.5)`, easing: "ease-in-out" },
+      { offset: 0.4, opacity: 1, transform: `translate3d(0,0,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.95)`, easing: "cubic-bezier(0.2,0.9,0.3,1)" }, // 부딪힘
+      { offset: 0.45, opacity: 1, transform: `translate3d(0,-16px,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.74)` }, // 바운스
+      { offset: 0.5, opacity: 1, transform: `translate3d(0,-28px,0) rotateZ(-6deg) scale(2.86)`, easing: "cubic-bezier(0.45,0.05,0.6,1)" }, // 살짝 들림 → 여기서부터 천천히 낙하
+      { offset: 0.9, opacity: 1, transform: `translate3d(${sway * 24}px,${fallY * 0.72}px,0) rotateZ(${sway * 16}deg) scale(2.5)` },
+      { offset: 1, opacity: 0, transform: `translate3d(${sway * 34}px,${fallY}px,0) rotateZ(${sway * 22}deg) scale(2.4)` },
     ];
     setFly({ id: ++flyId.current, kf });
   }
