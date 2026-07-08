@@ -27,9 +27,9 @@ interface DeckSelectProps {
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
+  { deck: "all", tKey: "mem.deckAll", Icon: IconStack2 },
   { deck: "code", tKey: "mem.deckCode", Icon: IconCode },
   { deck: "text", tKey: "mem.deckText", Icon: IconFileText },
-  { deck: "all", tKey: "mem.deckAll", Icon: IconStack2 },
 ];
 
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
