@@ -2,11 +2,14 @@
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { IconExternalLink } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import type { Card } from "@/lib/srs/types";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
 import MemorizeChat from "./MemorizeChat";
+import CardInfoPanel from "./CardInfoPanel";
+import CardStageBar from "./CardStageBar";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 // 도착 후 화면 중앙에서 멈춰 있는 자세(살짝 기운 채 확대). 낙하는 이 자세에서 이어진다.
@@ -38,10 +41,14 @@ export function useFlyCard(): FlyApi {
 export function FlyCardProvider({
   providerId,
   providerSettings,
+  sourceIds,
+  onGoToSource,
   children,
 }: {
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  sourceIds: Set<string>; // 현존 분석 히스토리 id — 출처 이동 버튼 노출 판별
+  onGoToSource: (sourceId: string) => void; // 카드 출처(분석)로 화면 전환
   children: React.ReactNode;
 }) {
   const t = useT();
@@ -118,7 +125,7 @@ export function FlyCardProvider({
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center ${peek ? "cursor-pointer bg-black/40" : "pointer-events-none"}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center ${peek ? "cursor-pointer bg-black/75" : "pointer-events-none"}`}
           style={{ perspective: "1200px" }}
           onClick={() => { if (peek) setDropping(true); }}
         >
@@ -144,18 +151,42 @@ export function FlyCardProvider({
           {/* 도착·정지 후 — 플래시카드 세션처럼 왼쪽 추가설명 + 우하단 챗 + 안내(패널 클릭은 낙하 안 되게 stopPropagation). */}
           {peek && (
             <>
+              {/* 왼쪽 — 추가설명 패널(있으면 캐시, 없으면 생성) */}
               <div
                 className="absolute left-6 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
                 onClick={(e) => e.stopPropagation()}
               >
                 <CardExplainPanel card={fly.card} providerId={providerId} flipped />
               </div>
+
+              {/* 우상단 — 카드 정보 패널 + 암기 단계(플래시카드 세션과 동일 스택) */}
+              <div
+                className="absolute right-6 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <CardInfoPanel card={fly.card} />
+                <CardStageBar card={fly.card} />
+              </div>
+
+              {/* 우하단 — 카드 저장 챗 세션 */}
               <div className="cursor-auto" onClick={(e) => e.stopPropagation()}>
                 <MemorizeChat card={fly.card} providerId={providerId} providerSettings={providerSettings} />
               </div>
-              <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-xs font-medium text-white/80">
-                {t("mem.flyDismiss")}
-              </span>
+
+              {/* 하단 — 출처로 이동(존재할 때만) + 안내 */}
+              <div className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
+                {!!fly.card.sourceId && sourceIds.has(fly.card.sourceId) && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); const id = fly.card.sourceId!; setFly(null); setArrived(false); setDropping(false); onGoToSource(id); }}
+                    className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
+                  >
+                    {t("mem.goToSource")}
+                    <IconExternalLink size={13} stroke={2} aria-hidden />
+                  </button>
+                )}
+                <span className="text-xs font-medium text-white/70">{t("mem.flyDismiss")}</span>
+              </div>
             </>
           )}
         </div>,
