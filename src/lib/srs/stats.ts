@@ -85,3 +85,65 @@ export function summary(
   const reviews = cards.reduce((n, c) => n + (c.state.reviews ?? 0), 0);
   return { total: cards.length, due, accuracy, reviews };
 }
+
+// --- 인사이트 위젯용 셀렉터 ---
+
+export interface CardBrief {
+  key: string;
+  source: SrsSource;
+  front: string;
+  again: number;
+  hard: number;
+  good: number;
+  box: number;
+  bookmarkedAt?: string;
+  nextReviewAt: string;
+}
+
+function brief(c: ReturnType<typeof cardsOf>[number]): CardBrief {
+  const g = c.state.grades ?? { again: 0, hard: 0, good: 0 };
+  return {
+    key: c.key, source: c.source, front: c.front,
+    again: g.again, hard: g.hard, good: g.good,
+    box: c.state.box, bookmarkedAt: c.bookmarkedAt, nextReviewAt: c.state.nextReviewAt,
+  };
+}
+
+// 자주 틀리는 카드 — 채점 이력 있고 (다시+애매) 많은 순, 동률이면 다시 많은 순.
+export function weakestCards(deck: Deck, now: Date, sources: SrsSource[] | undefined, limit = 4): CardBrief[] {
+  return cardsOf(deck, now, sources)
+    .map(brief)
+    .filter((c) => c.again + c.hard > 0)
+    .sort((a, b) => (b.again + b.hard) - (a.again + a.hard) || b.again - a.again)
+    .slice(0, limit);
+}
+
+// 최근 추가한 카드 — bookmarkedAt 최신순.
+export function recentlyAddedCards(deck: Deck, now: Date, sources: SrsSource[] | undefined, limit = 4): CardBrief[] {
+  return cardsOf(deck, now, sources)
+    .map(brief)
+    .filter((c) => !!c.bookmarkedAt)
+    .sort((a, b) => (b.bookmarkedAt ?? "").localeCompare(a.bookmarkedAt ?? ""))
+    .slice(0, limit);
+}
+
+// 곧 복습 예정 — nextReviewAt이 오늘 이후(미래)인 것만 가까운 순(due 지난 건 제외).
+export function upcomingCards(deck: Deck, now: Date, sources: SrsSource[] | undefined, limit = 4): CardBrief[] {
+  const today = startOfLocalDay(now).getTime();
+  return cardsOf(deck, now, sources)
+    .map(brief)
+    .filter((c) => {
+      const t = startOfLocalDay(new Date(c.nextReviewAt)).getTime();
+      return !Number.isNaN(t) && t > today;
+    })
+    .sort((a, b) => new Date(a.nextReviewAt).getTime() - new Date(b.nextReviewAt).getTime())
+    .slice(0, limit);
+}
+
+// 덱별 성숙도 — code/text 각 총수 + 성숙(box≥4) 수.
+export function deckMaturity(now: Date): { deck: "code" | "text"; total: number; mature: number }[] {
+  return (["code", "text"] as const).map((deck) => {
+    const cards = cardsOf(deck, now);
+    return { deck, total: cards.length, mature: cards.filter((c) => c.state.box >= 4).length };
+  });
+}

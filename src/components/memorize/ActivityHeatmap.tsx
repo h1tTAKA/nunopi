@@ -7,8 +7,8 @@ import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { yearActivity, activityYearRange, currentStreak, type HeatCell } from "@/lib/srs/activityLog";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
-const CELL = 12; // 셀 한 변(px)
-const GAP = 3; // 셀 간격(px)
+const CELL = 10; // 셀 한 변(px)
+const GAP = 2; // 셀 간격(px)
 const SLOT = CELL + GAP; // 주 열 폭
 
 // 잔디 4단계 색(0/1-2/3-5/6+) — 분석모드 북마크 lime(밝은 연두) 계열.

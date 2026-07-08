@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
 import MemorizeStats from "./MemorizeStats";
+import DeckFan from "./DeckFan";
 import type { CardOrder, Deck, SrsSource } from "@/lib/srs/types";
-import type { CardCategory } from "@/lib/srs/due";
+import { deckStats, type CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 type MemPhase = "select" | "session";
@@ -39,6 +40,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     setCodeSourcesRaw(s);
     try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...s])); } catch { /* ignore */ }
   }
+  const now = useMemo(() => new Date(), []);
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         <MemorizeStats deck={deck} sources={deck === "code" ? [...codeSources] : undefined} />
       </div>
       {/* 오른쪽: 덱 선택 패널 — 오른쪽 끝까지(전폭). 좁은 화면은 중앙. */}
-      <div className="mx-auto w-full max-w-lg shrink-0 xl:mx-0 xl:w-[30rem] xl:max-w-none">
+      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:w-[30rem] xl:max-w-none">
         <DeckSelect
           deck={deck}
           onDeckChange={setDeck}
@@ -72,6 +74,10 @@ export default function MemorizeView({ active = true, providerId, providerSettin
           onCodeSourcesChange={setCodeSources}
           onStart={handleStart}
         />
+        {/* 덱 패널 밑 부채꼴 장식 — 선택 덱 카드 수(넓은 화면만). 덱 바뀌면 리마운트해 재애니. */}
+        <div className="hidden xl:block">
+          <DeckFan key={deck} count={deckStats(deck, now, deck === "code" ? [...codeSources] : undefined).total} />
+        </div>
       </div>
     </div>
   );
