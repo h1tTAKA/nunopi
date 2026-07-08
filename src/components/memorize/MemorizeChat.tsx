@@ -143,7 +143,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
 
       {/* 우하단 챗 패널 */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-30 flex h-[60vh] w-96 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
+        <div className="fixed bottom-24 right-6 z-30 flex h-[65vh] w-[30rem] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
           <ChatRoom
             messages={messages}
             streaming={streaming}
