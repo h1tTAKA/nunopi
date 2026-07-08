@@ -206,8 +206,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
           <div className="w-full">{gradeBar}</div>
-          {/* 3분류 더미 — 채점바 아래 중앙(가로). 채점 카드가 여기로 날아와 쌓임. */}
-          <div className="mt-4">
+          {/* 3분류 더미 — 채점바와 같은 3열 그리드로 정렬(각 더미가 해당 버튼 아래). */}
+          <div className="mt-4 w-full">
             <GradePiles stats={stats} landing={tossing} row />
           </div>
         </div>

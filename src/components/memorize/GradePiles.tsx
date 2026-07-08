@@ -20,13 +20,13 @@ const PILES: { grade: Grade; tKey: string; text: string; chip: string }[] = [
 export default function GradePiles({ stats, landing, row = false }: GradePilesProps) {
   const t = useT();
   return (
-    <div className={row ? "flex items-start justify-center gap-6" : "flex flex-col gap-6"}>
+    <div className={row ? "grid w-full grid-cols-3 gap-3" : "flex flex-col gap-6"}>
       {PILES.map(({ grade, tKey, text, chip }) => {
         const n = stats[grade];
         const stack = Math.min(n, 6); // 시각 상한
         const active = landing === grade;
         return (
-          <div key={grade} className={row ? "flex flex-col items-center gap-1.5" : "flex items-center gap-3"}>
+          <div key={grade} className={row ? "flex flex-col items-center gap-1.5 justify-self-center" : "flex items-center gap-3"}>
             {/* 더미 그림 — 흰 카드가 살짝 어긋나게 쌓임(색 테두리·심볼 없음) */}
             <div className="relative h-28 w-24 shrink-0">
               {n === 0 ? (
