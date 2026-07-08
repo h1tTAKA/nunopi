@@ -58,13 +58,27 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
     <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-5 overflow-y-auto pr-1">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
-      {/* 요약 4칸 */}
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard label={t("mem.statTotal")} value={String(sum.total)} />
-        <StatCard label={t("mem.statDue")} value={String(sum.due)} accent />
-        <StatCard label={t("mem.statAccuracy")} value={`${Math.round(sum.accuracy * 100)}%`} />
-        <StatCard label={t("mem.statReviews")} value={String(sum.reviews)} />
-      </div>
+      {/* 분류 도넛 — 중앙에 총 카드 수(요약 4칸 대체). */}
+      <Section title={t("mem.statCategoryDist")}>
+        <div className="flex items-center gap-5">
+          <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
+            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={132} stroke={16} />
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
+              <span className="text-3xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {CAT_META.map((c) => (
+              <div key={c.key} className="flex items-center gap-1.5 text-xs">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+                <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
+                <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Section>
 
       {/* Leitner 박스 분포 */}
       <Section title={t("mem.statBoxDist")} help={t("mem.stageHelp")}>
@@ -86,22 +100,6 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
               <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">{n}</span>
             </div>
           ))}
-        </div>
-      </Section>
-
-      {/* 분류 도넛 */}
-      <Section title={t("mem.statCategoryDist")}>
-        <div className="flex items-center gap-4">
-          <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} />
-          <div className="flex flex-col gap-1">
-            {CAT_META.map((c) => (
-              <div key={c.key} className="flex items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />
-                <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
-                <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </Section>
 
@@ -158,17 +156,6 @@ function heatColor(n: number): string {
   return "bg-blue-600 dark:bg-blue-400";
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="flex flex-col gap-0.5 rounded-xl border border-zinc-200 p-2.5 dark:border-zinc-800">
-      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{label}</span>
-      <span className={`text-lg font-semibold tabular-nums ${accent ? "text-blue-500 dark:text-blue-400" : "text-zinc-800 dark:text-zinc-100"}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function Section({ title, help, children }: { title: string; help?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
@@ -181,14 +168,15 @@ function Section({ title, help, children }: { title: string; help?: string; chil
   );
 }
 
-// SVG 도넛 — stroke-dasharray 세그먼트. 데이터 없으면 회색 링.
-function Donut({ segments, total }: { segments: { value: number; color: string }[]; total: number }) {
-  const r = 26;
+// SVG 도넛 — stroke-dasharray 세그먼트. 데이터 없으면 회색 링. size/stroke 조절 가능.
+function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value: number; color: string }[]; total: number; size?: number; stroke?: number }) {
+  const cxy = size / 2;
+  const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   let offset = 0;
   return (
-    <svg width="72" height="72" viewBox="0 0 72 72" className="shrink-0 -rotate-90">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="currentColor" strokeWidth="10" className="text-zinc-100 dark:text-zinc-800" />
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
+      <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-100 dark:text-zinc-800" />
       {total > 0 &&
         segments.map((s, i) => {
           if (s.value === 0) return null;
@@ -196,12 +184,12 @@ function Donut({ segments, total }: { segments: { value: number; color: string }
           const seg = (
             <circle
               key={i}
-              cx="36"
-              cy="36"
+              cx={cxy}
+              cy={cxy}
               r={r}
               fill="none"
               stroke={s.color}
-              strokeWidth="10"
+              strokeWidth={stroke}
               strokeDasharray={`${len} ${c - len}`}
               strokeDashoffset={-offset}
             />
