@@ -13,6 +13,7 @@ import { loadMemSession, saveMemSession, clearMemSession } from "@/lib/memSessio
 import SessionDone from "./SessionDone";
 import FlashCard from "./FlashCard";
 import CardFan from "./CardFan";
+import CardStageBar from "./CardStageBar";
 import GradePiles from "./GradePiles";
 import CardInfoPanel from "./CardInfoPanel";
 import CardExplainPanel from "./CardExplainPanel";
@@ -225,9 +226,10 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         {/* 남은 카드 부채꼴 — 카드 뒤 배경 */}
         <CardFan remaining={round.length - idx - 1} />
 
-        {/* 현재 카드 정보 — 우상단(넓은 화면만) */}
-        <div className="absolute right-0 top-0 z-10 hidden xl:block">
+        {/* 현재 카드 정보 + 암기 단계 — 우상단 세로 스택(넓은 화면만) */}
+        <div className="absolute right-0 top-0 z-10 hidden w-56 flex-col gap-2 xl:flex">
           <CardInfoPanel card={card} />
+          <CardStageBar card={card} />
         </div>
 
         {/* 카드 디폴트 설명 — 좌상단(넓은 화면만), 반투명으로 뒤 부채꼴 비침 */}
