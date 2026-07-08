@@ -38,6 +38,18 @@ export function hasMemSession(deck: Deck, mode: "due" | "all"): boolean {
   return !!s && s.roundKeys.length > 0;
 }
 
+// 덱의 진행 중 세션 찾기(모드 무관) — 이어서하기는 현재 옵션과 독립하게 저장된 세션 그대로 복원한다.
+// due/all 둘 다 있으면 더 최근(savedAt) 것.
+export function findMemSession(deck: Deck): { mode: "due" | "all"; session: SavedSession } | null {
+  const store = load();
+  const found = (["due", "all"] as const)
+    .map((mode) => ({ mode, session: store[sessionKey(deck, mode)] }))
+    .filter((x): x is { mode: "due" | "all"; session: SavedSession } => !!x.session && x.session.roundKeys.length > 0);
+  if (found.length === 0) return null;
+  found.sort((a, b) => b.session.savedAt.localeCompare(a.session.savedAt));
+  return found[0];
+}
+
 export function saveMemSession(deck: Deck, mode: "due" | "all", session: SavedSession): void {
   try {
     const store = load();

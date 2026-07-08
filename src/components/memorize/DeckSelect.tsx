@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import { deckStats, categoryCounts, type CardCategory } from "@/lib/srs/due";
-import { hasMemSession, clearMemSession } from "@/lib/memSession";
+import { deckStats, categoryCounts, sessionCount, type CardCategory } from "@/lib/srs/due";
+import { findMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
 const ORDER_KEY = "nunopi:mem-order";
@@ -27,9 +27,9 @@ interface DeckSelectProps {
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
+  { deck: "all", tKey: "mem.deckAll", Icon: IconStack2 },
   { deck: "code", tKey: "mem.deckCode", Icon: IconCode },
   { deck: "text", tKey: "mem.deckText", Icon: IconFileText },
-  { deck: "all", tKey: "mem.deckAll", Icon: IconStack2 },
 ];
 
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
@@ -61,22 +61,31 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     setOrder(o);
     try { localStorage.setItem(ORDER_KEY, o); } catch { /* ignore */ }
   }
-  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속(lazy 초기화).
+  // 분류 필터 — 빈 Set = "전체"(필터 없음). 기본 전체. localStorage 영속(lazy 초기화).
   const [cats, setCats] = useState<Set<CardCategory>>(() => {
     try {
       const raw = localStorage.getItem(CATS_KEY);
       const arr = raw ? (JSON.parse(raw) as CardCategory[]) : null;
       if (Array.isArray(arr)) return new Set(arr);
     } catch { /* ignore */ }
-    return new Set(["again", "hard", "good", "none"]);
+    return new Set();
   });
+  function persistCats(next: Set<CardCategory>) {
+    try { localStorage.setItem(CATS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+  }
   function toggleCat(c: CardCategory) {
     setCats((prev) => {
       const next = new Set(prev);
       if (next.has(c)) next.delete(c); else next.add(c);
-      try { localStorage.setItem(CATS_KEY, JSON.stringify([...next])); } catch { /* ignore */ }
+      persistCats(next);
       return next;
     });
+  }
+  // "전체" 선택 — 개별 분류 해제(빈 Set = 필터 없음).
+  function selectAllCats() {
+    const next = new Set<CardCategory>();
+    setCats(next);
+    persistCats(next);
   }
   // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째. localStorage 영속(lazy 초기화).
   const [codeSources, setCodeSources] = useState<Set<SrsSource>>(() => {
@@ -119,10 +128,14 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   }
 
   const selectedStats = stats[selected];
-  // due 모드는 오늘 복습 카드가 있어야, all 모드는 카드가 하나라도 있으면 시작.
-  const canStart = (mode === "all" ? selectedStats.total > 0 : selectedStats.due > 0) && cats.size > 0;
-  // 진행 중 세션(이어하기 가능) 여부 — 선택 덱+모드 기준.
-  const resumable = hasMemSession(selected, mode);
+  // 실제 세션에 들어갈 카드 수(범위 + 분류 필터 반영) — 시작 버튼 라벨/활성 기준.
+  const startCount = useMemo(
+    () => sessionCount(selected, now, mode, [...cats], selected === "code" ? [...codeSources] : undefined),
+    [selected, now, mode, cats, codeSources],
+  );
+  const canStart = startCount > 0;
+  // 진행 중 세션(이어하기) — 덱 기준(모드 무관). 저장 세션 그대로 복원한다.
+  const resumeTarget = findMemSession(selected);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -135,11 +148,13 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
           const s = stats[deck];
           const active = selected === deck;
           return (
-            <button
+            <div
               key={deck}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setSelected(deck)}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(deck); } }}
+              className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition ${
                 active
                   ? "border-blue-400 bg-blue-50/60 dark:border-blue-500 dark:bg-blue-950/20"
                   : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
@@ -156,7 +171,17 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
                   {t("mem.total")} {s.total}
                 </span>
               )}
-            </button>
+              {/* 선택 덱 + 진행 중 세션: 이어서하기만(옵션과 독립, 저장 세션 그대로). */}
+              {active && s.total > 0 && resumeTarget && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
+                  className="shrink-0 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                >
+                  {t("mem.resume")}
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
@@ -234,6 +259,18 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         <div className="flex items-center gap-3">
           <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblCategory")}</span>
           <div className="flex flex-wrap gap-1.5">
+            {/* 전체 = 빈 필터. 누르면 개별 선택 해제. */}
+            <button
+              type="button"
+              onClick={selectAllCats}
+              aria-pressed={cats.size === 0}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+                cats.size === 0 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+              }`}
+            >
+              {cats.size === 0 && <IconCheck size={12} stroke={2.5} aria-hidden />}
+              {t("mem.catAll")} {selectedStats.total}
+            </button>
             {CATEGORIES.map((c) => {
               const on = cats.has(c.value);
               return (
@@ -255,39 +292,17 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         </div>
       </div>
 
-      {resumable ? (
-        // 진행 중 세션 있음 — 이어서하기 + 새로하기.
-        <div className="mt-1 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => onStart(selected, effectiveSources(selected), mode, true, order, [...cats])}
-            className="rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            {t("mem.resume")}
-          </button>
-          <button
-            type="button"
-            disabled={!canStart}
-            onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
-            className="rounded-xl border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            {t("mem.startFresh")}
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          disabled={!canStart}
-          onClick={() => onStart(selected, effectiveSources(selected), mode, false, order, [...cats])}
-          className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0
-            ? t("mem.noDueToday")
-            : mode === "all"
-              ? `${t("mem.start")} · ${selectedStats.total}`
-              : t("mem.start")}
-        </button>
-      )}
+      {/* 시작하기 — 새 세션(진행 중 세션 있으면 덮어씀). */}
+      <button
+        type="button"
+        disabled={!canStart}
+        onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
+        className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {mode === "due" && selectedStats.total > 0 && startCount === 0
+          ? t("mem.noDueToday")
+          : `${t("mem.start")} · ${startCount}`}
+      </button>
     </div>
   );
 }
