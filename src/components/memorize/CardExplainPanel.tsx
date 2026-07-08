@@ -100,7 +100,7 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
           <span className="text-rose-500 dark:text-rose-400">{t("mem.explainError")}</span>
         ) : text ? (
           // 뒤집기 전엔 블러 처리(내용은 있지만 못 읽게) → 뒤집으면 선명.
-          <div className={!flipped ? "pointer-events-none select-none blur-[2px] opacity-70" : "transition-[filter] duration-200"}>
+          <div className={!flipped ? "pointer-events-none select-none blur-[5px]" : "transition-[filter] duration-200"}>
             <Markdown>{text}</Markdown>
           </div>
         ) : streaming ? (
