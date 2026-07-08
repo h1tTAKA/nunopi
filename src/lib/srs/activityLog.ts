@@ -45,22 +45,6 @@ function addDays(d: Date, delta: number): Date {
   return base;
 }
 
-// (레거시) 최근 weeks주 히트맵 — #405에서 yearActivity로 대체 예정.
-export function activityHeatmap(now: Date, weeks = 17): { date: string; count: number }[] {
-  const map = loadActivity();
-  const today = startOfLocalDay(now);
-  const endOfWeek = addDays(today, 6 - today.getDay());
-  const totalCells = weeks * 7;
-  const start = addDays(endOfWeek, -(totalCells - 1));
-  const cells: { date: string; count: number }[] = [];
-  for (let i = 0; i < totalCells; i++) {
-    const d = addDays(start, i);
-    const k = dayKey(d);
-    cells.push({ date: k, count: map[k] ?? 0 });
-  }
-  return cells;
-}
-
 export interface HeatCell {
   date: string | null; // 해당 연도 밖(그리드 패딩)이면 null
   count: number;
