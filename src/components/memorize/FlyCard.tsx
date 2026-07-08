@@ -39,12 +39,14 @@ export function useFlyCard(): FlyApi {
 // 카드 던지기 애니를 화면 어디서든 공유 — 포탈 오버레이 + Web Animations API 재생을 소유.
 // DeckFan(부채꼴)·MemorizeInsights(인사이트 항목)가 같은 연출을 재사용한다.
 export function FlyCardProvider({
+  active = true,
   providerId,
   providerSettings,
   sourceIds,
   onGoToSource,
   children,
 }: {
+  active?: boolean; // 암기 탭이 화면에 켜져 있는지 — 꺼지면(분석 보는 중) 오버레이 숨김(fly 상태는 유지)
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존 분석 히스토리 id — 출처 이동 버튼 노출 판별
@@ -125,7 +127,7 @@ export function FlyCardProvider({
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center ${peek ? "cursor-pointer bg-black/75" : "pointer-events-none"}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center ${!active ? "hidden" : peek ? "cursor-pointer bg-black/75" : "pointer-events-none"}`}
           style={{ perspective: "1200px" }}
           onClick={() => { if (peek) setDropping(true); }}
         >
@@ -178,7 +180,7 @@ export function FlyCardProvider({
                 {!!fly.card.sourceId && sourceIds.has(fly.card.sourceId) && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); const id = fly.card.sourceId!; setFly(null); setArrived(false); setDropping(false); onGoToSource(id); }}
+                    onClick={(e) => { e.stopPropagation(); onGoToSource(fly.card.sourceId!); }}
                     className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
                   >
                     {t("mem.goToSource")}
