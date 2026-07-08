@@ -1,15 +1,22 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { deckStats } from "@/lib/srs/due";
 import { hasMemSession, clearMemSession } from "@/lib/memSession";
-import { DECK_SOURCES, type Deck, type SrsSource } from "@/lib/srs/types";
+import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
+
+const ORDER_KEY = "nunopi:mem-order";
+const ORDERS: { value: CardOrder; tKey: string }[] = [
+  { value: "newest", tKey: "mem.orderNewest" },
+  { value: "oldest", tKey: "mem.orderOldest" },
+  { value: "random", tKey: "mem.orderRandom" },
+];
 
 interface DeckSelectProps {
-  // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 여부로 세션 시작.
-  onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean) => void;
+  // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 + 카드 순서로 세션 시작.
+  onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean, order: CardOrder) => void;
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
@@ -24,6 +31,17 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   const [selected, setSelected] = useState<Deck>("code");
   // 복습 모드 — due(오늘) / all(상시 전체).
   const [mode, setMode] = useState<"due" | "all">("due");
+  // 카드 제시 순서 — localStorage 영속.
+  const [order, setOrder] = useState<CardOrder>("newest");
+  useEffect(() => {
+    const s = localStorage.getItem(ORDER_KEY);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (s === "newest" || s === "oldest" || s === "random") setOrder(s);
+  }, []);
+  function pickOrder(o: CardOrder) {
+    setOrder(o);
+    try { localStorage.setItem(ORDER_KEY, o); } catch { /* ignore */ }
+  }
   // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리).
   const [codeSources, setCodeSources] = useState<Set<SrsSource>>(new Set(["token", "concept"]));
 
@@ -138,12 +156,31 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         ))}
       </div>
 
+      {/* 카드 순서 — 최신순/과거순/무작위 */}
+      <div className="inline-flex self-center rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900">
+        {ORDERS.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => pickOrder(o.value)}
+            aria-pressed={order === o.value}
+            className={`rounded-md px-3 py-1.5 font-medium transition ${
+              order === o.value
+                ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                : "text-zinc-500 dark:text-zinc-400"
+            }`}
+          >
+            {t(o.tKey)}
+          </button>
+        ))}
+      </div>
+
       {resumable ? (
         // 진행 중 세션 있음 — 이어서하기 + 새로하기.
         <div className="mt-1 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => onStart(selected, effectiveSources(selected), mode, true)}
+            onClick={() => onStart(selected, effectiveSources(selected), mode, true, order)}
             className="rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             {t("mem.resume")}
@@ -151,7 +188,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
           <button
             type="button"
             disabled={!canStart}
-            onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false); }}
+            onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order); }}
             className="rounded-xl border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             {t("mem.startFresh")}
@@ -161,7 +198,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         <button
           type="button"
           disabled={!canStart}
-          onClick={() => onStart(selected, effectiveSources(selected), mode, false)}
+          onClick={() => onStart(selected, effectiveSources(selected), mode, false, order)}
           className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0

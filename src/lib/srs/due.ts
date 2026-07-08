@@ -3,7 +3,21 @@
 import { collectCards } from "./collect";
 import { isDue } from "./schedule";
 import { DECK_SOURCES } from "./types";
-import type { Card, Deck, SrsSource } from "./types";
+import type { Card, CardOrder, Deck, SrsSource } from "./types";
+
+// 카드 제시 순서 적용. 최신순/과거순은 습득일(bookmarkedAt) 기준, 무작위는 Fisher-Yates.
+export function orderCards(cards: Card[], order: CardOrder): Card[] {
+  const arr = [...cards];
+  if (order === "random") {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  const dir = order === "newest" ? -1 : 1; // newest=최신 먼저(desc)
+  return arr.sort((a, b) => dir * ((a.bookmarkedAt ?? "").localeCompare(b.bookmarkedAt ?? "")));
+}
 
 // 오늘(로컬 자정 기준) 복습 대상 카드.
 export function dueCards(cards: Card[], now: Date): Card[] {

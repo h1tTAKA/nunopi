@@ -11,6 +11,9 @@ export type Grade = "again" | "hard" | "good";
 // 덱 = 카드 묶음(북마크 출처 그룹). code=토큰+개념, text=글용어, all=전체.
 export type Deck = "code" | "text" | "all";
 
+// 카드 제시 순서 — 최신순(습득 최신 먼저)/과거순/무작위.
+export type CardOrder = "newest" | "oldest" | "random";
+
 // 카드 한 장의 복습 진도. 북마크 원본과 분리 저장(nunopi:srs-state).
 export interface SrsState {
   box: number; // 1..5 (Leitner 박스)
