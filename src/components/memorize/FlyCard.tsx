@@ -127,14 +127,14 @@ export function FlyCardProvider({
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center ${!active ? "hidden" : peek ? "cursor-pointer bg-black/75" : "pointer-events-none"}`}
+          className={`fixed inset-0 z-50 flex items-center justify-center ${!active ? "hidden" : peek ? "bg-black/75" : "pointer-events-none"}`}
           style={{ perspective: "1200px" }}
-          onClick={() => { if (peek) setDropping(true); }}
         >
-          {/* 중앙 카드(확대) */}
+          {/* 중앙 카드(확대) — 이 카드를 클릭해야만 낙하·닫힘(배경 클릭은 무효). */}
           <div
             ref={cardRef}
-            className="relative aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700"
+            onClick={() => { if (peek) setDropping(true); }}
+            className={`relative aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 ${peek ? "cursor-pointer" : ""}`}
             style={{ transformStyle: "preserve-3d" }}
           >
             {/* 실제 카드 면 — 흰 포커카드(파란 이중 프레임 + 심볼 + 용어 + 설명). 확대 시 읽힌다. */}
