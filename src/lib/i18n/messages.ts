@@ -96,6 +96,7 @@ const ko: Dict = {
   "mem.retryYes": "예, 복습",
   "mem.retryNo": "아니오",
   "mem.noExplanation": "설명 없음",
+  "mem.flyDismiss": "카드를 클릭하면 닫혀요",
 
   "input.codeTitle": "코드 입력",
   "input.textTitle": "글 입력",
@@ -397,6 +398,7 @@ const ja: Dict = {
   "mem.retryYes": "はい、復習",
   "mem.retryNo": "いいえ",
   "mem.noExplanation": "説明なし",
+  "mem.flyDismiss": "カードをクリックで閉じる",
 
   "input.codeTitle": "コード入力",
   "input.textTitle": "文章入力",
@@ -698,6 +700,7 @@ const en: Dict = {
   "mem.retryYes": "Yes, review",
   "mem.retryNo": "No",
   "mem.noExplanation": "No explanation",
+  "mem.flyDismiss": "Click the card to dismiss",
 
   "input.codeTitle": "Code input",
   "input.textTitle": "Text input",

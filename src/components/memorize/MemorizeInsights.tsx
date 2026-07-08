@@ -2,8 +2,10 @@
 
 import { useMemo } from "react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import { weakestCards, recentlyAddedCards, upcomingCards, deckMaturity } from "@/lib/srs/stats";
-import type { Deck, SrsSource } from "@/lib/srs/types";
+import { weakestCards, recentlyAddedCards, upcomingCards, deckMaturity, type CardBrief } from "@/lib/srs/stats";
+import { collectCards } from "@/lib/srs/collect";
+import { DECK_SOURCES, type Deck, type SrsSource } from "@/lib/srs/types";
+import { useFlyCard } from "./FlyCard";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 const ACCENT = "#3B34E2";
@@ -11,6 +13,7 @@ const ACCENT = "#3B34E2";
 // 하단 인사이트 위젯 4개 — 자주 틀리는/최근 추가/덱별 성숙도/곧 복습 예정.
 export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; sources?: SrsSource[]; now: Date }) {
   const t = useT();
+  const { throwCard } = useFlyCard();
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const fmt = (iso?: string) => {
@@ -24,12 +27,26 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
   const upcoming = useMemo(() => upcomingCards(deck, now, sources, 4), [deck, now, sources]);
   const maturity = useMemo(() => deckMaturity(now), [now]);
 
+  // 키 → 실제 Card 조회용(추가설명/챗 패널은 full Card 필요). weak/recent/upcoming은 CardBrief라 여기서 원본 카드로 매핑.
+  const byKey = useMemo(() => {
+    const deckSources = DECK_SOURCES[deck];
+    const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
+    return new Map(collectCards(effective, now).map((c) => [c.key, c]));
+  }, [deck, sources, now]);
+
+  // 인사이트 항목 클릭 → 그 카드가 (클릭 위치가 아니라) 오른쪽 부채꼴 자리에서 3D로 날아온다.
+  // origin 생략 → FlyCardProvider가 등록된 originRef(부채꼴)를 출발점으로 사용.
+  const fling = (c: CardBrief) => () => {
+    const card = byKey.get(c.key);
+    if (card) throwCard(card);
+  };
+
   return (
     <div className="grid grid-cols-2 gap-3">
       {/* 자주 틀리는 카드 */}
       <Widget title={t("mem.insWeak")}>
         {weak.length === 0 ? <Empty t={t} /> : weak.map((c) => (
-          <Row key={c.key} front={c.front}
+          <Row key={c.key} front={c.front} onClick={fling(c)}
             right={c.again > 0
               ? <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {c.again}</span>
               : <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {c.hard}</span>} />
@@ -39,7 +56,7 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
       {/* 최근 추가 */}
       <Widget title={t("mem.insRecent")}>
         {recent.length === 0 ? <Empty t={t} /> : recent.map((c) => (
-          <Row key={c.key} front={c.front} right={<span className="text-zinc-400 dark:text-zinc-500">{fmt(c.bookmarkedAt)}</span>} />
+          <Row key={c.key} front={c.front} onClick={fling(c)} right={<span className="text-zinc-400 dark:text-zinc-500">{fmt(c.bookmarkedAt)}</span>} />
         ))}
       </Widget>
 
@@ -65,7 +82,7 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
       {/* 곧 복습 예정 */}
       <Widget title={t("mem.insUpcoming")}>
         {upcoming.length === 0 ? <Empty t={t} /> : upcoming.map((c) => (
-          <Row key={c.key} front={c.front} right={<span className="text-[#3B34E2] dark:text-[#8b86f5]">{fmt(c.nextReviewAt)}</span>} />
+          <Row key={c.key} front={c.front} onClick={fling(c)} right={<span className="text-[#3B34E2] dark:text-[#8b86f5]">{fmt(c.nextReviewAt)}</span>} />
         ))}
       </Widget>
     </div>
@@ -81,12 +98,17 @@ function Widget({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-function Row({ front, right }: { front: string; right: React.ReactNode }) {
+function Row({ front, right, onClick }: { front: string; right: React.ReactNode; onClick: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-2 text-[11px]">
+    <button
+      type="button"
+      onClick={onClick}
+      title={front}
+      className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-0.5 text-left text-[11px] transition hover:bg-zinc-100 dark:hover:bg-zinc-800"
+    >
       <span className="min-w-0 flex-1 truncate text-zinc-600 dark:text-zinc-300">{front}</span>
       <span className="shrink-0 tabular-nums">{right}</span>
-    </div>
+    </button>
   );
 }
 

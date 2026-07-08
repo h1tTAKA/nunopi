@@ -5,6 +5,7 @@ import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
 import MemorizeStats from "./MemorizeStats";
 import DeckFan from "./DeckFan";
+import { FlyCardProvider } from "./FlyCard";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 import { collectCards } from "@/lib/srs/collect";
 import { type CardCategory } from "@/lib/srs/due";
@@ -66,7 +67,9 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   }
 
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
+  // FlyCardProvider로 감싸 DeckFan·MemorizeInsights가 같은 카드 던지기 연출을 공유.
   return (
+    <FlyCardProvider active={active} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={onGoToSource}>
     <div className="flex h-full w-full items-stretch justify-center gap-8 overflow-hidden px-8 py-6">
       {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부, 상단 정렬(오른쪽 덱 패널과 top 맞춤) */}
       <div className="hidden min-h-0 flex-1 flex-col justify-start xl:flex">
@@ -87,5 +90,6 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         </div>
       </div>
     </div>
+    </FlyCardProvider>
   );
 }
