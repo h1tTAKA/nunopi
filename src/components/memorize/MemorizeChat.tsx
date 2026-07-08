@@ -83,9 +83,11 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
           signal: ac.signal,
         });
         if (!res.ok || !res.body) {
-          const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyFailed") }];
-          setMessages(next);
-          saveCardChat(card.key, next);
+          if (!ac.signal.aborted) {
+            const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyFailed") }];
+            setMessages(next);
+            saveCardChat(card.key, next);
+          }
           return;
         }
         const reader = res.body.getReader();
@@ -110,9 +112,11 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
-        const next: ChatMessage[] = [...thread, { role: "assistant", content: answer || "(빈 응답)" }];
-        setMessages(next);
-        saveCardChat(card.key, next);
+        if (!ac.signal.aborted) {
+          const next: ChatMessage[] = [...thread, { role: "assistant", content: answer || "(빈 응답)" }];
+          setMessages(next);
+          saveCardChat(card.key, next);
+        }
       } catch {
         if (!ac.signal.aborted) {
           const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyError") }];
