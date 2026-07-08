@@ -99,8 +99,8 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
                 w.map((cell, di) => (
                   <div
                     key={`${wi}-${di}`}
-                    onMouseEnter={cell.date ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
-                    onMouseMove={cell.date ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                    onMouseEnter={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                    onMouseMove={cell.date && (cell.count > 0 || cell.added > 0) ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
                     onMouseLeave={() => setHover(null)}
                     className={`rounded-[2px] ${cell.date ? heatColor(cell.count) : "bg-transparent"}`}
                     style={{ width: CELL, height: CELL }}
