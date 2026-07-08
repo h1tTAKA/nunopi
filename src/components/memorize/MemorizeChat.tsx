@@ -5,6 +5,7 @@ import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { loadCardExplain } from "@/lib/cardExplain";
+import { loadCardChat, saveCardChat } from "@/lib/cardChat";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 import type { Card } from "@/lib/srs/types";
 
@@ -30,11 +31,12 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 카드가 바뀌면 스레드 리셋 + 진행 중 요청 취소. 언마운트(탭 이탈/세션 종료) 시에도 abort(요청 누수 방지).
+  // 카드가 바뀌면 그 카드의 저장된 스레드 로드(카드별 고유 세션) + 진행 중 요청 취소.
+  // 언마운트(탭 이탈/세션 종료) 시에도 abort(요청 누수 방지).
   useEffect(() => {
     abortRef.current?.abort();
     /* eslint-disable react-hooks/set-state-in-effect */
-    setMessages([]);
+    setMessages(loadCardChat(card.key));
     setStreaming(null);
     setLoading(false);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -44,6 +46,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
   function handleClear() {
     abortRef.current?.abort();
     setMessages([]);
+    saveCardChat(card.key, []);
     setStreaming(null);
     setLoading(false);
   }
@@ -52,6 +55,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
     if (loading) return;
     const thread: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(thread);
+    saveCardChat(card.key, thread);
     setStreaming("");
     setLoading(true);
     const ac = new AbortController();
@@ -79,7 +83,9 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
           signal: ac.signal,
         });
         if (!res.ok || !res.body) {
-          setMessages((m) => [...m, { role: "assistant", content: t("chat.replyFailed") }]);
+          const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyFailed") }];
+          setMessages(next);
+          saveCardChat(card.key, next);
           return;
         }
         const reader = res.body.getReader();
@@ -104,9 +110,15 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
-        setMessages((m) => [...m, { role: "assistant", content: answer || "(빈 응답)" }]);
+        const next: ChatMessage[] = [...thread, { role: "assistant", content: answer || "(빈 응답)" }];
+        setMessages(next);
+        saveCardChat(card.key, next);
       } catch {
-        if (!ac.signal.aborted) setMessages((m) => [...m, { role: "assistant", content: t("chat.replyError") }]);
+        if (!ac.signal.aborted) {
+          const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyError") }];
+          setMessages(next);
+          saveCardChat(card.key, next);
+        }
       } finally {
         if (!ac.signal.aborted) {
           setStreaming(null);
