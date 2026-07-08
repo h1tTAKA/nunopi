@@ -207,7 +207,7 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           </div>
           <div className="w-full">{gradeBar}</div>
           {/* 3분류 더미 — 상단 버튼은 카드 폭 그대로, 더미만 좌우로 더 벌린다(중앙 애매 기준). */}
-          <div className="mt-4 w-[26rem] max-w-[90vw]">
+          <div className="mt-4 w-[32rem] max-w-[90vw]">
             <GradePiles stats={stats} landing={tossing} row />
           </div>
         </div>
