@@ -92,6 +92,7 @@ export interface CardBrief {
   key: string;
   source: SrsSource;
   front: string;
+  back: string; // 설명 — 인사이트 항목 클릭 시 날아오는 카드 면에 표시
   again: number;
   hard: number;
   good: number;
@@ -103,7 +104,7 @@ export interface CardBrief {
 function brief(c: ReturnType<typeof cardsOf>[number]): CardBrief {
   const g = c.state.grades ?? { again: 0, hard: 0, good: 0 };
   return {
-    key: c.key, source: c.source, front: c.front,
+    key: c.key, source: c.source, front: c.front, back: c.back,
     again: g.again, hard: g.hard, good: g.good,
     box: c.state.box, bookmarkedAt: c.bookmarkedAt, nextReviewAt: c.state.nextReviewAt,
   };
