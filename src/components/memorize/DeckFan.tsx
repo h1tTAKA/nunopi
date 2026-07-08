@@ -24,7 +24,7 @@ export default function DeckFan({ count }: { count: number }) {
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
   return (
-    <div className="pt-1" aria-hidden>
+    <div className="pt-5" aria-hidden>
       <div className="relative h-52 w-full">
         {/* 피벗: 하단 중앙, 카드들이 위로 아치 */}
         <div className="absolute bottom-0 left-1/2 h-0 w-0">
