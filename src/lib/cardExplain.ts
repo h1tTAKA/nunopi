@@ -1,7 +1,7 @@
 // 암기 카드 "디폴트 설명"(explain-card) 스트림 소비 + localStorage 캐시.
 // 한 번 생성한 카드 설명은 cardKey로 고정 저장 → 재방문 시 즉시 표시. 리셋은 삭제.
 
-import type { AgentProviderKind } from "@/lib/agent";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 const CACHE_KEY = "nunopi:card-explain";
 
@@ -48,6 +48,7 @@ export async function streamCardExplain(
     kind: "token" | "concept" | "term";
     providerId: AgentProviderKind;
     locale: "ko" | "ja" | "en";
+    providerSettings?: ProviderSettings;
   },
   onChunk: (full: string) => void,
   signal?: AbortSignal,
@@ -55,13 +56,18 @@ export async function streamCardExplain(
   const res = await fetch("/api/agent/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    // 라우트는 { providerId, request } 형태를 받는다(flat 아님).
     body: JSON.stringify({
-      code: "",
-      locale: params.locale,
       providerId: params.providerId,
-      mode: "explain-card",
-      targetTerm: params.term,
-      targetKind: params.kind,
+      request: {
+        code: "",
+        locale: params.locale,
+        providerId: params.providerId,
+        mode: "explain-card",
+        targetTerm: params.term,
+        targetKind: params.kind,
+        ...(params.providerSettings ? { providerSettings: params.providerSettings } : {}),
+      },
     }),
     signal,
   });
