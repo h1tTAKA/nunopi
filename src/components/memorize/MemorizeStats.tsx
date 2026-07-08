@@ -117,7 +117,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
                 const today = i === 0;
                 return (
                   <div key={f.date} className="flex flex-1 flex-col items-center gap-1.5">
-                    <span className={`text-[10px] font-semibold tabular-nums ${today ? "text-blue-500 dark:text-blue-400" : f.count > 0 ? "text-zinc-500 dark:text-zinc-300" : "text-zinc-300 dark:text-zinc-600"}`}>
+                    <span className={`text-[10px] font-semibold tabular-nums ${today ? "text-[#3B34E2] dark:text-[#8b86f5]" : f.count > 0 ? "text-zinc-500 dark:text-zinc-300" : "text-zinc-300 dark:text-zinc-600"}`}>
                       {f.count > 0 ? t("mem.statCount").replace("{n}", String(f.count)) : "·"}
                     </span>
                     {/* 고정 높이 트랙(%높이가 죽지 않게) + 옅은 배경 baseline */}
@@ -127,7 +127,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
                         style={{ height: `${f.count > 0 ? Math.max(10, (f.count / fcMax) * 100) : 0}%`, backgroundImage: BRAND_V }}
                       />
                     </div>
-                    <span className={`text-[10px] ${today ? "font-semibold text-blue-500 dark:text-blue-400" : "text-zinc-400 dark:text-zinc-500"}`}>{label}</span>
+                    <span className={`text-[10px] ${today ? "font-semibold text-[#3B34E2] dark:text-[#8b86f5]" : "text-zinc-400 dark:text-zinc-500"}`}>{label}</span>
                   </div>
                 );
               })}
