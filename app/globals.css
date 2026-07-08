@@ -142,6 +142,10 @@ samp {
 .dark .nunopi-md pre { border-color: rgba(255,255,255,0.12); }
 .nunopi-md pre code,
 .nunopi-md pre code.hljs { background: transparent; padding: 0; font-size: 0.9em; }
+/* 다크모드 인라인 알약 규칙(.dark .nunopi-md code, 0,2,1)이 블록 코드에도 새어 특이도로
+   이기므로, 블록 코드는 .dark 스코프로 특이도(0,2,2) 높여 투명을 확실히 이기게 한다. */
+.dark .nunopi-md pre code,
+.dark .nunopi-md pre code.hljs { background: transparent; }
 .nunopi-md blockquote { margin: 0.5em 0; padding-left: 0.75em; border-left: 3px solid #d4d4d8; color: #52525b; }
 .dark .nunopi-md blockquote { border-left-color: #52525b; color: #a1a1aa; }
 .nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #d4d4d8; }
