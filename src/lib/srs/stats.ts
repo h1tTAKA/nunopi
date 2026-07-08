@@ -114,7 +114,7 @@ export function weakestCards(deck: Deck, now: Date, sources: SrsSource[] | undef
   return cardsOf(deck, now, sources)
     .map(brief)
     .filter((c) => c.again + c.hard > 0)
-    .sort((a, b) => (b.again + b.hard) - (a.again + a.hard) || b.again - a.again)
+    .sort((a, b) => b.again - a.again || b.hard - a.hard) // 다시 우선, 동률이면 애매 순
     .slice(0, limit);
 }
 
