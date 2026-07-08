@@ -30,7 +30,9 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
       <Widget title={t("mem.insWeak")}>
         {weak.length === 0 ? <Empty t={t} /> : weak.map((c) => (
           <Row key={c.key} front={c.front}
-            right={<span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {c.again}</span>} />
+            right={c.again > 0
+              ? <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {c.again}</span>
+              : <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {c.hard}</span>} />
         ))}
       </Widget>
 
