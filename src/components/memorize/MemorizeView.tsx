@@ -5,8 +5,9 @@ import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
 import MemorizeStats from "./MemorizeStats";
 import DeckFan from "./DeckFan";
-import type { CardOrder, Deck, SrsSource } from "@/lib/srs/types";
-import { deckStats, type CardCategory } from "@/lib/srs/due";
+import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
+import { collectCards } from "@/lib/srs/collect";
+import { type CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 type MemPhase = "select" | "session";
@@ -41,6 +42,12 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...s])); } catch { /* ignore */ }
   }
   const now = useMemo(() => new Date(), []);
+  // 부채꼴에 쓸 실제 카드 — 선택 덱 출처(코드덱은 세부 토글 반영). 클릭 시 이 중 랜덤 1장이 날아온다.
+  const fanCards = useMemo(() => {
+    const deckSources = DECK_SOURCES[deck];
+    const effective = deck === "code" ? deckSources.filter((s) => codeSources.has(s)) : deckSources;
+    return collectCards(effective, now);
+  }, [deck, codeSources, now]);
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -76,7 +83,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         />
         {/* 덱 패널 밑 부채꼴 장식 — 남는 세로 공간 채워 중앙 배치(넓은 화면만, 넘치면 클립). */}
         <div className="hidden min-h-0 flex-1 items-center justify-center overflow-hidden xl:flex">
-          <DeckFan key={deck} count={deckStats(deck, now, deck === "code" ? [...codeSources] : undefined).total} />
+          <DeckFan key={deck} cards={fanCards} />
         </div>
       </div>
     </div>

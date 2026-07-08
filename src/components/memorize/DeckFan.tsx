@@ -2,15 +2,20 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useT } from "@/lib/i18n/I18nProvider";
+import type { Card } from "@/lib/srs/types";
 import CardBack from "./CardBack";
 
 const MAX_FAN = 14; // 시각 상한(초과해도 이만큼만 펼침)
+const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 
-interface Fly { id: number; kf: Keyframe[] }
+interface Fly { id: number; kf: Keyframe[]; card: Card }
 
 // 덱 선택 화면 장식 — 선택 덱 카드 수만큼 부채꼴로 펼침 + 마운트/덱변경 시 펼침 애니.
-// 카드 클릭 시 3D로 날아와 가운데 부딪히고 중력으로 아래로 떨어지는 애니(Web Animations API).
-export default function DeckFan({ count }: { count: number }) {
+// 부채꼴 장식은 빈 뒷면(CardBack)이고, 카드 클릭 시엔 실제 랜덤 북마크 카드(용어+설명)가
+// 3D로 날아와 가운데 부딪히고 중력으로 아래로 떨어지는 애니(Web Animations API).
+export default function DeckFan({ cards }: { cards: Card[] }) {
+  const t = useT();
   const [opened, setOpened] = useState(false);
   const [fly, setFly] = useState<Fly | null>(null);
   const flyId = useRef(0);
@@ -35,7 +40,8 @@ export default function DeckFan({ count }: { count: number }) {
   }, [fly]);
 
   function launch(e: React.MouseEvent<HTMLSpanElement>) {
-    if (reduced || typeof window === "undefined") return;
+    if (reduced || typeof window === "undefined" || cards.length === 0) return;
+    const card = cards[Math.floor(Math.random() * cards.length)]; // 클릭마다 랜덤 카드 1장
     const r = e.currentTarget.getBoundingClientRect();
     // 클릭한 카드 중심 → 화면 중앙 기준 px 오프셋(그 자리에서 출발).
     const sx = r.left + r.width / 2 - window.innerWidth / 2;
@@ -56,11 +62,11 @@ export default function DeckFan({ count }: { count: number }) {
       { offset: 0.9, opacity: 1, transform: `translate3d(${sway * 24}px,${fallY * 0.72}px,0) rotateZ(${sway * 16}deg) scale(2.5)` },
       { offset: 1, opacity: 0, transform: `translate3d(${sway * 34}px,${fallY}px,0) rotateZ(${sway * 22}deg) scale(2.4)` },
     ];
-    setFly({ id: ++flyId.current, kf });
+    setFly({ id: ++flyId.current, kf, card });
   }
 
-  if (count <= 0) return null;
-  const n = Math.min(count, MAX_FAN);
+  if (cards.length <= 0) return null;
+  const n = Math.min(cards.length, MAX_FAN);
   const spread = n === 1 ? 0 : Math.min(60, 10 + n * 3.5);
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
@@ -96,10 +102,20 @@ export default function DeckFan({ count }: { count: number }) {
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" style={{ perspective: "1200px" }}>
           <div
             ref={cardRef}
-            className="aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
+            className="relative aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700"
             style={{ transformStyle: "preserve-3d" }}
           >
-            <CardBack />
+            {/* 실제 랜덤 카드 면 — 흰 포커카드(파란 이중 프레임 + 심볼 + 용어 + 설명). 확대 시 읽힌다. */}
+            <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/60" />
+            <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/35" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-3.5 py-4 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={SYMBOL} alt="" className="h-5 w-5 shrink-0 object-contain" />
+              <span className="text-[11px] font-bold leading-tight text-zinc-900">{fly.card.front}</span>
+              <span className="line-clamp-6 whitespace-pre-wrap text-[7px] leading-snug text-zinc-600">
+                {fly.card.back || t("mem.noExplanation")}
+              </span>
+            </div>
           </div>
         </div>,
         document.body,
