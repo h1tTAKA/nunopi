@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { deckStats, categoryCounts, type CardCategory } from "@/lib/srs/due";
@@ -35,18 +35,15 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
 export default function DeckSelect({ onStart }: DeckSelectProps) {
   const t = useT();
-  const [selected, setSelectedRaw] = useState<Deck>("code");
-  // 복습 모드 — due(오늘) / all(상시 전체).
-  const [mode, setModeRaw] = useState<"due" | "all">("due");
-  // 덱/범위 영속(세션 다녀와도 옵션 유지).
-  useEffect(() => {
+  // lazy 초기화로 첫 렌더부터 저장값 반영(깜빡임 방지). DeckSelect는 mounted-gate 뒤라 localStorage 안전.
+  const [selected, setSelectedRaw] = useState<Deck>(() => {
     const d = localStorage.getItem("nunopi:mem-deck");
+    return d === "code" || d === "text" || d === "all" ? d : "code";
+  });
+  const [mode, setModeRaw] = useState<"due" | "all">(() => {
     const m = localStorage.getItem("nunopi:mem-range");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (d === "code" || d === "text" || d === "all") setSelectedRaw(d);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (m === "due" || m === "all") setModeRaw(m);
-  }, []);
+    return m === "all" ? "all" : "due";
+  });
   function setSelected(d: Deck) {
     setSelectedRaw(d);
     try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
@@ -55,29 +52,24 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     setModeRaw(m);
     try { localStorage.setItem("nunopi:mem-range", m); } catch { /* ignore */ }
   }
-  // 카드 제시 순서 — localStorage 영속.
-  const [order, setOrder] = useState<CardOrder>("newest");
-  useEffect(() => {
+  // 카드 제시 순서 — localStorage 영속(lazy 초기화).
+  const [order, setOrder] = useState<CardOrder>(() => {
     const s = localStorage.getItem(ORDER_KEY);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (s === "newest" || s === "oldest" || s === "random") setOrder(s);
-  }, []);
+    return s === "newest" || s === "oldest" || s === "random" ? s : "newest";
+  });
   function pickOrder(o: CardOrder) {
     setOrder(o);
     try { localStorage.setItem(ORDER_KEY, o); } catch { /* ignore */ }
   }
-  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속.
-  const [cats, setCats] = useState<Set<CardCategory>>(new Set(["again", "hard", "good", "none"]));
-  useEffect(() => {
+  // 분류 필터 — 기본 4개 전체 체크. localStorage 영속(lazy 초기화).
+  const [cats, setCats] = useState<Set<CardCategory>>(() => {
     try {
       const raw = localStorage.getItem(CATS_KEY);
-      if (raw) {
-        const arr = JSON.parse(raw) as CardCategory[];
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(arr)) setCats(new Set(arr));
-      }
+      const arr = raw ? (JSON.parse(raw) as CardCategory[]) : null;
+      if (Array.isArray(arr)) return new Set(arr);
     } catch { /* ignore */ }
-  }, []);
+    return new Set(["again", "hard", "good", "none"]);
+  });
   function toggleCat(c: CardCategory) {
     setCats((prev) => {
       const next = new Set(prev);
@@ -86,18 +78,15 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
       return next;
     });
   }
-  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째(관련개념/IT용어 미분리). localStorage 영속.
-  const [codeSources, setCodeSources] = useState<Set<SrsSource>>(new Set(["token", "concept"]));
-  useEffect(() => {
+  // 코드덱 세부 출처 토글(토큰/개념). 글덱은 term 통째. localStorage 영속(lazy 초기화).
+  const [codeSources, setCodeSources] = useState<Set<SrsSource>>(() => {
     try {
       const raw = localStorage.getItem("nunopi:mem-code-sources");
-      if (raw) {
-        const arr = JSON.parse(raw) as SrsSource[];
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(arr)) setCodeSources(new Set(arr));
-      }
+      const arr = raw ? (JSON.parse(raw) as SrsSource[]) : null;
+      if (Array.isArray(arr)) return new Set(arr);
     } catch { /* ignore */ }
-  }, []);
+    return new Set(["token", "concept"]);
+  });
 
   // 선택 덱의 유효 출처 — 코드덱은 토글 반영, 그 외는 덱 전체 출처.
   const effectiveSources = (deck: Deck): SrsSource[] =>
