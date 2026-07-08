@@ -5,6 +5,19 @@ import { isDue } from "./schedule";
 import { DECK_SOURCES } from "./types";
 import type { Card, CardOrder, Deck, SrsSource } from "./types";
 
+// 카드 분류 = 마지막 채점 등급, 채점 이력 없으면 "none"(미분류).
+export type CardCategory = "again" | "hard" | "good" | "none";
+
+export function cardCategory(card: Card): CardCategory {
+  return card.state.lastGrade ?? "none";
+}
+
+// 선택된 분류만 남긴다(빈 선택이면 전체 통과 — 필터 없음).
+export function filterByCategory(cards: Card[], selected: Set<CardCategory>): Card[] {
+  if (selected.size === 0) return cards;
+  return cards.filter((c) => selected.has(cardCategory(c)));
+}
+
 // 카드 제시 순서 적용. 최신순/과거순은 습득일(bookmarkedAt) 기준, 무작위는 Fisher-Yates.
 export function orderCards(cards: Card[], order: CardOrder): Card[] {
   const arr = [...cards];

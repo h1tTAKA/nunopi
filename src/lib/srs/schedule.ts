@@ -50,6 +50,7 @@ export function applyGrade(state: SrsState, grade: Grade, now: Date): SrsState {
     streak: grade === "good" ? state.streak + 1 : 0,
     reviews: (state.reviews ?? 0) + 1,
     grades: { ...prev, [grade]: prev[grade] + 1 },
+    lastGrade: grade,
   };
 }
 
