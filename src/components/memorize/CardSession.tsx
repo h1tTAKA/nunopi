@@ -119,7 +119,14 @@ export default function CardSession({ sources, mode = "due", active = true, deck
       if (!card) return;
       updateCardState(card.key, applyGrade(card.state, g, now));
       logReview(now, g); // 날짜별 복습 카운트(등급별, 히트맵/스트릭용)
-      reviewedRef.current.set(card.key, { card, grade: g }); // 최신 등급 기록(재복습용)
+      // 세션 내 최악 등급 기록(재복습용) — 한 번이라도 '다시'면 다시로 유지(재복습 라운드에서 통과해도).
+      // 순위 again>hard>good. "다시 4개 있는데 애매만 뜨는" 문제 방지(최신 등급이 덮어쓰지 않게).
+      {
+        const rank = { again: 2, hard: 1, good: 0 } as const;
+        const prev = reviewedRef.current.get(card.key);
+        const worst = !prev || rank[g] > rank[prev.grade] ? g : prev.grade;
+        reviewedRef.current.set(card.key, { card, grade: worst });
+      }
       setStats((s) => ({ ...s, [g]: s[g] + 1 }));
       // 완료 시점에 재복습 후보(다시/애매) 계산해 state에 저장(render서 ref 안 읽게).
       const finish = () => {
