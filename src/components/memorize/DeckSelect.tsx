@@ -58,7 +58,7 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   const resumable = hasMemSession(selected, mode);
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-4 p-6">
+    <div className="flex w-full flex-col gap-4">
       <h2 className="text-center text-sm font-semibold text-zinc-700 dark:text-zinc-200">
         {t("mem.selectDeck")}
       </h2>

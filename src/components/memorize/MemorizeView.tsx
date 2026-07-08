@@ -30,5 +30,15 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     return <CardSession active={active} deck={session.deck} resume={session.resume} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} onExit={() => setPhase("select")} />;
   }
 
-  return <DeckSelect onStart={handleStart} />;
+  // 덱 선택 — 우측 패널. 왼쪽 빈 공간은 추후 암기 학습 통계 그래프 자리.
+  return (
+    <div className="flex h-full w-full items-start gap-6 px-6 py-8">
+      {/* 왼쪽: 학습 통계(추후 이슈) */}
+      <div className="hidden min-h-0 flex-1 xl:block" aria-hidden />
+      {/* 오른쪽: 덱 선택 패널 */}
+      <div className="mx-auto w-full max-w-lg xl:mx-0 xl:mr-[8%]">
+        <DeckSelect onStart={handleStart} />
+      </div>
+    </div>
+  );
 }
