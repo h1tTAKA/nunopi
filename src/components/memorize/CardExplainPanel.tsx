@@ -95,7 +95,7 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
           <IconRefresh size={13} stroke={2} className={streaming ? "animate-spin" : ""} aria-hidden />
         </button>
       </div>
-      <div className="nunopi-scroll max-h-[60vh] overflow-y-auto pr-1 text-zinc-600 dark:text-zinc-300">
+      <div className="nunopi-scroll max-h-[80vh] overflow-y-auto pr-1 text-zinc-600 dark:text-zinc-300">
         {error ? (
           <span className="text-rose-500 dark:text-rose-400">{t("mem.explainError")}</span>
         ) : text ? (
