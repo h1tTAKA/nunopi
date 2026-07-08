@@ -156,3 +156,13 @@ samp {
 .dark .nunopi-md th, .dark .nunopi-md td { border-color: #52525b; }
 .nunopi-md th { background: #e4e4e7; font-weight: 600; }
 .dark .nunopi-md th { background: #3f3f46; }
+
+/* 덱 부채꼴 카드 클릭 — 3D로 날아와 가운데 부딪히고 아래로 떨어지는 애니(변수로 클릭마다 경로 랜덤) */
+@keyframes deck-throw {
+  0%   { transform: translate3d(var(--sx), var(--sy), -520px) rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz)) scale(0.35); opacity: 0; }
+  12%  { opacity: 1; }
+  50%  { transform: translate3d(var(--mx), var(--my), -140px) rotateX(calc(var(--rx) / 2)) rotateY(calc(var(--ry) / 2)) rotateZ(calc(var(--rz) / 2)) scale(1.5); opacity: 1; }
+  70%  { transform: translate3d(0, 0, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.9); }
+  76%  { transform: translate3d(0, -1.5vh, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.72); }
+  100% { transform: translate3d(6vw, 130vh, 0) rotateX(0deg) rotateY(0deg) rotateZ(32deg) scale(2.1); opacity: 0; }
+}

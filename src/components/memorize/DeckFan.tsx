@@ -13,9 +13,8 @@ interface Fly { x: number; y: number; w: number; h: number }
 // key={deck}로 리마운트해 덱 바꿀 때마다 다시 펼쳐진다.
 export default function DeckFan({ count }: { count: number }) {
   const [opened, setOpened] = useState(false);
-  const [fly, setFly] = useState<Fly | null>(null);
-  const [phase, setPhase] = useState<"start" | "center" | "gone">("start");
-  const timers = useRef<number[]>([]);
+  const [fly, setFly] = useState<(Fly & { id: number; vars: React.CSSProperties }) | null>(null);
+  const flyId = useRef(0);
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
@@ -25,20 +24,22 @@ export default function DeckFan({ count }: { count: number }) {
     return () => window.clearTimeout(id);
   }, [reduced]);
 
-  // 언마운트 시 진행 중 타이머 정리.
-  useEffect(() => () => { timers.current.forEach(window.clearTimeout); }, []);
-
   function launch(e: React.MouseEvent<HTMLSpanElement>) {
     if (reduced) return;
     const r = e.currentTarget.getBoundingClientRect();
-    timers.current.forEach(window.clearTimeout);
-    timers.current = [];
-    setFly({ x: r.left, y: r.top, w: r.width, h: r.height });
-    setPhase("start");
-    // 다음 프레임에 중앙으로 트랜지션 발동 → 잠깐 머문 뒤 사라짐.
-    requestAnimationFrame(() => requestAnimationFrame(() => setPhase("center")));
-    timers.current.push(window.setTimeout(() => setPhase("gone"), 750));
-    timers.current.push(window.setTimeout(() => setFly(null), 1080));
+    const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+    const side = Math.random() < 0.5 ? -1 : 1; // 좌/우 어느 쪽에서 날아올지
+    // 클릭마다 경로/회전 랜덤 → 매번 다른 3D 궤적.
+    const vars = {
+      "--sx": `${side * rnd(45, 75)}vw`,
+      "--sy": `${rnd(-45, 15)}vh`,
+      "--mx": `${-side * rnd(10, 32)}vw`,
+      "--my": `${rnd(-18, 18)}vh`,
+      "--rx": `${rnd(-45, 45)}deg`,
+      "--ry": `${side * rnd(220, 560)}deg`,
+      "--rz": `${rnd(-70, 70)}deg`,
+    } as React.CSSProperties;
+    setFly({ x: r.left, y: r.top, w: r.width, h: r.height, id: ++flyId.current, vars });
   }
 
   if (count <= 0) return null;
@@ -73,24 +74,19 @@ export default function DeckFan({ count }: { count: number }) {
         </div>
       </div>
 
-      {/* 클릭 시 화면 중앙으로 날아오는 카드(포탈) */}
+      {/* 클릭 시 3D로 날아와 가운데 부딪히고 아래로 떨어지는 카드(포탈) */}
       {fly && typeof document !== "undefined" && createPortal(
-        <div className="pointer-events-none fixed inset-0 z-50">
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" style={{ perspective: "1200px" }}>
           <div
-            className="absolute aspect-[5/7] overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
+            key={fly.id}
+            onAnimationEnd={() => setFly((f) => (f && f.id === fly.id ? null : f))}
+            className="overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
             style={{
-              left: phase === "start" ? fly.x : "50%",
-              top: phase === "start" ? fly.y : "50%",
+              ...fly.vars,
               width: fly.w,
               height: fly.h,
-              transform:
-                phase === "start"
-                  ? "translate(0,0) scale(1)"
-                  : phase === "center"
-                    ? "translate(-50%,-50%) scale(2.8)"
-                    : "translate(-50%,-50%) scale(3)",
-              opacity: phase === "gone" ? 0 : 1,
-              transition: "left 620ms cubic-bezier(0.16,1,0.3,1), top 620ms cubic-bezier(0.16,1,0.3,1), transform 620ms cubic-bezier(0.16,1,0.3,1), opacity 320ms ease",
+              transformStyle: "preserve-3d",
+              animation: "deck-throw 1.7s cubic-bezier(0.16,1,0.3,1) forwards",
             }}
           >
             <CardBack />
