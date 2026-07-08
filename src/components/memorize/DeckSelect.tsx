@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { deckStats, categoryCounts, sessionCount, type CardCategory } from "@/lib/srs/due";
-import { hasMemSession, clearMemSession } from "@/lib/memSession";
+import { findMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
 const ORDER_KEY = "nunopi:mem-order";
@@ -44,8 +44,11 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     const m = localStorage.getItem("nunopi:mem-range");
     return m === "all" ? "all" : "due";
   });
+  // 옵션 패널 펼침 여부 — "새로하기"를 눌러야 옵션+시작하기가 나온다(기본 접힘).
+  const [expanded, setExpanded] = useState(false);
   function setSelected(d: Deck) {
     setSelectedRaw(d);
+    setExpanded(false); // 덱 바꾸면 옵션 접기(새로하기로 다시 펼침).
     try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
   }
   function setMode(m: "due" | "all") {
@@ -134,8 +137,8 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
     [selected, now, mode, cats, codeSources],
   );
   const canStart = startCount > 0;
-  // 진행 중 세션(이어하기 가능) 여부 — 선택 덱+모드 기준.
-  const resumable = hasMemSession(selected, mode);
+  // 진행 중 세션(이어하기) — 덱 기준(모드 무관). 저장 세션 그대로 복원한다.
+  const resumeTarget = findMemSession(selected);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -148,11 +151,13 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
           const s = stats[deck];
           const active = selected === deck;
           return (
-            <button
+            <div
               key={deck}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => setSelected(deck)}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition ${
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(deck); } }}
+              className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 text-left transition ${
                 active
                   ? "border-blue-400 bg-blue-50/60 dark:border-blue-500 dark:bg-blue-950/20"
                   : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
@@ -169,11 +174,35 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
                   {t("mem.total")} {s.total}
                 </span>
               )}
-            </button>
+              {/* 선택 덱: 이어서하기(세션 있을 때) + 새로하기 — 옵션과 독립. */}
+              {active && s.total > 0 && (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {resumeTarget && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
+                    >
+                      {t("mem.resume")}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setExpanded(true); }}
+                    aria-expanded={expanded}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    {t("mem.startFresh")}
+                  </button>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
 
+      {/* 옵션 + 시작하기 — "새로하기"로 펼쳤을 때만. */}
+      {expanded && (<>
       {/* 옵션 — 라벨 행으로 그룹화 */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("mem.options")}</h3>
@@ -280,37 +309,18 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         </div>
       </div>
 
-      {resumable ? (
-        // 진행 중 세션 있음 — 이어서하기 + 새로하기.
-        <div className="mt-1 grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => onStart(selected, effectiveSources(selected), mode, true, order, [...cats])}
-            className="rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            {t("mem.resume")}
-          </button>
-          <button
-            type="button"
-            disabled={!canStart}
-            onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
-            className="rounded-xl border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            {t("mem.startFresh")}
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          disabled={!canStart}
-          onClick={() => onStart(selected, effectiveSources(selected), mode, false, order, [...cats])}
-          className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {mode === "due" && selectedStats.total > 0 && startCount === 0
-            ? t("mem.noDueToday")
-            : `${t("mem.start")} · ${startCount}`}
-        </button>
-      )}
+      {/* 시작하기 — 새 세션(진행 중 세션 있으면 덮어씀). */}
+      <button
+        type="button"
+        disabled={!canStart}
+        onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
+        className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {mode === "due" && selectedStats.total > 0 && startCount === 0
+          ? t("mem.noDueToday")
+          : `${t("mem.start")} · ${startCount}`}
+      </button>
+      </>)}
     </div>
   );
 }
