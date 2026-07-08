@@ -22,6 +22,7 @@ export interface SrsState {
   streak: number; // 연속 "완벽" 횟수(통계용)
   reviews?: number; // 총 채점 횟수(카드 정보 패널용, 옵셔널 — 기존 데이터 하위호환)
   grades?: { again: number; hard: number; good: number }; // 채점별 누적
+  lastGrade?: Grade; // 마지막 채점 등급(분류 필터용, 없으면 미분류)
 }
 
 // 수집기가 북마크 store + srs-state를 조인해 만든 복습 카드.
