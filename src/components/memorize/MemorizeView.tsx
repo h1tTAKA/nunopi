@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
+import MemorizeStats from "./MemorizeStats";
 import type { CardOrder, Deck, SrsSource } from "@/lib/srs/types";
 import type { CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -58,8 +59,10 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
   return (
     <div className="flex h-full w-full items-start gap-6 px-6 py-8">
-      {/* 왼쪽: 학습 통계 (커밋4에서 MemorizeStats 채움) */}
-      <div className="hidden min-h-0 flex-1 xl:block" aria-hidden />
+      {/* 왼쪽: 학습 통계 (선택 덱 실시간) */}
+      <div className="hidden min-h-0 flex-1 xl:block">
+        <MemorizeStats deck={deck} sources={deck === "code" ? [...codeSources] : undefined} />
+      </div>
       {/* 오른쪽: 덱 선택 패널 */}
       <div className="mx-auto w-full max-w-lg xl:mx-0 xl:mr-[8%]">
         <DeckSelect
