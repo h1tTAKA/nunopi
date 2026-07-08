@@ -85,6 +85,8 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   const [done, setDone] = useState(init.round.length === 0);
   // 완료 시 재복습 후보(다시/애매 카드) — done 전환 시 reviewedRef에서 계산해 저장(render서 ref 읽지 않게).
   const [retry, setRetry] = useState<{ again: Card[]; hard: Card[] }>({ again: [], hard: [] });
+  // 이번(현재) 세션 카드 수 — 완료 제목용. 재복습 시작 시 그 부분집합 크기로 갱신.
+  const [sessionTotal, setSessionTotal] = useState(init.round.length);
   const [tossing, setTossing] = useState<Grade | null>(null); // 진행 중 toss(연타 가드)
   // 이번 세션에서 채점한 카드의 최신 등급(완료 화면 재복습용). 재채점 시 갱신.
   const reviewedRef = useRef<Map<string, { card: Card; grade: Grade }>>(new Map());
@@ -193,6 +195,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
     if (cards.length === 0) return;
     reviewedRef.current = new Map();
     setRetry({ again: [], hard: [] });
+    setSessionTotal(cards.length);
     setRound(cards);
     setAgainPile([]);
     setIdx(0);
@@ -207,7 +210,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
     return (
       <SessionDone
         stats={stats}
-        total={init.round.length}
+        total={sessionTotal}
         againCards={retry.again}
         hardCards={retry.hard}
         onRetry={restart}
