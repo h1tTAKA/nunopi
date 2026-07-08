@@ -113,7 +113,7 @@ function brief(c: ReturnType<typeof cardsOf>[number]): CardBrief {
 export function weakestCards(deck: Deck, now: Date, sources: SrsSource[] | undefined, limit = 4): CardBrief[] {
   return cardsOf(deck, now, sources)
     .map(brief)
-    .filter((c) => c.again + c.hard + c.good > 0 && c.again + c.hard > 0)
+    .filter((c) => c.again + c.hard > 0)
     .sort((a, b) => (b.again + b.hard) - (a.again + a.hard) || b.again - a.again)
     .slice(0, limit);
 }
