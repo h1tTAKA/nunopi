@@ -174,44 +174,35 @@ function Section({ title, help, children }: { title: string; help?: string; chil
   );
 }
 
-// SVG 도넛 — 사이버틱 네온. drop-shadow 필터는 SVG 사각 영역에 잘려 네모가 보이므로,
-// 대신 같은 색의 넓고 투명한 링을 뒤에 겹쳐 "원형 아우라"로 글로우를 낸다(사각 아티팩트 없음).
+// SVG 도넛 — 연속 링 세그먼트(글로우/간격 없음).
 function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value: number; color: string }[]; total: number; size?: number; stroke?: number }) {
   const cxy = size / 2;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const seg = (s: { value: number; color: string }, offset: number, w: number, opacity: number, key: string) => {
-    const len = (s.value / total) * c;
-    return (
-      <circle
-        key={key}
-        cx={cxy}
-        cy={cxy}
-        r={r}
-        fill="none"
-        stroke={s.color}
-        strokeWidth={w}
-        strokeOpacity={opacity}
-        strokeDasharray={`${len} ${c - len}`}
-        strokeDashoffset={-offset}
-      />
-    );
-  };
-  const offsets: number[] = [];
-  let acc = 0;
-  for (const s of segments) { offsets.push(acc); acc += (s.value / total) * c; }
+  let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
-      {/* 트랙 */}
       <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-200/70 dark:text-zinc-800" />
-      {total > 0 && (
-        <>
-          {/* 글로우 아우라(넓고 투명) → 선명 세그먼트 순으로 겹침 */}
-          {segments.map((s, i) => s.value > 0 && seg(s, offsets[i], stroke * 2.1, 0.10, `g2-${i}`))}
-          {segments.map((s, i) => s.value > 0 && seg(s, offsets[i], stroke * 1.5, 0.22, `g1-${i}`))}
-          {segments.map((s, i) => s.value > 0 && seg(s, offsets[i], stroke, 1, `s-${i}`))}
-        </>
-      )}
+      {total > 0 &&
+        segments.map((s, i) => {
+          if (s.value === 0) return null;
+          const len = (s.value / total) * c;
+          const el = (
+            <circle
+              key={i}
+              cx={cxy}
+              cy={cxy}
+              r={r}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={stroke}
+              strokeDasharray={`${len} ${c - len}`}
+              strokeDashoffset={-offset}
+            />
+          );
+          offset += len;
+          return el;
+        })}
     </svg>
   );
 }
