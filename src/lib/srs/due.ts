@@ -57,6 +57,22 @@ export function dueCards(cards: Card[], now: Date): Card[] {
   return cards.filter((c) => isDue(c.state, now));
 }
 
+// 실제로 세션에 들어갈 카드 수 — CardSession 초기화와 동일 계산(범위 + 분류 필터 반영).
+// 시작 버튼 라벨/활성 판단에 쓴다(덱 전체 수와 달리 선택한 옵션을 반영).
+export function sessionCount(
+  deck: Deck,
+  now: Date,
+  mode: "due" | "all",
+  categories: CardCategory[],
+  sources?: SrsSource[],
+): number {
+  const deckSources = DECK_SOURCES[deck];
+  const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
+  const all = collectCards(effective, now);
+  const base = mode === "all" ? all : dueCards(all, now);
+  return filterByCategory(base, new Set(categories)).length;
+}
+
 // 덱(+세부 출처 필터)의 오늘 due / 전체 카운트.
 // sources 미지정 시 덱 전체 출처. sources 지정 시 덱∩sources.
 export function deckStats(

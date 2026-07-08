@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import { deckStats, categoryCounts, type CardCategory } from "@/lib/srs/due";
+import { deckStats, categoryCounts, sessionCount, type CardCategory } from "@/lib/srs/due";
 import { hasMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
@@ -119,8 +119,12 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   }
 
   const selectedStats = stats[selected];
-  // due 모드는 오늘 복습 카드가 있어야, all 모드는 카드가 하나라도 있으면 시작.
-  const canStart = (mode === "all" ? selectedStats.total > 0 : selectedStats.due > 0) && cats.size > 0;
+  // 실제 세션에 들어갈 카드 수(범위 + 분류 필터 반영) — 시작 버튼 라벨/활성 기준.
+  const startCount = useMemo(
+    () => sessionCount(selected, now, mode, [...cats], selected === "code" ? [...codeSources] : undefined),
+    [selected, now, mode, cats, codeSources],
+  );
+  const canStart = startCount > 0;
   // 진행 중 세션(이어하기 가능) 여부 — 선택 덱+모드 기준.
   const resumable = hasMemSession(selected, mode);
 
@@ -281,11 +285,9 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
           onClick={() => onStart(selected, effectiveSources(selected), mode, false, order, [...cats])}
           className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0
+          {mode === "due" && selectedStats.total > 0 && startCount === 0
             ? t("mem.noDueToday")
-            : mode === "all"
-              ? `${t("mem.start")} · ${selectedStats.total}`
-              : t("mem.start")}
+            : `${t("mem.start")} · ${startCount}`}
         </button>
       )}
     </div>
