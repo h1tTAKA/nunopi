@@ -157,19 +157,14 @@ samp {
 .nunopi-md th { background: #e4e4e7; font-weight: 600; }
 .dark .nunopi-md th { background: #3f3f46; }
 
-/* 덱 부채꼴 카드 클릭 — ①3D로 날아와 가운데 부딪혀 멈춤 ②중력으로 아래로 뚝 떨어져 사라짐. */
-/* 1단계: 랜덤 경로로 날아와 가운데서 기울어져 확대·부딪힘(살짝 바운스 후 정착, forwards로 유지) */
-@keyframes deck-throw-in {
+/* 덱 부채꼴 카드 클릭 — 3D로 날아와 가운데 기울어져 부딪히고, 중력으로 아래로 뚝 떨어져 화면 밖으로.
+   단일 키프레임(경로/회전은 클릭마다 --변수로 랜덤). 화면 아래(135vh)로 떨어져 자연히 사라짐. */
+@keyframes deck-throw {
   0%   { transform: translate3d(var(--sx), var(--sy), -520px) rotateX(var(--rx)) rotateY(var(--ry)) rotateZ(var(--rz)) scale(0.35); opacity: 0; }
-  12%  { opacity: 1; }
-  55%  { transform: translate3d(var(--mx), var(--my), -150px) rotateX(calc(var(--rx) / 2)) rotateY(calc(var(--ry) / 2)) rotateZ(calc(var(--rz) / 2)) scale(1.5); opacity: 1; }
-  84%  { transform: translate3d(0, 0, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.98); }
-  92%  { transform: translate3d(0, -1.8vh, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.76); }
-  100% { transform: translate3d(0, 0, 0) rotateX(6deg) rotateY(-10deg) rotateZ(-6deg) scale(2.86); opacity: 1; }
-}
-/* 2단계: 살짝 들렸다가 중력으로 아래로 가속 낙하 + 회전, 화면 밖에서 사라짐 */
-@keyframes deck-drop {
-  0%   { transform: translate3d(0, 0, 0) rotateX(6deg) rotateY(-10deg) rotateZ(-6deg) scale(2.86); opacity: 1; }
-  14%  { transform: translate3d(0, -3vh, 0) rotateZ(-8deg) scale(2.86); opacity: 1; }
-  100% { transform: translate3d(4vw, 135vh, 0) rotateZ(26deg) scale(2.5); opacity: 0; }
+  10%  { opacity: 1; }
+  42%  { transform: translate3d(var(--mx), var(--my), -150px) rotateX(calc(var(--rx) / 2)) rotateY(calc(var(--ry) / 2)) rotateZ(calc(var(--rz) / 2)) scale(1.5); opacity: 1; }
+  60%  { transform: translate3d(0, 0, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.98); }   /* 부딪힘 */
+  66%  { transform: translate3d(0, -1.8vh, 0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.76); } /* 바운스 */
+  72%  { transform: translate3d(0, -3vh, 0) rotateX(6deg) rotateY(-10deg) rotateZ(-6deg) scale(2.86); opacity: 1; } /* 살짝 들림 */
+  100% { transform: translate3d(4vw, 135vh, 0) rotateZ(26deg) scale(2.5); opacity: 1; }                /* 중력 낙하 → 화면 밖 */
 }

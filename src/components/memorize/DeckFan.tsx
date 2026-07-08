@@ -6,7 +6,7 @@ import CardBack from "./CardBack";
 
 const MAX_FAN = 14; // 시각 상한(초과해도 이만큼만 펼침)
 
-interface Fly { id: number; vars: React.CSSProperties; phase: "in" | "drop" }
+interface Fly { id: number; vars: React.CSSProperties }
 
 // 덱 선택 화면 장식 — 선택 덱 카드 수만큼 부채꼴로 펼침 + 마운트/덱변경 시 펼침 애니.
 // 카드 클릭 시 그 위치에서 화면 한가운데로 확대되며 날아오는 오버레이 애니(포탈).
@@ -38,7 +38,7 @@ export default function DeckFan({ count }: { count: number }) {
       "--ry": `${side * rnd(220, 560)}deg`,
       "--rz": `${rnd(-70, 70)}deg`,
     } as React.CSSProperties;
-    setFly({ id: ++flyId.current, vars, phase: "in" });
+    setFly({ id: ++flyId.current, vars });
   }
 
   if (count <= 0) return null;
@@ -77,21 +77,13 @@ export default function DeckFan({ count }: { count: number }) {
       {fly && typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" style={{ perspective: "1200px" }}>
           <div
-            key={`${fly.id}-${fly.phase}`}
-            onAnimationEnd={() =>
-              setFly((f) => {
-                if (!f || f.id !== fly.id) return f;
-                return f.phase === "in" ? { ...f, phase: "drop" } : null; // 부딪힘 끝 → 낙하, 낙하 끝 → 제거
-              })
-            }
+            key={fly.id}
+            onAnimationEnd={() => setFly((f) => (f && f.id === fly.id ? null : f))}
             className="aspect-[5/7] w-36 overflow-hidden rounded-2xl border border-zinc-200 shadow-2xl dark:border-zinc-700"
             style={{
               ...fly.vars,
               transformStyle: "preserve-3d",
-              animation:
-                fly.phase === "in"
-                  ? "deck-throw-in 1.15s cubic-bezier(0.16,1,0.3,1) forwards"
-                  : "deck-drop 0.62s cubic-bezier(0.5,0,0.9,0.4) forwards", // ease-in=중력 가속
+              animation: "deck-throw 1.6s cubic-bezier(0.34,1.2,0.5,1) forwards",
             }}
           >
             <CardBack />
