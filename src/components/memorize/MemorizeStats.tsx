@@ -174,19 +174,24 @@ function Section({ title, help, children }: { title: string; help?: string; chil
   );
 }
 
-// SVG 도넛 — stroke-dasharray 세그먼트. 데이터 없으면 회색 링. size/stroke 조절 가능.
+// SVG 도넛 — 둥근 끝(rounded cap) + 세그먼트 사이 간격으로 모던하게. 데이터 없으면 옅은 링.
 function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value: number; color: string }[]; total: number; size?: number; stroke?: number }) {
   const cxy = size / 2;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
+  const active = segments.filter((s) => s.value > 0);
+  // 세그먼트 여러 개면 사이 간격(둥근 끝이 들어갈 공간). 하나뿐이면 간격 없이 꽉 찬 링.
+  const gap = active.length > 1 ? stroke * 0.9 : 0;
   let offset = 0;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
-      <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-100 dark:text-zinc-800" />
+      <circle cx={cxy} cy={cxy} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-zinc-100 dark:text-zinc-800/70" />
       {total > 0 &&
         segments.map((s, i) => {
           if (s.value === 0) return null;
-          const len = (s.value / total) * c;
+          const full = (s.value / total) * c;
+          // 간격만큼 줄인 길이(둥근 끝 공간). 아주 작은 세그먼트도 점으로 보이게 최소 길이.
+          const len = Math.max(stroke * 0.2, full - gap);
           const seg = (
             <circle
               key={i}
@@ -196,11 +201,12 @@ function Donut({ segments, total, size = 72, stroke = 10 }: { segments: { value:
               fill="none"
               stroke={s.color}
               strokeWidth={stroke}
+              strokeLinecap="round"
               strokeDasharray={`${len} ${c - len}`}
-              strokeDashoffset={-offset}
+              strokeDashoffset={-(offset + gap / 2)}
             />
           );
-          offset += len;
+          offset += full;
           return seg;
         })}
     </svg>
