@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { deckStats } from "@/lib/srs/due";
+import { hasMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type Deck, type SrsSource } from "@/lib/srs/types";
 
 interface DeckSelectProps {
-  // 선택한 덱 + 세부 출처 + 복습 모드(due/all)로 세션 시작.
-  onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all") => void;
+  // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 여부로 세션 시작.
+  onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean) => void;
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
@@ -53,6 +54,8 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
   const selectedStats = stats[selected];
   // due 모드는 오늘 복습 카드가 있어야, all 모드는 카드가 하나라도 있으면 시작.
   const canStart = mode === "all" ? selectedStats.total > 0 : selectedStats.due > 0;
+  // 진행 중 세션(이어하기 가능) 여부 — 선택 덱+모드 기준.
+  const resumable = hasMemSession(selected, mode);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4 p-6">
@@ -135,18 +138,39 @@ export default function DeckSelect({ onStart }: DeckSelectProps) {
         ))}
       </div>
 
-      <button
-        type="button"
-        disabled={!canStart}
-        onClick={() => onStart(selected, effectiveSources(selected), mode)}
-        className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0
-          ? t("mem.noDueToday")
-          : mode === "all"
-            ? `${t("mem.start")} · ${selectedStats.total}`
-            : t("mem.start")}
-      </button>
+      {resumable ? (
+        // 진행 중 세션 있음 — 이어서하기 + 새로하기.
+        <div className="mt-1 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onStart(selected, effectiveSources(selected), mode, true)}
+            className="rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+          >
+            {t("mem.resume")}
+          </button>
+          <button
+            type="button"
+            disabled={!canStart}
+            onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false); }}
+            className="rounded-xl border border-zinc-300 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            {t("mem.startFresh")}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={!canStart}
+          onClick={() => onStart(selected, effectiveSources(selected), mode, false)}
+          className="mt-1 rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {mode === "due" && selectedStats.total > 0 && selectedStats.due === 0
+            ? t("mem.noDueToday")
+            : mode === "all"
+              ? `${t("mem.start")} · ${selectedStats.total}`
+              : t("mem.start")}
+        </button>
+      )}
     </div>
   );
 }
