@@ -12,6 +12,7 @@ export default function DeckFan({ count }: { count: number }) {
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (reduced) { setOpened(true); return; }
     const id = window.setTimeout(() => setOpened(true), 40); // 첫 페인트 후 → 트랜지션 발동
     return () => window.clearTimeout(id);
@@ -23,8 +24,8 @@ export default function DeckFan({ count }: { count: number }) {
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
   return (
-    <div className="pt-6" aria-hidden>
-      <div className="relative h-64 w-full">
+    <div className="pt-1" aria-hidden>
+      <div className="relative h-52 w-full">
         {/* 피벗: 하단 중앙, 카드들이 위로 아치 */}
         <div className="absolute bottom-0 left-1/2 h-0 w-0">
           {Array.from({ length: n }).map((_, i) => {
