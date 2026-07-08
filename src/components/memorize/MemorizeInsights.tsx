@@ -12,7 +12,7 @@ const ACCENT = "#3B34E2";
 // 하단 인사이트 위젯 4개 — 자주 틀리는/최근 추가/덱별 성숙도/곧 복습 예정.
 export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; sources?: SrsSource[]; now: Date }) {
   const t = useT();
-  const throwCard = useFlyCard();
+  const { throwCard } = useFlyCard();
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const fmt = (iso?: string) => {
@@ -26,9 +26,9 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
   const upcoming = useMemo(() => upcomingCards(deck, now, sources, 4), [deck, now, sources]);
   const maturity = useMemo(() => deckMaturity(now), [now]);
 
-  // 인사이트 항목 클릭 → 그 카드가 클릭 위치에서 3D로 날아온다(공유 FlyCardProvider).
-  const fling = (c: CardBrief) => (e: React.MouseEvent<HTMLButtonElement>) =>
-    throwCard({ front: c.front, back: c.back }, e.currentTarget.getBoundingClientRect());
+  // 인사이트 항목 클릭 → 그 카드가 (클릭 위치가 아니라) 오른쪽 부채꼴 자리에서 3D로 날아온다.
+  // origin 생략 → FlyCardProvider가 등록된 originRef(부채꼴)를 출발점으로 사용.
+  const fling = (c: CardBrief) => () => throwCard({ front: c.front, back: c.back });
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -87,7 +87,7 @@ function Widget({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-function Row({ front, right, onClick }: { front: string; right: React.ReactNode; onClick: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
+function Row({ front, right, onClick }: { front: string; right: React.ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"

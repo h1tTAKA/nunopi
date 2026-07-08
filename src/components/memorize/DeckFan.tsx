@@ -11,7 +11,7 @@ const MAX_FAN = 14; // 시각 상한(초과해도 이만큼만 펼침)
 // 부채꼴 장식은 빈 뒷면(CardBack)이고, 카드 클릭 시엔 실제 랜덤 북마크 카드(용어+설명)가
 // 공유 FlyCardProvider를 통해 3D로 날아온다.
 export default function DeckFan({ cards }: { cards: Card[] }) {
-  const throwCard = useFlyCard();
+  const { throwCard, originRef } = useFlyCard();
   const [opened, setOpened] = useState(false);
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -34,7 +34,7 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
   const step = n > 1 ? (spread * 2) / (n - 1) : 0;
 
   return (
-    <div className="pt-2">
+    <div className="pt-2" ref={originRef as React.RefObject<HTMLDivElement>}>
       <div className="relative h-40 w-full" aria-hidden>
         {/* 피벗: 하단 중앙, 카드들이 위로 아치 */}
         <div className="absolute bottom-0 left-1/2 h-0 w-0">

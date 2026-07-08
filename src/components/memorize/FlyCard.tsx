@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n/I18nProvider";
 
@@ -17,11 +17,15 @@ interface Fly extends FlyContent {
   kf: Keyframe[];
 }
 
-// throwCard(content, originRect): originRect 위치에서 카드가 3D로 날아와 중앙 부딪힘→낙하.
-type ThrowFn = (content: FlyContent, origin: DOMRect) => void;
+// throwCard(content, origin?): origin(DOMRect) 위치에서 카드가 3D로 날아와 중앙 부딪힘→낙하.
+// origin 생략 시 등록된 originRef(부채꼴 자리)에서 출발 — 다른 패널에서 눌러도 카드는 부채꼴에서 나온다.
+interface FlyApi {
+  throwCard: (content: FlyContent, origin?: DOMRect) => void;
+  originRef: React.RefObject<HTMLElement | null>; // 출발점으로 쓸 요소(부채꼴 컨테이너) 등록용
+}
 
-const FlyCtx = createContext<ThrowFn>(() => {});
-export function useFlyCard(): ThrowFn {
+const FlyCtx = createContext<FlyApi>({ throwCard: () => {}, originRef: { current: null } });
+export function useFlyCard(): FlyApi {
   return useContext(FlyCtx);
 }
 
@@ -32,13 +36,18 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
   const [fly, setFly] = useState<Fly | null>(null);
   const flyId = useRef(0);
   const cardRef = useRef<HTMLDivElement>(null);
+  const originRef = useRef<HTMLElement | null>(null);
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const throwCard = useCallback<ThrowFn>((content, r) => {
+  const throwCard = useCallback((content: FlyContent, origin?: DOMRect) => {
     if (reduced || typeof window === "undefined") return;
-    // 클릭 요소 중심 → 화면 중앙 기준 px 오프셋(그 자리에서 출발).
-    const sx = r.left + r.width / 2 - window.innerWidth / 2;
-    const sy = r.top + r.height / 2 - window.innerHeight / 2;
+    // 출발점: 넘겨받은 origin, 없으면 등록된 originRef(부채꼴), 그것도 없으면 화면 중앙.
+    const r = origin ?? originRef.current?.getBoundingClientRect();
+    const cx = r ? r.left + r.width / 2 : window.innerWidth / 2;
+    const cy = r ? r.top + r.height / 2 : window.innerHeight / 2;
+    // 출발점 중심 → 화면 중앙 기준 px 오프셋(그 자리에서 출발).
+    const sx = cx - window.innerWidth / 2;
+    const sy = cy - window.innerHeight / 2;
     const rnd = (a: number, b: number) => a + Math.random() * (b - a);
     const sway = Math.random() < 0.5 ? -1 : 1;
     const spin = (Math.random() < 0.5 ? -1 : 1) * rnd(160, 460); // 날아오며 회전(패턴 랜덤)
@@ -68,8 +77,10 @@ export function FlyCardProvider({ children }: { children: React.ReactNode }) {
     return () => anim.cancel();
   }, [fly]);
 
+  const api = useMemo<FlyApi>(() => ({ throwCard, originRef }), [throwCard]);
+
   return (
-    <FlyCtx.Provider value={throwCard}>
+    <FlyCtx.Provider value={api}>
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" style={{ perspective: "1200px" }}>
