@@ -58,74 +58,76 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
     <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-5 overflow-y-auto pr-1">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
-      {/* 총 카드(왼쪽) + 분류 도넛(오른쪽). */}
-      <div className="flex items-center gap-5">
-        {/* 총 카드 — 큰 숫자 */}
-        <div className="flex shrink-0 flex-col gap-0.5">
-          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
-          <span className="text-4xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
-        </div>
-        {/* 분류 도넛 + 범례 */}
-        <div className="flex items-center gap-3">
-          <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={104} stroke={13} />
-          <div className="flex flex-col gap-1">
-            {CAT_META.map((c) => (
-              <div key={c.key} className="flex items-center gap-1.5 text-[11px]">
-                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />
-                <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
-                <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
-              </div>
-            ))}
+      {/* 상단 2단 — 좌: 총 카드 + 분류 도넛 / 우: 암기 단계 + 복습 예정 */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* 좌: 총 카드 + 분류 도넛 */}
+        <div className="flex items-center gap-4">
+          <div className="flex shrink-0 flex-col gap-0.5">
+            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
+            <span className="text-4xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={104} stroke={13} />
+            <div className="flex flex-col gap-1">
+              {CAT_META.map((c) => (
+                <div key={c.key} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />
+                  <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
+                  <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Leitner 박스 분포 */}
-      <Section title={t("mem.statBoxDist")} help={t("mem.stageHelp")}>
-        <div className="flex flex-col gap-1.5">
-          {boxes.map((n, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="flex w-16 shrink-0 items-baseline gap-1 text-[10px] text-zinc-400 dark:text-zinc-500">
-                {t("mem.statBoxN").replace("{n}", String(i + 1))}
-                <span className="text-[9px] text-zinc-300 dark:text-zinc-600">
-                  {t("mem.statBoxDays").replace("{n}", String(BOX_INTERVALS[i]))}
-                </span>
-              </span>
-              <div className="h-3 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
-                <div
-                  className="h-full rounded bg-blue-500 transition-all dark:bg-blue-400"
-                  style={{ width: `${(n / boxMax) * 100}%` }}
-                />
-              </div>
-              <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">{n}</span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* 7일 복습 예보 */}
-      <Section title={t("mem.statForecast")}>
-        <div className="flex items-end gap-1.5" style={{ height: "72px" }}>
-          {forecast.map((f, i) => {
-            // "yyyy-mm-dd"를 로컬 날짜로 파싱(new Date(문자열)은 UTC라 음수 UTC서 요일 밀림).
-            const [yy, mm, dd] = f.date.split("-").map(Number);
-            const d = new Date(yy, mm - 1, dd);
-            const wd = d.toLocaleDateString(LOCALE_TAG[locale] ?? "en-US", { weekday: "short" });
-            return (
-              <div key={f.date} className="flex flex-1 flex-col items-center gap-1">
-                <span className="text-[9px] tabular-nums text-zinc-400 dark:text-zinc-500">{f.count || ""}</span>
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    className={`w-full rounded-t ${i === 0 ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-700"}`}
-                    style={{ height: `${Math.max(f.count > 0 ? 8 : 2, (f.count / fcMax) * 100)}%` }}
-                  />
+        {/* 우: 암기 단계 + 복습 예정 */}
+        <div className="flex flex-col gap-5">
+          <Section title={t("mem.statBoxDist")} help={t("mem.stageHelp")}>
+            <div className="flex flex-col gap-1.5">
+              {boxes.map((n, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="flex w-16 shrink-0 items-baseline gap-1 text-[10px] text-zinc-400 dark:text-zinc-500">
+                    {t("mem.statBoxN").replace("{n}", String(i + 1))}
+                    <span className="text-[9px] text-zinc-300 dark:text-zinc-600">
+                      {t("mem.statBoxDays").replace("{n}", String(BOX_INTERVALS[i]))}
+                    </span>
+                  </span>
+                  <div className="h-3 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
+                    <div
+                      className="h-full rounded bg-blue-500 transition-all dark:bg-blue-400"
+                      style={{ width: `${(n / boxMax) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">{n}</span>
                 </div>
-                <span className="text-[9px] text-zinc-400 dark:text-zinc-500">{wd}</span>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          </Section>
+
+          <Section title={t("mem.statForecast")}>
+            <div className="flex items-end gap-1.5" style={{ height: "72px" }}>
+              {forecast.map((f, i) => {
+                // "yyyy-mm-dd"를 로컬 날짜로 파싱(new Date(문자열)은 UTC라 음수 UTC서 요일 밀림).
+                const [yy, mm, dd] = f.date.split("-").map(Number);
+                const d = new Date(yy, mm - 1, dd);
+                const wd = d.toLocaleDateString(LOCALE_TAG[locale] ?? "en-US", { weekday: "short" });
+                return (
+                  <div key={f.date} className="flex flex-1 flex-col items-center gap-1">
+                    <span className="text-[9px] tabular-nums text-zinc-400 dark:text-zinc-500">{f.count || ""}</span>
+                    <div className="flex w-full flex-1 items-end">
+                      <div
+                        className={`w-full rounded-t ${i === 0 ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-700"}`}
+                        style={{ height: `${Math.max(f.count > 0 ? 8 : 2, (f.count / fcMax) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500">{wd}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
         </div>
-      </Section>
+      </div>
 
       {/* 학습 활동 히트맵 + 연속 스트릭 (전역) */}
       <Section title={t("mem.statHeatmap")}>
