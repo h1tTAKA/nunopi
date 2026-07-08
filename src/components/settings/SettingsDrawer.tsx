@@ -1,5 +1,6 @@
 import { useState } from "react";
-import type { AnalyzeMode, ProviderSettings } from "@/lib/agent";
+import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@/lib/agent";
+import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
 import { XIcon } from "@/components/learning/icons";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { LOCALES, type Locale } from "@/lib/i18n/messages";
@@ -13,6 +14,9 @@ interface SettingsDrawerProps {
   onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
   theme: "light" | "dark";
   onThemeChange: (next: "light" | "dark") => void;
+  // 암기모드 카드 기본 설명 생성에 쓸 provider(분석 provider와 별개).
+  memorizeProviderId: AgentProviderKind;
+  onMemorizeProviderChange: (id: AgentProviderKind) => void;
 }
 
 // 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
@@ -67,6 +71,8 @@ export default function SettingsDrawer({
   onRemoveExclusion,
   theme,
   onThemeChange,
+  memorizeProviderId,
+  onMemorizeProviderChange,
 }: SettingsDrawerProps) {
   const { locale, setLocale } = useLocale();
   const t = useT();
@@ -340,6 +346,26 @@ export default function SettingsDrawer({
                 </button>
               </div>
             )}
+          </section>
+
+          {/* 암기모드 카드 설명 provider — 프로바이더 설정 바로 밑 */}
+          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              {t("settings.memorizeProvider")}
+            </h3>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.memorizeProviderHint")}</p>
+            <select
+              value={memorizeProviderId}
+              onChange={(e) => onMemorizeProviderChange(e.target.value as AgentProviderKind)}
+              aria-label={t("settings.memorizeProvider")}
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+            >
+              {PROVIDER_CATALOG.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {t(`provider.${p.id}`)}
+                </option>
+              ))}
+            </select>
           </section>
 
           {/* 제외 목록 카드 */}

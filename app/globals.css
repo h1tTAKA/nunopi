@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* 마크다운 코드펜스 신택스 하이라이팅 테마(rehype-highlight / highlight.js) */
+@import "highlight.js/styles/github-dark.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {

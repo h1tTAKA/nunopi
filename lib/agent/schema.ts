@@ -11,7 +11,7 @@ import type { AgentProviderKind } from "./types";
 
 // 분석 모드 — "code"(기본, 코드 분석) | "text"(IT 용어 글 분석)
 // | "explain-token"(토큰 1개) | "explain-concept"(개념 1개) | "chat"(코드에 대한 자유 질문).
-export type AnalyzeMode = "code" | "text" | "explain-token" | "explain-concept" | "chat";
+export type AnalyzeMode = "code" | "text" | "explain-token" | "explain-concept" | "chat" | "explain-card";
 
 // 학습 챗 한 메시지.
 export interface ChatMessage {
@@ -43,6 +43,9 @@ export interface AgentAnalyzeRequest {
   mode?: AnalyzeMode; // 기본 "code".
   targetToken?: string; // mode "explain-token"일 때 설명할 토큰 텍스트.
   targetConcept?: string; // mode "explain-concept"일 때 설명할 개념 제목.
+  // mode "explain-card"(암기 카드 디폴트 설명)용 — 맥락 독립 설명 생성.
+  targetTerm?: string; // 설명할 용어/토큰.
+  targetKind?: "token" | "concept" | "term"; // 코드 토큰/개념 vs 글 용어(예문 유무 분기).
   messages?: ChatMessage[]; // mode "chat"일 때 대화 내역(마지막이 사용자 질문).
   // 병렬 청크(2단계) 분석용 — code 모드에서만.
   outlineOnly?: boolean; // 1차: title/summary/concepts만 생성(lineExplanations 비움).
