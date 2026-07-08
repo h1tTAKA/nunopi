@@ -60,18 +60,18 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
 
       {/* 상단 2단 — 좌: 총 카드 + 분류 도넛 / 우: 암기 단계 + 복습 예정 */}
       <div className="grid grid-cols-2 gap-6">
-        {/* 좌: 총 카드 + 분류 도넛 */}
-        <div className="flex items-center gap-4">
-          <div className="flex shrink-0 flex-col gap-0.5">
-            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
-            <span className="text-4xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
+        {/* 좌: 총 카드 + 분류 도넛 — 왼쪽 공간 채우게 크게 */}
+        <div className="flex items-center justify-center gap-5">
+          <div className="flex shrink-0 flex-col gap-1">
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
+            <span className="text-6xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={104} stroke={13} />
-            <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-4">
+            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={168} stroke={20} />
+            <div className="flex flex-col gap-1.5">
               {CAT_META.map((c) => (
-                <div key={c.key} className="flex items-center gap-1.5 text-[11px]">
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />
+                <div key={c.key} className="flex items-center gap-2 text-sm">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
                   <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
                   <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
                 </div>
