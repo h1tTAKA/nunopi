@@ -11,6 +11,10 @@ import HelpTooltip from "./HelpTooltip";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
+// 누노피 심볼 그라데이션(시안→블루→바이올렛). 막대 채움색으로 사용.
+const BRAND_H = "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)"; // 가로 막대
+const BRAND_V = "linear-gradient(0deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)"; // 세로 막대(아래 시안→위 바이올렛)
+
 const DECK_NAME_KEY: Record<Deck, string> = {
   all: "mem.deckAll",
   code: "mem.deckCode",
@@ -96,8 +100,8 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
                   </span>
                   <div className="h-3 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                     <div
-                      className="h-full rounded bg-blue-500 transition-all dark:bg-blue-400"
-                      style={{ width: `${(n / boxMax) * 100}%` }}
+                      className="h-full rounded transition-all"
+                      style={{ width: `${(n / boxMax) * 100}%`, backgroundImage: BRAND_H }}
                     />
                   </div>
                   <span className="w-6 shrink-0 text-right text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">{n}</span>
@@ -122,8 +126,8 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
                     {/* 고정 높이 트랙(%높이가 죽지 않게) + 옅은 배경 baseline */}
                     <div className="flex h-16 w-full items-end overflow-hidden rounded-md bg-zinc-100 dark:bg-zinc-800/60">
                       <div
-                        className={`w-full rounded-md transition-all ${today ? "bg-blue-500 dark:bg-blue-400" : "bg-blue-300 dark:bg-blue-600"}`}
-                        style={{ height: `${f.count > 0 ? Math.max(10, (f.count / fcMax) * 100) : 0}%` }}
+                        className={`w-full rounded-md transition-all ${today ? "" : "opacity-40"}`}
+                        style={{ height: `${f.count > 0 ? Math.max(10, (f.count / fcMax) * 100) : 0}%`, backgroundImage: BRAND_V }}
                       />
                     </div>
                     <span className={`text-[10px] ${today ? "font-semibold text-blue-500 dark:text-blue-400" : "text-zinc-400 dark:text-zinc-500"}`}>{label}</span>
