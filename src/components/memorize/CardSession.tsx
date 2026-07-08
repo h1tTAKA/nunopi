@@ -205,8 +205,9 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           >
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
-          <div className="w-full">{gradeBar}</div>
-          {/* 3분류 더미 — 상단 버튼은 카드 폭 그대로, 더미만 좌우로 더 벌린다(중앙 애매 기준). */}
+          {/* 채점(다시/애매/완벽)은 아래 더미와 같은 폭으로 정렬, 뒤집기 버튼은 카드 폭 유지. */}
+          <div className={flipped ? "w-[32rem] max-w-[90vw]" : "w-full"}>{gradeBar}</div>
+          {/* 3분류 더미 — 채점 버튼과 같은 폭·3열로 정렬(각 더미가 해당 버튼 아래). */}
           <div className="mt-4 w-[32rem] max-w-[90vw]">
             <GradePiles stats={stats} landing={tossing} row />
           </div>
