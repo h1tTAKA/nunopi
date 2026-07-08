@@ -95,7 +95,6 @@ const ko: Dict = {
   "mem.retryPrompt": "헷갈린 카드 다시 복습할까요?",
   "mem.retryYes": "예, 복습",
   "mem.retryNo": "아니오",
-  "mem.roundN": "{n}회차",
   "mem.noExplanation": "설명 없음",
 
   "input.codeTitle": "코드 입력",
@@ -397,7 +396,6 @@ const ja: Dict = {
   "mem.retryPrompt": "あいまいなカードをもう一度復習しますか?",
   "mem.retryYes": "はい、復習",
   "mem.retryNo": "いいえ",
-  "mem.roundN": "{n}回目",
   "mem.noExplanation": "説明なし",
 
   "input.codeTitle": "コード入力",
@@ -699,7 +697,6 @@ const en: Dict = {
   "mem.retryPrompt": "Re-review the tricky cards?",
   "mem.retryYes": "Yes, review",
   "mem.retryNo": "No",
-  "mem.roundN": "round {n}",
   "mem.noExplanation": "No explanation",
 
   "input.codeTitle": "Code input",

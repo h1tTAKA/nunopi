@@ -6,11 +6,12 @@ const KEY = "nunopi:mem-session";
 
 export interface SavedSession {
   sources: SrsSource[];
-  roundKeys: string[]; // 현재 라운드 카드 키(순서 유지)
+  roundKeys: string[]; // 세션 카드 키(순서 유지) — 한 바퀴만 돈다(자동 재복습 라운드 없음)
   idx: number; // 현재 위치
-  roundNo: number;
   stats: { again: number; hard: number; good: number };
-  againKeys: string[]; // 이번 라운드 "다시" 모음
+  // 세션 전체에서 최악 등급이 '다시'/'애매'인 카드 키(재복습 후보). 이어하기 시 복원해 완료 화면 재복습 목록에 반영.
+  reviewedAgain?: string[];
+  reviewedHard?: string[];
   savedAt: string;
 }
 
