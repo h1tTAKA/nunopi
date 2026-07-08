@@ -8,6 +8,7 @@ import { BOX_INTERVALS } from "@/lib/srs/schedule";
 import type { Deck, SrsSource } from "@/lib/srs/types";
 import HelpTooltip from "./HelpTooltip";
 import ActivityHeatmap from "./ActivityHeatmap";
+import MemorizeInsights from "./MemorizeInsights";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
@@ -141,6 +142,9 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
         <ActivityHeatmap now={now} />
       </div>
+
+      {/* 인사이트 위젯 (선택 덱 기준) */}
+      <MemorizeInsights deck={deck} sources={sources} now={now} />
     </div>
   );
 }
