@@ -183,7 +183,7 @@ export default function CardSession({ sources, mode = "due", active = true, prov
 
         {/* 카드 디폴트 설명 — 좌상단(넓은 화면만), 반투명으로 뒤 부채꼴 비침 */}
         <div className="absolute left-0 top-0 z-10 hidden xl:block">
-          <CardExplainPanel card={card} providerId={providerId} />
+          <CardExplainPanel card={card} providerId={providerId} flipped={flipped} />
         </div>
 
         {/* 중앙 카드 + 채점바 */}
