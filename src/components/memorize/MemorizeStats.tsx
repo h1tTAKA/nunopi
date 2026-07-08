@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { categoryCounts, type CardCategory } from "@/lib/srs/due";
 import { boxDistribution, summary, dueForecast } from "@/lib/srs/stats";
+import { BOX_INTERVALS } from "@/lib/srs/schedule";
 import { activityHeatmap, currentStreak } from "@/lib/srs/activityLog";
 import type { Deck, SrsSource } from "@/lib/srs/types";
 
@@ -61,8 +62,11 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
         <div className="flex flex-col gap-1.5">
           {boxes.map((n, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="w-12 shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
+              <span className="flex w-16 shrink-0 items-baseline gap-1 text-[10px] text-zinc-400 dark:text-zinc-500">
                 {t("mem.statBoxN").replace("{n}", String(i + 1))}
+                <span className="text-[9px] text-zinc-300 dark:text-zinc-600">
+                  {t("mem.statBoxDays").replace("{n}", String(BOX_INTERVALS[i]))}
+                </span>
               </span>
               <div className="h-3 flex-1 overflow-hidden rounded bg-zinc-100 dark:bg-zinc-800">
                 <div
