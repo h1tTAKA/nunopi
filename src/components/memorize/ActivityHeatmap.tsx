@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { yearActivity, activityYearRange, currentStreak, type HeatCell } from "@/lib/srs/activityLog";
@@ -27,13 +28,12 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
   const [year, setYear] = useState(range.max);
   const { weeks, months } = useMemo(() => yearActivity(year), [year]);
   const streak = useMemo(() => currentStreak(now), [now]);
+  // 커스텀 호버 툴팁(네이티브 title은 딜레이·미표시라 직접 그림).
+  const [hover, setHover] = useState<{ cell: HeatCell; x: number; y: number } | null>(null);
 
   // 요일 라벨(Sun~Sat 중 Mon/Wed/Fri만). 2023-01-01 = 일요일 기준.
   const dow = (d: number) => new Date(2023, 0, 1 + d).toLocaleDateString(tag, { weekday: "short" });
   const monthName = (m: number) => new Date(2023, m, 1).toLocaleDateString(tag, { month: "short" });
-  // 잔디 칸 호버 툴팁 — 날짜 · 추가(신규 미분류) · 다시/애매/완벽 채점 수.
-  const cellTitle = (c: HeatCell) =>
-    `${c.date}\n${t("mem.statAdded")} ${c.added} · ${t("mem.again")} ${c.again} · ${t("mem.hard")} ${c.hard} · ${t("mem.good")} ${c.good}`;
 
   return (
     <div className="flex flex-col gap-2">
@@ -99,7 +99,9 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
                 w.map((cell, di) => (
                   <div
                     key={`${wi}-${di}`}
-                    title={cell.date ? cellTitle(cell) : undefined}
+                    onMouseEnter={cell.date ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                    onMouseMove={cell.date ? (e) => setHover({ cell, x: e.clientX, y: e.clientY }) : undefined}
+                    onMouseLeave={() => setHover(null)}
                     className={`rounded-[2px] ${cell.date ? heatColor(cell.count) : "bg-transparent"}`}
                     style={{ width: CELL, height: CELL }}
                   />
@@ -109,6 +111,25 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
           </div>
         </div>
       </div>
+
+      {/* 호버 툴팁 — 포탈(패널 overflow에 안 잘리게), 커서 위 고정 */}
+      {hover && typeof document !== "undefined" && createPortal(
+        <div
+          className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-[11px] leading-relaxed shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          style={{ left: hover.x, top: hover.y - 8 }}
+        >
+          <div className="mb-0.5 font-semibold text-zinc-700 dark:text-zinc-100">{hover.cell.date}</div>
+          <div className="flex gap-2 text-zinc-500 dark:text-zinc-300">
+            <span>{t("mem.statAdded")} {hover.cell.added}</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-rose-500 dark:text-rose-400">{t("mem.again")} {hover.cell.again}</span>
+            <span className="text-amber-500 dark:text-amber-400">{t("mem.hard")} {hover.cell.hard}</span>
+            <span className="text-emerald-500 dark:text-emerald-400">{t("mem.good")} {hover.cell.good}</span>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
