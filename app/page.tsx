@@ -173,6 +173,8 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>("code");
   // 암기 탭 배지 — 오늘 복습할 전체 due 수(0이면 숨김). 뷰 진입 시 갱신.
   const [memorizeDue, setMemorizeDue] = useState(0);
+  // 암기 카드 추가 설명 생성 provider(분석 provider와 별개, 설정에서 지정). localStorage 영속.
+  const [memorizeProviderId, setMemorizeProviderId] = useState<AgentProviderKind>(DEFAULT_PROVIDER_ID);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>(freshChatSessions);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatStreaming, setChatStreaming] = useState<string | null>(null);
@@ -204,11 +206,21 @@ export default function Home() {
     if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
     const storedView = localStorage.getItem(VIEW_MODE_KEY);
     if (storedView === "text" || storedView === "memorize") {
-       
+
       setViewMode(storedView);
       if (storedView === "text") setMode("text");
     }
+    const storedMemProvider = localStorage.getItem("nunopi:memorize-provider");
+    if (storedMemProvider) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMemorizeProviderId(storedMemProvider as AgentProviderKind);
+    }
   }, []);
+
+  function handleMemorizeProviderChange(next: AgentProviderKind) {
+    setMemorizeProviderId(next);
+    try { localStorage.setItem("nunopi:memorize-provider", next); } catch { /* ignore */ }
+  }
 
   // 암기 탭 배지 due 수 — 뷰 전환 시 재계산(localStorage는 클라에서만).
   useEffect(() => {
@@ -963,7 +975,7 @@ export default function Home() {
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
-        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={providerId} />}
+        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
@@ -1099,6 +1111,8 @@ export default function Home() {
         onRemoveExclusion={handleRemoveExclusion}
         theme={theme}
         onThemeChange={changeTheme}
+        memorizeProviderId={memorizeProviderId}
+        onMemorizeProviderChange={handleMemorizeProviderChange}
       />
     </ConfirmProvider>
     </I18nProvider>
