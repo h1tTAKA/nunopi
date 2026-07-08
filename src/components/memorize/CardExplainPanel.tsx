@@ -48,17 +48,8 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
       });
   }, [card.front, card.source, card.key, providerId, locale]);
 
-  // 카드를 뒤집었을 때만 생성/표시. 안 뒤집었으면 비우고 안내만.
+  // 이전에 생성한 설명이 있으면 항상 로드(뒤집기 전엔 블러). 없으면 뒤집을 때 생성.
   useEffect(() => {
-    if (!flipped) {
-      abortRef.current?.abort();
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setText("");
-      setStreaming(false);
-      setError(false);
-      /* eslint-enable react-hooks/set-state-in-effect */
-      return;
-    }
     const cached = loadCardExplain(card.key);
     if (cached) {
       abortRef.current?.abort();
@@ -69,8 +60,17 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
       /* eslint-enable react-hooks/set-state-in-effect */
       return;
     }
-    generate();
-    return () => abortRef.current?.abort();
+    if (flipped) {
+      generate();
+      return () => abortRef.current?.abort();
+    }
+    // 캐시 없고 아직 안 뒤집음 — 비움.
+    abortRef.current?.abort();
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setText("");
+    setStreaming(false);
+    setError(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [card.key, flipped, generate]);
 
   function handleReset() {
@@ -96,15 +96,16 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
         </button>
       </div>
       <div className="nunopi-scroll max-h-[60vh] overflow-y-auto pr-1 text-zinc-600 dark:text-zinc-300">
-        {!flipped ? (
-          <span className="text-zinc-400 dark:text-zinc-500">{t("mem.explainFlipHint")}</span>
-        ) : error ? (
+        {error ? (
           <span className="text-rose-500 dark:text-rose-400">{t("mem.explainError")}</span>
         ) : text ? (
-          <Markdown>{text}</Markdown>
-        ) : (
+          // 뒤집기 전엔 블러 처리(내용은 있지만 못 읽게) → 뒤집으면 선명.
+          <div className={!flipped ? "pointer-events-none select-none blur-sm" : "transition-[filter] duration-200"}>
+            <Markdown>{text}</Markdown>
+          </div>
+        ) : streaming ? (
           <span className="text-zinc-400 dark:text-zinc-500">{t("mem.explainLoading")}</span>
-        )}
+        ) : null}
       </div>
     </div>
   );
