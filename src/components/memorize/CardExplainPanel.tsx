@@ -66,11 +66,11 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
     }
     // 캐시 없고 아직 안 뒤집음 — 비움.
     abortRef.current?.abort();
-    /* eslint-disable react-hooks/set-state-in-effect */
+     
     setText("");
     setStreaming(false);
     setError(false);
-    /* eslint-enable react-hooks/set-state-in-effect */
+     
   }, [card.key, flipped, generate]);
 
   function handleReset() {
@@ -79,7 +79,7 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
   }
 
   return (
-    <div className="flex w-64 flex-col gap-2 rounded-xl border border-zinc-200/40 bg-white/10 p-3 text-xs backdrop-blur-sm dark:border-zinc-700/40 dark:bg-zinc-900/20">
+    <div className="flex w-96 flex-col gap-2 rounded-xl border border-zinc-200/40 bg-white/10 p-3 text-xs backdrop-blur-sm dark:border-zinc-700/40 dark:bg-zinc-900/20">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           {t("mem.explainTitle")}

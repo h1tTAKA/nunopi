@@ -150,8 +150,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
 
   return (
     <div className="flex h-full w-full flex-col gap-4 px-8 py-5">
-      {/* 진행률 + 덱 선택으로 돌아가기 */}
-      <div className="flex items-center gap-3">
+      {/* 진행률 + 덱 선택으로 돌아가기 — 스테이지는 전폭이지만 이 바는 예전 비율(중앙 max-w). */}
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
         <button
           type="button"
           onClick={onExit}
