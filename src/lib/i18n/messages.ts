@@ -92,6 +92,9 @@ const ko: Dict = {
   "mem.hard": "애매",
   "mem.good": "완벽",
   "mem.doneTitle": "오늘 {n}장 복습 완료",
+  "mem.retryPrompt": "헷갈린 카드 다시 복습할까요?",
+  "mem.retryYes": "예, 복습",
+  "mem.retryNo": "아니오",
   "mem.roundN": "{n}회차",
   "mem.noExplanation": "설명 없음",
 
@@ -391,6 +394,9 @@ const ja: Dict = {
   "mem.hard": "あいまい",
   "mem.good": "完璧",
   "mem.doneTitle": "今日 {n}枚 復習完了",
+  "mem.retryPrompt": "あいまいなカードをもう一度復習しますか?",
+  "mem.retryYes": "はい、復習",
+  "mem.retryNo": "いいえ",
   "mem.roundN": "{n}回目",
   "mem.noExplanation": "説明なし",
 
@@ -690,6 +696,9 @@ const en: Dict = {
   "mem.hard": "Hard",
   "mem.good": "Good",
   "mem.doneTitle": "Reviewed {n} today",
+  "mem.retryPrompt": "Re-review the tricky cards?",
+  "mem.retryYes": "Yes, review",
+  "mem.retryNo": "No",
   "mem.roundN": "round {n}",
   "mem.noExplanation": "No explanation",
 
