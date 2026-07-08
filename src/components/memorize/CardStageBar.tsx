@@ -3,6 +3,7 @@
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { BOX_INTERVALS, MAX_BOX } from "@/lib/srs/schedule";
 import type { Card } from "@/lib/srs/types";
+import HelpTooltip from "./HelpTooltip";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
@@ -21,8 +22,9 @@ export default function CardStageBar({ card }: { card: Card }) {
 
   return (
     <div className="flex w-56 flex-col gap-2 rounded-xl border border-zinc-200 bg-white/60 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
-      <span className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+      <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
         {t("mem.cardStageTitle")}
+        <HelpTooltip text={t("mem.stageHelp")} align="right" />
       </span>
 
       {/* 5단계 계단 막대 — 현재 box까지 채움, 현재 칸 강조. */}
