@@ -83,7 +83,11 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   const [roundNo, setRoundNo] = useState(init.roundNo);
   const [stats, setStats] = useState(init.stats);
   const [done, setDone] = useState(init.round.length === 0);
+  // 완료 시 재복습 후보(다시/애매 카드) — done 전환 시 reviewedRef에서 계산해 저장(render서 ref 읽지 않게).
+  const [retry, setRetry] = useState<{ again: Card[]; hard: Card[] }>({ again: [], hard: [] });
   const [tossing, setTossing] = useState<Grade | null>(null); // 진행 중 toss(연타 가드)
+  // 이번 세션에서 채점한 카드의 최신 등급(완료 화면 재복습용). 재채점 시 갱신.
+  const reviewedRef = useRef<Map<string, { card: Card; grade: Grade }>>(new Map());
   // toss 타이머 — 언마운트 시 정리(dead 컴포넌트 setState 방지).
   const tossTimer = useRef<number | null>(null);
   useEffect(() => () => { if (tossTimer.current) window.clearTimeout(tossTimer.current); }, []);
@@ -113,7 +117,17 @@ export default function CardSession({ sources, mode = "due", active = true, deck
       if (!card) return;
       updateCardState(card.key, applyGrade(card.state, g, now));
       logReview(now, g); // 날짜별 복습 카운트(등급별, 히트맵/스트릭용)
+      reviewedRef.current.set(card.key, { card, grade: g }); // 최신 등급 기록(재복습용)
       setStats((s) => ({ ...s, [g]: s[g] + 1 }));
+      // 완료 시점에 재복습 후보(다시/애매) 계산해 state에 저장(render서 ref 안 읽게).
+      const finish = () => {
+        const r = [...reviewedRef.current.values()];
+        setRetry({
+          again: r.filter((x) => x.grade === "again").map((x) => x.card),
+          hard: r.filter((x) => x.grade === "hard").map((x) => x.card),
+        });
+        setDone(true);
+      };
       const requeue = g === "again";
       const nextIdx = idx + 1;
       if (nextIdx < round.length) {
@@ -124,14 +138,14 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         if (requeue && againPile.length === 0) {
           // 마지막 한 장을 '다시' — 다른 재복습 카드가 없으면 한 장짜리 무한 라운드가 되므로 종료.
           // applyGrade가 box1(간격 1일=내일 due)로 재예약했으니 다음 복습에서 다시 나온다.
-          setDone(true);
+          finish();
         } else if (pile.length > 0) {
           setRound(pile);
           setAgainPile([]);
           setIdx(0);
           setRoundNo((n) => n + 1);
         } else {
-          setDone(true);
+          finish();
         }
       }
       setFlipped(false);
@@ -174,8 +188,32 @@ export default function CardSession({ sources, mode = "due", active = true, deck
     return () => window.removeEventListener("keydown", onKey);
   }, [done, active, flipped, tossing, grade]);
 
+  // 선택한 카드로 세션 재시작(완료 화면 "다시 한번" — 헷갈린 카드 재복습).
+  function restart(cards: Card[]) {
+    if (cards.length === 0) return;
+    reviewedRef.current = new Map();
+    setRetry({ again: [], hard: [] });
+    setRound(cards);
+    setAgainPile([]);
+    setIdx(0);
+    setRoundNo(1);
+    setStats({ again: 0, hard: 0, good: 0 });
+    setFlipped(false);
+    setTossing(null);
+    setDone(false);
+  }
+
   if (done) {
-    return <SessionDone stats={stats} total={init.round.length} onExit={onExit} />;
+    return (
+      <SessionDone
+        stats={stats}
+        total={init.round.length}
+        againCards={retry.again}
+        hardCards={retry.hard}
+        onRetry={restart}
+        onExit={onExit}
+      />
+    );
   }
 
   // 채점으로 카드가 소진된 만큼만 진행(뒤집기는 진행과 무관).
