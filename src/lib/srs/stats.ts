@@ -109,7 +109,7 @@ function brief(c: ReturnType<typeof cardsOf>[number]): CardBrief {
   };
 }
 
-// 자주 틀리는 카드 — 채점 이력 있고 (다시+애매) 많은 순, 동률이면 다시 많은 순.
+// 자주 틀리는 카드 — 다시 많은 순, 동률(또는 다시 0)이면 애매 많은 순. 채점 이력 있는 것만.
 export function weakestCards(deck: Deck, now: Date, sources: SrsSource[] | undefined, limit = 4): CardBrief[] {
   return cardsOf(deck, now, sources)
     .map(brief)

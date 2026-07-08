@@ -73,7 +73,7 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
       {/* 잔디 — 패널 폭에 맞춰 반응형(열 1fr로 채움, 짤림/스크롤 없음). */}
       <div className="flex flex-col gap-1">
         {/* 월 라벨 — 요일 열(w-5) 만큼 밀고, 주 위치는 %로(유동 열에 정렬) */}
-        <div className="relative h-3" style={{ marginLeft: WEEKDAY_W }}>
+        <div className="relative h-3" style={{ marginLeft: WEEKDAY_W + 4 }}>
           {months.map((m) => (
             <span
               key={m.week}
