@@ -5,9 +5,9 @@ import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { categoryCounts, type CardCategory } from "@/lib/srs/due";
 import { boxDistribution, summary, dueForecast } from "@/lib/srs/stats";
 import { BOX_INTERVALS } from "@/lib/srs/schedule";
-import { activityHeatmap, currentStreak } from "@/lib/srs/activityLog";
 import type { Deck, SrsSource } from "@/lib/srs/types";
 import HelpTooltip from "./HelpTooltip";
+import ActivityHeatmap from "./ActivityHeatmap";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
@@ -41,9 +41,6 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   const boxes = useMemo(() => boxDistribution(deck, now, sources), [deck, now, sources]);
   const cats = useMemo(() => categoryCounts(deck, now, sources), [deck, now, sources]);
   const forecast = useMemo(() => dueForecast(deck, now, sources, 7), [deck, now, sources]);
-  // 활동/스트릭은 전역(모든 복습, 덱 무관).
-  const heatmap = useMemo(() => activityHeatmap(now, 17), [now]);
-  const streak = useMemo(() => currentStreak(now), [now]);
 
   if (sum.total === 0) {
     return (
@@ -142,33 +139,10 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
 
       {/* 학습 활동 패널 (전역 — 모든 복습) */}
       <div className="rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
-        <Section title={t("mem.statHeatmap")}>
-          {streak > 0 && (
-            <span className="mb-1 inline-flex w-fit items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-600 dark:bg-orange-950/30 dark:text-orange-400">
-              🔥 {t("mem.statStreakDays").replace("{n}", String(streak))}
-            </span>
-          )}
-          <div className="grid grid-flow-col grid-rows-7 gap-[3px]">
-            {heatmap.map((cell) => (
-              <div
-                key={cell.date}
-                title={`${cell.date} · ${cell.count}`}
-                className={`h-2.5 w-2.5 rounded-sm ${heatColor(cell.count)}`}
-              />
-            ))}
-          </div>
-        </Section>
+        <ActivityHeatmap now={now} />
       </div>
     </div>
   );
-}
-
-// 히트맵 4단계 색(0/1-2/3-5/6+).
-function heatColor(n: number): string {
-  if (n === 0) return "bg-zinc-100 dark:bg-zinc-800";
-  if (n <= 2) return "bg-blue-200 dark:bg-blue-900";
-  if (n <= 5) return "bg-blue-400 dark:bg-blue-700";
-  return "bg-blue-600 dark:bg-blue-400";
 }
 
 function Section({ title, help, children }: { title: string; help?: string; children: React.ReactNode }) {
