@@ -7,7 +7,7 @@ import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { yearActivity, activityYearRange, currentStreak, type HeatCell } from "@/lib/srs/activityLog";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
-const CELL = 15; // 셀 높이(px) — 폭은 열 1fr로 유동
+const CELL = 11; // 셀 높이(px) — 폭은 열 1fr로 유동
 const GAP = 3; // 셀 간격(px)
 const WEEKDAY_W = 20; // 좌측 요일 라벨 열 폭(px)
 
