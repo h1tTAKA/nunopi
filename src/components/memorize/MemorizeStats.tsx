@@ -58,27 +58,27 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
     <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-5 overflow-y-auto pr-1">
       <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
-      {/* 분류 도넛 — 중앙에 총 카드 수(요약 4칸 대체). */}
-      <Section title={t("mem.statCategoryDist")}>
-        <div className="flex items-center gap-5">
-          <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-            <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={132} stroke={16} />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
-              <span className="text-3xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1.5">
+      {/* 총 카드(왼쪽) + 분류 도넛(오른쪽). */}
+      <div className="flex items-center gap-5">
+        {/* 총 카드 — 큰 숫자 */}
+        <div className="flex shrink-0 flex-col gap-0.5">
+          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{t("mem.statTotal")}</span>
+          <span className="text-4xl font-bold tabular-nums text-zinc-800 dark:text-zinc-100">{sum.total}</span>
+        </div>
+        {/* 분류 도넛 + 범례 */}
+        <div className="flex items-center gap-3">
+          <Donut segments={CAT_META.map((c) => ({ value: cats[c.key], color: c.color }))} total={catTotal} size={104} stroke={13} />
+          <div className="flex flex-col gap-1">
             {CAT_META.map((c) => (
-              <div key={c.key} className="flex items-center gap-1.5 text-xs">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.color }} />
+              <div key={c.key} className="flex items-center gap-1.5 text-[11px]">
+                <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />
                 <span className="text-zinc-500 dark:text-zinc-400">{t(c.tKey)}</span>
                 <span className="tabular-nums text-zinc-400 dark:text-zinc-500">{cats[c.key]}</span>
               </div>
             ))}
           </div>
         </div>
-      </Section>
+      </div>
 
       {/* Leitner 박스 분포 */}
       <Section title={t("mem.statBoxDist")} help={t("mem.stageHelp")}>
