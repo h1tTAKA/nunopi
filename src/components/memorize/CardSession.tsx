@@ -112,7 +112,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
     (g: Grade) => {
       if (!card) return;
       updateCardState(card.key, applyGrade(card.state, g, now));
-      logReview(now); // 날짜별 복습 카운트(히트맵/스트릭용)
+      logReview(now, g); // 날짜별 복습 카운트(등급별, 히트맵/스트릭용)
       setStats((s) => ({ ...s, [g]: s[g] + 1 }));
       const requeue = g === "again";
       const nextIdx = idx + 1;

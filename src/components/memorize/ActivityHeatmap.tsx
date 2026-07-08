@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import { yearActivity, activityYearRange, currentStreak } from "@/lib/srs/activityLog";
+import { yearActivity, activityYearRange, currentStreak, type HeatCell } from "@/lib/srs/activityLog";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 const CELL = 12; // 셀 한 변(px)
@@ -31,6 +31,9 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
   // 요일 라벨(Sun~Sat 중 Mon/Wed/Fri만). 2023-01-01 = 일요일 기준.
   const dow = (d: number) => new Date(2023, 0, 1 + d).toLocaleDateString(tag, { weekday: "short" });
   const monthName = (m: number) => new Date(2023, m, 1).toLocaleDateString(tag, { month: "short" });
+  // 잔디 칸 호버 툴팁 — 날짜 · 추가(신규 미분류) · 다시/애매/완벽 채점 수.
+  const cellTitle = (c: HeatCell) =>
+    `${c.date}\n${t("mem.statAdded")} ${c.added} · ${t("mem.again")} ${c.again} · ${t("mem.hard")} ${c.hard} · ${t("mem.good")} ${c.good}`;
 
   return (
     <div className="flex flex-col gap-2">
@@ -96,7 +99,7 @@ export default function ActivityHeatmap({ now }: { now: Date }) {
                 w.map((cell, di) => (
                   <div
                     key={`${wi}-${di}`}
-                    title={cell.date ? `${cell.date} · ${cell.count}` : undefined}
+                    title={cell.date ? cellTitle(cell) : undefined}
                     className={`rounded-[2px] ${cell.date ? heatColor(cell.count) : "bg-transparent"}`}
                     style={{ width: CELL, height: CELL }}
                   />
