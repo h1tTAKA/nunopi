@@ -14,7 +14,8 @@ import CardFan from "./CardFan";
 import GradePiles from "./GradePiles";
 import CardInfoPanel from "./CardInfoPanel";
 import CardExplainPanel from "./CardExplainPanel";
-import type { AgentProviderKind } from "@/lib/agent";
+import MemorizeChat from "./MemorizeChat";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 interface CardSessionProps {
   sources: SrsSource[];
@@ -23,22 +24,23 @@ interface CardSessionProps {
   // 암기 탭이 화면에 활성인지 — 비활성(다른 모드 보는 중)이면 키보드 무시.
   active?: boolean;
   providerId: AgentProviderKind;
+  providerSettings: ProviderSettings;
   onExit: () => void;
 }
 
 // toss 애니 시간(ms) — 채점 카드가 더미로 날아가는 시간.
 const TOSS_MS = 320;
 
-// toss 방향 — 각 채점의 카드가 우측 해당 더미로 날아가는 transform(위=다시 … 아래=완벽).
+// toss 방향 — 각 채점 카드가 하단 중앙 3더미(좌:다시 · 중:애매 · 우:완벽)로 날아가는 transform.
 const TOSS_TRANSFORM: Record<Grade, string> = {
-  again: "translate(340px, -150px) rotate(16deg) scale(0.5)",
-  hard: "translate(340px, 0px) rotate(16deg) scale(0.5)",
-  good: "translate(340px, 150px) rotate(16deg) scale(0.5)",
+  again: "translate(-160px, 420px) rotate(-14deg) scale(0.35)",
+  hard: "translate(0px, 440px) rotate(4deg) scale(0.35)",
+  good: "translate(160px, 420px) rotate(14deg) scale(0.35)",
 };
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, providerId, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, providerId, providerSettings, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
   // 상시(all) 복습은 due 필터를 건너뛰고 덱 전체를 큐로.
@@ -112,6 +114,9 @@ export default function CardSession({ sources, mode = "due", active = true, prov
   useEffect(() => {
     if (done || !active) return; // 비활성 뷰(다른 모드 보는 중)면 키 무시
     function onKey(e: KeyboardEvent) {
+      // 챗 입력 등 폼 요소에 포커스 중이면 단축키 무시(스페이스 띄어쓰기가 카드 뒤집기 안 되게).
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       if (e.code === "Space") {
         e.preventDefault();
         if (!tossing) setFlipped((v) => !v);
@@ -149,6 +154,8 @@ export default function CardSession({ sources, mode = "due", active = true, prov
   );
 
   return (
+    <>
+    {active && <MemorizeChat card={card} providerId={providerId} providerSettings={providerSettings} />}
     <div className="flex h-full w-full flex-col gap-4 px-8 py-5">
       {/* 진행률 + 덱 선택으로 돌아가기 — 스테이지는 전폭이지만 이 바는 예전 비율(중앙 max-w). */}
       <div className="mx-auto flex w-full max-w-6xl items-center gap-3">
@@ -186,7 +193,7 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           <CardExplainPanel card={card} providerId={providerId} flipped={flipped} />
         </div>
 
-        {/* 중앙 카드 + 채점바 */}
+        {/* 중앙 카드 + 채점바(카드 폭 그대로). 더미만 넓게 벌린다. */}
         <div className="relative z-10 flex w-full max-w-xs flex-col items-center gap-5">
           <div
             className={`w-full ${reduced ? "" : "transition-all"}`}
@@ -198,15 +205,16 @@ export default function CardSession({ sources, mode = "due", active = true, prov
           >
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
-          <div className="w-full">{gradeBar}</div>
-        </div>
-
-        {/* 우측 더미 — 채점 카드가 날아와 쌓임 */}
-        <div className="absolute right-0 top-1/2 z-10 -translate-y-1/2">
-          <GradePiles stats={stats} landing={tossing} />
+          {/* 채점(다시/애매/완벽)은 아래 더미와 같은 폭으로 정렬, 뒤집기 버튼은 카드 폭 유지. */}
+          <div className={flipped ? "w-[32rem] max-w-[90vw]" : "w-full"}>{gradeBar}</div>
+          {/* 3분류 더미 — 채점 버튼과 같은 폭·3열로 정렬(각 더미가 해당 버튼 아래). */}
+          <div className="mt-4 w-[32rem] max-w-[90vw]">
+            <GradePiles stats={stats} landing={tossing} row />
+          </div>
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -222,7 +230,7 @@ function GradeButton({ onClick, label, keyHint, tone, disabled }: { onClick: () 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${TONES[tone]}`}
+      className={`mx-auto flex w-36 flex-col items-center gap-0.5 rounded-xl py-2.5 text-sm font-semibold transition disabled:opacity-50 ${TONES[tone]}`}
     >
       {label}
       <span className="text-[10px] opacity-60">{keyHint}</span>
