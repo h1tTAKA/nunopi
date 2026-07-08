@@ -11,6 +11,12 @@ import HelpTooltip from "./HelpTooltip";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
+const DECK_NAME_KEY: Record<Deck, string> = {
+  all: "mem.deckAll",
+  code: "mem.deckCode",
+  text: "mem.deckText",
+};
+
 // 분류 색(도넛/범례). due.ts cardCategory와 대응.
 const CAT_META: { key: CardCategory; tKey: string; color: string }[] = [
   { key: "good", tKey: "mem.good", color: "#10b981" },
@@ -24,6 +30,8 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   const t = useT();
   const { locale } = useLocale();
   const now = useMemo(() => new Date(), []);
+  // 제목은 선택 덱 반영 — "전체/코드 분석/글 분석 학습 통계".
+  const title = `${t(DECK_NAME_KEY[deck])} ${t("mem.statsTitle")}`;
 
   const sum = useMemo(() => summary(deck, now, sources), [deck, now, sources]);
   const boxes = useMemo(() => boxDistribution(deck, now, sources), [deck, now, sources]);
@@ -36,7 +44,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
   if (sum.total === 0) {
     return (
       <div className="flex h-full flex-col gap-4">
-        <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{t("mem.statsTitle")}</h2>
+        <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
         <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("mem.statEmpty")}</p>
       </div>
     );
@@ -48,7 +56,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
 
   return (
     <div className="flex max-h-[calc(100vh-8rem)] flex-col gap-5 overflow-y-auto pr-1">
-      <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{t("mem.statsTitle")}</h2>
+      <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{title}</h2>
 
       {/* 요약 4칸 */}
       <div className="grid grid-cols-2 gap-2">
