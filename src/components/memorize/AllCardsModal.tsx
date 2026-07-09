@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
-import { addCustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
@@ -64,6 +64,20 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   const [customize, setCustomize] = useState<null | "choose" | "manual">(null);
   const [deckName, setDeckName] = useState("");
   const picking = selectMode || customize === "manual"; // 타일 선택 가능(삭제 or 수동 덱 만들기)
+  // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
+  const [deckFilter, setDeckFilter] = useState<string | null>(null); // customDeck id
+  const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    const load = () => setCustomDecks(loadCustomDecks());
+    load();
+    window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+  }, []);
+  // 필터 걸린 덱이 삭제되면 필터 해제(빈 그리드 방지).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (deckFilter && !customDecks.some((d) => d.id === deckFilter)) setDeckFilter(null);
+  }, [customDecks, deckFilter]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -88,6 +102,10 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   const cards = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let list = all;
+    if (deckFilter) {
+      const keys = new Set(customDecks.find((d) => d.id === deckFilter)?.cardKeys ?? []);
+      list = list.filter((c) => keys.has(c.key));
+    }
     if (needle) list = list.filter((c) => c.front.toLowerCase().includes(needle));
     if (source !== "all") list = list.filter((c) => c.source === source);
     if (cat !== "all") list = list.filter((c) => cardCategory(c) === cat);
@@ -101,7 +119,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
       return sort === "recent" ? -cmp : cmp; // recent=최신 먼저
     });
     return arr;
-  }, [all, q, source, cat, sort]);
+  }, [all, q, source, cat, sort, deckFilter, customDecks]);
 
   function toggleSelect(key: string) {
     setSelected((prev) => {
@@ -241,6 +259,18 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
             <Chip key={c.key} on={cat === c.key} onClick={() => setCat(c.key)} label={t(c.label)} dot={c.dot} />
           ))}
         </div>
+        {/* 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 다시 누르면 해제. */}
+        {customDecks.length > 0 && (
+          <>
+            <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+            <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {customDecks.map((d) => (
+                <Chip key={d.id} on={deckFilter === d.id} onClick={() => setDeckFilter((cur) => (cur === d.id ? null : d.id))} label={d.name} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 카드 격자 */}
