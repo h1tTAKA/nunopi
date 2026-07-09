@@ -12,7 +12,7 @@ export interface SourceExtra {
 }
 
 // 북마크 detail 공통 출처 필드(전부 옵셔널 — 기존 데이터 하위호환).
-interface SourceFields {
+export interface SourceFields {
   sourceTitle?: string; // 담을 때의 분석 제목(출처)
   sourceId?: string; // 담을 때의 분석 히스토리 id(출처로 이동용)
   sourceKind?: SourceKind; // 없으면 analysis로 간주(기존 동작)
@@ -138,6 +138,17 @@ export function loadConceptDetails(): Record<string, BookmarkedConceptDetail> {
 
 export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
+}
+
+// 완성된 detail을 그대로 기록(bookmarkedAt 등 보존) — 재분류(store 이동)용. save*는 bookmarkedAt=now라 부적합.
+export function putTokenDetail(d: BookmarkedTokenDetail): void {
+  try { const m = loadTokenDetails(); m[d.token] = d; localStorage.setItem(DETAILS_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+}
+export function putTermDetail(d: BookmarkedTermDetail): void {
+  try { const m = loadTermDetails(); m[d.term] = d; localStorage.setItem(TERM_DETAILS_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+}
+export function putConceptDetail(d: BookmarkedConceptDetail): void {
+  try { const m = loadConceptDetails(); m[d.title] = d; localStorage.setItem(CONCEPT_DETAILS_KEY, JSON.stringify(m)); } catch { /* ignore */ }
 }
 
 // 이미 북마크(카드)로 존재하는 용어인지 — store 3종 아무 데나 있으면 true.
