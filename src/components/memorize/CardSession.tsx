@@ -72,10 +72,10 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         return { round, idx: Math.min(saved.idx, round.length - 1), stats: saved.stats, reviewed };
       }
     }
-    // 새 세션 — 커스텀은 cardKeys, 고정은 sources. mode/order 적용(커스텀은 category 필터 없음).
+    // 새 세션 — 커스텀은 cardKeys, 고정은 sources. mode/order/category(상태) 모두 적용.
     const base0 = cardKeys ? collectCardsByKeys(cardKeys, now) : collectCards(sources, now);
     const base = mode === "all" ? base0 : dueCards(base0, now);
-    const filtered = cardKeys ? base : filterByCategory(base, new Set(categories));
+    const filtered = filterByCategory(base, new Set(categories));
     const queue = orderCards(filtered, order);
     return { round: queue, idx: 0, stats: { again: 0, hard: 0, good: 0 }, reviewed: new Map<string, { card: Card; grade: Grade }>() };
     // eslint-disable-next-line react-hooks/exhaustive-deps

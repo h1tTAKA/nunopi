@@ -30,10 +30,13 @@ interface DeckSelectProps {
   onDeckChange: (d: Deck) => void;
   codeSources: Set<SrsSource>;
   onCodeSourcesChange: (s: Set<SrsSource>) => void;
+  // 선택된 커스텀 덱 id(null=고정 덱). 커스텀 선택 시 옵션/시작/이어하기가 그 덱 기준.
+  selectedCustomId: string | null;
+  onSelectCustom: (id: string | null) => void;
   // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 + 카드 순서로 세션 시작.
   onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean, order: CardOrder, categories: CardCategory[]) => void;
-  // 커스텀 덱(카드 key 목록)으로 세션 시작.
-  onStartCustom: (cardKeys: string[], mode: "due" | "all", order: CardOrder) => void;
+  // 커스텀 덱으로 세션 시작(id, cardKeys, mode, order, categories, resume).
+  onStartCustom: (id: string, cardKeys: string[], mode: "due" | "all", order: CardOrder, categories: CardCategory[], resume: boolean) => void;
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
@@ -43,7 +46,7 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 ];
 
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
-export default function DeckSelect({ deck: selected, onDeckChange, codeSources, onCodeSourcesChange, onStart, onStartCustom }: DeckSelectProps) {
+export default function DeckSelect({ deck: selected, onDeckChange, codeSources, onCodeSourcesChange, selectedCustomId, onSelectCustom, onStart, onStartCustom }: DeckSelectProps) {
   const t = useT();
   const confirm = useConfirm();
   // 커스텀 덱 목록 — 생성/삭제 이벤트로 갱신.
@@ -117,10 +120,13 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     }),
     [now, codeSources],
   );
-  // 선택 덱의 분류별 카드 수(체크박스 배지) — 범위(mode) 반영해 시작 수와 일치.
+  // 선택된 커스텀 덱(있으면 옵션/시작/이어하기가 그 덱 cardKeys 기준).
+  const activeCustom = selectedCustomId ? customDecks.find((d) => d.id === selectedCustomId) ?? null : null;
+  const activeKeys = activeCustom?.cardKeys; // undefined면 고정 덱
+  // 선택 덱의 분류별 카드 수(체크박스 배지) — 범위(mode) 반영. 커스텀이면 cardKeys 기준.
   const catCounts = useMemo(
-    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined, mode),
-    [selected, now, codeSources, mode],
+    () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined, mode, activeKeys),
+    [selected, now, codeSources, mode, activeKeys],
   );
   // 전체 칩/분류 합 = 범위 반영 총수(오늘=due, 전체=total).
   const scopedTotal = catCounts.again + catCounts.hard + catCounts.good + catCounts.none;
@@ -132,15 +138,14 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     onCodeSourcesChange(next);
   }
 
-  const selectedStats = stats[selected];
-  // 실제 세션에 들어갈 카드 수(범위 + 분류 필터 반영) — 시작 버튼 라벨/활성 기준.
+  // 실제 세션에 들어갈 카드 수(범위 + 분류 필터 반영) — 시작 버튼 라벨/활성 기준. 커스텀이면 cardKeys.
   const startCount = useMemo(
-    () => sessionCount(selected, now, mode, [...cats], selected === "code" ? [...codeSources] : undefined),
-    [selected, now, mode, cats, codeSources],
+    () => sessionCount(selected, now, mode, [...cats], selected === "code" ? [...codeSources] : undefined, activeKeys),
+    [selected, now, mode, cats, codeSources, activeKeys],
   );
   const canStart = startCount > 0;
-  // 진행 중 세션(이어하기) — 덱 기준(모드 무관). 저장 세션 그대로 복원한다.
-  const resumeTarget = findMemSession(selected);
+  // 진행 중 세션(이어하기) — 고정=덱, 커스텀=custom:<id>. 저장 세션 그대로 복원.
+  const resumeTarget = findMemSession(activeCustom ? `custom:${activeCustom.id}` : selected);
 
   // 커스텀 덱별 카운트(cardKeys 기반 due/total) — 삭제된 카드 스킵.
   const customStats = useMemo(
@@ -154,6 +159,23 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
     if (ok) removeCustomDeck(d.id);
   }
+  // 선택 덱 총 카드(시작 버튼 라벨용) — 커스텀이면 그 덱 total.
+  const selectedTotal = activeCustom ? (customStats.get(activeCustom.id)?.total ?? 0) : stats[selected].total;
+  // 시작 — 선택이 커스텀이면 cardKeys 세션, 아니면 고정 덱 세션.
+  function startSelected() {
+    if (activeCustom) {
+      clearMemSession(`custom:${activeCustom.id}`, mode);
+      onStartCustom(activeCustom.id, activeCustom.cardKeys, mode, order, [...cats], false);
+    } else {
+      clearMemSession(selected, mode);
+      onStart(selected, effectiveSources(selected), mode, false, order, [...cats]);
+    }
+  }
+  function resumeSelected() {
+    if (!resumeTarget) return;
+    if (activeCustom) onStartCustom(activeCustom.id, activeCustom.cardKeys, resumeTarget.mode, order, [...cats], true);
+    else onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]);
+  }
 
   return (
     <div className="flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
@@ -164,7 +186,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
-          const active = selected === deck;
+          const active = selected === deck && !selectedCustomId;
           return (
             <div
               key={deck}
@@ -193,7 +215,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               {active && s.total > 0 && resumeTarget && (
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onStart(selected, resumeTarget.session.sources, resumeTarget.mode, true, order, [...cats]); }}
+                  onClick={(e) => { e.stopPropagation(); resumeSelected(); }}
                   className="shrink-0 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
                 >
                   {t("mem.resume")}
@@ -204,20 +226,25 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         })}
       </div>
 
-      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=재생, 휴지통=삭제. 현재 옵션(범위/순서) 사용. */}
+      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=선택(고정 덱과 동일), 이어하기/삭제. */}
       {customDecks.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
           {customDecks.map((d) => {
             const cs = customStats.get(d.id) ?? { total: 0, due: 0 };
+            const active = selectedCustomId === d.id;
             return (
               <div
                 key={d.id}
                 role="button"
                 tabIndex={0}
-                onClick={() => onStartCustom(d.cardKeys, mode, order)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onStartCustom(d.cardKeys, mode, order); } }}
-                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-zinc-200 p-3 text-left transition hover:border-[#3B34E2] dark:border-zinc-800 dark:hover:border-[#3B34E2]"
+                onClick={() => onSelectCustom(d.id)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectCustom(d.id); } }}
+                className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                  active
+                    ? "border-[#3B34E2] bg-[#3B34E2]/10 dark:border-[#3B34E2] dark:bg-[#3B34E2]/15"
+                    : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+                }`}
               >
                 <IconSparkles size={18} stroke={2} className="shrink-0 text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{d.name}</span>
@@ -225,6 +252,16 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
                   <span className="font-semibold text-[#3B34E2] dark:text-[#8b86f5]">{t("mem.today")} {cs.due}</span>
                   {" · "}{t("mem.total")} {cs.total}
                 </span>
+                {/* 선택된 커스텀 덱 + 진행 중 세션: 이어서하기 */}
+                {active && cs.total > 0 && resumeTarget && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); resumeSelected(); }}
+                    className="shrink-0 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
+                  >
+                    {t("mem.resume")}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); void deleteCustomDeck(d); }}
@@ -241,8 +278,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
 
       {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-        {/* 세부 출처(코드덱만) */}
-        {selected === "code" && (
+        {/* 세부 출처(코드덱만, 커스텀 선택 시 숨김) */}
+        {selected === "code" && !selectedCustomId && (
           <div className="flex items-center gap-3">
             <span className="w-10 shrink-0 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.lblSource")}</span>
             <div className="flex flex-wrap gap-1.5">
@@ -344,14 +381,14 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         </div>
       </div>
 
-      {/* 시작하기 — 새 세션(진행 중 세션 있으면 덮어씀). */}
+      {/* 시작하기 — 선택 덱(고정/커스텀) 새 세션(진행 중 세션 있으면 덮어씀). */}
       <button
         type="button"
         disabled={!canStart}
-        onClick={() => { clearMemSession(selected, mode); onStart(selected, effectiveSources(selected), mode, false, order, [...cats]); }}
+        onClick={startSelected}
         className="mt-1 rounded-xl bg-[#3B34E2] py-2.5 text-sm font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {mode === "due" && selectedStats.total > 0 && startCount === 0
+        {mode === "due" && selectedTotal > 0 && startCount === 0
           ? t("mem.noDueToday")
           : `${t("mem.start")} · ${startCount}`}
       </button>
