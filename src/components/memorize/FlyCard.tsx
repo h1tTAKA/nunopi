@@ -2,10 +2,12 @@
 
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconExternalLink } from "@tabler/icons-react";
+import { IconExternalLink, IconTrash } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { Card } from "@/lib/srs/types";
 import { canGoToSource } from "@/lib/srs/cardSource";
+import { deleteCard } from "@/lib/srs/deleteCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
 import MemorizeChat from "./MemorizeChat";
@@ -55,6 +57,7 @@ export function FlyCardProvider({
   children: React.ReactNode;
 }) {
   const t = useT();
+  const confirm = useConfirm();
   const [fly, setFly] = useState<Fly | null>(null);
   const [arrived, setArrived] = useState(false); // 중앙 도착·정지 완료(이후 클릭하면 낙하)
   const [dropping, setDropping] = useState(false); // 낙하 진행 중
@@ -123,6 +126,16 @@ export function FlyCardProvider({
   const api = useMemo<FlyApi>(() => ({ throwCard, originRef }), [throwCard]);
   const peek = !!fly && arrived && !dropping; // 중앙 정지 상태 — 추가설명/챗 노출
 
+  // 카드 삭제 — 확인 모달(되돌릴 수 없음) 후 삭제 + peek 닫기.
+  async function handleDelete() {
+    if (!fly) return;
+    const card = fly.card;
+    const ok = await confirm({ title: t("mem.deleteCardTitle"), message: t("mem.deleteCardMsg"), confirmText: t("common.delete"), danger: true });
+    if (!ok) return;
+    deleteCard(card);
+    setFly(null); setArrived(false); setDropping(false);
+  }
+
   return (
     <FlyCtx.Provider value={api}>
       {children}
@@ -176,25 +189,35 @@ export function FlyCardProvider({
                 <MemorizeChat card={fly.card} providerId={providerId} providerSettings={providerSettings} />
               </div>
 
-              {/* 하단 — 출처로 이동(존재할 때만) + 안내 */}
+              {/* 하단 — 출처로 이동 + 삭제 + 안내 */}
               <div className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
-                {canGoToSource(fly.card, sourceIds) && (
+                <div className="flex items-center gap-2">
+                  {canGoToSource(fly.card, sourceIds) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const c = fly.card;
+                        // 카드발 출처는 같은 화면(갤러리)로 가므로 peek을 닫아 갤러리가 보이게.
+                        // analysis발은 다른 뷰로 전환·복귀 위해 fly 유지(active로 오버레이만 숨김).
+                        if (c.sourceKind === "card") { setFly(null); setArrived(false); setDropping(false); }
+                        onGoToSource(c);
+                      }}
+                      className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
+                    >
+                      {t("mem.goToSource")}
+                      <IconExternalLink size={13} stroke={2} aria-hidden />
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const c = fly.card;
-                      // 카드발 출처는 같은 화면(갤러리)로 가므로 peek을 닫아 갤러리가 보이게.
-                      // analysis발은 다른 뷰로 전환·복귀 위해 fly 유지(active로 오버레이만 숨김).
-                      if (c.sourceKind === "card") { setFly(null); setArrived(false); setDropping(false); }
-                      onGoToSource(c);
-                    }}
-                    className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
+                    onClick={(e) => { e.stopPropagation(); void handleDelete(); }}
+                    className="flex cursor-pointer items-center gap-1 rounded-lg bg-rose-500/20 px-3 py-1.5 text-xs font-medium text-rose-200 transition hover:bg-rose-500/35"
                   >
-                    {t("mem.goToSource")}
-                    <IconExternalLink size={13} stroke={2} aria-hidden />
+                    {t("common.delete")}
+                    <IconTrash size={13} stroke={2} aria-hidden />
                   </button>
-                )}
+                </div>
                 <span className="text-xs font-medium text-white/70">{t("mem.flyDismiss")}</span>
               </div>
             </>
