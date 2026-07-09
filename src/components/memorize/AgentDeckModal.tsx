@@ -150,15 +150,23 @@ export default function AgentDeckModal({
                     key={c.key}
                     type="button"
                     onClick={() => toggleExclude(c.key)}
-                    className={`relative flex aspect-[5/7] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border bg-white p-2.5 text-center shadow-sm transition ${
-                      ex ? "border-zinc-200 opacity-40 grayscale dark:border-zinc-700" : "border-[#3B34E2]/40"
+                    className={`relative flex aspect-[5/7] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border bg-white p-2.5 text-center shadow-sm transition hover:-translate-y-0.5 ${
+                      ex ? "border-zinc-300 dark:border-zinc-600" : "border-[#3B34E2]/50"
                     }`}
                     style={reduced ? undefined : { animation: "nunopi-pop 260ms ease-out both" }}
                   >
+                    {/* 흰 포커카드 파란 이중 프레임 */}
+                    <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/55" />
+                    <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={SYMBOL} alt="" className="h-5 w-5 object-contain" />
-                    <span className="line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
-                    {ex && <span className="absolute right-1.5 top-1.5 rounded-full bg-zinc-500 px-1.5 text-[9px] font-medium text-white">제외</span>}
+                    <img src={SYMBOL} alt="" className="relative h-5 w-5 object-contain" />
+                    <span className="relative line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
+                    {/* 제외 시 어둡게 딤 + 선명한 뱃지 */}
+                    {ex && (
+                      <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/65">
+                        <span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-bold text-white shadow">{t("mem.excludeBadge")}</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}
