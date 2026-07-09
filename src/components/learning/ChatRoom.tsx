@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconMessageCircle, IconX } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import type { ChatMessage } from "@/lib/agent";
 import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 
 interface ChatRoomProps {
   messages: ChatMessage[];
@@ -22,6 +24,9 @@ interface ChatRoomProps {
   onSwitchSession?: (id: string) => void;
   onNewSession?: () => void;
   onDeleteSession?: (id: string) => void;
+  // 카드 제안 칩 액션 — 어시스턴트 답변의 nunopi-cards 블록에서 파생. 없으면 칩 미노출.
+  // messageIndex는 messages 배열 인덱스. add=그 카드 생성, dismiss=블록 거절.
+  onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
 }
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
@@ -34,7 +39,7 @@ function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
     .join("\n\n---\n\n");
 }
 
-export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear, sessionIds = [], activeSessionId = null, onSwitchSession, onNewSession, onDeleteSession }: ChatRoomProps) {
+export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear, sessionIds = [], activeSessionId = null, onSwitchSession, onNewSession, onDeleteSession, onCardAction }: ChatRoomProps) {
   const t = useT();
   const confirm = useConfirm();
   const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
@@ -182,23 +187,52 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
             {disabled ? disabledHint : t("chat.exampleHint")}
           </p>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-            {m.role === "user" ? (
-              <div className="max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-xs text-white">
-                {m.content}
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-xs text-white">
+                  {m.content}
+                </div>
               </div>
-            ) : (
+            );
+          }
+          // 어시스턴트 — nunopi-cards 블록은 본문에서 떼고, 칩으로 노출.
+          const { text, cards } = parseCardSuggestions(m.content);
+          return (
+            <div key={i} className="flex flex-col items-start gap-1.5">
               <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                <Markdown>{m.content}</Markdown>
+                <Markdown>{text}</Markdown>
               </div>
-            )}
-          </div>
-        ))}
+              {onCardAction && cards.length > 0 && (
+                <div className="flex max-w-[85%] flex-wrap items-center gap-1.5">
+                  {cards.map((c) => (
+                    <button
+                      key={c.term}
+                      type="button"
+                      onClick={() => onCardAction(i, { add: c })}
+                      className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
+                    >
+                      <IconPlus size={12} stroke={2.5} aria-hidden />
+                      {c.term} {t("chat.saveAsCard")}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => onCardAction(i, { dismiss: true })}
+                    className="rounded-full bg-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                  >
+                    {t("chat.noThanks")}
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
         {streaming != null && (
           <div className="flex justify-start">
             <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              {streaming ? <Markdown>{streaming}</Markdown> : <span className="text-xs">{t("chat.replying")}</span>}
+              {streaming ? <Markdown>{stripStreamingCardBlock(streaming)}</Markdown> : <span className="text-xs">{t("chat.replying")}</span>}
             </div>
           </div>
         )}
