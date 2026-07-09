@@ -183,9 +183,9 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         {t("mem.selectDeck")}
       </h2>
 
-      {/* 덱 목록(고정 3 + 내 덱)을 하나의 고정 높이 스크롤 영역에 — 덱 수 무관 높이 일정(부채꼴 침범 방지).
-          max-h는 고정 3덱에 맞춤 → 커스텀 생기면 이 영역 안에서 스크롤(패널 높이 불변). */}
-      <div className="nunopi-scroll flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
+      {/* 덱 목록(고정 3 + 내 덱)을 자체 보더 프레임 + 고정 높이 스크롤 영역에 — 덱 수 무관 높이 일정
+          (부채꼴 침범 방지). overflow-y-scroll로 스크롤바 상시 노출 → 아래 커스텀 덱 있음을 인지. */}
+      <div className="nunopi-scroll flex max-h-64 flex-col gap-3 overflow-y-scroll rounded-2xl border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
