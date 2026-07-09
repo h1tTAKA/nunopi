@@ -158,3 +158,9 @@ samp {
 .nunopi-md th { background: #e4e4e7; font-weight: 600; }
 .dark .nunopi-md th { background: #3f3f46; }
 
+
+/* 에이전트 덱 커스터마이징 — 선별 카드 등장(pop) */
+@keyframes nunopi-pop {
+  from { opacity: 0; transform: scale(0.85) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
