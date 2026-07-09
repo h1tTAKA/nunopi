@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { weakestCards, recentlyAddedCards, upcomingCards, deckMaturity, type CardBrief } from "@/lib/srs/stats";
-import { collectCards } from "@/lib/srs/collect";
+import { collectCards, collectCardsByKeys } from "@/lib/srs/collect";
 import { DECK_SOURCES, type Deck, type SrsSource } from "@/lib/srs/types";
 import { useFlyCard } from "./FlyCard";
 
@@ -11,7 +11,7 @@ const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-U
 const ACCENT = "#3B34E2";
 
 // 하단 인사이트 위젯 4개 — 자주 틀리는/최근 추가/덱별 성숙도/곧 복습 예정.
-export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; sources?: SrsSource[]; now: Date }) {
+export default function MemorizeInsights({ deck, sources, cardKeys, now }: { deck: Deck; sources?: SrsSource[]; cardKeys?: string[]; now: Date }) {
   const t = useT();
   const { throwCard } = useFlyCard();
   const { locale } = useLocale();
@@ -22,17 +22,18 @@ export default function MemorizeInsights({ deck, sources, now }: { deck: Deck; s
     return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString(tag, { month: "short", day: "numeric" });
   };
 
-  const weak = useMemo(() => weakestCards(deck, now, sources, 4), [deck, now, sources]);
-  const recent = useMemo(() => recentlyAddedCards(deck, now, sources, 4), [deck, now, sources]);
-  const upcoming = useMemo(() => upcomingCards(deck, now, sources, 4), [deck, now, sources]);
+  const weak = useMemo(() => weakestCards(deck, now, sources, 4, cardKeys), [deck, now, sources, cardKeys]);
+  const recent = useMemo(() => recentlyAddedCards(deck, now, sources, 4, cardKeys), [deck, now, sources, cardKeys]);
+  const upcoming = useMemo(() => upcomingCards(deck, now, sources, 4, cardKeys), [deck, now, sources, cardKeys]);
   const maturity = useMemo(() => deckMaturity(now), [now]);
 
   // 키 → 실제 Card 조회용(추가설명/챗 패널은 full Card 필요). weak/recent/upcoming은 CardBrief라 여기서 원본 카드로 매핑.
   const byKey = useMemo(() => {
+    if (cardKeys) return new Map(collectCardsByKeys(cardKeys, now).map((c) => [c.key, c]));
     const deckSources = DECK_SOURCES[deck];
     const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
     return new Map(collectCards(effective, now).map((c) => [c.key, c]));
-  }, [deck, sources, now]);
+  }, [deck, sources, cardKeys, now]);
 
   // 인사이트 항목 클릭 → 그 카드가 (클릭 위치가 아니라) 오른쪽 부채꼴 자리에서 3D로 날아온다.
   // origin 생략 → FlyCardProvider가 등록된 originRef(부채꼴)를 출발점으로 사용.
