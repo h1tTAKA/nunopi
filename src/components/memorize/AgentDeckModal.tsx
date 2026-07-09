@@ -177,18 +177,20 @@ export default function AgentDeckModal({
                     <span className={`absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border ${ex ? "border-zinc-300 bg-white/80" : "border-[#3B34E2] bg-[#3B34E2] text-white"}`}>
                       {!ex && <IconCheck size={12} stroke={3} aria-hidden />}
                     </span>
-                    {/* 좌상단 호버 상세 — 클릭 시 카드가 날아오며 전체 정보 표시(제외 토글과 분리) */}
-                    <button
-                      type="button"
-                      aria-label={t("mem.cardDetail")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        throwCard(c, (e.currentTarget.closest("[data-fly-card]") as HTMLElement | null)?.getBoundingClientRect());
-                      }}
-                      className="absolute left-1.5 top-1.5 z-30 flex h-5 w-5 items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition hover:bg-black/70 group-hover:opacity-100"
-                    >
-                      <IconEye size={12} stroke={2} aria-hidden />
-                    </button>
+                    {/* 호버 시 카드 정중앙 "카드 보기"(회색) — 클릭하면 카드가 날아오며 전체 정보(제외 토글과 분리) */}
+                    {!ex && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          throwCard(c, (e.currentTarget.closest("[data-fly-card]") as HTMLElement | null)?.getBoundingClientRect());
+                        }}
+                        className="absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-700/90 px-2.5 py-1.5 text-[11px] font-semibold text-white opacity-0 shadow-md transition hover:bg-zinc-800 group-hover:opacity-100"
+                      >
+                        <IconEye size={13} stroke={2} aria-hidden />
+                        {t("mem.cardDetail")}
+                      </button>
+                    )}
                   </div>
                 );
               })}
