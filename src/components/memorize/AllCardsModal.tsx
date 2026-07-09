@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
+import { addCustomDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
@@ -59,6 +60,24 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   // 선택 삭제 모드 — 켜면 타일 클릭이 throw 대신 선택 토글.
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
+  const [customize, setCustomize] = useState<null | "choose" | "manual">(null);
+  const [deckName, setDeckName] = useState("");
+  const picking = selectMode || customize === "manual"; // 타일 선택 가능(삭제 or 수동 덱 만들기)
+  // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
+  const [deckFilter, setDeckFilter] = useState<string | null>(null); // customDeck id
+  const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    const load = () => setCustomDecks(loadCustomDecks());
+    load();
+    window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+  }, []);
+  // 필터 걸린 덱이 삭제되면 필터 해제(빈 그리드 방지).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (deckFilter && !customDecks.some((d) => d.id === deckFilter)) setDeckFilter(null);
+  }, [customDecks, deckFilter]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -83,6 +102,10 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   const cards = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let list = all;
+    if (deckFilter) {
+      const keys = new Set(customDecks.find((d) => d.id === deckFilter)?.cardKeys ?? []);
+      list = list.filter((c) => keys.has(c.key));
+    }
     if (needle) list = list.filter((c) => c.front.toLowerCase().includes(needle));
     if (source !== "all") list = list.filter((c) => c.source === source);
     if (cat !== "all") list = list.filter((c) => cardCategory(c) === cat);
@@ -96,7 +119,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
       return sort === "recent" ? -cmp : cmp; // recent=최신 먼저
     });
     return arr;
-  }, [all, q, source, cat, sort]);
+  }, [all, q, source, cat, sort, deckFilter, customDecks]);
 
   function toggleSelect(key: string) {
     setSelected((prev) => {
@@ -105,9 +128,21 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
       return next;
     });
   }
-  function exitSelect() {
+  function exitAll() {
     setSelectMode(false);
+    setCustomize(null);
     setSelected(new Set());
+    setDeckName("");
+  }
+  // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
+  function createDeck() {
+    if (selected.size === 0) return;
+    addCustomDeck(deckName, [...selected]);
+    exitAll();
+  }
+  async function deleteDeck(d: CustomDeck) {
+    const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
+    if (ok) removeCustomDeck(d.id);
   }
   async function deleteSelected() {
     if (selected.size === 0) return;
@@ -119,7 +154,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
     });
     if (!ok) return;
     all.filter((c) => selected.has(c.key)).forEach(deleteCard); // CARDS_CHANGED_EVENT → nonce 재수집
-    exitSelect();
+    exitAll();
   }
 
   return createPortal(
@@ -150,11 +185,30 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
               <IconTrash size={15} stroke={2} aria-hidden />
               {t("mem.deleteN").replace("{n}", String(selected.size))}
             </button>
+            <button type="button" onClick={exitAll} className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+              {t("confirm.cancel")}
+            </button>
+          </>
+        ) : customize === "manual" ? (
+          <>
+            <input
+              autoFocus
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") createDeck(); }}
+              placeholder={t("mem.deckNamePlaceholder")}
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            />
             <button
               type="button"
-              onClick={exitSelect}
-              className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              onClick={createDeck}
+              disabled={selected.size === 0}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
             >
+              <IconSparkles size={15} stroke={2} aria-hidden />
+              {t("mem.makeDeckN").replace("{n}", String(selected.size))}
+            </button>
+            <button type="button" onClick={exitAll} className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
               {t("confirm.cancel")}
             </button>
           </>
@@ -174,6 +228,14 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
             >
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCustomize("choose")}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
+            >
+              <IconSparkles size={15} stroke={2} aria-hidden />
+              {t("mem.customize")}
             </button>
             <button
               type="button"
@@ -201,6 +263,38 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
             <Chip key={c.key} on={cat === c.key} onClick={() => setCat(c.key)} label={t(c.label)} dot={c.dot} />
           ))}
         </div>
+        {/* 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 다시 누르면 해제. */}
+        {customDecks.length > 0 && (
+          <>
+            <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
+            <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
+            <div className="flex flex-wrap gap-1.5">
+              {customDecks.map((d) => {
+                const on = deckFilter === d.id;
+                return (
+                  <span
+                    key={d.id}
+                    className={`group inline-flex items-center gap-1 rounded-full py-1 pl-3 pr-1.5 text-xs font-medium transition ${
+                      on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setDeckFilter((cur) => (cur === d.id ? null : d.id))} className="whitespace-nowrap">
+                      {d.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { void deleteDeck(d); }}
+                      aria-label={t("mem.deleteDeckTitle")}
+                      className={`rounded-full p-0.5 transition ${on ? "hover:bg-white/20" : "text-zinc-400 hover:text-rose-500 dark:text-zinc-500"}`}
+                    >
+                      <IconX size={12} stroke={2.5} aria-hidden />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 카드 격자 */}
@@ -216,8 +310,9 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
                 key={c.key}
                 card={c}
                 reviews={c.state.reviews ?? 0}
-                selectMode={selectMode}
+                picking={picking}
                 selected={selected.has(c.key)}
+                tone={selectMode ? "rose" : "indigo"}
                 onToggle={() => toggleSelect(c.key)}
                 onThrow={throwCard}
                 t={t}
@@ -226,6 +321,36 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
           </div>
         )}
       </div>
+
+      {/* 커스터마이징 방식 선택 — 수동(직접 고르기) / 에이전트(이슈2, 곧). */}
+      {customize === "choose" && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-6" onClick={() => setCustomize(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-center text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeTitle")}</h3>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => { setCustomize("manual"); setSelected(new Set()); setDeckName(""); }}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 p-4 text-center transition hover:border-[#3B34E2] hover:bg-[#3B34E2]/5 dark:border-zinc-700"
+              >
+                <IconHandFinger size={22} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeManual")}</span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeManualDesc")}</span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="relative flex cursor-not-allowed flex-col items-center gap-1.5 rounded-xl border border-zinc-200 p-4 text-center opacity-50 dark:border-zinc-700"
+              >
+                <IconSparkles size={22} stroke={2} className="text-zinc-400" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{t("mem.customizeAgent")}</span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeAgentDesc")}</span>
+                <span className="absolute right-2 top-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">{t("mem.soon")}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );
@@ -248,21 +373,23 @@ function Chip({ on, onClick, label, dot }: { on: boolean; onClick: () => void; l
 }
 
 // 게임 카드팩 느낌의 미니 타일 — 흰 포커카드 + 용어 + 출처 배지 + 분류 점 + 복습 수.
-function CardTile({ card, reviews, selectMode, selected, onToggle, onThrow, t }: { card: Card; reviews: number; selectMode: boolean; selected: boolean; onToggle: () => void; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
+function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t }: { card: Card; reviews: number; picking: boolean; selected: boolean; tone: "rose" | "indigo"; onToggle: () => void; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
   const SRC_LABEL: Record<Card["source"], string> = { token: "mem.srcToken", concept: "mem.srcConcept", term: "mem.srcTerm" };
+  const ring = tone === "rose" ? "border-rose-500 ring-2 ring-rose-500" : "border-[#3B34E2] ring-2 ring-[#3B34E2]";
+  const badge = tone === "rose" ? "border-rose-500 bg-rose-500 text-white" : "border-[#3B34E2] bg-[#3B34E2] text-white";
   return (
     <button
       type="button"
-      onClick={(e) => (selectMode ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
+      onClick={(e) => (picking ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
       className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
-        selectMode && selected ? "border-rose-500 ring-2 ring-rose-500" : "border-zinc-200"
+        picking && selected ? ring : "border-zinc-200"
       }`}
     >
       <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/50" />
       <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
-      {/* 선택 모드 체크 표시 */}
-      {selectMode && (
-        <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? "border-rose-500 bg-rose-500 text-white" : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
+      {/* 선택(삭제/덱만들기) 모드 체크 표시 */}
+      {picking && (
+        <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
           {selected && <IconCheck size={12} stroke={3} aria-hidden />}
         </span>
       )}
