@@ -184,9 +184,8 @@ export function FlyCardProvider({
                 <CardInfoPanel
                   card={fly.card}
                   onReclassify={(next: SrsSource) => {
-                    // 분류 변경 = key 변경 → fly.card가 stale이 되므로 재분류 후 peek 닫음(갤러리는 이벤트로 재수집).
-                    reclassifyCard(fly.card, next);
-                    setFly(null); setArrived(false); setDropping(false);
+                    // 분류 변경 = key 변경 → fly.card가 stale이 되므로, 실제 이동됐을 때만 peek 닫음.
+                    if (reclassifyCard(fly.card, next)) { setFly(null); setArrived(false); setDropping(false); }
                   }}
                 />
                 <CardStageBar card={fly.card} />

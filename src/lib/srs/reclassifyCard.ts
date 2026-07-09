@@ -3,15 +3,25 @@
 import {
   removeTokenDetail, removeConceptDetail, removeTermDetail,
   putTokenDetail, putConceptDetail, putTermDetail,
+  loadTokenDetails, loadConceptDetails, loadTermDetails,
   type SourceFields,
 } from "@/lib/bookmarkDetails";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { loadSrsState, updateCardState, removeCardState } from "./store";
 import type { Card, SrsSource } from "./types";
 
+// 대상 store에 같은 용어가 이미 있는지 — 있으면 재분류 금지(기존 카드 덮어쓰기·데이터 유실 방지).
+function existsIn(source: SrsSource, front: string): boolean {
+  const store = source === "token" ? loadTokenDetails() : source === "concept" ? loadConceptDetails() : loadTermDetails();
+  return !!store[front];
+}
+
+// 반환: 이동했으면 true, 같은 분류거나 대상에 이미 있어 못 옮기면 false.
 export function reclassifyCard(card: Card, next: SrsSource): boolean {
   if (next === card.source) return false;
   const front = card.front;
+  if (existsIn(next, front)) return false; // 대상에 동명 카드 존재 → 덮어쓰지 않음
+
   const oldKey = card.key;
   const newKey = `${next}:${front}`;
   // 진척 보존용 — 이관 전에 읽어둔다.
