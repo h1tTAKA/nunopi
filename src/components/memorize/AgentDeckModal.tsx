@@ -5,7 +5,7 @@ import { IconSparkles, IconX, IconSend2 } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { addCustomDeck } from "@/lib/srs/customDeck";
-import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect } from "@/lib/deckSelect";
+import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -33,6 +33,7 @@ export default function AgentDeckModal({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState<string | null>(null); // 실시간 타이핑 텍스트
   const [selected, setSelected] = useState<Card[]>([]);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [reveal, setReveal] = useState(0);
@@ -43,7 +44,7 @@ export default function AgentDeckModal({
   // 대화/로딩 갱신 시 맨 아래로.
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [messages, loading]);
+  }, [messages, loading, streaming]);
 
   // 선별 결과가 바뀌면 stagger 리빌(애니 카운터라 effect 내 setState 의도적).
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -68,6 +69,7 @@ export default function AgentDeckModal({
     setMessages(thread);
     setInput("");
     setLoading(true);
+    setStreaming("");
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
@@ -94,7 +96,12 @@ export default function AgentDeckModal({
           buffer = lines.pop() ?? "";
           for (const l of lines) {
             if (!l.trim()) continue;
-            try { const ev = JSON.parse(l) as StreamEvent; if (ev.type === "result") answer = ev.response.summary; } catch { /* skip */ }
+            try {
+              const ev = JSON.parse(l) as StreamEvent;
+              // codex는 진행 라벨만 흘리므로 타이핑에 안 씀(claude/openai만 전체 답 스트림).
+              if (ev.type === "progress" && providerId !== "codex-agent") setStreaming(ev.line);
+              else if (ev.type === "result") answer = ev.response.summary;
+            } catch { /* skip */ }
           }
         }
         if (buffer.trim()) { try { const ev = JSON.parse(buffer) as StreamEvent; if (ev.type === "result") answer = ev.response.summary; } catch { /* skip */ } }
@@ -112,7 +119,7 @@ export default function AgentDeckModal({
     } catch {
       if (!ac.signal.aborted) setMessages([...thread, { role: "assistant", content: t("mem.agentDeckNone") }]);
     } finally {
-      if (!ac.signal.aborted) setLoading(false);
+      if (!ac.signal.aborted) { setLoading(false); setStreaming(null); }
     }
   }
 
@@ -191,7 +198,11 @@ export default function AgentDeckModal({
               {m.content}
             </div>
           ))}
-          {loading && <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">{t("chat.replying")}</div>}
+          {streaming != null && (
+            <div className="max-w-[90%] self-start whitespace-pre-wrap rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {streaming ? stripDeckSelectStreaming(streaming) : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
+            </div>
+          )}
         </div>
         {/* 입력 */}
         <div className="flex items-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">

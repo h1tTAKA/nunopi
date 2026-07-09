@@ -40,3 +40,8 @@ export function parseDeckSelect(text: string): string[] {
 export function stripDeckSelect(text: string): string {
   return text.replace(FENCE, "").trim();
 }
+
+// 스트리밍 중 — 아직 닫히지 않았을 수 있는 deck-select 블록을 끝에서 잘라 감춘다.
+export function stripDeckSelectStreaming(text: string): string {
+  return text.replace(/```deck-select[\s\S]*$/, "").trimEnd();
+}
