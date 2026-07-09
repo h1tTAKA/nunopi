@@ -11,6 +11,8 @@ import CodeInputArea, { type LanguageChoice } from "@/components/translator/Code
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
 import ChatRoom from "@/components/learning/ChatRoom";
+import { createChatCard } from "@/lib/chatCard";
+import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import MemorizeView from "@/components/memorize/MemorizeView";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
@@ -800,6 +802,32 @@ export default function Home() {
     setChatStreaming(null);
   }
 
+  // 챗 카드 제안 칩 — 추가(위치 기준 store 저장) / 거절. 둘 다 그 메시지에서 블록 제거(칩 사라짐).
+  function handleChatCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
+    const sid = activeSessionIdResolved;
+    if (!sid) return;
+    if (action.add) {
+      // 코드 모드 챗 새 용어는 개념(concept), 글 모드는 IT용어(term)로.
+      const kind = mode === "text" ? "term" : "concept";
+      const title = historyEntries.find((e) => e.id === currentHistoryId)?.title
+        ?? (analysisResult ? generateAutoTitle(analysisResult, code) : undefined);
+      createChatCard(kind, action.add.term, action.add.definition, title, currentHistoryId ?? undefined, { kind: "analysis", sessionId: sid });
+      setMemorizeDue(deckStats("all", new Date()).due); // 암기 배지 갱신
+    }
+    const addedTerm = action.add?.term;
+    setChatSessions((prev) => prev.map((s) => {
+      if (s.id !== sid) return s;
+      return {
+        ...s,
+        messages: s.messages.map((m, i) =>
+          i === messageIndex && m.role === "assistant"
+            ? { ...m, content: addedTerm ? removeSuggestedCard(m.content, addedTerm) : stripCardBlock(m.content) }
+            : m,
+        ),
+      };
+    }));
+  }
+
   // 새 세션 추가 → 그 세션을 활성으로.
   function handleNewSession() {
     if (chatLoading) return;
@@ -1105,6 +1133,7 @@ export default function Home() {
                 onSwitchSession={handleSwitchSession}
                 onNewSession={handleNewSession}
                 onDeleteSession={handleDeleteSession}
+                onCardAction={handleChatCardAction}
               />
             }
           />

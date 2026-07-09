@@ -34,6 +34,9 @@ export interface Card {
   bookmarkedAt?: string; // 습득(북마크) 날짜 ISO — 정보 패널용
   sourceTitle?: string; // 담은 분석의 제목(출처) — 정보 패널용
   sourceId?: string; // 담은 분석의 히스토리 id — 출처로 이동용
+  sourceKind?: "analysis" | "card"; // 출처 종류(없으면 analysis) — 출처이동 분기용
+  sourceSessionId?: string; // analysis 출처의 챗 세션 id
+  originCardKey?: string; // card 출처(챗에서 생성)의 생성처 카드 key
   state: SrsState;
 }
 

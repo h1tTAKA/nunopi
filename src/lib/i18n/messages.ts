@@ -109,6 +109,7 @@ const ko: Dict = {
   "mem.noCardsFound": "카드가 없어요",
   "mem.close": "닫기",
   "mem.exit": "나가기",
+  "mem.chatSource": "{front} 챗룸",
 
   "input.codeTitle": "코드 입력",
   "input.textTitle": "글 입력",
@@ -192,6 +193,8 @@ const ko: Dict = {
   "chat.send": "전송",
   "chat.copyMd": "MD 복사",
   "chat.clear": "초기화",
+  "chat.saveAsCard": "카드로 추가",
+  "chat.noThanks": "아니오",
 
   "confirm.cancel": "취소",
   "confirm.ok": "확인",
@@ -423,6 +426,7 @@ const ja: Dict = {
   "mem.noCardsFound": "カードがありません",
   "mem.close": "閉じる",
   "mem.exit": "戻る",
+  "mem.chatSource": "{front} チャット",
 
   "input.codeTitle": "コード入力",
   "input.textTitle": "文章入力",
@@ -506,6 +510,8 @@ const ja: Dict = {
   "chat.send": "送信",
   "chat.copyMd": "MDコピー",
   "chat.clear": "リセット",
+  "chat.saveAsCard": "カードに追加",
+  "chat.noThanks": "いいえ",
 
   "confirm.cancel": "キャンセル",
   "confirm.ok": "確認",
@@ -737,6 +743,7 @@ const en: Dict = {
   "mem.noCardsFound": "No cards found",
   "mem.close": "Close",
   "mem.exit": "Exit",
+  "mem.chatSource": "{front} chat",
 
   "input.codeTitle": "Code input",
   "input.textTitle": "Text input",
@@ -820,6 +827,8 @@ const en: Dict = {
   "chat.send": "Send",
   "chat.copyMd": "Copy MD",
   "chat.clear": "Reset",
+  "chat.saveAsCard": "Save as card",
+  "chat.noThanks": "No",
 
   "confirm.cancel": "Cancel",
   "confirm.ok": "OK",

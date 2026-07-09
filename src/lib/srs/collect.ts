@@ -16,7 +16,8 @@ function cardKey(source: SrsSource, term: string): string {
 }
 
 // 한 출처의 북마크 → 카드(앞=용어, 뒤=설명). 설명 없으면 빈 문자열.
-function collectSource(source: SrsSource): { key: string; source: SrsSource; front: string; back: string; bookmarkedAt?: string; sourceTitle?: string; sourceId?: string }[] {
+// state 제외한 카드 본문 — collectCards가 srs-state를 조인한다.
+function collectSource(source: SrsSource): Omit<Card, "state">[] {
   if (source === "token") {
     return Object.values(loadTokenDetails()).map((t) => ({
       key: cardKey("token", t.token),
@@ -26,6 +27,9 @@ function collectSource(source: SrsSource): { key: string; source: SrsSource; fro
       bookmarkedAt: t.bookmarkedAt,
       sourceTitle: t.sourceTitle,
       sourceId: t.sourceId,
+      sourceKind: t.sourceKind,
+      sourceSessionId: t.sourceSessionId,
+      originCardKey: t.originCardKey,
     }));
   }
   if (source === "concept") {
@@ -37,6 +41,9 @@ function collectSource(source: SrsSource): { key: string; source: SrsSource; fro
       bookmarkedAt: c.bookmarkedAt,
       sourceTitle: c.sourceTitle,
       sourceId: c.sourceId,
+      sourceKind: c.sourceKind,
+      sourceSessionId: c.sourceSessionId,
+      originCardKey: c.originCardKey,
     }));
   }
   // term — 글 IT용어 + 관련개념(asTerm 병합).
@@ -48,6 +55,9 @@ function collectSource(source: SrsSource): { key: string; source: SrsSource; fro
     bookmarkedAt: t.bookmarkedAt,
     sourceTitle: t.sourceTitle,
     sourceId: t.sourceId,
+    sourceKind: t.sourceKind,
+    sourceSessionId: t.sourceSessionId,
+    originCardKey: t.originCardKey,
   }));
 }
 

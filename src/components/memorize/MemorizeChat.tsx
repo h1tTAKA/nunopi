@@ -6,6 +6,8 @@ import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { loadCardExplain } from "@/lib/cardExplain";
 import { loadCardChat, saveCardChat } from "@/lib/cardChat";
+import { createChatCard } from "@/lib/chatCard";
+import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 import type { Card } from "@/lib/srs/types";
 
@@ -49,6 +51,25 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
     saveCardChat(card.key, []);
     setStreaming(null);
     setLoading(false);
+  }
+
+  // 카드 제안 칩 — 이 플래시카드의 source(token/concept/term) 사전에 저장. 출처=이 카드 챗룸(갤러리로 이동).
+  function handleCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
+    if (action.add) {
+      createChatCard(card.source, action.add.term, action.add.definition, t("mem.chatSource").replace("{front}", card.front), undefined, {
+        kind: "card", originCardKey: card.key,
+      });
+    }
+    const addedTerm = action.add?.term;
+    setMessages((prev) => {
+      const next = prev.map((m, i) =>
+        i === messageIndex && m.role === "assistant"
+          ? { ...m, content: addedTerm ? removeSuggestedCard(m.content, addedTerm) : stripCardBlock(m.content) }
+          : m,
+      );
+      saveCardChat(card.key, next);
+      return next;
+    });
   }
 
   function handleSend(text: string) {
@@ -155,6 +176,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
             mode="code"
             onSend={handleSend}
             onClear={handleClear}
+            onCardAction={handleCardAction}
           />
         </div>
       )}

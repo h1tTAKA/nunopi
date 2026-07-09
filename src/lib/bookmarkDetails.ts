@@ -1,33 +1,58 @@
 import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/types";
 
-export interface BookmarkedTokenDetail extends CodeToken {
+// 출처 종류 — 출처로 이동 목적지 분기용.
+// analysis: 코드/글 분석(챗 세션까지). card: 플래시카드 챗에서 생성(생성처 카드로).
+export type SourceKind = "analysis" | "card";
+
+// 출처 부가 정보(옵셔널) — sourceTitle/sourceId 외 확장. 챗에서 카드 생성 시 채운다.
+export interface SourceExtra {
+  kind?: SourceKind;
+  sessionId?: string; // analysis: 그 분석의 챗 세션 id
+  originCardKey?: string; // card: 생성처(그 챗룸을 연) 카드 key
+}
+
+// 북마크 detail 공통 출처 필드(전부 옵셔널 — 기존 데이터 하위호환).
+interface SourceFields {
+  sourceTitle?: string; // 담을 때의 분석 제목(출처)
+  sourceId?: string; // 담을 때의 분석 히스토리 id(출처로 이동용)
+  sourceKind?: SourceKind; // 없으면 analysis로 간주(기존 동작)
+  sourceSessionId?: string; // analysis 출처의 챗 세션 id
+  originCardKey?: string; // card 출처의 생성처 카드 key
+}
+
+export interface BookmarkedTokenDetail extends CodeToken, SourceFields {
   bookmarkedAt: string;
-  sourceTitle?: string; // 담을 때의 분석 제목(출처, 옵셔널 — 기존 데이터 하위호환)
-  sourceId?: string; // 담을 때의 분석 히스토리 id(출처로 이동용, 옵셔널)
 }
 
 // 글(IT 용어) 모드 북마크 — 코드 토큰 북마크와 다른 키에 저장해 모드별로 분리한다.
-export interface BookmarkedTermDetail extends ItTerm {
+export interface BookmarkedTermDetail extends ItTerm, SourceFields {
   bookmarkedAt: string;
-  sourceTitle?: string;
-  sourceId?: string;
 }
 
 // 개념 북마크 — 코드 모드 개념. 키 = 개념 title.
-export interface BookmarkedConceptDetail extends ConceptOccurrence {
+export interface BookmarkedConceptDetail extends ConceptOccurrence, SourceFields {
   bookmarkedAt: string;
-  sourceTitle?: string;
-  sourceId?: string;
+}
+
+// 저장 시 detail에 얹을 출처 필드 묶음.
+function sourceFields(sourceTitle?: string, sourceId?: string, extra?: SourceExtra): SourceFields {
+  return {
+    sourceTitle,
+    sourceId,
+    sourceKind: extra?.kind,
+    sourceSessionId: extra?.sessionId,
+    originCardKey: extra?.originCardKey,
+  };
 }
 
 const DETAILS_KEY = "nunopi:bookmark-token-details";
 const TERM_DETAILS_KEY = "nunopi:bookmark-term-details";
 const CONCEPT_DETAILS_KEY = "nunopi:bookmark-concept-details";
 
-export function saveTokenDetail(token: CodeToken, sourceTitle?: string, sourceId?: string): void {
+export function saveTokenDetail(token: CodeToken, sourceTitle?: string, sourceId?: string, extra?: SourceExtra): void {
   try {
     const existing = loadTokenDetails();
-    existing[token.token] = { ...token, bookmarkedAt: new Date().toISOString(), sourceTitle, sourceId };
+    existing[token.token] = { ...token, bookmarkedAt: new Date().toISOString(), ...sourceFields(sourceTitle, sourceId, extra) };
     localStorage.setItem(DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }
@@ -55,10 +80,10 @@ export function clearTokenDetails(): void {
 
 // --- 글 모드 IT 용어 북마크 (키 = term 문자열) ---
 
-export function saveTermDetail(term: ItTerm, sourceTitle?: string, sourceId?: string): void {
+export function saveTermDetail(term: ItTerm, sourceTitle?: string, sourceId?: string, extra?: SourceExtra): void {
   try {
     const existing = loadTermDetails();
-    existing[term.term] = { ...term, bookmarkedAt: new Date().toISOString(), sourceTitle, sourceId };
+    existing[term.term] = { ...term, bookmarkedAt: new Date().toISOString(), ...sourceFields(sourceTitle, sourceId, extra) };
     localStorage.setItem(TERM_DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }
@@ -86,10 +111,10 @@ export function clearTermDetails(): void {
 
 // --- 개념 북마크 (키 = 개념 title) ---
 
-export function saveConceptDetail(concept: ConceptOccurrence, sourceTitle?: string, sourceId?: string): void {
+export function saveConceptDetail(concept: ConceptOccurrence, sourceTitle?: string, sourceId?: string, extra?: SourceExtra): void {
   try {
     const existing = loadConceptDetails();
-    existing[concept.title] = { ...concept, bookmarkedAt: new Date().toISOString(), sourceTitle, sourceId };
+    existing[concept.title] = { ...concept, bookmarkedAt: new Date().toISOString(), ...sourceFields(sourceTitle, sourceId, extra) };
     localStorage.setItem(CONCEPT_DETAILS_KEY, JSON.stringify(existing));
   } catch { /* ignore */ }
 }
@@ -113,6 +138,14 @@ export function loadConceptDetails(): Record<string, BookmarkedConceptDetail> {
 
 export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
+}
+
+// 이미 북마크(카드)로 존재하는 용어인지 — store 3종 아무 데나 있으면 true.
+// 챗 카드 제안 칩에서 "이미 있는 카드"는 다시 제안 안 하도록 필터링용.
+export function bookmarkedTermExists(term: string): boolean {
+  const t = term.trim();
+  if (!t) return false;
+  return !!(loadTokenDetails()[t] || loadConceptDetails()[t] || loadTermDetails()[t]);
 }
 
 // --- 출처 소급 채움 ---
