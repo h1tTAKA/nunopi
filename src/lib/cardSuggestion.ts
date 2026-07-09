@@ -32,6 +32,9 @@ export function parseCardSuggestions(content: string): { text: string; cards: Su
           kind: asKind(c.kind),
         }))
         .filter((c) => c.term.length > 0);
+      // term 중복 제거(첫 개만) — 칩 key 충돌·중복 제안 방지.
+      const seen = new Set<string>();
+      cards = cards.filter((c) => (seen.has(c.term) ? false : (seen.add(c.term), true)));
     }
   } catch {
     /* 형식 깨진 블록 — 카드 없음으로 */
