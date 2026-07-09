@@ -140,6 +140,14 @@ export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
 }
 
+// 이미 북마크(카드)로 존재하는 용어인지 — store 3종 아무 데나 있으면 true.
+// 챗 카드 제안 칩에서 "이미 있는 카드"는 다시 제안 안 하도록 필터링용.
+export function bookmarkedTermExists(term: string): boolean {
+  const t = term.trim();
+  if (!t) return false;
+  return !!(loadTokenDetails()[t] || loadConceptDetails()[t] || loadTermDetails()[t]);
+}
+
 // --- 출처 소급 채움 ---
 // 이미 담긴 북마크(신규 추가가 아니라 예전에 담아 sourceTitle이 없는 것)를, 그 용어가
 // 등장한 분석을 다시 볼 때 현재 분석 제목으로 채운다. 이미 값이 있으면 건드리지 않는다(최초 출처 보존).

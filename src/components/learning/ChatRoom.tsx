@@ -8,6 +8,7 @@ import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
+import { bookmarkedTermExists } from "@/lib/bookmarkDetails";
 
 interface ChatRoomProps {
   messages: ChatMessage[];
@@ -198,15 +199,17 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
             );
           }
           // 어시스턴트 — nunopi-cards 블록은 본문에서 떼고, 칩으로 노출.
+          // 이미 카드로 있는 용어는 제안 안 함(에이전트는 유저 북마크를 모르므로 클라에서 필터).
           const { text, cards } = parseCardSuggestions(m.content);
+          const freshCards = cards.filter((c) => !bookmarkedTermExists(c.term));
           return (
             <div key={i} className="flex flex-col items-start gap-1.5">
               <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                 <Markdown>{text}</Markdown>
               </div>
-              {onCardAction && cards.length > 0 && (
+              {onCardAction && freshCards.length > 0 && (
                 <div className="flex max-w-[85%] flex-wrap items-center gap-1.5">
-                  {cards.map((c) => (
+                  {freshCards.map((c) => (
                     <button
                       key={c.term}
                       type="button"
