@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconSparkles, IconX, IconSend2 } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
+import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
 import { addCustomDeck } from "@/lib/srs/customDeck";
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
@@ -193,14 +194,20 @@ export default function AgentDeckModal({
           <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {t("mem.agentDeckGreet")}
           </div>
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "user" ? "max-w-[90%] self-end whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-white" : "max-w-[90%] self-start whitespace-pre-wrap rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"}>
-              {m.content}
-            </div>
-          ))}
+          {messages.map((m, i) =>
+            m.role === "user" ? (
+              <div key={i} className="max-w-[90%] self-end whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-white">
+                {m.content}
+              </div>
+            ) : (
+              <div key={i} className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                <Markdown>{m.content}</Markdown>
+              </div>
+            ),
+          )}
           {streaming != null && (
-            <div className="max-w-[90%] self-start whitespace-pre-wrap rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {streaming ? stripDeckSelectStreaming(streaming) : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
+            <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {streaming ? <Markdown>{stripDeckSelectStreaming(streaming)}</Markdown> : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
             </div>
           )}
         </div>
