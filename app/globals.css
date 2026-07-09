@@ -120,17 +120,6 @@ samp {
 /* 스크롤바 완전 숨김 — 가로 스크롤되는 세션 탭바 등(스크롤은 되되 바는 안 보임). */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 
-/* 항상 보이는 스크롤바 — 스타일 지정한 ::-webkit-scrollbar는 오버레이(자동숨김)가 아닌 상시 표시.
-   트랙을 뚜렷이 칠해 스크롤 안 해도 gutter가 늘 보이게(내 덱 목록 등). */
-.deck-scroll { scrollbar-width: thin; scrollbar-color: rgba(120,120,130,0.75) rgba(120,120,130,0.28); }
-.deck-scroll::-webkit-scrollbar { width: 10px; }
-.deck-scroll::-webkit-scrollbar-track { background: rgba(120,120,130,0.28); border-radius: 9999px; }
-.deck-scroll::-webkit-scrollbar-thumb { background: rgba(120,120,130,0.7); border-radius: 9999px; min-height: 28px; border: 2px solid transparent; background-clip: padding-box; }
-.deck-scroll::-webkit-scrollbar-thumb:hover { background: rgba(120,120,130,0.95); background-clip: padding-box; }
-.dark .deck-scroll { scrollbar-color: rgba(200,200,210,0.55) rgba(255,255,255,0.14); }
-.dark .deck-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.14); }
-.dark .deck-scroll::-webkit-scrollbar-thumb { background: rgba(200,200,210,0.5); background-clip: padding-box; }
-.dark .deck-scroll::-webkit-scrollbar-thumb:hover { background: rgba(200,200,210,0.75); background-clip: padding-box; }
 .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
