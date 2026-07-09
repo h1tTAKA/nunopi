@@ -5,9 +5,10 @@ import { createPortal } from "react-dom";
 import { IconExternalLink, IconTrash } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import type { Card } from "@/lib/srs/types";
+import type { Card, SrsSource } from "@/lib/srs/types";
 import { canGoToSource } from "@/lib/srs/cardSource";
 import { deleteCard } from "@/lib/srs/deleteCard";
+import { reclassifyCard } from "@/lib/srs/reclassifyCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
 import MemorizeChat from "./MemorizeChat";
@@ -180,7 +181,14 @@ export function FlyCardProvider({
                 className="absolute right-20 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
                 onClick={(e) => e.stopPropagation()}
               >
-                <CardInfoPanel card={fly.card} />
+                <CardInfoPanel
+                  card={fly.card}
+                  onReclassify={(next: SrsSource) => {
+                    // 분류 변경 = key 변경 → fly.card가 stale이 되므로 재분류 후 peek 닫음(갤러리는 이벤트로 재수집).
+                    reclassifyCard(fly.card, next);
+                    setFly(null); setArrived(false); setDropping(false);
+                  }}
+                />
                 <CardStageBar card={fly.card} />
               </div>
 
