@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconSparkles, IconX, IconSend2 } from "@tabler/icons-react";
+import { IconSparkles, IconX, IconSend2, IconCheck } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
@@ -166,11 +166,12 @@ export default function AgentDeckModal({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={SYMBOL} alt="" className="relative h-5 w-5 object-contain" />
                     <span className="relative line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
-                    {ex && (
-                      <span className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/65">
-                        <span className="rounded-full bg-rose-500 px-3 py-1 text-xs font-bold text-white shadow">{t("mem.excludeBadge")}</span>
-                      </span>
-                    )}
+                    {/* 제외 시 은은한 뮤트(빨강 뱃지 대신) */}
+                    {ex && <span className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-zinc-900/45" />}
+                    {/* 우상단 포함/제외 체크 — 포함=파란 체크, 제외=빈 원 */}
+                    <span className={`absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border ${ex ? "border-zinc-300 bg-white/80" : "border-[#3B34E2] bg-[#3B34E2] text-white"}`}>
+                      {!ex && <IconCheck size={12} stroke={3} aria-hidden />}
+                    </span>
                   </button>
                 );
               })}
