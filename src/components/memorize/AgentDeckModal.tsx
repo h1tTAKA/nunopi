@@ -141,11 +141,8 @@ export default function AgentDeckModal({
         <div className="flex items-center gap-2 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
           <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.agentDeckSelected")}</span>
           {finalCards.length > 0 && <span className="text-xs text-zinc-400 dark:text-zinc-500">{finalCards.length}</span>}
+          {selected.length > 0 && <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</span>}
         </div>
-        {/* 선별 결과 있을 때만 제외 방법 안내 — 조용한 헬퍼 텍스트 */}
-        {selected.length > 0 && (
-          <p className="px-5 pt-3 text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</p>
-        )}
         <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
           {selected.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">
