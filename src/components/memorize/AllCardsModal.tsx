@@ -8,7 +8,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
-import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
@@ -140,6 +140,10 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
     addCustomDeck(deckName, [...selected]);
     exitAll();
   }
+  async function deleteDeck(d: CustomDeck) {
+    const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
+    if (ok) removeCustomDeck(d.id);
+  }
   async function deleteSelected() {
     if (selected.size === 0) return;
     const ok = await confirm({
@@ -265,9 +269,29 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
             <span className="h-4 w-px bg-zinc-200 dark:bg-zinc-700" />
             <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
             <div className="flex flex-wrap gap-1.5">
-              {customDecks.map((d) => (
-                <Chip key={d.id} on={deckFilter === d.id} onClick={() => setDeckFilter((cur) => (cur === d.id ? null : d.id))} label={d.name} />
-              ))}
+              {customDecks.map((d) => {
+                const on = deckFilter === d.id;
+                return (
+                  <span
+                    key={d.id}
+                    className={`group inline-flex items-center gap-1 rounded-full py-1 pl-3 pr-1.5 text-xs font-medium transition ${
+                      on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                    }`}
+                  >
+                    <button type="button" onClick={() => setDeckFilter((cur) => (cur === d.id ? null : d.id))} className="whitespace-nowrap">
+                      {d.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { void deleteDeck(d); }}
+                      aria-label={t("mem.deleteDeckTitle")}
+                      className={`rounded-full p-0.5 transition ${on ? "hover:bg-white/20" : "text-zinc-400 hover:text-rose-500 dark:text-zinc-500"}`}
+                    >
+                      <IconX size={12} stroke={2.5} aria-hidden />
+                    </button>
+                  </span>
+                );
+              })}
             </div>
           </>
         )}
