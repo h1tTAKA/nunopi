@@ -226,10 +226,12 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         })}
       </div>
 
-      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=선택(고정 덱과 동일), 이어하기/삭제. */}
+      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=선택(고정 덱과 동일), 이어하기/삭제.
+          많아지면 이 목록만 자체 스크롤(패널 높이 폭주 방지). */}
       {customDecks.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
+          <div className="nunopi-scroll flex max-h-44 flex-col gap-2 overflow-y-auto pr-0.5">
           {customDecks.map((d) => {
             const cs = customStats.get(d.id) ?? { total: 0, due: 0 };
             const active = selectedCustomId === d.id;
@@ -273,6 +275,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               </div>
             );
           })}
+          </div>
         </div>
       )}
 
