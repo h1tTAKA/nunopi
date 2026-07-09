@@ -183,6 +183,9 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         {t("mem.selectDeck")}
       </h2>
 
+      {/* 덱 목록(고정 3 + 내 덱)을 하나의 고정 높이 스크롤 영역에 — 덱 수 무관 높이 일정(부채꼴 침범 방지).
+          max-h는 고정 3덱에 맞춤 → 커스텀 생기면 이 영역 안에서 스크롤(패널 높이 불변). */}
+      <div className="nunopi-scroll flex max-h-56 flex-col gap-3 overflow-y-auto pr-1">
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
@@ -226,12 +229,10 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         })}
       </div>
 
-      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=선택(고정 덱과 동일), 이어하기/삭제.
-          많아지면 이 목록만 자체 스크롤(패널 높이 폭주 방지). */}
+      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=선택(고정 덱과 동일), 이어하기/삭제. */}
       {customDecks.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
-          <div className="nunopi-scroll flex max-h-44 flex-col gap-2 overflow-y-auto pr-0.5">
           {customDecks.map((d) => {
             const cs = customStats.get(d.id) ?? { total: 0, due: 0 };
             const active = selectedCustomId === d.id;
@@ -275,9 +276,9 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               </div>
             );
           })}
-          </div>
         </div>
       )}
+      </div>
 
       {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
