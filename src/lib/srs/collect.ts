@@ -72,3 +72,11 @@ export function collectCards(sources: SrsSource[], now: Date): Card[] {
   }
   return cards;
 }
+
+// 커스텀 덱용 — 전체 카드 중 주어진 key에 속한 것만(존재하는 것만, 삭제된 key는 스킵).
+// 순서는 keys 순서를 따른다(커스텀 덱 큐레이션 순서 보존).
+export function collectCardsByKeys(keys: string[], now: Date): Card[] {
+  const all = collectCards(["token", "concept", "term"], now);
+  const byKey = new Map(all.map((c) => [c.key, c]));
+  return keys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
+}
