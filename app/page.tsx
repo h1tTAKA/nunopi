@@ -974,11 +974,17 @@ export default function Home() {
   }
 
   // 암기 카드 → 그 카드를 담은 분석 히스토리로 이동. 뷰를 코드/글로 전환하고 엔트리를 복원한다.
-  function handleGoToSource(sourceId: string) {
+  // sessionId 주어지면(챗에서 생성된 카드) 그 챗 세션 활성화 + 챗 패널 열기.
+  function handleGoToSource(sourceId: string, sessionId?: string) {
     const entry = historyEntries.find((e) => e.id === sourceId);
     if (!entry) return; // 히스토리 20개 캡에 밀려 삭제됐으면 조용히 무시(버튼도 안 뜨는 게 정상).
     handleViewModeChange((entry.mode ?? "code") === "text" ? "text" : "code");
     handleRestoreHistory(entry);
+    if (sessionId) {
+      const sessions = entryChatSessions(entry);
+      if (sessions.some((s) => s.id === sessionId)) setActiveSessionId(sessionId);
+      setChatOpen(true); // 그 챗룸을 바로 볼 수 있게 패널 열기
+    }
   }
 
   function handleDeleteHistory(id: string) {

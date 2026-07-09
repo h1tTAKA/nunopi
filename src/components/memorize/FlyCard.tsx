@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { IconExternalLink } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import type { Card } from "@/lib/srs/types";
+import { canGoToSource } from "@/lib/srs/cardSource";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
 import MemorizeChat from "./MemorizeChat";
@@ -50,7 +51,7 @@ export function FlyCardProvider({
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존 분석 히스토리 id — 출처 이동 버튼 노출 판별
-  onGoToSource: (sourceId: string) => void; // 카드 출처(분석)로 화면 전환
+  onGoToSource: (card: Card) => void; // 카드 출처로 이동(종류별 분기는 상위에서)
   children: React.ReactNode;
 }) {
   const t = useT();
@@ -177,10 +178,10 @@ export function FlyCardProvider({
 
               {/* 하단 — 출처로 이동(존재할 때만) + 안내 */}
               <div className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
-                {!!fly.card.sourceId && sourceIds.has(fly.card.sourceId) && (
+                {canGoToSource(fly.card, sourceIds) && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onGoToSource(fly.card.sourceId!); }}
+                    onClick={(e) => { e.stopPropagation(); onGoToSource(fly.card); }}
                     className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
                   >
                     {t("mem.goToSource")}

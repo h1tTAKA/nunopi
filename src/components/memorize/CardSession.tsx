@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { dueCards, orderCards, filterByCategory, type CardCategory } from "@/lib/srs/due";
 import { applyGrade } from "@/lib/srs/schedule";
+import { canGoToSource } from "@/lib/srs/cardSource";
 import { updateCardState } from "@/lib/srs/store";
 import { logReview } from "@/lib/srs/activityLog";
 import type { Card, CardOrder, Deck, Grade, SrsSource } from "@/lib/srs/types";
@@ -33,7 +34,7 @@ interface CardSessionProps {
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존하는 분석 히스토리 id들 — 출처 이동 버튼 노출 판별용.
-  onGoToSource: (sourceId: string) => void; // 카드 출처(분석)로 화면 전환.
+  onGoToSource: (card: Card) => void; // 카드 출처로 이동(종류별 분기는 상위에서).
   onExit: () => void;
 }
 
@@ -215,8 +216,8 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   // 채점으로 카드가 소진된 만큼만 진행(뒤집기는 진행과 무관).
   const progress = round.length > 0 ? (idx / round.length) * 100 : 0;
 
-  // 출처(분석)로 이동 가능 여부 — sourceId가 있고 그 히스토리가 아직 존재할 때만.
-  const canGoToSource = !!card.sourceId && sourceIds.has(card.sourceId);
+  // 출처로 이동 가능 여부 — 종류별(analysis: 히스토리 존재 / card: originCardKey 존재).
+  const showSource = canGoToSource(card, sourceIds);
 
   const gradeBar = flipped ? (
     <div className="grid grid-cols-3 gap-3">
@@ -287,10 +288,10 @@ export default function CardSession({ sources, mode = "due", active = true, deck
             <FlashCard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped((v) => !v)} reduced={reduced} />
           </div>
           {/* 출처로 이동 — 이 카드를 담은 분석 히스토리로 화면 전환(존재할 때만). */}
-          {canGoToSource && (
+          {showSource && (
             <button
               type="button"
-              onClick={() => onGoToSource(card.sourceId!)}
+              onClick={() => onGoToSource(card)}
               className="flex items-center gap-1 text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-100"
             >
               {t("mem.goToSource")}
