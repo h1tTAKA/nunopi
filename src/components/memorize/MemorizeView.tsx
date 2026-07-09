@@ -129,7 +129,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         />
       </div>
       {/* 오른쪽: 덱 선택 + 부채꼴 — 왼쪽과 같은 세로 범위(h-full), 덱패널 위·부채꼴 남는공간 채움. */}
-      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:h-full xl:w-[30rem] xl:max-w-none">
+      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:h-full xl:w-[33rem] xl:max-w-none">
         <DeckSelect
           deck={deck}
           onDeckChange={setDeck}

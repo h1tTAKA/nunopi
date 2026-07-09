@@ -200,8 +200,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
 
       {/* 덱 목록(고정3 + 내 덱) — 고정 높이 박스(커스텀 수 무관 높이 일정 → 부채꼴 안 밀림).
           네이티브 스크롤바 대신 직접 그린 트랙/썸을 항상 표시(오른쪽). */}
-      <div className="relative rounded-2xl border border-zinc-200 py-2.5 pl-2.5 pr-4 dark:border-zinc-800">
-      <div ref={listRef} onScroll={updateThumb} className="no-scrollbar flex h-52 flex-col gap-3 overflow-y-auto">
+      <div className="relative rounded-2xl border border-zinc-200 py-2.5 pl-2.5 pr-2 dark:border-zinc-800">
+      <div ref={listRef} onScroll={updateThumb} className="no-scrollbar flex h-52 flex-col gap-3 overflow-y-auto pr-4">
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
