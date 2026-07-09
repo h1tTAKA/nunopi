@@ -99,6 +99,10 @@ export default function AgentDeckModal({
           if (ev.type === "result") answer = ev.response.summary;
         }
       }
+      // 마지막 이벤트에 개행이 없을 수도 있어 잔여 buffer도 파싱.
+      if (buffer.trim()) {
+        try { const ev = JSON.parse(buffer) as StreamEvent; if (ev.type === "result") answer = ev.response.summary; } catch { /* skip */ }
+      }
       if (ac.signal.aborted) return;
       const keys = parseDeckSelect(answer);
       const cards = keys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
