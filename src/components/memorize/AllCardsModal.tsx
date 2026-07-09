@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconX, IconSearch } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
@@ -45,7 +45,7 @@ const CAT_DOT: Record<CardCategory, string> = {
 };
 
 // 전체 보유 카드 갤러리 — 검색·출처/분류 필터·정렬. 타일 클릭 시 카드가 날아온다(peek 재사용).
-export default function AllCardsModal({ now, onClose }: { now: Date; onClose: () => void }) {
+export default function AllCardsModal({ now, focusCardKey, onClose }: { now: Date; focusCardKey?: string; onClose: () => void }) {
   const t = useT();
   const { throwCard } = useFlyCard();
   const [q, setQ] = useState("");
@@ -132,7 +132,7 @@ export default function AllCardsModal({ now, onClose }: { now: Date; onClose: ()
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}>
             {cards.map((c) => (
-              <CardTile key={c.key} card={c} reviews={c.state.reviews ?? 0} onThrow={throwCard} t={t} />
+              <CardTile key={c.key} card={c} reviews={c.state.reviews ?? 0} focus={c.key === focusCardKey} onThrow={throwCard} t={t} />
             ))}
           </div>
         )}
@@ -159,13 +159,21 @@ function Chip({ on, onClick, label, dot }: { on: boolean; onClick: () => void; l
 }
 
 // 게임 카드팩 느낌의 미니 타일 — 흰 포커카드 + 용어 + 출처 배지 + 분류 점 + 복습 수.
-function CardTile({ card, reviews, onThrow, t }: { card: Card; reviews: number; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
+function CardTile({ card, reviews, focus, onThrow, t }: { card: Card; reviews: number; focus?: boolean; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
   const SRC_LABEL: Record<Card["source"], string> = { token: "mem.srcToken", concept: "mem.srcConcept", term: "mem.srcTerm" };
+  const ref = useRef<HTMLButtonElement>(null);
+  // 출처로 이동으로 focus된 카드 — 마운트 시 화면 중앙으로 스크롤.
+  useEffect(() => {
+    if (focus && ref.current) ref.current.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [focus]);
   return (
     <button
+      ref={ref}
       type="button"
       onClick={(e) => onThrow(card, e.currentTarget.getBoundingClientRect())}
-      className="group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700"
+      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
+        focus ? "border-[#3B34E2] ring-2 ring-[#3B34E2]" : "border-zinc-200"
+      }`}
     >
       <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/50" />
       <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
