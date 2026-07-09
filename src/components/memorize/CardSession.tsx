@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import { collectCards } from "@/lib/srs/collect";
+import { collectCards, collectCardsByKeys } from "@/lib/srs/collect";
 import { dueCards, orderCards, filterByCategory, type CardCategory } from "@/lib/srs/due";
 import { applyGrade } from "@/lib/srs/schedule";
 import { canGoToSource } from "@/lib/srs/cardSource";
@@ -31,6 +31,7 @@ interface CardSessionProps {
   resume?: boolean; // true면 저장된 세션 이어하기, false/없으면 새로.
   order?: CardOrder; // 새 세션 카드 제시 순서(resume은 저장 순서 유지).
   categories?: CardCategory[]; // 포함할 분류(빈 배열=전체). resume은 무시.
+  cardKeys?: string[]; // 커스텀 덱 — 있으면 sources 대신 이 key들로 세션 구성(이어하기 미지원).
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존하는 분석 히스토리 id들 — 출처 이동 버튼 노출 판별용.
@@ -50,11 +51,19 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], providerId, providerSettings, sourceIds, onGoToSource, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], cardKeys, providerId, providerSettings, sourceIds, onGoToSource, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
+  const isCustom = !!cardKeys; // 커스텀 덱 세션 — 이어하기(memSession) 미사용.
   // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원, 아니면 fresh(due/all).
   const init = useMemo(() => {
+    // 커스텀 덱 — cardKeys로 카드 구성(sources·resume 무시), mode/order 적용.
+    if (cardKeys) {
+      const base0 = collectCardsByKeys(cardKeys, now);
+      const base = mode === "all" ? base0 : dueCards(base0, now);
+      const queue = orderCards(base, order);
+      return { round: queue, idx: 0, stats: { again: 0, hard: 0, good: 0 }, reviewed: new Map<string, { card: Card; grade: Grade }>() };
+    }
     const all = collectCards(sources, now);
     const byKey = new Map(all.map((c) => [c.key, c]));
     const saved = resume ? loadMemSession(deck, mode) : null;
@@ -98,7 +107,9 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   useEffect(() => () => { if (tossTimer.current) window.clearTimeout(tossTimer.current); }, []);
 
   // 진행 상태 영속 — 완료면 삭제, 아니면 현재 라운드/위치/통계 저장(채점마다 갱신).
+  // 커스텀 덱(isCustom)은 deck×mode 키와 안 맞아 이어하기 미지원 → 영속 스킵.
   useEffect(() => {
+    if (isCustom) return;
     if (done) {
       clearMemSession(deck, mode);
       return;
@@ -114,7 +125,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
       reviewedHard: reviewed.filter((x) => x.grade === "hard").map((x) => x.card.key),
       savedAt: now.toISOString(),
     });
-  }, [done, round, idx, stats, deck, mode, sources, now]);
+  }, [isCustom, done, round, idx, stats, deck, mode, sources, now]);
 
   const card = round[idx];
 
