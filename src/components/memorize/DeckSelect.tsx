@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck, IconTrash, IconSparkles } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -159,6 +159,21 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
     if (ok) removeCustomDeck(d.id);
   }
+  // 덱 목록 자체 스크롤바 — 네이티브 오버레이 바가 이 환경서 안 보여서 직접 그린다(트랙 항상 표시).
+  const listRef = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState({ h: 0, top: 0 });
+  const updateThumb = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const ch = el.clientHeight, sh = el.scrollHeight, st = el.scrollTop;
+    const h = sh > ch ? Math.max(24, (ch * ch) / sh) : ch; // 안 넘치면 트랙 꽉 채움
+    const top = sh > ch ? (st / sh) * ch : 0;
+    setThumb({ h, top });
+  }, []);
+  useEffect(() => {
+    updateThumb();
+  }, [updateThumb, customDecks]);
+
   // 선택 덱 총 카드(시작 버튼 라벨용) — 커스텀이면 그 덱 total.
   const selectedTotal = activeCustom ? (customStats.get(activeCustom.id)?.total ?? 0) : stats[selected].total;
   // 시작 — 선택이 커스텀이면 cardKeys 세션, 아니면 고정 덱 세션.
@@ -183,9 +198,10 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         {t("mem.selectDeck")}
       </h2>
 
-      {/* 덱 목록(고정3 + 내 덱)을 고정 높이(h-56) 스크롤 박스에 — 커스텀 수와 무관하게 높이 완전 고정
-          → 밑 부채꼴 절대 안 밀림. 3덱은 다 들어가고 커스텀은 이 안에서 스크롤(.deck-scroll 상시 바). */}
-      <div className="deck-scroll flex h-56 flex-col gap-3 overflow-y-scroll rounded-2xl border border-zinc-200 p-2.5 dark:border-zinc-800">
+      {/* 덱 목록(고정3 + 내 덱) — 고정 높이 박스(커스텀 수 무관 높이 일정 → 부채꼴 안 밀림).
+          네이티브 스크롤바 대신 직접 그린 트랙/썸을 항상 표시(오른쪽). */}
+      <div className="relative rounded-2xl border border-zinc-200 py-2.5 pl-2.5 pr-4 dark:border-zinc-800">
+      <div ref={listRef} onScroll={updateThumb} className="no-scrollbar flex h-52 flex-col gap-3 overflow-y-auto">
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
@@ -278,6 +294,11 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
           })}
         </div>
       )}
+      </div>
+        {/* 직접 그린 스크롤바 — 트랙 항상 표시, 썸은 스크롤 위치/비율 반영. */}
+        <div className="pointer-events-none absolute bottom-2.5 right-1.5 top-2.5 w-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700/70">
+          <div className="w-full rounded-full bg-zinc-400 dark:bg-zinc-500" style={{ height: `${thumb.h}px`, transform: `translateY(${thumb.top}px)` }} />
+        </div>
       </div>
 
       {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
