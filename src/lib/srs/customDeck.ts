@@ -25,7 +25,7 @@ export function loadCustomDecks(): CustomDeck[] {
 function saveAll(list: CustomDeck[]): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(list));
-    window.dispatchEvent(new Event(CUSTOM_DECKS_CHANGED_EVENT));
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CUSTOM_DECKS_CHANGED_EVENT));
   } catch {
     /* ignore */
   }
