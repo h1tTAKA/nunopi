@@ -31,6 +31,15 @@ export function updateCardState(key: string, state: SrsState): void {
   saveAll(map);
 }
 
+// 단일 카드의 SRS 상태 제거 — 카드 삭제 시 orphan 방지(재생성 시 옛 박스/스트릭 부활 방지).
+export function removeCardState(key: string): void {
+  const map = loadSrsState();
+  if (key in map) {
+    delete map[key];
+    saveAll(map);
+  }
+}
+
 // 북마크에서 사라진 orphan 키 정리(선택적 gc — 현재 유효한 키 집합을 받아 그 외 제거).
 export function pruneSrsState(validKeys: Set<string>): void {
   const map = loadSrsState();
