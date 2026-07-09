@@ -10,7 +10,8 @@ import DeckFan from "./DeckFan";
 import { FlyCardProvider } from "./FlyCard";
 import AllCardsModal from "./AllCardsModal";
 import { DECK_SOURCES, type Card, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
-import { collectCards } from "@/lib/srs/collect";
+import { collectCards, collectCardsByKeys } from "@/lib/srs/collect";
+import { loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { type CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
@@ -37,7 +38,16 @@ export default function MemorizeView({ active = true, providerId, providerSettin
       onGoToSource(card.sourceId, card.sourceSessionId);
     }
   }
-  const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder; categories: CardCategory[]; cardKeys?: string[] } | null>(null);
+  const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder; categories: CardCategory[]; cardKeys?: string[]; customDeckId?: string } | null>(null);
+  // 선택된 커스텀 덱 id(null=고정 덱). 커스텀 선택 시 왼쪽 통계/부채꼴이 그 덱 반영.
+  const [customId, setCustomId] = useState<string | null>(null);
+  const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    const load = () => setCustomDecks(loadCustomDecks());
+    load();
+    window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+  }, []);
   // 덱/세부출처는 여기서 소유 — 왼쪽 통계 패널과 오른쪽 DeckSelect가 실시간 공유(controlled).
   // typeof window 가드: 마운트 게이트로 서버엔 안 그려지지만 useState 초기화는 서버서도 실행됨.
   const [deck, setDeckRaw] = useState<Deck>(() => {
@@ -56,6 +66,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   });
   function setDeck(d: Deck) {
     setDeckRaw(d);
+    setCustomId(null); // 고정 덱 선택 시 커스텀 선택 해제
     try { localStorage.setItem("nunopi:mem-deck", d); } catch { /* ignore */ }
   }
   function setCodeSources(s: Set<SrsSource>) {
@@ -69,6 +80,17 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     const effective = deck === "code" ? deckSources.filter((s) => codeSources.has(s)) : deckSources;
     return collectCards(effective, now);
   }, [deck, codeSources, now]);
+  // 선택된 커스텀 덱(없으면 null). 삭제되면 선택 해제.
+  const activeCustom = customId ? customDecks.find((d) => d.id === customId) ?? null : null;
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (customId && !customDecks.some((d) => d.id === customId)) setCustomId(null);
+  }, [customDecks, customId]);
+  // 커스텀 부채꼴 카드(선택 시).
+  const customFanCards = useMemo(
+    () => (activeCustom ? collectCardsByKeys(activeCustom.cardKeys, now) : null),
+    [activeCustom, now],
+  );
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -82,14 +104,14 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     setPhase("session");
   }
 
-  // 커스텀 덱 시작 — cardKeys로 세션(sources 무관, deck은 placeholder "all").
-  function handleStartCustom(cardKeys: string[], mode: ReviewMode, order: CardOrder) {
-    setSession({ deck: "all", sources: [], mode, resume: false, order, categories: [], cardKeys });
+  // 커스텀 덱 시작 — cardKeys로 세션(sources 무관, deck placeholder "all"). customDeckId로 이어하기 키.
+  function handleStartCustom(id: string, cardKeys: string[], mode: ReviewMode, order: CardOrder, categories: CardCategory[], resume: boolean) {
+    setSession({ deck: "all", sources: [], mode, resume, order, categories, cardKeys, customDeckId: id });
     setPhase("session");
   }
 
   if (phase === "session" && session) {
-    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} cardKeys={session.cardKeys} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={goToCardSource} onExit={() => setPhase("select")} />;
+    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} cardKeys={session.cardKeys} customDeckId={session.customDeckId} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={goToCardSource} onExit={() => setPhase("select")} />;
   }
 
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
@@ -99,15 +121,22 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     <div className="flex h-full w-full items-stretch justify-center gap-8 overflow-hidden px-8 py-6">
       {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부, 상단 정렬(오른쪽 덱 패널과 top 맞춤) */}
       <div className="hidden min-h-0 flex-1 flex-col justify-start xl:flex">
-        <MemorizeStats deck={deck} sources={deck === "code" ? [...codeSources] : undefined} />
+        <MemorizeStats
+          deck={deck}
+          sources={deck === "code" ? [...codeSources] : undefined}
+          cardKeys={activeCustom?.cardKeys}
+          deckName={activeCustom?.name}
+        />
       </div>
       {/* 오른쪽: 덱 선택 + 부채꼴 — 왼쪽과 같은 세로 범위(h-full), 덱패널 위·부채꼴 남는공간 채움. */}
-      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:h-full xl:w-[30rem] xl:max-w-none">
+      <div className="mx-auto flex w-full max-w-lg shrink-0 flex-col xl:mx-0 xl:h-full xl:w-[33rem] xl:max-w-none">
         <DeckSelect
           deck={deck}
           onDeckChange={setDeck}
           codeSources={codeSources}
           onCodeSourcesChange={setCodeSources}
+          selectedCustomId={customId}
+          onSelectCustom={setCustomId}
           onStart={handleStart}
           onStartCustom={handleStartCustom}
         />
@@ -122,7 +151,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
             <IconLayoutGrid size={14} stroke={2} aria-hidden />
             {t("mem.allCards")}
           </button>
-          <DeckFan key={deck} cards={fanCards} />
+          <DeckFan key={customId ?? deck} cards={customFanCards ?? fanCards} />
         </div>
       </div>
     </div>

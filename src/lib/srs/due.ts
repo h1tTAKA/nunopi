@@ -1,6 +1,6 @@
 // due 큐 셀렉터 + 덱 통계.
 
-import { collectCards } from "./collect";
+import { collectCards, collectCardsByKeys } from "./collect";
 import { isDue } from "./schedule";
 import { DECK_SOURCES } from "./types";
 import type { Card, CardOrder, Deck, SrsSource } from "./types";
@@ -31,10 +31,10 @@ export function filterByCategory(cards: Card[], selected: Set<CardCategory>): Ca
 
 // 덱의 분류별 카드 수(체크박스 배지용). mode="due"면 오늘 복습 대상만 집계(시작 수와 일치),
 // "all"(기본)이면 덱 전체.
-export function categoryCounts(deck: Deck, now: Date, sources?: SrsSource[], mode: "due" | "all" = "all"): Record<CardCategory, number> {
+export function categoryCounts(deck: Deck, now: Date, sources?: SrsSource[], mode: "due" | "all" = "all", keys?: string[]): Record<CardCategory, number> {
   const deckSources = DECK_SOURCES[deck];
   const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
-  const all = collectCards(effective, now);
+  const all = keys ? collectCardsByKeys(keys, now) : collectCards(effective, now);
   const base = mode === "due" ? dueCards(all, now) : all;
   const counts: Record<CardCategory, number> = { again: 0, hard: 0, good: 0, none: 0 };
   for (const c of base) counts[cardCategory(c)]++;
@@ -68,10 +68,11 @@ export function sessionCount(
   mode: "due" | "all",
   categories: CardCategory[],
   sources?: SrsSource[],
+  keys?: string[],
 ): number {
   const deckSources = DECK_SOURCES[deck];
   const effective = sources ? deckSources.filter((s) => sources.includes(s)) : deckSources;
-  const all = collectCards(effective, now);
+  const all = keys ? collectCardsByKeys(keys, now) : collectCards(effective, now);
   const base = mode === "all" ? all : dueCards(all, now);
   return filterByCategory(base, new Set(categories)).length;
 }
@@ -82,11 +83,12 @@ export function deckStats(
   deck: Deck,
   now: Date,
   sources?: SrsSource[],
+  keys?: string[],
 ): { due: number; total: number } {
   const deckSources = DECK_SOURCES[deck];
   const effective = sources
     ? deckSources.filter((s) => sources.includes(s))
     : deckSources;
-  const cards = collectCards(effective, now);
+  const cards = keys ? collectCardsByKeys(keys, now) : collectCards(effective, now);
   return { due: dueCards(cards, now).length, total: cards.length };
 }

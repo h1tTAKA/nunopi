@@ -31,17 +31,17 @@ const CAT_META: { key: CardCategory; tKey: string; color: string }[] = [
 ];
 
 // 왼쪽 학습 통계 패널 — 현재 SRS 상태 기반(요약·박스분포·분류도넛·7일예보). deck+sources 실시간.
-export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?: SrsSource[] }) {
+export default function MemorizeStats({ deck, sources, cardKeys, deckName }: { deck: Deck; sources?: SrsSource[]; cardKeys?: string[]; deckName?: string }) {
   const t = useT();
   const { locale } = useLocale();
   const now = useMemo(() => new Date(), []);
-  // 제목은 선택 덱 반영 — "전체/코드 분석/글 분석 학습 통계".
-  const title = `${t(DECK_NAME_KEY[deck])} ${t("mem.statsTitle")}`;
+  // 제목 — 커스텀 덱이면 덱 이름, 아니면 고정 덱 이름 + "학습 통계".
+  const title = `${deckName ?? t(DECK_NAME_KEY[deck])} ${t("mem.statsTitle")}`;
 
-  const sum = useMemo(() => summary(deck, now, sources), [deck, now, sources]);
-  const boxes = useMemo(() => boxDistribution(deck, now, sources), [deck, now, sources]);
-  const cats = useMemo(() => categoryCounts(deck, now, sources), [deck, now, sources]);
-  const forecast = useMemo(() => dueForecast(deck, now, sources, 7), [deck, now, sources]);
+  const sum = useMemo(() => summary(deck, now, sources, cardKeys), [deck, now, sources, cardKeys]);
+  const boxes = useMemo(() => boxDistribution(deck, now, sources, cardKeys), [deck, now, sources, cardKeys]);
+  const cats = useMemo(() => categoryCounts(deck, now, sources, "all", cardKeys), [deck, now, sources, cardKeys]);
+  const forecast = useMemo(() => dueForecast(deck, now, sources, 7, cardKeys), [deck, now, sources, cardKeys]);
 
   if (sum.total === 0) {
     return (
@@ -144,7 +144,7 @@ export default function MemorizeStats({ deck, sources }: { deck: Deck; sources?:
       </div>
 
       {/* 인사이트 위젯 (선택 덱 기준) */}
-      <MemorizeInsights deck={deck} sources={sources} now={now} />
+      <MemorizeInsights deck={deck} sources={sources} cardKeys={cardKeys} now={now} />
     </div>
   );
 }
