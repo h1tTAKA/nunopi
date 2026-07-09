@@ -191,7 +191,7 @@ export default function AgentDeckModal({
               {m.content}
             </div>
           ))}
-          {loading && <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">{t("mem.agentDeckScanning")}</div>}
+          {loading && <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">{t("chat.replying")}</div>}
         </div>
         {/* 입력 */}
         <div className="flex items-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
