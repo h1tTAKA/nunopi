@@ -18,7 +18,7 @@ type Sort = "recent" | "oldest" | "most" | "least";
 const SOURCE_CHIPS: { key: SourceFilter; label: string }[] = [
   { key: "all", label: "mem.catAll" },
   { key: "token", label: "mem.srcToken" },
-  { key: "concept", label: "mem.srcConcept" },
+  { key: "concept", label: "mem.srcConceptFull" },
   { key: "term", label: "mem.srcTerm" },
 ];
 
