@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconSparkles, IconX, IconSend2, IconCheck } from "@tabler/icons-react";
+import { IconSparkles, IconX, IconSend2, IconCheck, IconEye } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
 import { addCustomDeck } from "@/lib/srs/customDeck";
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
+import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
@@ -26,6 +27,7 @@ export default function AgentDeckModal({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { throwCard } = useFlyCard();
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
@@ -153,11 +155,13 @@ export default function AgentDeckModal({
               {selected.slice(0, reveal).map((c) => {
                 const ex = excluded.has(c.key);
                 return (
-                  <button
+                  <div
                     key={c.key}
-                    type="button"
+                    data-fly-card
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleExclude(c.key)}
-                    className={`relative flex aspect-[5/7] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border bg-white p-2.5 text-center shadow-sm transition hover:-translate-y-0.5 ${
+                    className={`group relative flex aspect-[5/7] cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border bg-white p-2.5 text-center shadow-sm transition hover:-translate-y-0.5 ${
                       ex ? "border-zinc-300 dark:border-zinc-600" : "border-[#3B34E2]/50"
                     }`}
                     style={reduced ? undefined : { animation: "nunopi-pop 260ms ease-out both" }}
@@ -173,7 +177,19 @@ export default function AgentDeckModal({
                     <span className={`absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border ${ex ? "border-zinc-300 bg-white/80" : "border-[#3B34E2] bg-[#3B34E2] text-white"}`}>
                       {!ex && <IconCheck size={12} stroke={3} aria-hidden />}
                     </span>
-                  </button>
+                    {/* 좌상단 호버 상세 — 클릭 시 카드가 날아오며 전체 정보 표시(제외 토글과 분리) */}
+                    <button
+                      type="button"
+                      aria-label={t("mem.cardDetail")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        throwCard(c, (e.currentTarget.closest("[data-fly-card]") as HTMLElement | null)?.getBoundingClientRect());
+                      }}
+                      className="absolute left-1.5 top-1.5 z-30 flex h-5 w-5 items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition hover:bg-black/70 group-hover:opacity-100"
+                    >
+                      <IconEye size={12} stroke={2} aria-hidden />
+                    </button>
+                  </div>
                 );
               })}
             </div>
