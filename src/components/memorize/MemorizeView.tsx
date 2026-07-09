@@ -22,13 +22,14 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   const t = useT();
   const [phase, setPhase] = useState<MemPhase>("select");
   const [showAllCards, setShowAllCards] = useState(false);
-  const [focusCardKey, setFocusCardKey] = useState<string | undefined>(undefined);
+  const [autoThrowKey, setAutoThrowKey] = useState<string | undefined>(undefined);
 
-  // 카드 "출처로 이동" — 출처 종류별 분기. analysis=분석+챗세션 복원(부모), card=갤러리 열어 생성처 하이라이트.
+  // 카드 "출처로 이동" — 출처 종류별 분기. analysis=분석+챗세션 복원(부모),
+  // card=전체 카드 보기 열고 생성처 카드를 바로 띄운다(peek).
   function goToCardSource(card: Card) {
     if (card.sourceKind === "card" && card.originCardKey) {
       setPhase("select"); // 세션 중이면 선택 화면으로 나와 갤러리 표시
-      setFocusCardKey(card.originCardKey);
+      setAutoThrowKey(card.originCardKey);
       setShowAllCards(true);
     } else if (card.sourceId) {
       onGoToSource(card.sourceId, card.sourceSessionId);
@@ -116,7 +117,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         </div>
       </div>
     </div>
-    {showAllCards && <AllCardsModal now={now} focusCardKey={focusCardKey} onClose={() => { setShowAllCards(false); setFocusCardKey(undefined); }} />}
+    {showAllCards && <AllCardsModal now={now} autoThrowCardKey={autoThrowKey} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); }} />}
     </FlyCardProvider>
   );
 }
