@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { IconLayoutGrid } from "@tabler/icons-react";
+import { useT } from "@/lib/i18n/I18nProvider";
 import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
 import MemorizeStats from "./MemorizeStats";
 import DeckFan from "./DeckFan";
 import { FlyCardProvider } from "./FlyCard";
+import AllCardsModal from "./AllCardsModal";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 import { collectCards } from "@/lib/srs/collect";
 import { type CardCategory } from "@/lib/srs/due";
@@ -16,7 +19,9 @@ type ReviewMode = "due" | "all";
 
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
 export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string) => void }) {
+  const t = useT();
   const [phase, setPhase] = useState<MemPhase>("select");
+  const [showAllCards, setShowAllCards] = useState(false);
   const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder; categories: CardCategory[] } | null>(null);
   // 덱/세부출처는 여기서 소유 — 왼쪽 통계 패널과 오른쪽 DeckSelect가 실시간 공유(controlled).
   // typeof window 가드: 마운트 게이트로 서버엔 안 그려지지만 useState 초기화는 서버서도 실행됨.
@@ -85,11 +90,21 @@ export default function MemorizeView({ active = true, providerId, providerSettin
           onStart={handleStart}
         />
         {/* 덱 패널 밑 부채꼴 장식 — 남는 세로 공간 채워 중앙 배치(넓은 화면만, 넘치면 클립). */}
-        <div className="hidden min-h-0 flex-1 items-center justify-center overflow-hidden xl:flex">
+        <div className="relative hidden min-h-0 flex-1 items-center justify-center overflow-hidden xl:flex">
+          {/* 좌상단 — 전체 카드 보기 */}
+          <button
+            type="button"
+            onClick={() => setShowAllCards(true)}
+            className="absolute left-0 top-2 z-10 flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white/70 px-3 py-1.5 text-xs font-medium text-zinc-600 backdrop-blur transition hover:border-[#3B34E2] hover:text-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300 dark:hover:text-[#8b86f5]"
+          >
+            <IconLayoutGrid size={14} stroke={2} aria-hidden />
+            {t("mem.allCards")}
+          </button>
           <DeckFan key={deck} cards={fanCards} />
         </div>
       </div>
     </div>
+    {showAllCards && <AllCardsModal now={now} onClose={() => setShowAllCards(false)} />}
     </FlyCardProvider>
   );
 }
