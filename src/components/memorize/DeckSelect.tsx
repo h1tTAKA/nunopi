@@ -183,7 +183,9 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         {t("mem.selectDeck")}
       </h2>
 
-      {/* 고정 3덱 — 항상 전부 노출(스크롤 없음). */}
+      {/* 덱 목록(고정3 + 내 덱)을 고정 높이(h-56) 스크롤 박스에 — 커스텀 수와 무관하게 높이 완전 고정
+          → 밑 부채꼴 절대 안 밀림. 3덱은 다 들어가고 커스텀은 이 안에서 스크롤(.deck-scroll 상시 바). */}
+      <div className="deck-scroll flex h-56 flex-col gap-3 overflow-y-scroll rounded-2xl border border-zinc-200 p-2.5 dark:border-zinc-800">
       <div className="flex flex-col gap-3">
         {DECK_META.map(({ deck, tKey, Icon }) => {
           const s = stats[deck];
@@ -227,12 +229,10 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
         })}
       </div>
 
-      {/* 커스텀 덱(내 덱) — 있을 때만. 자체 보더 박스 + 항상 보이는 스크롤바(고정 높이, 덱 수 무관).
-          고정 3덱은 위에서 온전히 노출되고, 커스텀만 이 박스 안에서 스크롤 → 패널 높이 일정. */}
+      {/* 커스텀 덱(내 덱) — 있을 때만. 위 고정 높이 박스 안에서 고정 3덱에 이어 스크롤. */}
       {customDecks.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
-          <div className="deck-scroll flex max-h-36 flex-col gap-2 overflow-y-scroll rounded-xl border border-zinc-200 p-2 dark:border-zinc-800">
           {customDecks.map((d) => {
             const cs = customStats.get(d.id) ?? { total: 0, due: 0 };
             const active = selectedCustomId === d.id;
@@ -276,9 +276,9 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
               </div>
             );
           })}
-          </div>
         </div>
       )}
+      </div>
 
       {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
