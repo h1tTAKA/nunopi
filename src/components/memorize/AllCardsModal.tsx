@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
+import { addCustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
@@ -59,6 +60,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   // 선택 삭제 모드 — 켜면 타일 클릭이 throw 대신 선택 토글.
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [naming, setNaming] = useState(false); // 선택 카드로 덱 만들기 — 이름 입력 중
+  const [deckName, setDeckName] = useState("");
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -108,6 +111,14 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   function exitSelect() {
     setSelectMode(false);
     setSelected(new Set());
+    setNaming(false);
+    setDeckName("");
+  }
+  // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
+  function createDeck() {
+    if (selected.size === 0) return;
+    addCustomDeck(deckName, [...selected]);
+    exitSelect();
   }
   async function deleteSelected() {
     if (selected.size === 0) return;
@@ -139,8 +150,44 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
           />
         </div>
         <div className="flex-1" />
-        {selectMode ? (
+        {selectMode ? (naming ? (
           <>
+            <input
+              autoFocus
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") createDeck(); }}
+              placeholder={t("mem.deckNamePlaceholder")}
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            />
+            <button
+              type="button"
+              onClick={createDeck}
+              disabled={selected.size === 0}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <IconSparkles size={15} stroke={2} aria-hidden />
+              {t("mem.create")}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setNaming(false); setDeckName(""); }}
+              className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {t("confirm.cancel")}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setNaming(true)}
+              disabled={selected.size === 0}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <IconSparkles size={15} stroke={2} aria-hidden />
+              {t("mem.makeDeckN").replace("{n}", String(selected.size))}
+            </button>
             <button
               type="button"
               onClick={() => { void deleteSelected(); }}
@@ -158,7 +205,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
               {t("confirm.cancel")}
             </button>
           </>
-        ) : (
+        )) : (
           <>
             <select
               value={sort}
