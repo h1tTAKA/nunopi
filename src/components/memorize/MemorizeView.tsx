@@ -120,7 +120,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         </div>
       </div>
     </div>
-    {showAllCards && <AllCardsModal now={now} autoThrowCardKey={autoThrowKey} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); }} />}
+    {showAllCards && <AllCardsModal now={now} active={active} autoThrowCardKey={autoThrowKey} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); }} />}
     </FlyCardProvider>
   );
 }
