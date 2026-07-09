@@ -109,6 +109,7 @@ const ko: Dict = {
   "mem.noCardsFound": "카드가 없어요",
   "mem.close": "닫기",
   "mem.exit": "나가기",
+  "mem.chatSource": "{front} 챗룸",
 
   "input.codeTitle": "코드 입력",
   "input.textTitle": "글 입력",
@@ -425,6 +426,7 @@ const ja: Dict = {
   "mem.noCardsFound": "カードがありません",
   "mem.close": "閉じる",
   "mem.exit": "戻る",
+  "mem.chatSource": "{front} チャット",
 
   "input.codeTitle": "コード入力",
   "input.textTitle": "文章入力",
@@ -741,6 +743,7 @@ const en: Dict = {
   "mem.noCardsFound": "No cards found",
   "mem.close": "Close",
   "mem.exit": "Exit",
+  "mem.chatSource": "{front} chat",
 
   "input.codeTitle": "Code input",
   "input.textTitle": "Text input",
