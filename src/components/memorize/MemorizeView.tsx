@@ -32,6 +32,9 @@ export default function MemorizeView({ active = true, providerId, providerSettin
       setAutoThrowKey(card.originCardKey);
       setShowAllCards(true);
     } else if (card.sourceId) {
+      // 분석발 — 다른 뷰(코드/글)로 전환. 갤러리가 떠 있으면 닫아야(포탈이라 안 닫으면 분석 위를 덮음).
+      setShowAllCards(false);
+      setAutoThrowKey(undefined);
       onGoToSource(card.sourceId, card.sourceSessionId);
     }
   }
