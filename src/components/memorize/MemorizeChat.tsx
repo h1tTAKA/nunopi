@@ -56,7 +56,8 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
   // 카드 제안 칩 — 이 플래시카드의 source(token/concept/term) 사전에 저장. 출처=이 카드 챗룸(갤러리로 이동).
   function handleCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
     if (action.add) {
-      createChatCard(card.source, action.add.term, action.add.definition, t("mem.chatSource").replace("{front}", card.front), undefined, {
+      // 분류는 에이전트 kind 우선(예: @Override→token) — 없으면 이 카드 source 물려받음.
+      createChatCard(action.add.kind ?? card.source, action.add.term, action.add.definition, t("mem.chatSource").replace("{front}", card.front), undefined, {
         kind: "card", originCardKey: card.key,
       });
     }

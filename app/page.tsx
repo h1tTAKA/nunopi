@@ -807,8 +807,8 @@ export default function Home() {
     const sid = activeSessionIdResolved;
     if (!sid) return;
     if (action.add) {
-      // 코드 모드 챗 새 용어는 개념(concept), 글 모드는 IT용어(term)로.
-      const kind = mode === "text" ? "term" : "concept";
+      // 분류는 에이전트가 판단한 kind 우선(용어 자체 성격) — 없으면 위치 기본값(코드=개념/글=IT용어).
+      const kind = action.add.kind ?? (mode === "text" ? "term" : "concept");
       const title = historyEntries.find((e) => e.id === currentHistoryId)?.title
         ?? (analysisResult ? generateAutoTitle(analysisResult, code) : undefined);
       createChatCard(kind, action.add.term, action.add.definition, title, currentHistoryId ?? undefined, { kind: "analysis", sessionId: sid });
