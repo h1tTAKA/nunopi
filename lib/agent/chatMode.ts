@@ -37,6 +37,14 @@ export function buildChatPrompt(request: AgentAnalyzeRequest): string {
     transcript,
     "",
     `Answer the user's last question about the code above in ${name}. Be friendly and to the point.`,
+    "",
+    "If IT terms came up that the user seemed unfamiliar with, or the user asked to save a term as a card,",
+    "append AFTER your answer a fenced block EXACTLY like this (output it raw, do not describe it):",
+    "```nunopi-cards",
+    `[{"term":"<term>","definition":"<one-line beginner definition in ${name}>","kind":"token|concept|term"}]`,
+    "```",
+    "Block rules: only terms actually discussed in THIS conversation; at most 3; definitions grounded in what you just explained;",
+    "kind = token(a code token) | concept(a programming concept) | term(a general IT term). If there is no such term, omit the block entirely.",
     "Tutor:",
   ].join("\n");
 }
