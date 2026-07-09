@@ -82,6 +82,12 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     setPhase("session");
   }
 
+  // 커스텀 덱 시작 — cardKeys로 세션(sources 무관, deck은 placeholder "all").
+  function handleStartCustom(cardKeys: string[], mode: ReviewMode, order: CardOrder) {
+    setSession({ deck: "all", sources: [], mode, resume: false, order, categories: [], cardKeys });
+    setPhase("session");
+  }
+
   if (phase === "session" && session) {
     return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} cardKeys={session.cardKeys} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={goToCardSource} onExit={() => setPhase("select")} />;
   }
@@ -103,6 +109,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
           codeSources={codeSources}
           onCodeSourcesChange={setCodeSources}
           onStart={handleStart}
+          onStartCustom={handleStartCustom}
         />
         {/* 덱 패널 밑 부채꼴 장식 — 남는 세로 공간 채워 중앙 배치(넓은 화면만, 넘치면 클립). */}
         <div className="relative hidden min-h-0 flex-1 items-center justify-center overflow-hidden xl:flex">

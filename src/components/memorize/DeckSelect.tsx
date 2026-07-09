@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { IconCode, IconFileText, IconStack2, IconCheck } from "@tabler/icons-react";
+import { useEffect, useMemo, useState } from "react";
+import { IconCode, IconFileText, IconStack2, IconCheck, IconTrash, IconSparkles } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import { deckStats, categoryCounts, sessionCount, type CardCategory } from "@/lib/srs/due";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { deckStats, categoryCounts, sessionCount, dueCards, type CardCategory } from "@/lib/srs/due";
+import { collectCardsByKeys } from "@/lib/srs/collect";
+import { loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { findMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
@@ -29,6 +32,8 @@ interface DeckSelectProps {
   onCodeSourcesChange: (s: Set<SrsSource>) => void;
   // 선택한 덱 + 세부 출처 + 복습 모드(due/all) + 이어하기 + 카드 순서로 세션 시작.
   onStart: (deck: Deck, sources: SrsSource[], mode: "due" | "all", resume: boolean, order: CardOrder, categories: CardCategory[]) => void;
+  // 커스텀 덱(카드 key 목록)으로 세션 시작.
+  onStartCustom: (cardKeys: string[], mode: "due" | "all", order: CardOrder) => void;
 }
 
 const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
@@ -38,8 +43,17 @@ const DECK_META: { deck: Deck; tKey: string; Icon: typeof IconCode }[] = [
 ];
 
 // 덱 선택 화면 — 덱 3장(오늘 due/전체 배지) + 코드덱 세부 토글 + 시작.
-export default function DeckSelect({ deck: selected, onDeckChange, codeSources, onCodeSourcesChange, onStart }: DeckSelectProps) {
+export default function DeckSelect({ deck: selected, onDeckChange, codeSources, onCodeSourcesChange, onStart, onStartCustom }: DeckSelectProps) {
   const t = useT();
+  const confirm = useConfirm();
+  // 커스텀 덱 목록 — 생성/삭제 이벤트로 갱신.
+  const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    const load = () => setCustomDecks(loadCustomDecks());
+    load();
+    window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+  }, []);
   // 덱은 controlled(MemorizeView 소유). 나머지 옵션은 DeckSelect 내부 + localStorage 영속(lazy 초기화).
   const [mode, setModeRaw] = useState<"due" | "all">(() => {
     const m = localStorage.getItem("nunopi:mem-range");
@@ -128,6 +142,19 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
   // 진행 중 세션(이어하기) — 덱 기준(모드 무관). 저장 세션 그대로 복원한다.
   const resumeTarget = findMemSession(selected);
 
+  // 커스텀 덱별 카운트(cardKeys 기반 due/total) — 삭제된 카드 스킵.
+  const customStats = useMemo(
+    () => new Map(customDecks.map((d) => {
+      const cards = collectCardsByKeys(d.cardKeys, now);
+      return [d.id, { total: cards.length, due: dueCards(cards, now).length }];
+    })),
+    [customDecks, now],
+  );
+  async function deleteCustomDeck(d: CustomDeck) {
+    const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
+    if (ok) removeCustomDeck(d.id);
+  }
+
   return (
     <div className="flex w-full flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/30">
       <h2 className="text-center text-sm font-semibold text-zinc-700 dark:text-zinc-200">
@@ -176,6 +203,41 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
           );
         })}
       </div>
+
+      {/* 커스텀 덱(내 덱) — 있을 때만. 타일 클릭=재생, 휴지통=삭제. 현재 옵션(범위/순서) 사용. */}
+      {customDecks.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">{t("mem.customDecks")}</span>
+          {customDecks.map((d) => {
+            const cs = customStats.get(d.id) ?? { total: 0, due: 0 };
+            return (
+              <div
+                key={d.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onStartCustom(d.cardKeys, mode, order)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onStartCustom(d.cardKeys, mode, order); } }}
+                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-zinc-200 p-3 text-left transition hover:border-[#3B34E2] dark:border-zinc-800 dark:hover:border-[#3B34E2]"
+              >
+                <IconSparkles size={18} stroke={2} className="shrink-0 text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{d.name}</span>
+                <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="font-semibold text-[#3B34E2] dark:text-[#8b86f5]">{t("mem.today")} {cs.due}</span>
+                  {" · "}{t("mem.total")} {cs.total}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); void deleteCustomDeck(d); }}
+                  aria-label={t("mem.deleteDeckTitle")}
+                  className="shrink-0 rounded-lg p-1.5 text-zinc-400 transition hover:bg-rose-100 hover:text-rose-600 dark:text-zinc-500 dark:hover:bg-rose-950/40 dark:hover:text-rose-400"
+                >
+                  <IconTrash size={15} stroke={2} aria-hidden />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 옵션 — 라벨 행으로 그룹화 (헤딩 제거로 공간 확보) */}
       <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
