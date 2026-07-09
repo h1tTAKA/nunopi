@@ -127,7 +127,7 @@ export function FlyCardProvider({
       {children}
       {fly && typeof document !== "undefined" && createPortal(
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center ${!active ? "hidden" : peek ? "bg-black/75" : "pointer-events-none"}`}
+          className={`fixed inset-0 z-[70] flex items-center justify-center ${!active ? "hidden" : peek ? "bg-black/75" : "pointer-events-none"}`}
           style={{ perspective: "1200px" }}
         >
           {/* 중앙 카드(확대) — 이 카드를 클릭해야만 낙하·닫힘(배경 클릭은 무효). */}
