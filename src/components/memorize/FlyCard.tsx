@@ -181,7 +181,14 @@ export function FlyCardProvider({
                 {canGoToSource(fly.card, sourceIds) && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onGoToSource(fly.card); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const c = fly.card;
+                      // 카드발 출처는 같은 화면(갤러리)로 가므로 peek을 닫아 갤러리가 보이게.
+                      // analysis발은 다른 뷰로 전환·복귀 위해 fly 유지(active로 오버레이만 숨김).
+                      if (c.sourceKind === "card") { setFly(null); setArrived(false); setDropping(false); }
+                      onGoToSource(c);
+                    }}
                     className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
                   >
                     {t("mem.goToSource")}
