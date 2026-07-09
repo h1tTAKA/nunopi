@@ -31,7 +31,8 @@ interface CardSessionProps {
   resume?: boolean; // true면 저장된 세션 이어하기, false/없으면 새로.
   order?: CardOrder; // 새 세션 카드 제시 순서(resume은 저장 순서 유지).
   categories?: CardCategory[]; // 포함할 분류(빈 배열=전체). resume은 무시.
-  cardKeys?: string[]; // 커스텀 덱 — 있으면 sources 대신 이 key들로 세션 구성(이어하기 미지원).
+  cardKeys?: string[]; // 커스텀 덱 — 있으면 sources 대신 이 key들로 세션 구성.
+  customDeckId?: string; // 커스텀 덱 id — 세션 영속(이어하기) 키(custom:<id>)용.
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존하는 분석 히스토리 id들 — 출처 이동 버튼 노출 판별용.
@@ -51,23 +52,17 @@ const TOSS_TRANSFORM: Record<Grade, string> = {
 
 // 플립 카드 세션 — 앞(용어)→3D 뒤집기→3단계 채점. "다시"는 세션 내 재복습 라운드.
 // 채점 시 카드가 해당 더미로 toss되어 쌓인다.
-export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], cardKeys, providerId, providerSettings, sourceIds, onGoToSource, onExit }: CardSessionProps) {
+export default function CardSession({ sources, mode = "due", active = true, deck, resume = false, order = "newest", categories = [], cardKeys, customDeckId, providerId, providerSettings, sourceIds, onGoToSource, onExit }: CardSessionProps) {
   const t = useT();
   const now = useMemo(() => new Date(), []);
-  const isCustom = !!cardKeys; // 커스텀 덱 세션 — 이어하기(memSession) 미사용.
-  // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원, 아니면 fresh(due/all).
+  // 세션 영속 키 — 고정 덱은 deck, 커스텀은 custom:<id>(이어하기 지원).
+  const deckKey = customDeckId ? `custom:${customDeckId}` : deck;
+  // 마운트 시 초기 세션 구성 — resume이면 저장된 세션 복원(고정·커스텀 공통), 아니면 fresh.
   const init = useMemo(() => {
-    // 커스텀 덱 — cardKeys로 카드 구성(sources·resume 무시), mode/order 적용.
-    if (cardKeys) {
-      const base0 = collectCardsByKeys(cardKeys, now);
-      const base = mode === "all" ? base0 : dueCards(base0, now);
-      const queue = orderCards(base, order);
-      return { round: queue, idx: 0, stats: { again: 0, hard: 0, good: 0 }, reviewed: new Map<string, { card: Card; grade: Grade }>() };
-    }
-    const all = collectCards(sources, now);
-    const byKey = new Map(all.map((c) => [c.key, c]));
-    const saved = resume ? loadMemSession(deck, mode) : null;
+    // 이어하기 — roundKeys 복원용 byKey는 전체 출처 superset으로(커스텀은 sources가 비어 있으므로).
+    const saved = resume ? loadMemSession(deckKey, mode) : null;
     if (saved && saved.roundKeys.length > 0) {
+      const byKey = new Map(collectCards(["token", "concept", "term"], now).map((c) => [c.key, c]));
       const round = saved.roundKeys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
       if (round.length > 0) {
         // 이어하기 전 채점한 다시/애매 카드 복원 — 완료 화면 재복습 목록이 이번 세션 전체를 반영하게.
@@ -77,8 +72,10 @@ export default function CardSession({ sources, mode = "due", active = true, deck
         return { round, idx: Math.min(saved.idx, round.length - 1), stats: saved.stats, reviewed };
       }
     }
-    const base = mode === "all" ? all : dueCards(all, now);
-    const filtered = filterByCategory(base, new Set(categories));
+    // 새 세션 — 커스텀은 cardKeys, 고정은 sources. mode/order 적용(커스텀은 category 필터 없음).
+    const base0 = cardKeys ? collectCardsByKeys(cardKeys, now) : collectCards(sources, now);
+    const base = mode === "all" ? base0 : dueCards(base0, now);
+    const filtered = cardKeys ? base : filterByCategory(base, new Set(categories));
     const queue = orderCards(filtered, order);
     return { round: queue, idx: 0, stats: { again: 0, hard: 0, good: 0 }, reviewed: new Map<string, { card: Card; grade: Grade }>() };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,17 +103,15 @@ export default function CardSession({ sources, mode = "due", active = true, deck
   const tossTimer = useRef<number | null>(null);
   useEffect(() => () => { if (tossTimer.current) window.clearTimeout(tossTimer.current); }, []);
 
-  // 진행 상태 영속 — 완료면 삭제, 아니면 현재 라운드/위치/통계 저장(채점마다 갱신).
-  // 커스텀 덱(isCustom)은 deck×mode 키와 안 맞아 이어하기 미지원 → 영속 스킵.
+  // 진행 상태 영속 — 완료면 삭제, 아니면 현재 라운드/위치/통계 저장(채점마다 갱신). deckKey(고정/커스텀 공통).
   useEffect(() => {
-    if (isCustom) return;
     if (done) {
-      clearMemSession(deck, mode);
+      clearMemSession(deckKey, mode);
       return;
     }
     // 채점된 카드의 최악 등급도 저장 — 이어하기 후 완료 화면 재복습 목록이 세션 전체를 반영.
     const reviewed = [...reviewedRef.current.values()];
-    saveMemSession(deck, mode, {
+    saveMemSession(deckKey, mode, {
       sources,
       roundKeys: round.map((c) => c.key),
       idx,
@@ -125,7 +120,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
       reviewedHard: reviewed.filter((x) => x.grade === "hard").map((x) => x.card.key),
       savedAt: now.toISOString(),
     });
-  }, [isCustom, done, round, idx, stats, deck, mode, sources, now]);
+  }, [done, round, idx, stats, deckKey, mode, sources, now]);
 
   const card = round[idx];
 
