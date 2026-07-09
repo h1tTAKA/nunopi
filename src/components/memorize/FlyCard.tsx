@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { IconExternalLink } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import type { Card } from "@/lib/srs/types";
+import { canGoToSource } from "@/lib/srs/cardSource";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
 import MemorizeChat from "./MemorizeChat";
@@ -50,7 +51,7 @@ export function FlyCardProvider({
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   sourceIds: Set<string>; // 현존 분석 히스토리 id — 출처 이동 버튼 노출 판별
-  onGoToSource: (sourceId: string) => void; // 카드 출처(분석)로 화면 전환
+  onGoToSource: (card: Card) => void; // 카드 출처로 이동(종류별 분기는 상위에서)
   children: React.ReactNode;
 }) {
   const t = useT();
@@ -155,7 +156,7 @@ export function FlyCardProvider({
             <>
               {/* 왼쪽 — 추가설명 패널(있으면 캐시, 없으면 생성) */}
               <div
-                className="absolute left-6 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
+                className="absolute left-20 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
                 onClick={(e) => e.stopPropagation()}
               >
                 <CardExplainPanel card={fly.card} providerId={providerId} flipped />
@@ -163,7 +164,7 @@ export function FlyCardProvider({
 
               {/* 우상단 — 카드 정보 패널 + 암기 단계(플래시카드 세션과 동일 스택) */}
               <div
-                className="absolute right-6 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
+                className="absolute right-20 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
                 onClick={(e) => e.stopPropagation()}
               >
                 <CardInfoPanel card={fly.card} />
@@ -177,10 +178,17 @@ export function FlyCardProvider({
 
               {/* 하단 — 출처로 이동(존재할 때만) + 안내 */}
               <div className="absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2">
-                {!!fly.card.sourceId && sourceIds.has(fly.card.sourceId) && (
+                {canGoToSource(fly.card, sourceIds) && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); onGoToSource(fly.card.sourceId!); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const c = fly.card;
+                      // 카드발 출처는 같은 화면(갤러리)로 가므로 peek을 닫아 갤러리가 보이게.
+                      // analysis발은 다른 뷰로 전환·복귀 위해 fly 유지(active로 오버레이만 숨김).
+                      if (c.sourceKind === "card") { setFly(null); setArrived(false); setDropping(false); }
+                      onGoToSource(c);
+                    }}
                     className="flex cursor-pointer items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 transition hover:bg-white/20"
                   >
                     {t("mem.goToSource")}

@@ -9,7 +9,7 @@ import MemorizeStats from "./MemorizeStats";
 import DeckFan from "./DeckFan";
 import { FlyCardProvider } from "./FlyCard";
 import AllCardsModal from "./AllCardsModal";
-import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
+import { DECK_SOURCES, type Card, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 import { collectCards } from "@/lib/srs/collect";
 import { type CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -18,10 +18,25 @@ type MemPhase = "select" | "session";
 type ReviewMode = "due" | "all";
 
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
-export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string) => void }) {
+export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string, sessionId?: string) => void }) {
   const t = useT();
   const [phase, setPhase] = useState<MemPhase>("select");
   const [showAllCards, setShowAllCards] = useState(false);
+  const [autoThrowKey, setAutoThrowKey] = useState<string | undefined>(undefined);
+
+  // 카드 "출처로 이동" — 출처 종류별 분기. analysis=분석+챗세션 복원(부모),
+  // card=전체 카드 보기 열고 생성처 카드를 바로 띄운다(peek).
+  function goToCardSource(card: Card) {
+    if (card.sourceKind === "card" && card.originCardKey) {
+      setPhase("select"); // 세션 중이면 선택 화면으로 나와 갤러리 표시
+      setAutoThrowKey(card.originCardKey);
+      setShowAllCards(true);
+    } else if (card.sourceId) {
+      // 분석발 — 다른 뷰(코드/글)로 전환만. 갤러리는 열린 채 두고(active=false로 자동 숨김),
+      // 암기로 돌아오면 갤러리 그대로 복귀. (닫으면 상태 유실)
+      onGoToSource(card.sourceId, card.sourceSessionId);
+    }
+  }
   const [session, setSession] = useState<{ deck: Deck; sources: SrsSource[]; mode: ReviewMode; resume: boolean; order: CardOrder; categories: CardCategory[] } | null>(null);
   // 덱/세부출처는 여기서 소유 — 왼쪽 통계 패널과 오른쪽 DeckSelect가 실시간 공유(controlled).
   // typeof window 가드: 마운트 게이트로 서버엔 안 그려지지만 useState 초기화는 서버서도 실행됨.
@@ -68,13 +83,13 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   }
 
   if (phase === "session" && session) {
-    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={onGoToSource} onExit={() => setPhase("select")} />;
+    return <CardSession active={active} deck={session.deck} resume={session.resume} order={session.order} categories={session.categories} sources={session.sources} mode={session.mode} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={goToCardSource} onExit={() => setPhase("select")} />;
   }
 
   // 덱 선택 — 우측 패널 + 왼쪽 학습 통계(xl+). 덱/출처를 공유해 통계가 선택 덱 따라 실시간.
   // FlyCardProvider로 감싸 DeckFan·MemorizeInsights가 같은 카드 던지기 연출을 공유.
   return (
-    <FlyCardProvider active={active} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={onGoToSource}>
+    <FlyCardProvider active={active} providerId={providerId} providerSettings={providerSettings} sourceIds={sourceIds} onGoToSource={goToCardSource}>
     <div className="flex h-full w-full items-stretch justify-center gap-8 overflow-hidden px-8 py-6">
       {/* 왼쪽: 학습 통계 (선택 덱 실시간) — 남는 폭 전부, 상단 정렬(오른쪽 덱 패널과 top 맞춤) */}
       <div className="hidden min-h-0 flex-1 flex-col justify-start xl:flex">
@@ -104,7 +119,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         </div>
       </div>
     </div>
-    {showAllCards && <AllCardsModal now={now} onClose={() => setShowAllCards(false)} />}
+    {showAllCards && <AllCardsModal now={now} active={active} autoThrowCardKey={autoThrowKey} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); }} />}
     </FlyCardProvider>
   );
 }

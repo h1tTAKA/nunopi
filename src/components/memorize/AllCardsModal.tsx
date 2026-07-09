@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconX, IconSearch } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
@@ -45,7 +46,7 @@ const CAT_DOT: Record<CardCategory, string> = {
 };
 
 // 전체 보유 카드 갤러리 — 검색·출처/분류 필터·정렬. 타일 클릭 시 카드가 날아온다(peek 재사용).
-export default function AllCardsModal({ now, onClose }: { now: Date; onClose: () => void }) {
+export default function AllCardsModal({ now, active = true, autoThrowCardKey, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; onClose: () => void }) {
   const t = useT();
   const { throwCard } = useFlyCard();
   const [q, setQ] = useState("");
@@ -53,7 +54,25 @@ export default function AllCardsModal({ now, onClose }: { now: Date; onClose: ()
   const [cat, setCat] = useState<CatFilter>("all");
   const [sort, setSort] = useState<Sort>("recent");
 
-  const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
+  // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => {
+    const onChange = () => setNonce((n) => n + 1);
+    window.addEventListener(CARDS_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, onChange);
+  }, []);
+  // nonce는 localStorage 재수집 트리거(collectCards는 순수하지 않음) — 의도된 deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now, nonce]);
+
+  // 출처로 이동(카드발) — 갤러리 열면서 생성처 카드를 바로 띄운다(peek). 마운트 시 1회.
+  const threw = useRef(false);
+  useEffect(() => {
+    if (threw.current || !autoThrowCardKey) return;
+    threw.current = true;
+    const origin = all.find((c) => c.key === autoThrowCardKey);
+    if (origin) throwCard(origin);
+  }, [autoThrowCardKey, all, throwCard]);
 
   const cards = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -74,7 +93,7 @@ export default function AllCardsModal({ now, onClose }: { now: Date; onClose: ()
   }, [all, q, source, cat, sort]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95">
+    <div className={`fixed inset-x-0 bottom-0 top-14 z-[60] flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95 ${active ? "flex" : "hidden"}`}>
       {/* 헤더 — 제목 + 검색 + 닫기 */}
       <div className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
         <h2 className="shrink-0 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
