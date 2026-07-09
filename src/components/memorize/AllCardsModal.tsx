@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
+import { deleteCard } from "@/lib/srs/deleteCard";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
@@ -48,11 +50,15 @@ const CAT_DOT: Record<CardCategory, string> = {
 // 전체 보유 카드 갤러리 — 검색·출처/분류 필터·정렬. 타일 클릭 시 카드가 날아온다(peek 재사용).
 export default function AllCardsModal({ now, active = true, autoThrowCardKey, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; onClose: () => void }) {
   const t = useT();
+  const confirm = useConfirm();
   const { throwCard } = useFlyCard();
   const [q, setQ] = useState("");
   const [source, setSource] = useState<SourceFilter>("all");
   const [cat, setCat] = useState<CatFilter>("all");
   const [sort, setSort] = useState<Sort>("recent");
+  // 선택 삭제 모드 — 켜면 타일 클릭이 throw 대신 선택 토글.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -92,6 +98,30 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
     return arr;
   }, [all, q, source, cat, sort]);
 
+  function toggleSelect(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+  function exitSelect() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+  async function deleteSelected() {
+    if (selected.size === 0) return;
+    const ok = await confirm({
+      title: t("mem.deleteCardTitle"),
+      message: t("mem.deleteCardMsgN").replace("{n}", String(selected.size)),
+      confirmText: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
+    all.filter((c) => selected.has(c.key)).forEach(deleteCard); // CARDS_CHANGED_EVENT → nonce 재수집
+    exitSelect();
+  }
+
   return createPortal(
     <div className={`fixed inset-x-0 bottom-0 top-14 z-[60] flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95 ${active ? "flex" : "hidden"}`}>
       {/* 헤더 — 제목 + 검색 + 닫기 */}
@@ -109,22 +139,53 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
           />
         </div>
         <div className="flex-1" />
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-        >
-          {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
-        </select>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("mem.exit")}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-        >
-          <IconX size={15} stroke={2} aria-hidden />
-          {t("mem.exit")}
-        </button>
+        {selectMode ? (
+          <>
+            <button
+              type="button"
+              onClick={() => { void deleteSelected(); }}
+              disabled={selected.size === 0}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <IconTrash size={15} stroke={2} aria-hidden />
+              {t("mem.deleteN").replace("{n}", String(selected.size))}
+            </button>
+            <button
+              type="button"
+              onClick={exitSelect}
+              className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              {t("confirm.cancel")}
+            </button>
+          </>
+        ) : (
+          <>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+            >
+              {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <IconSquareCheck size={15} stroke={2} aria-hidden />
+              {t("mem.select")}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t("mem.exit")}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <IconX size={15} stroke={2} aria-hidden />
+              {t("mem.exit")}
+            </button>
+          </>
+        )}
       </div>
 
       {/* 필터 칩 — 출처 + 분류 */}
@@ -151,7 +212,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
         ) : (
           <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}>
             {cards.map((c) => (
-              <CardTile key={c.key} card={c} reviews={c.state.reviews ?? 0} onThrow={throwCard} t={t} />
+              <CardTile
+                key={c.key}
+                card={c}
+                reviews={c.state.reviews ?? 0}
+                selectMode={selectMode}
+                selected={selected.has(c.key)}
+                onToggle={() => toggleSelect(c.key)}
+                onThrow={throwCard}
+                t={t}
+              />
             ))}
           </div>
         )}
@@ -178,16 +248,24 @@ function Chip({ on, onClick, label, dot }: { on: boolean; onClick: () => void; l
 }
 
 // 게임 카드팩 느낌의 미니 타일 — 흰 포커카드 + 용어 + 출처 배지 + 분류 점 + 복습 수.
-function CardTile({ card, reviews, onThrow, t }: { card: Card; reviews: number; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
+function CardTile({ card, reviews, selectMode, selected, onToggle, onThrow, t }: { card: Card; reviews: number; selectMode: boolean; selected: boolean; onToggle: () => void; onThrow: (c: Card, r?: DOMRect) => void; t: (k: string) => string }) {
   const SRC_LABEL: Record<Card["source"], string> = { token: "mem.srcToken", concept: "mem.srcConcept", term: "mem.srcTerm" };
   return (
     <button
       type="button"
-      onClick={(e) => onThrow(card, e.currentTarget.getBoundingClientRect())}
-      className="group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700"
+      onClick={(e) => (selectMode ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
+      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
+        selectMode && selected ? "border-rose-500 ring-2 ring-rose-500" : "border-zinc-200"
+      }`}
     >
       <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/50" />
       <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
+      {/* 선택 모드 체크 표시 */}
+      {selectMode && (
+        <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? "border-rose-500 bg-rose-500 text-white" : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
+          {selected && <IconCheck size={12} stroke={3} aria-hidden />}
+        </span>
+      )}
       {/* 상단 배지 — 출처 + 분류 점 */}
       <span className="absolute left-2 top-2 flex items-center gap-1">
         <span className={`h-2 w-2 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
