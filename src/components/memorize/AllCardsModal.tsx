@@ -83,7 +83,7 @@ export default function AllCardsModal({ now, autoThrowCardKey, onClose }: { now:
   }, [all, q, source, cat, sort]);
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95">
+    <div className="fixed inset-x-0 bottom-0 top-14 z-[60] flex flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95">
       {/* 헤더 — 제목 + 검색 + 닫기 */}
       <div className="flex items-center gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
         <h2 className="shrink-0 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
