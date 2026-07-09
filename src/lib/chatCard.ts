@@ -7,6 +7,12 @@ import {
 } from "./bookmarkDetails";
 import type { SuggestKind } from "./cardSuggestion";
 
+// 카드가 생성/변경됐음을 알리는 앱 내 이벤트 — 열려 있는 갤러리 등이 재수집하도록.
+export const CARDS_CHANGED_EVENT = "nunopi:cards-changed";
+function notifyCardsChanged() {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+}
+
 // 이미 있는 카드면 건드리지 않는다(기존 출처/설명 보존). 반환: 새로 만들었으면 true.
 export function createChatCard(
   kind: SuggestKind,
@@ -22,15 +28,18 @@ export function createChatCard(
     if (loadTokenDetails()[t]) return false;
     // 챗 생성 토큰 — 최소 필드(category는 기본 keyword). collectCards는 token/description만 사용.
     saveTokenDetail({ id: `chat:${t}`, token: t, category: "keyword", label: t, description: definition, lines: [], bookmarkable: true }, sourceTitle, sourceId, extra);
+    notifyCardsChanged();
     return true;
   }
   if (kind === "term") {
     if (loadTermDetails()[t]) return false;
     saveTermDetail({ id: `chat:${t}`, term: t, explanation: definition, conceptIds: [], bookmarkable: true }, sourceTitle, sourceId, extra);
+    notifyCardsChanged();
     return true;
   }
   // concept — 키 = title.
   if (loadConceptDetails()[t]) return false;
   saveConceptDetail({ conceptId: `chat:${t}`, title: t, description: definition }, sourceTitle, sourceId, extra);
+  notifyCardsChanged();
   return true;
 }

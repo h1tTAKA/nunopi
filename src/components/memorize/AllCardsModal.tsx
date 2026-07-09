@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/I18nProvider";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useFlyCard } from "./FlyCard";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
@@ -53,7 +54,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   const [cat, setCat] = useState<CatFilter>("all");
   const [sort, setSort] = useState<Sort>("recent");
 
-  const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
+  // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => {
+    const onChange = () => setNonce((n) => n + 1);
+    window.addEventListener(CARDS_CHANGED_EVENT, onChange);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, onChange);
+  }, []);
+  // nonce는 localStorage 재수집 트리거(collectCards는 순수하지 않음) — 의도된 deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now, nonce]);
 
   // 출처로 이동(카드발) — 갤러리 열면서 생성처 카드를 바로 띄운다(peek). 마운트 시 1회.
   const threw = useRef(false);
