@@ -138,7 +138,7 @@ export default function AgentDeckModal({
     <div className="absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm">
       {/* 좌: 선별 카드 프리뷰(stagger) */}
       <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
-        <div className="flex items-center gap-2 border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
+        <div className="flex h-14 shrink-0 items-center gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
           <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.agentDeckSelected")}</span>
           {finalCards.length > 0 && <span className="text-xs text-zinc-400 dark:text-zinc-500">{finalCards.length}</span>}
           {selected.length > 0 && <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</span>}
@@ -183,7 +183,7 @@ export default function AgentDeckModal({
 
       {/* 우: 대화형 프롬프트 */}
       <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
-        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
             <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.agentDeckTitle")}
           </span>
