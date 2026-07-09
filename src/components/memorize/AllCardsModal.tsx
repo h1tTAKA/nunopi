@@ -100,10 +100,11 @@ export default function AllCardsModal({ now, onClose }: { now: Date; onClose: ()
         <button
           type="button"
           onClick={onClose}
-          aria-label={t("common.close")}
-          className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          aria-label={t("mem.exit")}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
         >
-          <IconX size={18} stroke={2} aria-hidden />
+          <IconX size={15} stroke={2} aria-hidden />
+          {t("mem.exit")}
         </button>
       </div>
 
