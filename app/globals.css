@@ -119,6 +119,16 @@ samp {
 
 /* 스크롤바 완전 숨김 — 가로 스크롤되는 세션 탭바 등(스크롤은 되되 바는 안 보임). */
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* 항상 보이는 스크롤바 — 트랙까지 보여 스크롤 가능 영역임을 인지시킴(내 덱 목록 등). */
+.deck-scroll { scrollbar-width: thin; scrollbar-color: rgba(113,113,122,0.6) rgba(113,113,122,0.15); }
+.deck-scroll::-webkit-scrollbar { width: 10px; }
+.deck-scroll::-webkit-scrollbar-track { background: rgba(113,113,122,0.15); border-radius: 9999px; }
+.deck-scroll::-webkit-scrollbar-thumb { background: rgba(113,113,122,0.6); border-radius: 9999px; min-height: 24px; }
+.deck-scroll::-webkit-scrollbar-thumb:hover { background: rgba(113,113,122,0.85); }
+.dark .deck-scroll { scrollbar-color: rgba(161,161,170,0.55) rgba(161,161,170,0.15); }
+.dark .deck-scroll::-webkit-scrollbar-track { background: rgba(161,161,170,0.12); }
+.dark .deck-scroll::-webkit-scrollbar-thumb { background: rgba(161,161,170,0.55); }
 .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
