@@ -156,7 +156,7 @@ export function FlyCardProvider({
             <>
               {/* 왼쪽 — 추가설명 패널(있으면 캐시, 없으면 생성) */}
               <div
-                className="absolute left-6 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
+                className="absolute left-12 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
                 onClick={(e) => e.stopPropagation()}
               >
                 <CardExplainPanel card={fly.card} providerId={providerId} flipped />
@@ -164,7 +164,7 @@ export function FlyCardProvider({
 
               {/* 우상단 — 카드 정보 패널 + 암기 단계(플래시카드 세션과 동일 스택) */}
               <div
-                className="absolute right-6 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
+                className="absolute right-12 top-16 hidden w-56 flex-col gap-2 cursor-auto xl:flex"
                 onClick={(e) => e.stopPropagation()}
               >
                 <CardInfoPanel card={fly.card} />
