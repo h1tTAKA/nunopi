@@ -146,10 +146,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setDeckName("");
     setAddTarget(null);
   }
-  // 선택 카드를 대상 덱에 병합(중복 제외). 결과 팝업 표시 후 모드 종료.
-  function addSelectedToDeck() {
+  // 선택 카드를 대상 덱에 병합(중복 제외) — 확인 모달 후. 결과 팝업 표시 후 모드 종료.
+  async function addSelectedToDeck() {
     if (selected.size === 0 || !addTarget) return;
     const target = customDecks.find((d) => d.id === addTarget);
+    const ok = await confirm({
+      title: t("mem.addToDeckConfirmTitle"),
+      message: t("mem.addToDeckConfirmMsg").replace("{deck}", target?.name ?? "").replace("{n}", String(selected.size)),
+      confirmText: t("mem.addToDeckConfirmYes"),
+    });
+    if (!ok) return; // 취소 시 선택 유지
     const { added, skipped } = addCardsToDeck(addTarget, [...selected]);
     setAddResult({ deckName: target?.name ?? "", added, skipped });
     exitAll();
@@ -216,7 +222,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 </select>
                 <button
                   type="button"
-                  onClick={addSelectedToDeck}
+                  onClick={() => { void addSelectedToDeck(); }}
                   disabled={selected.size === 0 || !addTarget}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
                 >
