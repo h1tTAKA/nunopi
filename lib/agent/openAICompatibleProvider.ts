@@ -29,7 +29,8 @@ interface OpenAICompatibleRequestBody {
 }
 
 interface OpenAIStreamChunk {
-  choices?: Array<{ delta?: { content?: string } }>;
+  // reasoning_content: 추론 모델(o-series/deepseek 등)이 답변과 별도로 흘리는 사고 델타.
+  choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
@@ -86,6 +87,7 @@ export const openAICompatibleProvider: AgentProvider = {
       requestBody,
       options?.signal,
       options?.onProgress,
+      options?.onThinking,
     );
   },
 };
@@ -192,6 +194,7 @@ async function fetchOpenAICompatibleResponse(
   requestBody: OpenAICompatibleRequestBody,
   signal?: AbortSignal,
   onProgress?: (line: string) => void,
+  onThinking?: (line: string) => void,
 ): Promise<AgentAnalyzeResponse> {
   const endpoint = `${config.baseUrl}/chat/completions`;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -241,6 +244,7 @@ async function fetchOpenAICompatibleResponse(
 
     // SSE 스트림 파싱 — data: {json} 라인마다 delta.content를 누적하고 흘린다.
     let content = "";
+    let reasoning = ""; // 추론(reasoning_content) 누적 — 대기 활동 표시용
     let rawAll = ""; // 전체 본문 — stream:true를 무시한 엔드포인트 폴백용
     let usage: AgentUsage | undefined;
     if (res.body) {
@@ -271,6 +275,11 @@ async function fetchOpenAICompatibleResponse(
             content += delta;
             // 챗은 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
             onProgress?.(request.mode === "chat" ? content : content.slice(-200));
+          }
+          const rdelta = chunk.choices?.[0]?.delta?.reasoning_content;
+          if (typeof rdelta === "string" && rdelta) {
+            reasoning += rdelta;
+            onThinking?.(reasoning);
           }
           if (chunk.usage) {
             usage = {

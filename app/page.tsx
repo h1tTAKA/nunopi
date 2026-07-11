@@ -38,6 +38,7 @@ const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
 type AnalyzeStreamEvent =
   | { type: "progress"; line: string }
+  | { type: "thinking"; line: string }
   | { type: "partial"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }
   | { type: "chunk-progress"; done: number; total: number }
   | { type: "result"; providerId: AgentProviderKind; response: AgentAnalyzeResponse }

@@ -12,7 +12,7 @@ import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
-type StreamEvent = { type: "progress"; line: string } | { type: "result"; response: { summary: string } } | { type: "error"; message: string };
+type StreamEvent = { type: "progress"; line: string } | { type: "thinking"; line: string } | { type: "result"; response: { summary: string } } | { type: "error"; message: string };
 
 // 제안 덱마다 안정적 유니크 id — 재제안(덱 수 변동) 시 React key 재사용 방지.
 let deckIdSeq = 0;
@@ -51,7 +51,8 @@ export default function AgentDeckModal({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [streaming, setStreaming] = useState<string | null>(null); // 실시간 타이핑 텍스트
+  const [streaming, setStreaming] = useState<string | null>(null); // 실시간 타이핑 텍스트(답변)
+  const [thinking, setThinking] = useState(""); // 실시간 추론(사고 과정) — 답변 전 대기 구간 활동
   const [decks, setDecks] = useState<ProposalDeck[]>([]);
   const [reveal, setReveal] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -60,7 +61,7 @@ export default function AgentDeckModal({
   // 대화/로딩 갱신 시 맨 아래로.
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [messages, loading, streaming]);
+  }, [messages, loading, streaming, thinking]);
 
   const totalCards = useMemo(() => decks.reduce((n, d) => n + d.cards.length, 0), [decks]);
 
@@ -88,6 +89,7 @@ export default function AgentDeckModal({
     setInput("");
     setLoading(true);
     setStreaming("");
+    setThinking("");
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
@@ -118,6 +120,7 @@ export default function AgentDeckModal({
               const ev = JSON.parse(l) as StreamEvent;
               // codex는 진행 라벨만 흘리므로 타이핑에 안 씀(claude/openai만 전체 답 스트림).
               if (ev.type === "progress" && providerId !== "codex-agent") setStreaming(ev.line);
+              else if (ev.type === "thinking") setThinking(ev.line); // 추론 — 대기 구간 활동 표시
               else if (ev.type === "result") answer = ev.response.summary;
             } catch { /* skip */ }
           }
@@ -139,7 +142,7 @@ export default function AgentDeckModal({
     } catch {
       if (!ac.signal.aborted) setMessages([...thread, { role: "assistant", content: t("mem.agentDeckNone") }]);
     } finally {
-      if (!ac.signal.aborted) { setLoading(false); setStreaming(null); }
+      if (!ac.signal.aborted) { setLoading(false); setStreaming(null); setThinking(""); }
     }
   }
 
@@ -334,9 +337,27 @@ export default function AgentDeckModal({
             ),
           )}
           {streaming != null && (
-            <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-              {streaming ? <Markdown>{stripDeckSelectStreaming(streaming)}</Markdown> : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
-            </div>
+            streaming ? (
+              // 답변 스트리밍(claude/openai)
+              <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                <Markdown>{stripDeckSelectStreaming(streaming)}</Markdown>
+              </div>
+            ) : thinking ? (
+              // 답변 전 추론 활동 — "생각 중" + 실시간 사고 과정(dim, 최근 부분만)
+              <div className="max-w-[90%] self-start rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700/60 dark:bg-zinc-800/50">
+                <span className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#3B34E2] dark:text-[#8b86f5]">
+                  <IconSparkles size={13} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
+                  {t("mem.agentThinking")}
+                </span>
+                <p className="max-h-24 overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">
+                  {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
+                </p>
+              </div>
+            ) : (
+              <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
+                <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>
+              </div>
+            )
           )}
         </div>
         {/* 입력 */}

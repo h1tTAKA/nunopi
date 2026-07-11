@@ -87,7 +87,7 @@ export async function POST(
   const providerId = parsedRequest.providerId;
 
   // 진행 상황을 실시간으로 흘리기 위해 NDJSON(줄마다 JSON 1개) 스트림으로 응답한다.
-  // 이벤트: {type:"progress",line} | {type:"result",providerId,response} | {type:"error",message}
+  // 이벤트: {type:"progress",line} | {type:"thinking",line} | {type:"result",providerId,response} | {type:"error",message}
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -105,6 +105,8 @@ export async function POST(
         const callOptions = {
           signal: request.signal,
           onProgress: (line: string) => send({ type: "progress", line }),
+          // 모델 추론(thinking) 누적 — 답변과 별개로 흘려 대기 구간 활동 표시.
+          onThinking: (line: string) => send({ type: "thinking", line }),
           // 청크 분석 부분 결과 — 도착하는 족족 클라에 흘려 점진 표시.
           onPartial: (partial: AgentAnalyzeResponse) =>
             send({ type: "partial", providerId, response: partial }),
