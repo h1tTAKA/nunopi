@@ -8,22 +8,35 @@ export interface DeckProposal {
   keys: string[];
 }
 
-// 보유 카드 목록 + 에이전트 역할/규칙 → chat의 code(맥락) 슬롯에 넣는다.
-export function buildDeckSelectContext(cards: Card[]): string {
+// 이미 만들어진 커스텀 덱(겹침 회피 참고용).
+export interface ExistingDeck {
+  name: string;
+  cardKeys: string[];
+}
+
+// 보유 카드 목록 + 기존 덱 + 에이전트 역할/규칙 → chat의 code(맥락) 슬롯에 넣는다.
+export function buildDeckSelectContext(cards: Card[], existingDecks: ExistingDeck[] = []): string {
   const list = cards
     .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 120)}`)
     .join("\n");
+  const deckLines = existingDecks.length > 0
+    ? existingDecks.map((d) => `- ${d.name} (${d.cardKeys.length}장): ${d.cardKeys.join(", ")}`).join("\n")
+    : "(없음)";
   return [
     "너는 사용자의 플래시카드 '덱' 구성을 돕는 조수다. 아래는 사용자가 보유한 카드 전체 목록이다.",
     "사용자와 자유롭게 대화하며 어떤 기준으로 덱을 나누면 좋을지 제안·상담할 수 있다.",
     "사용자가 덱을 만들고 싶어 하면(예: '타입스크립트 덱 만들어줘'), 하나 또는 여러 개의 덱으로 나눠",
     "각 덱에 알맞은 제목을 붙이고, 그 덱에 맞는 카드의 key들을 답변 맨 끝에 아래 형식 블록으로 출력한다",
     "(덱을 실제로 구성할 때만). 주제가 넓으면 여러 덱으로 쪼개도 좋다.",
+    "아래 '이미 만들어진 덱'을 참고해, 사용자가 '기존과 겹치지 않게'라고 하면 이미 있는 덱·카드와 중복되지 않게 제안하라(되묻지 말고 바로 제안).",
     "★ 중요: 덱이 여러 개여도 반드시 ```deck-select``` 블록 **하나**에 모든 덱을 배열로 담아라(덱마다 블록을 따로 만들지 마라):",
     "```deck-select",
     '[{"name": "덱 제목", "keys": ["source:term", "source:term"]}, {"name": "다른 덱", "keys": ["source:term"]}]',
     "```",
     "key는 아래 목록의 key를 그대로 사용. 단순 상담·제안 답변에는 블록을 넣지 마라.",
+    "",
+    "이미 만들어진 덱(겹치지 않게 제안할 때 참고):",
+    deckLines,
     "",
     "보유 카드 (key | 용어 | 설명):",
     list,

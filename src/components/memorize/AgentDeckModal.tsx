@@ -5,7 +5,7 @@ import { IconSparkles, IconX, IconSend2, IconCheck, IconMinus, IconEye } from "@
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
-import { addCustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { useFlyCard } from "./FlyCard";
@@ -46,7 +46,18 @@ export default function AgentDeckModal({
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
-  const context = useMemo(() => buildDeckSelectContext(all), [all]);
+  // 기존 커스텀 덱 — 에이전트가 겹치지 않게 제안하도록 컨텍스트에 주입. 모달 중 변경 시 갱신.
+  const [existingDecks, setExistingDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    const load = () => setExistingDecks(loadCustomDecks());
+    load();
+    window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
+  }, []);
+  const context = useMemo(
+    () => buildDeckSelectContext(all, existingDecks.map((d) => ({ name: d.name, cardKeys: d.cardKeys }))),
+    [all, existingDecks],
+  );
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
