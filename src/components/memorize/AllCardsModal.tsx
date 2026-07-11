@@ -60,6 +60,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   const [source, setSource] = useState<SourceFilter>("all");
   const [cat, setCat] = useState<CatFilter>("all");
   const [sort, setSort] = useState<Sort>("recent");
+  // 한 줄 카드 수(0 = auto-fill). localStorage 영속.
+  const [cols, setColsRaw] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const n = Number(localStorage.getItem("nunopi:mem-gallery-cols"));
+    return [0, 4, 6, 8, 10].includes(n) ? n : 0;
+  });
+  function setCols(n: number) {
+    setColsRaw(n);
+    try { localStorage.setItem("nunopi:mem-gallery-cols", String(n)); } catch { /* ignore */ }
+  }
   // 선택 삭제 모드 — 켜면 타일 클릭이 throw 대신 선택 토글.
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -222,13 +232,22 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             className="w-full rounded-lg border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           />
         </div>
-        {/* 뷰 컨트롤 — 정렬(검색창 오른쪽). 모든 모드에서 노출. */}
+        {/* 뷰 컨트롤 — 정렬 + 한 줄 카드 수(검색창 오른쪽). 모든 모드에서 노출. */}
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
           className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
         >
           {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
+        </select>
+        <select
+          value={cols}
+          onChange={(e) => setCols(Number(e.target.value))}
+          title={t("mem.perRow")}
+          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          <option value={0}>{t("mem.perRowAuto")}</option>
+          {[4, 6, 8, 10].map((n) => <option key={n} value={n}>{t("mem.perRowN").replace("{n}", String(n))}</option>)}
         </select>
         <div className="flex-1" />
         {selectMode ? (
@@ -398,7 +417,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {t("mem.noCardsFound")}
           </div>
         ) : (
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: cols > 0 ? `repeat(${cols}, minmax(0, 1fr))` : "repeat(auto-fill, minmax(9rem, 1fr))" }}>
             {cards.map((c) => (
               <CardTile
                 key={c.key}
