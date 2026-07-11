@@ -238,10 +238,10 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 <select
                   value={addTarget ?? ""}
                   onChange={(e) => setAddTarget(e.target.value || null)}
-                  className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                  className={`shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 ${addTarget ? "text-zinc-700 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}
                 >
                   <option value="" disabled>{t("mem.addToDeckSelect")}</option>
-                  {addableDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {addableDecks.map((d) => <option key={d.id} value={d.id} className="text-zinc-700 dark:text-zinc-200">{d.name}</option>)}
                 </select>
                 <button
                   type="button"
