@@ -5,7 +5,7 @@ import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { loadCardExplain } from "@/lib/cardExplain";
-import { loadCardChat, saveCardChat } from "@/lib/cardChat";
+import { loadCardChat, saveCardChat, CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -15,6 +15,8 @@ interface MemorizeChatProps {
   card: Card;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  onOpenChange?: (open: boolean) => void; // 열림 상태 알림(확대 모달 레이아웃 조정용)
+  expanded?: boolean; // 확대 모달 내 — 패널 크게 + 세로 중앙 정렬(모달과 나란히)
 }
 
 type StreamEvent =
@@ -25,10 +27,14 @@ type StreamEvent =
 
 // 암기 카드 우하단 챗 — 현재 카드(용어) 스코프 로컬 단일 스레드(히스토리 미저장).
 // 코드/글 모드 챗은 좌하단, 암기는 우하단(대칭). ChatRoom UI 재사용.
-export default function MemorizeChat({ card, providerId, providerSettings }: MemorizeChatProps) {
+export default function MemorizeChat({ card, providerId, providerSettings, onOpenChange, expanded = false }: MemorizeChatProps) {
   const t = useT();
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
+  // 열림 변화 알림(확대 모달 레이아웃용) — updater가 아닌 effect에서(렌더 중 부모 setState 금지).
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,6 +51,14 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
     /* eslint-enable react-hooks/set-state-in-effect */
     return () => abortRef.current?.abort();
   }, [card.key]);
+
+  // 같은 카드의 다른 인스턴스(확대 모달 챗↔뒤 peek 챗)가 저장하면 스레드 재로드로 동기화(유실 방지).
+  // 스트리밍/로딩 중엔 진행 중 대화를 덮지 않도록 스킵.
+  useEffect(() => {
+    const sync = () => { if (!loading && streaming == null) setMessages(loadCardChat(card.key)); };
+    window.addEventListener(CARD_CHAT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(CARD_CHAT_CHANGED_EVENT, sync);
+  }, [card.key, loading, streaming]);
 
   function handleClear() {
     abortRef.current?.abort();
@@ -168,9 +182,9 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
         {open ? <IconX size={20} stroke={2} aria-hidden /> : <IconMessageCircle size={20} stroke={2} aria-hidden />}
       </button>
 
-      {/* 우하단 챗 패널 */}
+      {/* 우하단 챗 패널 — expanded면 크게 + 세로 중앙(확대 모달과 나란히) */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-30 flex h-[61vh] w-[30rem] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
+        <div className={`fixed z-30 flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d] ${expanded ? "right-8 top-1/2 h-[85vh] w-[34rem] -translate-y-1/2 md:right-12" : "bottom-24 right-6 h-[61vh] w-[30rem]"}`}>
           <ChatRoom
             messages={messages}
             streaming={streaming}
@@ -179,6 +193,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
             onSend={handleSend}
             onClear={handleClear}
             onCardAction={handleCardAction}
+            large={expanded}
           />
         </div>
       )}

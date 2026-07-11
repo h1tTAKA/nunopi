@@ -173,7 +173,7 @@ export function FlyCardProvider({
                 className="absolute left-20 top-1/2 hidden -translate-y-1/2 cursor-auto xl:block"
                 onClick={(e) => e.stopPropagation()}
               >
-                <CardExplainPanel card={fly.card} providerId={providerId} flipped />
+                <CardExplainPanel card={fly.card} providerId={providerId} providerSettings={providerSettings} flipped />
               </div>
 
               {/* 우상단 — 카드 정보 패널 + 암기 단계(플래시카드 세션과 동일 스택) */}
