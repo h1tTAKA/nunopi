@@ -155,37 +155,42 @@ export default function AgentDeckModal({
               {selected.slice(0, reveal).map((c) => {
                 const ex = excluded.has(c.key);
                 return (
+                  // 컨테이너(비대화형) — 클릭 동작은 안의 실제 버튼 둘이 담당(중첩 회피).
                   <div
                     key={c.key}
                     data-fly-card
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleExclude(c.key)}
-                    className={`group relative flex aspect-[5/7] cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-2xl border bg-white p-2.5 text-center shadow-sm transition hover:-translate-y-0.5 ${
+                    className={`group relative aspect-[5/7] overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 ${
                       ex ? "border-zinc-300 dark:border-zinc-600" : "border-[#3B34E2]/50"
                     }`}
                     style={reduced ? undefined : { animation: "nunopi-pop 260ms ease-out both" }}
                   >
                     <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/55" />
                     <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={SYMBOL} alt="" className="relative h-5 w-5 object-contain" />
-                    <span className="relative line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2.5 text-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={SYMBOL} alt="" className="h-5 w-5 object-contain" />
+                      <span className="line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
+                    </div>
+                    {/* 전면 커버 제외 토글(실제 버튼) — 카드 아무데나 클릭 시 포함/제외 */}
+                    <button
+                      type="button"
+                      aria-label={c.front}
+                      aria-pressed={!ex}
+                      onClick={() => toggleExclude(c.key)}
+                      className="absolute inset-0 z-10 cursor-pointer rounded-2xl"
+                    />
                     {/* 제외 시 은은한 뮤트(빨강 뱃지 대신) */}
-                    {ex && <span className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-zinc-900/45" />}
-                    {/* 우상단 포함/제외 체크 — 포함=파란 체크, 제외=빈 원 */}
-                    <span className={`absolute right-1.5 top-1.5 z-20 flex h-5 w-5 items-center justify-center rounded-full border ${ex ? "border-zinc-300 bg-white/80" : "border-[#3B34E2] bg-[#3B34E2] text-white"}`}>
+                    {ex && <span className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-zinc-900/45" />}
+                    {/* 우상단 포함/제외 체크(표시용) — 포함=파란 체크, 제외=빈 원 */}
+                    <span className={`pointer-events-none absolute right-1.5 top-1.5 z-30 flex h-5 w-5 items-center justify-center rounded-full border ${ex ? "border-zinc-300 bg-white/80" : "border-[#3B34E2] bg-[#3B34E2] text-white"}`}>
                       {!ex && <IconCheck size={12} stroke={3} aria-hidden />}
                     </span>
-                    {/* 호버 시 카드 정중앙 "카드 보기"(회색) — 클릭하면 카드가 날아오며 전체 정보(제외 토글과 분리) */}
+                    {/* 호버 시 카드 정중앙 "카드 보기"(회색) — 클릭하면 카드가 날아오며 전체 정보(토글 버튼 위, 형제) */}
                     {!ex && (
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          throwCard(c, (e.currentTarget.closest("[data-fly-card]") as HTMLElement | null)?.getBoundingClientRect());
-                        }}
-                        className="absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-700/90 px-2.5 py-1.5 text-[11px] font-semibold text-white opacity-0 shadow-md transition hover:bg-zinc-800 group-hover:opacity-100"
+                        onClick={(e) => throwCard(c, (e.currentTarget.closest("[data-fly-card]") as HTMLElement | null)?.getBoundingClientRect())}
+                        className="absolute left-1/2 top-1/2 z-40 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-lg bg-zinc-700/90 px-2.5 py-1.5 text-[11px] font-semibold text-white opacity-0 shadow-md transition hover:bg-zinc-800 group-hover:opacity-100"
                       >
                         <IconEye size={13} stroke={2} aria-hidden />
                         {t("mem.cardDetail")}
