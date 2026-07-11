@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
-import { addCustomDeck, addCardsToDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, addCardsToDeck, removeCardsFromDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -84,11 +84,13 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (deckFilter && !customDecks.some((d) => d.id === deckFilter)) setDeckFilter(null);
   }, [customDecks, deckFilter]);
-  // 추가 대상 덱이 삭제되면 대상 해제(추가 버튼 비활성).
+  // 추가 대상 후보 — 지금 필터로 보고 있는 덱은 제외(자기 자신에 추가는 무의미).
+  const addableDecks = customDecks.filter((d) => d.id !== deckFilter);
+  // 추가 대상이 후보에서 벗어나면(삭제되거나 그 덱을 필터로 보게 되면) 첫 후보로 재설정.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (addTarget && !customDecks.some((d) => d.id === addTarget)) setAddTarget(customDecks[0]?.id ?? null);
-  }, [customDecks, addTarget]);
+    if (addTarget && !addableDecks.some((d) => d.id === addTarget)) setAddTarget(null);
+  }, [addableDecks, addTarget]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -163,6 +165,23 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setAddResult({ deckName: target.name, added, skipped });
     exitAll();
   }
+  // 현재 필터 덱에서 선택 카드 빼기(카드 원본·SRS 상태 불변) — 확인 후.
+  async function removeSelectedFromDeck() {
+    if (selected.size === 0 || !deckFilter) return;
+    const deck = customDecks.find((d) => d.id === deckFilter);
+    if (!deck) return;
+    const ok = await confirm({
+      title: t("mem.removeFromDeckTitle"),
+      message: t("mem.removeFromDeckMsg").replace("{deck}", deck.name).replace("{n}", String(selected.size)),
+      confirmText: t("mem.removeFromDeckYes"),
+      danger: true,
+    });
+    if (!ok) return;
+    // await 동안 상태 변동 방어.
+    if (selected.size === 0 || !customDecks.some((d) => d.id === deckFilter)) return;
+    removeCardsFromDeck(deckFilter, [...selected]);
+    exitAll();
+  }
   // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
   function createDeck() {
     if (selected.size === 0) return;
@@ -213,15 +232,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
         <div className="flex-1" />
         {selectMode ? (
           <>
-            {/* 덱에 추가 — 커스텀 덱 있을 때. 대상 select + 추가 버튼 */}
-            {customDecks.length > 0 && (
+            {/* 덱에 추가 — 추가 가능한 덱(필터 덱 제외) 있을 때. 대상 select + 추가 버튼 */}
+            {addableDecks.length > 0 && (
               <>
                 <select
                   value={addTarget ?? ""}
                   onChange={(e) => setAddTarget(e.target.value || null)}
-                  className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                  className={`shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 ${addTarget ? "text-zinc-700 dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}
                 >
-                  {customDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  <option value="" disabled>{t("mem.addToDeckSelect")}</option>
+                  {addableDecks.map((d) => <option key={d.id} value={d.id} className="text-zinc-700 dark:text-zinc-200">{d.name}</option>)}
                 </select>
                 <button
                   type="button"
@@ -231,6 +251,21 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 >
                   <IconCirclePlus size={15} stroke={2} aria-hidden />
                   {t("mem.addToDeckN").replace("{n}", String(selected.size))}
+                </button>
+                <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+              </>
+            )}
+            {/* 이 덱에서 빼기 — 특정 덱 필터로 볼 때만(카드 원본은 유지) */}
+            {deckFilter && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { void removeSelectedFromDeck(); }}
+                  disabled={selected.size === 0}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-500/60 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                >
+                  <IconCircleMinus size={15} stroke={2} aria-hidden />
+                  {t("mem.removeFromDeckN").replace("{n}", String(selected.size))}
                 </button>
                 <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
               </>
@@ -277,7 +312,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {/* 카드 관리: 선택(삭제·덱추가 통합) */}
             <button
               type="button"
-              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); setAddResult(null); }}
+              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(null); setAddResult(null); }}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               <IconSquareCheck size={15} stroke={2} aria-hidden />
