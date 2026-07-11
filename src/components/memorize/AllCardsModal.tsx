@@ -10,6 +10,7 @@ import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
 import { addCustomDeck, addCardsToDeck, removeCardsFromDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
+import { cardFrame } from "@/lib/srs/cardFrame";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import { useFlyCard } from "./FlyCard";
@@ -517,8 +518,8 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
         picking && selected ? ring : "border-zinc-200"
       }`}
     >
-      <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/50" />
-      <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
+      <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(card.source).outer}`} />
+      <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(card.source).inner}`} />
       {/* 선택(삭제/덱만들기) 모드 체크 표시 */}
       {picking && (
         <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>

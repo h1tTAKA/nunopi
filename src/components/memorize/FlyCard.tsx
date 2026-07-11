@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import type { Card } from "@/lib/srs/types";
 import { canGoToSource } from "@/lib/srs/cardSource";
+import { cardFrame } from "@/lib/srs/cardFrame";
 import { deleteCard } from "@/lib/srs/deleteCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import CardExplainPanel from "./CardExplainPanel";
@@ -152,8 +153,8 @@ export function FlyCardProvider({
             style={{ transformStyle: "preserve-3d" }}
           >
             {/* 실제 카드 면 — 흰 포커카드(파란 이중 프레임 + 심볼 + 용어 + 설명). 확대 시 읽힌다. */}
-            <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/60" />
-            <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/35" />
+            <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(fly.card.source).outer}`} />
+            <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(fly.card.source).inner}`} />
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-3.5 py-4 text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={SYMBOL} alt="" className="h-5 w-5 shrink-0 object-contain" />

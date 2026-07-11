@@ -8,6 +8,7 @@ import { collectCards } from "@/lib/srs/collect";
 import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
+import { cardFrame } from "@/lib/srs/cardFrame";
 import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -253,8 +254,8 @@ export default function AgentDeckModal({
                             }`}
                             style={reduced ? undefined : { animation: "nunopi-pop 260ms ease-out both" }}
                           >
-                            <span className="pointer-events-none absolute inset-[6%] rounded-[10%] border-2 border-blue-500/55" />
-                            <span className="pointer-events-none absolute inset-[9%] rounded-[8%] border border-blue-500/30" />
+                            <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(c.source).outer}`} />
+                            <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(c.source).inner}`} />
                             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-2.5 text-center">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={SYMBOL} alt="" className="h-5 w-5 object-contain" />

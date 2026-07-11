@@ -1,10 +1,13 @@
 "use client";
 
 import { useT } from "@/lib/i18n/I18nProvider";
+import { cardFrame } from "@/lib/srs/cardFrame";
+import type { SrsSource } from "@/lib/srs/types";
 
 interface FlashCardProps {
   front: string;
   back: string;
+  source: SrsSource; // 테두리 색 구분(token=emerald, concept=amber, term=blue)
   flipped: boolean;
   onFlip: () => void;
   reduced: boolean; // prefers-reduced-motion — true면 회전 애니 생략
@@ -13,8 +16,9 @@ interface FlashCardProps {
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 
 // 3D 플립 카드 — 흰색 포커카드. 앞: 나노피 심볼 위 + 용어. 뒤: 좌상단 작은 심볼 + 용어 + 설명.
-export default function FlashCard({ front, back, flipped, onFlip, reduced }: FlashCardProps) {
+export default function FlashCard({ front, back, source, flipped, onFlip, reduced }: FlashCardProps) {
   const t = useT();
+  const f = cardFrame(source);
   return (
     <div className="mx-auto aspect-[5/7] w-full max-w-xs [perspective:1200px]">
       <button
@@ -27,8 +31,8 @@ export default function FlashCard({ front, back, flipped, onFlip, reduced }: Fla
       >
         {/* 앞면 — 심볼 + 용어. 가장자리 장식 프레임(텍스트는 중앙 여백에 또렷). */}
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-4 rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-xl [backface-visibility:hidden]">
-          <span className="pointer-events-none absolute inset-2.5 rounded-xl border-2 border-blue-500/60" />
-          <span className="pointer-events-none absolute inset-[14px] rounded-lg border border-blue-500/35" />
+          <span className={`pointer-events-none absolute inset-2.5 rounded-xl border-2 ${f.outer}`} />
+          <span className={`pointer-events-none absolute inset-[14px] rounded-lg border ${f.inner}`} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={SYMBOL} alt="" className="relative h-12 w-12 object-contain" />
           <span className="relative text-xl font-bold text-zinc-900">{front}</span>
@@ -36,8 +40,8 @@ export default function FlashCard({ front, back, flipped, onFlip, reduced }: Fla
         </span>
         {/* 뒷면 — 심볼(제목 위 중앙) + 용어 + 설명. 앞면과 같은 배치. */}
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
-          <span className="pointer-events-none absolute inset-2.5 rounded-xl border-2 border-blue-500/60" />
-          <span className="pointer-events-none absolute inset-[14px] rounded-lg border border-blue-500/35" />
+          <span className={`pointer-events-none absolute inset-2.5 rounded-xl border-2 ${f.outer}`} />
+          <span className={`pointer-events-none absolute inset-[14px] rounded-lg border ${f.inner}`} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={SYMBOL} alt="" className="relative h-12 w-12 object-contain" />
           <span className="relative text-lg font-bold text-zinc-900">{front}</span>
