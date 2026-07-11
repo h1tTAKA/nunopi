@@ -27,6 +27,8 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
     // 클릭한 뒷면 색(cards[i].source)과 같은 분류 카드 중 랜덤 1장 — 색 일치 + 다양성.
     const src = cards[i]?.source;
     const pool = src ? cards.filter((c) => c.source === src) : cards;
+    // 이벤트 핸들러(클릭)에서만 호출 — 렌더 순수성과 무관.
+    // eslint-disable-next-line react-hooks/purity
     const card = pool[Math.floor(Math.random() * pool.length)] ?? cards[0];
     throwCard(card, e.currentTarget.getBoundingClientRect());
   }
