@@ -186,14 +186,6 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
         <h2 className="shrink-0 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
           {t("mem.allCardsTitle")} <span className="text-zinc-400 dark:text-zinc-500">{cards.length}</span>
         </h2>
-        {/* 뷰 컨트롤 — 정렬(카드 수 옆). 모든 모드에서 노출. */}
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as Sort)}
-          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
-        >
-          {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
-        </select>
         <div className="relative ml-2 max-w-xs flex-1">
           <IconSearch size={15} stroke={2} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" aria-hidden />
           <input
@@ -203,6 +195,14 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             className="w-full rounded-lg border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           />
         </div>
+        {/* 뷰 컨트롤 — 정렬(검색창 오른쪽). 모든 모드에서 노출. */}
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as Sort)}
+          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
+        </select>
         <div className="flex-1" />
         {selectMode ? (
           <>
