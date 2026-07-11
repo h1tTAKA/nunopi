@@ -84,7 +84,7 @@ export function FlyCardProvider({
     const fallY = window.innerHeight * 1.25; // 화면 밑으로 완전히
     // 출발 스케일 — 누른 카드 폭 기준(카드 엘리먼트 w-36=144px). 그 크기에서 떠올라 peek(REST≈2.85)까지 블렌드.
     const REST_S = 2.85;
-    const s0 = r ? r.width / 144 : 0.6;
+    const s0 = Math.max(0.5, r ? r.width / 144 : 0.6); // 하한 가드(극단적 좁은 origin 방어)
     const sA = s0 + (REST_S - s0) * 0.25;
     const sB = s0 + (REST_S - s0) * 0.6;
     // 도착: 카드 자리(원본 크기) → 바람에 흔들리며 곡선으로 → 가운데 부딪힘 → 바운스 → 중앙 정지(REST).

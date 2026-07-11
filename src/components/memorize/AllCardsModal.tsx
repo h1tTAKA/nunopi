@@ -550,7 +550,7 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
       <span className="absolute left-[5cqw] top-[5cqw] flex items-center gap-1">
         <span className={`h-[5cqw] max-h-2.5 w-[5cqw] max-w-2.5 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
       </span>
-      <span className="absolute right-[5cqw] top-[5cqw] rounded bg-zinc-100 px-[2.5cqw] py-[1cqw] text-[5.5cqw] font-medium leading-none text-zinc-500 [font-size:clamp(0.5rem,5.5cqw,0.85rem)] dark:bg-zinc-800 dark:text-zinc-400">
+      <span className="absolute right-[5cqw] top-[5cqw] rounded bg-zinc-100 px-[2.5cqw] py-[1cqw] font-medium leading-none text-zinc-500 [font-size:clamp(0.5rem,5.5cqw,0.85rem)] dark:bg-zinc-800 dark:text-zinc-400">
         {t(SRC_LABEL[card.source])}
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
