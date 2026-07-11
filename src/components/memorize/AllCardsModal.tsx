@@ -258,6 +258,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
           </>
         ) : (
           <>
+            {/* 뷰: 정렬 */}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as Sort)}
@@ -265,6 +266,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             >
               {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
             </select>
+            <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+            {/* 카드 관리: 선택(삭제) */}
             <button
               type="button"
               onClick={() => setSelectMode(true)}
@@ -273,6 +276,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
             </button>
+            <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+            {/* 덱 액션: 덱에 추가 + 커스터마이징(만들기) */}
             {customDecks.length > 0 && (
               <button
                 type="button"
@@ -291,6 +296,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               <IconSparkles size={15} stroke={2} aria-hidden />
               {t("mem.customize")}
             </button>
+            <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+            {/* 닫기 */}
             <button
               type="button"
               onClick={onClose}
