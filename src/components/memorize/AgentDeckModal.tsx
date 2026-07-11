@@ -14,6 +14,12 @@ import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/age
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 type StreamEvent = { type: "progress"; line: string } | { type: "result"; response: { summary: string } } | { type: "error"; message: string };
 
+// 제안 덱마다 안정적 유니크 id — 재제안(덱 수 변동) 시 React key 재사용 방지.
+let deckIdSeq = 0;
+function newDeckId(): string {
+  try { return crypto.randomUUID(); } catch { deckIdSeq += 1; return `deck-${deckIdSeq}`; }
+}
+
 // 에이전트가 제안한 덱(로컬 편집 상태) — 제목·체크·덱별 제외.
 interface ProposalDeck {
   id: string;
@@ -123,9 +129,9 @@ export default function AgentDeckModal({
       // 덱 선별 블록이 있으면 좌측을 새 제안으로 교체(잔여 상태 누수 방지). 본문(블록 제거)만 대화에 표시.
       const proposals = parseDeckSelect(reply);
       const built: ProposalDeck[] = proposals
-        .map((p, i) => {
+        .map((p) => {
           const cards = p.keys.map((k) => byKey.get(k)).filter((c): c is Card => !!c);
-          return { id: `d${i}`, name: p.name, cards, checked: true, excluded: new Set<string>() };
+          return { id: newDeckId(), name: p.name, cards, checked: true, excluded: new Set<string>() };
         })
         .filter((d) => d.cards.length > 0);
       if (built.length > 0) setDecks(built);
