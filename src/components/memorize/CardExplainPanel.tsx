@@ -86,11 +86,9 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
   return (
     <div className="flex w-96 flex-col gap-2 rounded-xl border border-zinc-200/40 bg-white/80 p-3 text-xs backdrop-blur-md dark:border-zinc-700/40 dark:bg-zinc-900/80">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           {t("mem.explainTitle")}
-        </span>
-        <div className="flex items-center gap-1">
-          {/* 크게 보기 — 읽을 수 있을 때(뒤집힘 + 내용)만 활성 */}
+          {/* 크게 보기 — 라벨 옆(리셋과 떨어뜨려 오조작 방지). 읽을 수 있을 때만 활성 */}
           <button
             type="button"
             onClick={() => setZoomed(true)}
@@ -101,6 +99,8 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
           >
             <IconZoomScan size={14} stroke={2} aria-hidden />
           </button>
+        </span>
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={handleReset}
