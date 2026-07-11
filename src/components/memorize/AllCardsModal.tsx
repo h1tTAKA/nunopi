@@ -11,7 +11,9 @@ import { deleteCard } from "@/lib/srs/deleteCard";
 import { addCustomDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import { useFlyCard } from "./FlyCard";
+import AgentDeckModal from "./AgentDeckModal";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 
@@ -49,7 +51,7 @@ const CAT_DOT: Record<CardCategory, string> = {
 };
 
 // 전체 보유 카드 갤러리 — 검색·출처/분류 필터·정렬. 타일 클릭 시 카드가 날아온다(peek 재사용).
-export default function AllCardsModal({ now, active = true, autoThrowCardKey, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; onClose: () => void }) {
+export default function AllCardsModal({ now, active = true, autoThrowCardKey, providerId, providerSettings, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; providerId: AgentProviderKind; providerSettings: ProviderSettings; onClose: () => void }) {
   const t = useT();
   const confirm = useConfirm();
   const { throwCard } = useFlyCard();
@@ -61,7 +63,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
-  const [customize, setCustomize] = useState<null | "choose" | "manual">(null);
+  const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent">(null);
   const [deckName, setDeckName] = useState("");
   const picking = selectMode || customize === "manual"; // 타일 선택 가능(삭제 or 수동 덱 만들기)
   // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
@@ -339,17 +341,27 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, on
               </button>
               <button
                 type="button"
-                disabled
-                className="relative flex cursor-not-allowed flex-col items-center gap-1.5 rounded-xl border border-zinc-200 p-4 text-center opacity-50 dark:border-zinc-700"
+                onClick={() => setCustomize("agent")}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 p-4 text-center transition hover:border-[#3B34E2] hover:bg-[#3B34E2]/5 dark:border-zinc-700"
               >
-                <IconSparkles size={22} stroke={2} className="text-zinc-400" aria-hidden />
-                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{t("mem.customizeAgent")}</span>
+                <IconSparkles size={22} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeAgent")}</span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeAgentDesc")}</span>
-                <span className="absolute right-2 top-2 rounded bg-zinc-200 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">{t("mem.soon")}</span>
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 에이전트 덱 커스터마이징 — 목표 프롬프트로 자동 선별. 생성 시 나가기(내 덱에 등장). */}
+      {customize === "agent" && (
+        <AgentDeckModal
+          now={now}
+          providerId={providerId}
+          providerSettings={providerSettings}
+          onBack={() => setCustomize(null)}
+          onCreated={() => { setCustomize(null); }}
+        />
       )}
     </div>,
     document.body,
