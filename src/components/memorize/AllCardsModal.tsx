@@ -65,12 +65,11 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
   const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent">(null);
   const [deckName, setDeckName] = useState("");
-  // 기존 덱에 카드 추가 모드 — 타일 선택 + 대상 덱 선택 후 병합.
-  const [addMode, setAddMode] = useState(false);
+  // 선택 모드에서 카드를 넣을 대상 덱(삭제/덱추가 액션을 한 선택에서 함께 제공).
   const [addTarget, setAddTarget] = useState<string | null>(null);
   // 추가 완료 팝업 — 대상 덱명 + 추가/중복 개수.
   const [addResult, setAddResult] = useState<{ deckName: string; added: number; skipped: number } | null>(null);
-  const picking = selectMode || customize === "manual" || addMode; // 타일 선택 가능(삭제/수동생성/덱추가)
+  const picking = selectMode || customize === "manual"; // 타일 선택 가능(선택 모드/수동 덱 생성)
   // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
   const [deckFilter, setDeckFilter] = useState<string | null>(null); // customDeck id
   const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
@@ -145,7 +144,6 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setCustomize(null);
     setSelected(new Set());
     setDeckName("");
-    setAddMode(false);
     setAddTarget(null);
   }
   // 선택 카드를 대상 덱에 병합(중복 제외). 결과 팝업 표시 후 모드 종료.
@@ -206,6 +204,29 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
         <div className="flex-1" />
         {selectMode ? (
           <>
+            {/* 덱에 추가 — 커스텀 덱 있을 때. 대상 select + 추가 버튼 */}
+            {customDecks.length > 0 && (
+              <>
+                <select
+                  value={addTarget ?? ""}
+                  onChange={(e) => setAddTarget(e.target.value || null)}
+                  className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                >
+                  {customDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={addSelectedToDeck}
+                  disabled={selected.size === 0 || !addTarget}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <IconCirclePlus size={15} stroke={2} aria-hidden />
+                  {t("mem.addToDeckN").replace("{n}", String(selected.size))}
+                </button>
+                <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+              </>
+            )}
+            {/* 삭제 */}
             <button
               type="button"
               onClick={() => { void deleteSelected(); }}
@@ -242,51 +263,19 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               {t("confirm.cancel")}
             </button>
           </>
-        ) : addMode ? (
-          <>
-            <select
-              value={addTarget ?? ""}
-              onChange={(e) => setAddTarget(e.target.value || null)}
-              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-            >
-              {customDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-            <button
-              type="button"
-              onClick={addSelectedToDeck}
-              disabled={selected.size === 0 || !addTarget}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <IconCirclePlus size={15} stroke={2} aria-hidden />
-              {t("mem.addToDeckN").replace("{n}", String(selected.size))}
-            </button>
-            <button type="button" onClick={exitAll} className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
-              {t("confirm.cancel")}
-            </button>
-          </>
         ) : (
           <>
-            {/* 카드 관리: 선택(삭제) */}
+            {/* 카드 관리: 선택(삭제·덱추가 통합) */}
             <button
               type="button"
-              onClick={() => setSelectMode(true)}
+              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); }}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
             </button>
             <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
-            {/* 덱 액션: 덱에 추가 + 커스터마이징(만들기) */}
-            {customDecks.length > 0 && (
-              <button
-                type="button"
-                onClick={() => { setAddMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); }}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-              >
-                <IconCirclePlus size={15} stroke={2} aria-hidden />
-                {t("mem.addToDeck")}
-              </button>
-            )}
+            {/* 덱 만들기 */}
             <button
               type="button"
               onClick={() => setCustomize("choose")}
