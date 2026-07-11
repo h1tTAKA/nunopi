@@ -538,8 +538,8 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
         picking && selected ? ring : "border-zinc-200"
       }`}
     >
-      <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(card.source).outer}`} />
-      <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(card.source).inner}`} />
+      <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] [border-style:solid] [border-width:clamp(1.5px,1.2cqw,5px)] ${cardFrame(card.source).outer}`} />
+      <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] [border-style:solid] [border-width:clamp(1px,0.7cqw,3px)] ${cardFrame(card.source).inner}`} />
       {/* 선택(삭제/덱만들기) 모드 체크 표시 — 카드 크기 비례 */}
       {picking && (
         <span className={`absolute bottom-[5cqw] right-[5cqw] z-10 flex h-[13cqw] max-h-6 w-[13cqw] max-w-6 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
