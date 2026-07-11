@@ -9,9 +9,9 @@ import rehypeHighlight from "rehype-highlight";
 // detect: 언어 태그 없는 펜스(``` 만)도 자동 감지해 하이라이팅 — 모델 출력의 언어 표기가
 // 들쭉날쭉해도 색이 입혀진다. (미등록 언어 태그는 rehype-highlight v7이 에러 없이 스킵 — 기본 동작.)
 // 스타일은 globals.css의 .nunopi-md로 스코프한다(표/코드/목록/제목/링크 등).
-export default function Markdown({ children }: { children: string }) {
+export default function Markdown({ children, className }: { children: string; className?: string }) {
   return (
-    <div className="nunopi-md">
+    <div className={className ? `nunopi-md ${className}` : "nunopi-md"}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[[rehypeHighlight, { detect: true }]]}>
         {children}
       </ReactMarkdown>

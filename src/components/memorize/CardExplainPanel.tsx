@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconRefresh } from "@tabler/icons-react";
+import { createPortal } from "react-dom";
+import { IconRefresh, IconZoomScan, IconX } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import type { AgentProviderKind } from "@/lib/agent";
@@ -22,6 +23,7 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(false);
+  const [zoomed, setZoomed] = useState(false); // 크게 보기(확대 모달)
   const abortRef = useRef<AbortController | null>(null);
 
   const generate = useCallback(() => {
@@ -84,16 +86,29 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           {t("mem.explainTitle")}
         </span>
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={streaming}
-          aria-label={t("mem.explainReset")}
-          title={t("mem.explainReset")}
-          className="rounded p-0.5 text-zinc-400 transition hover:text-blue-500 disabled:opacity-40 dark:text-zinc-500 dark:hover:text-blue-400"
-        >
-          <IconRefresh size={13} stroke={2} className={streaming ? "animate-spin" : ""} aria-hidden />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* 크게 보기 — 읽을 수 있을 때(뒤집힘 + 내용)만 활성 */}
+          <button
+            type="button"
+            onClick={() => setZoomed(true)}
+            disabled={!flipped || !text || error}
+            aria-label={t("mem.explainZoom")}
+            title={t("mem.explainZoom")}
+            className="rounded p-0.5 text-zinc-400 transition hover:text-blue-500 disabled:opacity-40 dark:text-zinc-500 dark:hover:text-blue-400"
+          >
+            <IconZoomScan size={14} stroke={2} aria-hidden />
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={streaming}
+            aria-label={t("mem.explainReset")}
+            title={t("mem.explainReset")}
+            className="rounded p-0.5 text-zinc-400 transition hover:text-blue-500 disabled:opacity-40 dark:text-zinc-500 dark:hover:text-blue-400"
+          >
+            <IconRefresh size={13} stroke={2} className={streaming ? "animate-spin" : ""} aria-hidden />
+          </button>
+        </div>
       </div>
       <div className="nunopi-scroll max-h-[80vh] overflow-y-auto pr-1 text-zinc-600 dark:text-zinc-300">
         {error ? (
@@ -107,6 +122,35 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
           <span className="text-zinc-400 dark:text-zinc-500">{t("mem.explainLoading")}</span>
         ) : null}
       </div>
+
+      {/* 크게 보기 모달 — 큰 글씨로 읽기 편하게. 배경/X 클릭으로 닫힘. */}
+      {zoomed && flipped && text && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
+          onClick={() => setZoomed(false)}
+        >
+          <div
+            className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-[#15161d]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
+              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{card.front}</span>
+              <button
+                type="button"
+                onClick={() => setZoomed(false)}
+                aria-label={t("mem.exit")}
+                className="rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              >
+                <IconX size={18} stroke={2} aria-hidden />
+              </button>
+            </div>
+            <div className="nunopi-scroll overflow-y-auto px-7 py-6 text-zinc-700 dark:text-zinc-200">
+              <Markdown className="nunopi-md-lg">{text}</Markdown>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

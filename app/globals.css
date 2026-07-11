@@ -124,6 +124,11 @@ samp {
 
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
 .nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
+/* 크게 보기(확대) — 루트 폰트 키우고 헤딩도 em으로 함께 확대(추가설명 모달). */
+.nunopi-md.nunopi-md-lg { font-size: 1rem; line-height: 1.75; }
+.nunopi-md.nunopi-md-lg h1 { font-size: 1.5em; }
+.nunopi-md.nunopi-md-lg h2 { font-size: 1.3em; }
+.nunopi-md.nunopi-md-lg h3 { font-size: 1.12em; }
 .nunopi-md > :first-child { margin-top: 0; }
 .nunopi-md > :last-child { margin-bottom: 0; }
 .nunopi-md p { margin: 0.4em 0; }
