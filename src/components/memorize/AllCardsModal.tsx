@@ -150,14 +150,17 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   async function addSelectedToDeck() {
     if (selected.size === 0 || !addTarget) return;
     const target = customDecks.find((d) => d.id === addTarget);
+    if (!target) return;
     const ok = await confirm({
       title: t("mem.addToDeckConfirmTitle"),
-      message: t("mem.addToDeckConfirmMsg").replace("{deck}", target?.name ?? "").replace("{n}", String(selected.size)),
+      message: t("mem.addToDeckConfirmMsg").replace("{deck}", target.name).replace("{n}", String(selected.size)),
       confirmText: t("mem.addToDeckConfirmYes"),
     });
     if (!ok) return; // 취소 시 선택 유지
+    // 확인 대기 중 상태 변동 방어(모달이 상호작용을 막지만 안전하게 재확인).
+    if (selected.size === 0 || !customDecks.some((d) => d.id === addTarget)) return;
     const { added, skipped } = addCardsToDeck(addTarget, [...selected]);
-    setAddResult({ deckName: target?.name ?? "", added, skipped });
+    setAddResult({ deckName: target.name, added, skipped });
     exitAll();
   }
   // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
