@@ -28,6 +28,7 @@ interface ChatRoomProps {
   // 카드 제안 칩 액션 — 어시스턴트 답변의 nunopi-cards 블록에서 파생. 없으면 칩 미노출.
   // messageIndex는 messages 배열 인덱스. add=그 카드 생성, dismiss=블록 거절.
   onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
+  large?: boolean; // 확대 컨텍스트(카드 설명 크게 보기) — 메시지 글씨 확대.
 }
 
 // 학습 챗 — 코드에 대해 튜터에게 질문. 에디터 하단 분할 영역에 들어간다.
@@ -40,7 +41,9 @@ function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
     .join("\n\n---\n\n");
 }
 
-export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear, sessionIds = [], activeSessionId = null, onSwitchSession, onNewSession, onDeleteSession, onCardAction }: ChatRoomProps) {
+export default function ChatRoom({ messages, streaming, isLoading, disabled, mode = "code", onSend, onClear, sessionIds = [], activeSessionId = null, onSwitchSession, onNewSession, onDeleteSession, onCardAction, large = false }: ChatRoomProps) {
+  const mdLg = large ? "nunopi-md-lg" : undefined; // 어시스턴트 마크다운 확대
+  const userTxt = large ? "text-[15px]" : "text-xs"; // 유저 말풍선·안내 글씨
   const t = useT();
   const confirm = useConfirm();
   const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
@@ -192,7 +195,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
           if (m.role === "user") {
             return (
               <div key={i} className="flex justify-end">
-                <div className="max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-xs text-white">
+                <div className={`max-w-[85%] select-text whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-white ${userTxt}`}>
                   {m.content}
                 </div>
               </div>
@@ -205,7 +208,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
           return (
             <div key={i} className="flex flex-col items-start gap-1.5">
               <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                <Markdown>{text}</Markdown>
+                <Markdown className={mdLg}>{text}</Markdown>
               </div>
               {onCardAction && freshCards.length > 0 && (
                 <div className="flex max-w-[85%] flex-wrap items-center gap-1.5">
@@ -235,7 +238,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
         {streaming != null && (
           <div className="flex justify-start">
             <div className="max-w-[85%] select-text rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-              {streaming ? <Markdown>{stripStreamingCardBlock(streaming)}</Markdown> : <span className="text-xs">{t("chat.replying")}</span>}
+              {streaming ? <Markdown className={mdLg}>{stripStreamingCardBlock(streaming)}</Markdown> : <span className={userTxt}>{t("chat.replying")}</span>}
             </div>
           </div>
         )}

@@ -278,7 +278,7 @@ export default function CardSession({ sources, mode = "due", active = true, deck
 
         {/* 카드 디폴트 설명 — 좌상단(넓은 화면만), 반투명으로 뒤 부채꼴 비침 */}
         <div className="absolute left-0 top-0 z-10 hidden xl:block">
-          <CardExplainPanel card={card} providerId={providerId} flipped={flipped} />
+          <CardExplainPanel card={card} providerId={providerId} providerSettings={providerSettings} flipped={flipped} />
         </div>
 
         {/* 중앙 카드 + 채점바(카드 폭 그대로). 더미만 넓게 벌린다. */}

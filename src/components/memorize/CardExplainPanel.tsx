@@ -5,25 +5,28 @@ import { createPortal } from "react-dom";
 import { IconRefresh, IconZoomScan, IconX } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
-import type { AgentProviderKind } from "@/lib/agent";
+import MemorizeChat from "./MemorizeChat";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import type { Card } from "@/lib/srs/types";
 import { loadCardExplain, saveCardExplain, clearCardExplain, streamCardExplain } from "@/lib/cardExplain";
 
 interface CardExplainPanelProps {
   card: Card;
   providerId: AgentProviderKind;
+  providerSettings: ProviderSettings; // 크게 보기 모달 내 챗용
   flipped: boolean; // 카드를 뒤집었을 때만 설명 생성.
 }
 
 // 왼쪽 반투명 패널 — 현재 카드(용어)의 디폴트(맥락 독립) 설명을 에이전트가 실시간 타이핑.
 // 카드별 캐시(재방문 즉시), 리셋 재생성. 뒤 부채꼴이 비치도록 반투명.
-export default function CardExplainPanel({ card, providerId, flipped }: CardExplainPanelProps) {
+export default function CardExplainPanel({ card, providerId, providerSettings, flipped }: CardExplainPanelProps) {
   const t = useT();
   const { locale } = useLocale();
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState(false);
   const [zoomed, setZoomed] = useState(false); // 크게 보기(확대 모달)
+  const [chatOpen, setChatOpen] = useState(false); // 확대 모달 내 챗 열림 → 모달을 왼쪽으로 비킴
   const abortRef = useRef<AbortController | null>(null);
 
   const generate = useCallback(() => {
@@ -126,11 +129,11 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
       {/* 크게 보기 모달 — 큰 글씨로 읽기 편하게. 배경/X 클릭으로 닫힘. */}
       {zoomed && flipped && text && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm"
-          onClick={() => setZoomed(false)}
+          className={`fixed inset-0 z-[95] flex items-center bg-black/60 p-6 backdrop-blur-sm transition-all ${chatOpen ? "justify-end pr-[38rem] md:pr-[39rem]" : "justify-center"}`}
+          onClick={() => { setZoomed(false); setChatOpen(false); }}
         >
           <div
-            className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-700 dark:bg-[#15161d]"
+            className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl transition-all dark:border-zinc-700 dark:bg-[#15161d]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">
@@ -147,6 +150,10 @@ export default function CardExplainPanel({ card, providerId, flipped }: CardExpl
             <div className="nunopi-scroll overflow-y-auto px-7 py-6 text-zinc-700 dark:text-zinc-200">
               <Markdown className="nunopi-md-lg">{text}</Markdown>
             </div>
+          </div>
+          {/* 확대 중에도 질문 가능 — 챗은 모달 위(우하단 고정). 클릭이 배경 닫힘으로 안 번지게 격리. */}
+          <div onClick={(e) => e.stopPropagation()}>
+            <MemorizeChat card={card} providerId={providerId} providerSettings={providerSettings} onOpenChange={setChatOpen} expanded />
           </div>
         </div>,
         document.body,

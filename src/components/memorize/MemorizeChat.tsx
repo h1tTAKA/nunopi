@@ -15,6 +15,8 @@ interface MemorizeChatProps {
   card: Card;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  onOpenChange?: (open: boolean) => void; // 열림 상태 알림(확대 모달 레이아웃 조정용)
+  expanded?: boolean; // 확대 모달 내 — 패널 크게 + 세로 중앙 정렬(모달과 나란히)
 }
 
 type StreamEvent =
@@ -25,10 +27,14 @@ type StreamEvent =
 
 // 암기 카드 우하단 챗 — 현재 카드(용어) 스코프 로컬 단일 스레드(히스토리 미저장).
 // 코드/글 모드 챗은 좌하단, 암기는 우하단(대칭). ChatRoom UI 재사용.
-export default function MemorizeChat({ card, providerId, providerSettings }: MemorizeChatProps) {
+export default function MemorizeChat({ card, providerId, providerSettings, onOpenChange, expanded = false }: MemorizeChatProps) {
   const t = useT();
   const { locale } = useLocale();
   const [open, setOpen] = useState(false);
+  // 열림 변화 알림(확대 모달 레이아웃용) — updater가 아닌 effect에서(렌더 중 부모 setState 금지).
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open, onOpenChange]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -168,9 +174,9 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
         {open ? <IconX size={20} stroke={2} aria-hidden /> : <IconMessageCircle size={20} stroke={2} aria-hidden />}
       </button>
 
-      {/* 우하단 챗 패널 */}
+      {/* 우하단 챗 패널 — expanded면 크게 + 세로 중앙(확대 모달과 나란히) */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-30 flex h-[61vh] w-[30rem] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
+        <div className={`fixed z-30 flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d] ${expanded ? "right-8 top-1/2 h-[85vh] w-[34rem] -translate-y-1/2 md:right-12" : "bottom-24 right-6 h-[61vh] w-[30rem]"}`}>
           <ChatRoom
             messages={messages}
             streaming={streaming}
@@ -179,6 +185,7 @@ export default function MemorizeChat({ card, providerId, providerSettings }: Mem
             onSend={handleSend}
             onClear={handleClear}
             onCardAction={handleCardAction}
+            large={expanded}
           />
         </div>
       )}
