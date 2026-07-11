@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
-import { addCustomDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, addCardsToDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -65,7 +65,10 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
   const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent">(null);
   const [deckName, setDeckName] = useState("");
-  const picking = selectMode || customize === "manual"; // 타일 선택 가능(삭제 or 수동 덱 만들기)
+  // 기존 덱에 카드 추가 모드 — 타일 선택 + 대상 덱 선택 후 병합.
+  const [addMode, setAddMode] = useState(false);
+  const [addTarget, setAddTarget] = useState<string | null>(null);
+  const picking = selectMode || customize === "manual" || addMode; // 타일 선택 가능(삭제/수동생성/덱추가)
   // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
   const [deckFilter, setDeckFilter] = useState<string | null>(null); // customDeck id
   const [customDecks, setCustomDecks] = useState<CustomDeck[]>([]);
@@ -80,6 +83,11 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (deckFilter && !customDecks.some((d) => d.id === deckFilter)) setDeckFilter(null);
   }, [customDecks, deckFilter]);
+  // 추가 대상 덱이 삭제되면 대상 해제(추가 버튼 비활성).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (addTarget && !customDecks.some((d) => d.id === addTarget)) setAddTarget(null);
+  }, [customDecks, addTarget]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -135,6 +143,14 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setCustomize(null);
     setSelected(new Set());
     setDeckName("");
+    setAddMode(false);
+    setAddTarget(null);
+  }
+  // 선택 카드를 대상 덱에 병합(중복 제거). 성공 시 모드 종료.
+  function addSelectedToDeck() {
+    if (selected.size === 0 || !addTarget) return;
+    addCardsToDeck(addTarget, [...selected]);
+    exitAll();
   }
   // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
   function createDeck() {
@@ -214,6 +230,28 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               {t("confirm.cancel")}
             </button>
           </>
+        ) : addMode ? (
+          <>
+            <select
+              value={addTarget ?? ""}
+              onChange={(e) => setAddTarget(e.target.value || null)}
+              className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            >
+              {customDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={addSelectedToDeck}
+              disabled={selected.size === 0 || !addTarget}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <IconCirclePlus size={15} stroke={2} aria-hidden />
+              {t("mem.addToDeckN").replace("{n}", String(selected.size))}
+            </button>
+            <button type="button" onClick={exitAll} className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
+              {t("confirm.cancel")}
+            </button>
+          </>
         ) : (
           <>
             <select
@@ -231,6 +269,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
             </button>
+            {customDecks.length > 0 && (
+              <button
+                type="button"
+                onClick={() => { setAddMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); }}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              >
+                <IconCirclePlus size={15} stroke={2} aria-hidden />
+                {t("mem.addToDeck")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setCustomize("choose")}
