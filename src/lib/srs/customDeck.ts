@@ -55,11 +55,17 @@ export function removeCustomDeck(id: string): void {
   saveAll(loadCustomDecks().filter((d) => d.id !== id));
 }
 
-// 기존 덱에 카드 key들을 합친다(중복 제거). 이미 있는 카드는 무시. 대상 없으면 무변경.
-export function addCardsToDeck(id: string, cardKeys: string[]): void {
-  saveAll(
-    loadCustomDecks().map((d) =>
-      d.id === id ? { ...d, cardKeys: [...new Set([...d.cardKeys, ...cardKeys])] } : d,
-    ),
-  );
+// 기존 덱에 카드 key들을 합친다. 이미 있는 카드는 제외하고, {추가/중복} 개수를 반환.
+// 대상 없으면 {added:0, skipped:0}.
+export function addCardsToDeck(id: string, cardKeys: string[]): { added: number; skipped: number } {
+  const decks = loadCustomDecks();
+  const deck = decks.find((d) => d.id === id);
+  if (!deck) return { added: 0, skipped: 0 };
+  const existing = new Set(deck.cardKeys);
+  const unique = [...new Set(cardKeys)]; // 선택 자체 중복 방어
+  const fresh = unique.filter((k) => !existing.has(k));
+  if (fresh.length > 0) {
+    saveAll(decks.map((d) => (d.id === id ? { ...d, cardKeys: [...d.cardKeys, ...fresh] } : d)));
+  }
+  return { added: fresh.length, skipped: unique.length - fresh.length };
 }

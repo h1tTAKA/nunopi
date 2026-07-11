@@ -68,6 +68,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   // 기존 덱에 카드 추가 모드 — 타일 선택 + 대상 덱 선택 후 병합.
   const [addMode, setAddMode] = useState(false);
   const [addTarget, setAddTarget] = useState<string | null>(null);
+  // 추가 완료 팝업 — 대상 덱명 + 추가/중복 개수.
+  const [addResult, setAddResult] = useState<{ deckName: string; added: number; skipped: number } | null>(null);
   const picking = selectMode || customize === "manual" || addMode; // 타일 선택 가능(삭제/수동생성/덱추가)
   // 내 덱 필터 — 선택 시 그 덱 카드만(출처/분류와 AND). 커스텀 덱 목록은 이벤트로 갱신.
   const [deckFilter, setDeckFilter] = useState<string | null>(null); // customDeck id
@@ -146,10 +148,12 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setAddMode(false);
     setAddTarget(null);
   }
-  // 선택 카드를 대상 덱에 병합(중복 제거). 성공 시 모드 종료.
+  // 선택 카드를 대상 덱에 병합(중복 제외). 결과 팝업 표시 후 모드 종료.
   function addSelectedToDeck() {
     if (selected.size === 0 || !addTarget) return;
-    addCardsToDeck(addTarget, [...selected]);
+    const target = customDecks.find((d) => d.id === addTarget);
+    const { added, skipped } = addCardsToDeck(addTarget, [...selected]);
+    setAddResult({ deckName: target?.name ?? "", added, skipped });
     exitAll();
   }
   // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
@@ -397,6 +401,35 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeAgentDesc")}</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 덱 추가 결과 팝업 — 추가/중복 개수 안내. */}
+      {addResult && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 p-6" onClick={() => setAddResult(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#3B34E2]/10 text-[#3B34E2] dark:text-[#8b86f5]">
+              {addResult.added > 0 ? <IconCheck size={22} stroke={2.5} aria-hidden /> : <IconCirclePlus size={22} stroke={2} aria-hidden />}
+            </span>
+            <h3 className="mt-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              {addResult.added > 0 ? t("mem.addDoneTitle") : t("mem.addNoneTitle")}
+            </h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              {addResult.added > 0
+                ? t("mem.addDoneMsg").replace("{n}", String(addResult.added)).replace("{deck}", addResult.deckName)
+                : t("mem.addNoneMsg").replace("{deck}", addResult.deckName)}
+              {addResult.added > 0 && addResult.skipped > 0 && (
+                <> {t("mem.addSkippedMsg").replace("{n}", String(addResult.skipped))}</>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAddResult(null)}
+              className="mt-4 w-full rounded-lg bg-[#3B34E2] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#322bc9]"
+            >
+              {t("confirm.ok")}
+            </button>
           </div>
         </div>
       )}
