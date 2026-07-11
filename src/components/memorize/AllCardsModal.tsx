@@ -84,11 +84,13 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (deckFilter && !customDecks.some((d) => d.id === deckFilter)) setDeckFilter(null);
   }, [customDecks, deckFilter]);
-  // 추가 대상 덱이 삭제되면 대상 해제(추가 버튼 비활성).
+  // 추가 대상 후보 — 지금 필터로 보고 있는 덱은 제외(자기 자신에 추가는 무의미).
+  const addableDecks = customDecks.filter((d) => d.id !== deckFilter);
+  // 추가 대상이 후보에서 벗어나면(삭제되거나 그 덱을 필터로 보게 되면) 첫 후보로 재설정.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (addTarget && !customDecks.some((d) => d.id === addTarget)) setAddTarget(customDecks[0]?.id ?? null);
-  }, [customDecks, addTarget]);
+    if (addTarget && !addableDecks.some((d) => d.id === addTarget)) setAddTarget(addableDecks[0]?.id ?? null);
+  }, [addableDecks, addTarget]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
   const [nonce, setNonce] = useState(0);
@@ -230,15 +232,15 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
         <div className="flex-1" />
         {selectMode ? (
           <>
-            {/* 덱에 추가 — 커스텀 덱 있을 때. 대상 select + 추가 버튼 */}
-            {customDecks.length > 0 && (
+            {/* 덱에 추가 — 추가 가능한 덱(필터 덱 제외) 있을 때. 대상 select + 추가 버튼 */}
+            {addableDecks.length > 0 && (
               <>
                 <select
                   value={addTarget ?? ""}
                   onChange={(e) => setAddTarget(e.target.value || null)}
                   className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-700 outline-none focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                 >
-                  {customDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  {addableDecks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
                 <button
                   type="button"
@@ -309,7 +311,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {/* 카드 관리: 선택(삭제·덱추가 통합) */}
             <button
               type="button"
-              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); setAddResult(null); }}
+              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(addableDecks[0]?.id ?? null); setAddResult(null); }}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               <IconSquareCheck size={15} stroke={2} aria-hidden />
