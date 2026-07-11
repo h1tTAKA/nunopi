@@ -534,7 +534,7 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
       type="button"
       onClick={(e) => (picking ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
       style={{ containerType: "inline-size" }}
-      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-[3cqw] overflow-hidden rounded-2xl border bg-white p-[6cqw] text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
+      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-[3%] overflow-hidden rounded-2xl border bg-white p-[6%] text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
         picking && selected ? ring : "border-zinc-200"
       }`}
     >
