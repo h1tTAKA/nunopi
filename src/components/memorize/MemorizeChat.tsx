@@ -5,7 +5,7 @@ import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { loadCardExplain } from "@/lib/cardExplain";
-import { loadCardChat, saveCardChat } from "@/lib/cardChat";
+import { loadCardChat, saveCardChat, CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -51,6 +51,14 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
     /* eslint-enable react-hooks/set-state-in-effect */
     return () => abortRef.current?.abort();
   }, [card.key]);
+
+  // 같은 카드의 다른 인스턴스(확대 모달 챗↔뒤 peek 챗)가 저장하면 스레드 재로드로 동기화(유실 방지).
+  // 스트리밍/로딩 중엔 진행 중 대화를 덮지 않도록 스킵.
+  useEffect(() => {
+    const sync = () => { if (!loading && streaming == null) setMessages(loadCardChat(card.key)); };
+    window.addEventListener(CARD_CHAT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(CARD_CHAT_CHANGED_EVENT, sync);
+  }, [card.key, loading, streaming]);
 
   function handleClear() {
     abortRef.current?.abort();

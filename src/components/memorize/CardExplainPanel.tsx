@@ -27,6 +27,11 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
   const [error, setError] = useState(false);
   const [zoomed, setZoomed] = useState(false); // 크게 보기(확대 모달)
   const [chatOpen, setChatOpen] = useState(false); // 확대 모달 내 챗 열림 → 모달을 왼쪽으로 비킴
+  // 확대 닫히면(언플립/내용 소실 포함) 챗 열림 상태도 초기화(재오픈 시 레이아웃 stale 방지).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!zoomed && chatOpen) setChatOpen(false);
+  }, [zoomed, chatOpen]);
   const abortRef = useRef<AbortController | null>(null);
 
   const generate = useCallback(() => {
@@ -140,7 +145,7 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
               <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{card.front}</span>
               <button
                 type="button"
-                onClick={() => setZoomed(false)}
+                onClick={() => { setZoomed(false); setChatOpen(false); }}
                 aria-label={t("mem.exit")}
                 className="rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-200 dark:hover:bg-zinc-800"
               >
@@ -152,7 +157,7 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
             </div>
           </div>
           {/* 확대 중에도 질문 가능 — 챗은 모달 위(우하단 고정). 클릭이 배경 닫힘으로 안 번지게 격리. */}
-          <div onClick={(e) => e.stopPropagation()}>
+          <div role="presentation" onClick={(e) => e.stopPropagation()}>
             <MemorizeChat card={card} providerId={providerId} providerSettings={providerSettings} onOpenChange={setChatOpen} expanded />
           </div>
         </div>,
