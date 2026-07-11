@@ -87,7 +87,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   // 추가 대상 덱이 삭제되면 대상 해제(추가 버튼 비활성).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (addTarget && !customDecks.some((d) => d.id === addTarget)) setAddTarget(null);
+    if (addTarget && !customDecks.some((d) => d.id === addTarget)) setAddTarget(customDecks[0]?.id ?? null);
   }, [customDecks, addTarget]);
 
   // 카드 생성(챗 등)되면 재수집 — 갤러리 열려 있는 동안 즉시 반영(안 그러면 다시 열어야 보임).
@@ -268,7 +268,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {/* 카드 관리: 선택(삭제·덱추가 통합) */}
             <button
               type="button"
-              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); }}
+              onClick={() => { setSelectMode(true); setSelected(new Set()); setAddTarget(deckFilter ?? customDecks[0]?.id ?? null); setAddResult(null); }}
               className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
             >
               <IconSquareCheck size={15} stroke={2} aria-hidden />
@@ -361,7 +361,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 reviews={c.state.reviews ?? 0}
                 picking={picking}
                 selected={selected.has(c.key)}
-                tone={selectMode ? "rose" : "indigo"}
+                tone="indigo"
                 onToggle={() => toggleSelect(c.key)}
                 onThrow={throwCard}
                 t={t}
