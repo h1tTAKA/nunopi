@@ -533,29 +533,30 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
     <button
       type="button"
       onClick={(e) => (picking ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
-      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
+      style={{ containerType: "inline-size" }}
+      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-[3cqw] overflow-hidden rounded-2xl border bg-white p-[6cqw] text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
         picking && selected ? ring : "border-zinc-200"
       }`}
     >
       <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(card.source).outer}`} />
       <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(card.source).inner}`} />
-      {/* 선택(삭제/덱만들기) 모드 체크 표시 */}
+      {/* 선택(삭제/덱만들기) 모드 체크 표시 — 카드 크기 비례 */}
       {picking && (
-        <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
-          {selected && <IconCheck size={12} stroke={3} aria-hidden />}
+        <span className={`absolute bottom-[5cqw] right-[5cqw] z-10 flex h-[13cqw] max-h-6 w-[13cqw] max-w-6 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
+          {selected && <IconCheck size={12} stroke={3} className="h-[8cqw] max-h-3.5 w-[8cqw] max-w-3.5" aria-hidden />}
         </span>
       )}
-      {/* 상단 배지 — 출처 + 분류 점 */}
-      <span className="absolute left-2 top-2 flex items-center gap-1">
-        <span className={`h-2 w-2 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
+      {/* 상단 배지 — 분류 점 + 출처(카드 크기 비례) */}
+      <span className="absolute left-[5cqw] top-[5cqw] flex items-center gap-1">
+        <span className={`h-[5cqw] max-h-2.5 w-[5cqw] max-w-2.5 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
       </span>
-      <span className="absolute right-2 top-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[8px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+      <span className="absolute right-[5cqw] top-[5cqw] rounded bg-zinc-100 px-[2.5cqw] py-[1cqw] text-[5.5cqw] font-medium leading-none text-zinc-500 [font-size:clamp(0.5rem,5.5cqw,0.85rem)] dark:bg-zinc-800 dark:text-zinc-400">
         {t(SRC_LABEL[card.source])}
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={SYMBOL} alt="" className="relative mt-2 h-6 w-6 object-contain" />
-      <span className="relative line-clamp-3 text-xs font-bold leading-tight text-zinc-900">{card.front}</span>
-      <span className="absolute bottom-2 text-[9px] tabular-nums text-zinc-400 dark:text-zinc-500">
+      <img src={SYMBOL} alt="" className="relative h-[16cqw] max-h-10 w-[16cqw] max-w-10 object-contain" />
+      <span className="relative line-clamp-3 font-bold leading-tight text-zinc-900 [font-size:clamp(0.75rem,8cqw,1.5rem)]">{card.front}</span>
+      <span className="absolute bottom-[5cqw] tabular-nums text-zinc-400 [font-size:clamp(0.55rem,6cqw,0.9rem)] dark:text-zinc-500">
         {t("mem.reviewsShort").replace("{n}", String(reviews))}
       </span>
     </button>
