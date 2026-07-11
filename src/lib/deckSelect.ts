@@ -18,7 +18,8 @@ export function buildDeckSelectContext(cards: Card[]): string {
     "사용자와 자유롭게 대화하며 어떤 기준으로 덱을 나누면 좋을지 제안·상담할 수 있다.",
     "사용자가 덱을 만들고 싶어 하면(예: '타입스크립트 덱 만들어줘'), 하나 또는 여러 개의 덱으로 나눠",
     "각 덱에 알맞은 제목을 붙이고, 그 덱에 맞는 카드의 key들을 답변 맨 끝에 아래 형식 블록으로 출력한다",
-    "(덱을 실제로 구성할 때만). 주제가 넓으면 여러 덱으로 쪼개 제안해도 좋다:",
+    "(덱을 실제로 구성할 때만). 주제가 넓으면 여러 덱으로 쪼개도 좋다.",
+    "★ 중요: 덱이 여러 개여도 반드시 ```deck-select``` 블록 **하나**에 모든 덱을 배열로 담아라(덱마다 블록을 따로 만들지 마라):",
     "```deck-select",
     '[{"name": "덱 제목", "keys": ["source:term", "source:term"]}, {"name": "다른 덱", "keys": ["source:term"]}]',
     "```",
@@ -29,42 +30,44 @@ export function buildDeckSelectContext(cards: Card[]): string {
   ].join("\n");
 }
 
-const FENCE = /```deck-select\s*([\s\S]*?)```/;
+// 전역 — 응답에 deck-select 블록이 여럿일 수 있어(에이전트가 덱마다 따로 내기도 함) 모두 매칭.
+const FENCE_G = /```deck-select\s*([\s\S]*?)```/g;
 
 // 응답 텍스트에서 제안 덱 배열 추출(없거나 깨지면 빈 배열).
-// 관대한 파싱: 덱 객체 배열 | 문자열 key 배열(하위호환, 1덱) 모두 수용.
+// 관대한 파싱: (1) 블록이 여럿이면 전부 모으고, (2) 각 블록은 덱 객체 배열 | 문자열 key 배열(1덱) 수용.
 export function parseDeckSelect(text: string): DeckProposal[] {
-  const m = text.match(FENCE);
-  if (!m) return [];
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(m[1].trim());
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(parsed)) return [];
-  // 문자열 배열 → 이름 없는 단일 덱으로 흡수.
-  if (parsed.every((x) => typeof x === "string")) {
-    const keys = (parsed as string[]).filter((k) => k.length > 0);
-    return keys.length > 0 ? [{ name: "", keys }] : [];
-  }
-  // 덱 객체 배열.
   const decks: DeckProposal[] = [];
-  for (const d of parsed) {
-    if (!d || typeof d !== "object") continue;
-    const obj = d as { name?: unknown; keys?: unknown };
-    const keys = Array.isArray(obj.keys)
-      ? obj.keys.filter((k): k is string => typeof k === "string" && k.length > 0)
-      : [];
-    if (keys.length === 0) continue;
-    decks.push({ name: typeof obj.name === "string" ? obj.name : "", keys });
+  for (const m of text.matchAll(FENCE_G)) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(m[1].trim());
+    } catch {
+      continue; // 이 블록만 건너뜀(다른 블록은 계속)
+    }
+    if (!Array.isArray(parsed)) continue;
+    // 문자열 배열 블록 → 이름 없는 덱 하나로 흡수.
+    if (parsed.every((x) => typeof x === "string")) {
+      const keys = (parsed as string[]).filter((k) => k.length > 0);
+      if (keys.length > 0) decks.push({ name: "", keys });
+      continue;
+    }
+    // 덱 객체 배열 블록.
+    for (const d of parsed) {
+      if (!d || typeof d !== "object") continue;
+      const obj = d as { name?: unknown; keys?: unknown };
+      const keys = Array.isArray(obj.keys)
+        ? obj.keys.filter((k): k is string => typeof k === "string" && k.length > 0)
+        : [];
+      if (keys.length === 0) continue;
+      decks.push({ name: typeof obj.name === "string" ? obj.name : "", keys });
+    }
   }
   return decks;
 }
 
-// 표시용 — 응답에서 deck-select 블록을 떼어낸 자연어 본문.
+// 표시용 — 응답에서 deck-select 블록(들)을 모두 떼어낸 자연어 본문.
 export function stripDeckSelect(text: string): string {
-  return text.replace(FENCE, "").trim();
+  return text.replace(FENCE_G, "").trim();
 }
 
 // 스트리밍 중 — 아직 닫히지 않았을 수 있는 deck-select 블록을 끝에서 잘라 감춘다.
