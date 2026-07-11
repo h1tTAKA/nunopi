@@ -82,11 +82,16 @@ export function FlyCardProvider({
     const spin = (Math.random() < 0.5 ? -1 : 1) * rnd(160, 460); // 날아오며 회전(패턴 랜덤)
     const s1 = rnd(60, 140), s2 = rnd(40, 100); // 바람 흔들림 폭(px)
     const fallY = window.innerHeight * 1.25; // 화면 밑으로 완전히
-    // 도착: 카드 자리 → 바람에 흔들리며 곡선으로 → 가운데 부딪힘 → 바운스 → 중앙 정지(REST).
+    // 출발 스케일 — 누른 카드 폭 기준(카드 엘리먼트 w-36=144px). 그 크기에서 떠올라 peek(REST≈2.85)까지 블렌드.
+    const REST_S = 2.85;
+    const s0 = r ? r.width / 144 : 0.6;
+    const sA = s0 + (REST_S - s0) * 0.25;
+    const sB = s0 + (REST_S - s0) * 0.6;
+    // 도착: 카드 자리(원본 크기) → 바람에 흔들리며 곡선으로 → 가운데 부딪힘 → 바운스 → 중앙 정지(REST).
     const inKf: Keyframe[] = [
-      { offset: 0, opacity: 0.35, transform: `translate3d(${sx}px,${sy}px,-120px) rotateZ(${rnd(-25, 25)}deg) scale(0.6)`, easing: "cubic-bezier(0.3,0.7,0.4,1)" },
-      { offset: 0.18, opacity: 1, transform: `translate3d(${sx * 0.7 + sway * s1}px,${sy * 0.7 - s1}px,-90px) rotateY(${spin * 0.4}deg) rotateZ(${sway * 12}deg) scale(0.9)`, easing: "ease-in-out" },
-      { offset: 0.46, opacity: 1, transform: `translate3d(${sx * 0.35 - sway * s2}px,${sy * 0.4 + s2 * 0.4}px,-40px) rotateY(${spin * 0.7}deg) rotateZ(${-sway * 8}deg) scale(1.5)`, easing: "ease-in-out" },
+      { offset: 0, opacity: 0.6, transform: `translate3d(${sx}px,${sy}px,-120px) rotateZ(${rnd(-25, 25)}deg) scale(${s0})`, easing: "cubic-bezier(0.3,0.7,0.4,1)" },
+      { offset: 0.18, opacity: 1, transform: `translate3d(${sx * 0.7 + sway * s1}px,${sy * 0.7 - s1}px,-90px) rotateY(${spin * 0.4}deg) rotateZ(${sway * 12}deg) scale(${sA})`, easing: "ease-in-out" },
+      { offset: 0.46, opacity: 1, transform: `translate3d(${sx * 0.35 - sway * s2}px,${sy * 0.4 + s2 * 0.4}px,-40px) rotateY(${spin * 0.7}deg) rotateZ(${-sway * 8}deg) scale(${sB})`, easing: "ease-in-out" },
       { offset: 0.72, opacity: 1, transform: `translate3d(0,0,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.95)`, easing: "cubic-bezier(0.2,0.9,0.3,1)" }, // 부딪힘
       { offset: 0.85, opacity: 1, transform: `translate3d(0,-18px,0) rotateX(7deg) rotateY(-11deg) rotateZ(-7deg) scale(2.74)` }, // 바운스
       { offset: 1, opacity: 1, transform: REST }, // 중앙 정지
