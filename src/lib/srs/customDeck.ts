@@ -54,3 +54,12 @@ export function addCustomDeck(name: string, cardKeys: string[], goal?: string): 
 export function removeCustomDeck(id: string): void {
   saveAll(loadCustomDecks().filter((d) => d.id !== id));
 }
+
+// 기존 덱에 카드 key들을 합친다(중복 제거). 이미 있는 카드는 무시. 대상 없으면 무변경.
+export function addCardsToDeck(id: string, cardKeys: string[]): void {
+  saveAll(
+    loadCustomDecks().map((d) =>
+      d.id === id ? { ...d, cardKeys: [...new Set([...d.cardKeys, ...cardKeys])] } : d,
+    ),
+  );
+}
