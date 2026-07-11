@@ -22,9 +22,14 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
     return () => window.clearTimeout(id);
   }, [reduced]);
 
-  function launch(e: React.MouseEvent<HTMLSpanElement>) {
+  function launch(e: React.MouseEvent<HTMLSpanElement>, i: number) {
     if (cards.length === 0) return;
-    const card = cards[Math.floor(Math.random() * cards.length)]; // 클릭마다 랜덤 카드 1장
+    // 클릭한 뒷면 색(cards[i].source)과 같은 분류 카드 중 랜덤 1장 — 색 일치 + 다양성.
+    const src = cards[i]?.source;
+    const pool = src ? cards.filter((c) => c.source === src) : cards;
+    // 이벤트 핸들러(클릭)에서만 호출 — 렌더 순수성과 무관.
+    // eslint-disable-next-line react-hooks/purity
+    const card = pool[Math.floor(Math.random() * pool.length)] ?? cards[0];
     throwCard(card, e.currentTarget.getBoundingClientRect());
   }
 
@@ -43,7 +48,7 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
             return (
               <span
                 key={i}
-                onClick={launch}
+                onClick={(e) => launch(e, i)}
                 className="absolute aspect-[5/7] w-36 cursor-pointer rounded-2xl border border-zinc-200 shadow-lg transition-transform hover:-translate-y-1 dark:border-zinc-700"
                 style={{
                   transform: `translate(-50%, -100%) rotate(${opened ? angle : 0}deg)`,
@@ -53,7 +58,8 @@ export default function DeckFan({ cards }: { cards: Card[] }) {
                   top: 0,
                 }}
               >
-                <CardBack />
+                {/* 뒷면 색 = 그 자리 카드의 분류(선택 덱의 source 비율대로 섞임) */}
+                <CardBack source={cards[i]?.source} />
               </span>
             );
           })}
