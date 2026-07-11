@@ -60,6 +60,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   const [source, setSource] = useState<SourceFilter>("all");
   const [cat, setCat] = useState<CatFilter>("all");
   const [sort, setSort] = useState<Sort>("recent");
+  // 한 줄 카드 수(0 = auto-fill). localStorage 영속.
+  const [cols, setColsRaw] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const n = Number(localStorage.getItem("nunopi:mem-gallery-cols"));
+    return [0, 4, 6, 8, 10].includes(n) ? n : 0;
+  });
+  function setCols(n: number) {
+    setColsRaw(n);
+    try { localStorage.setItem("nunopi:mem-gallery-cols", String(n)); } catch { /* ignore */ }
+  }
   // 선택 삭제 모드 — 켜면 타일 클릭이 throw 대신 선택 토글.
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -222,13 +232,22 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             className="w-full rounded-lg border border-zinc-200 bg-white py-1.5 pl-8 pr-3 text-xs text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
           />
         </div>
-        {/* 뷰 컨트롤 — 정렬(검색창 오른쪽). 모든 모드에서 노출. */}
+        {/* 뷰 컨트롤 — 정렬 + 한 줄 카드 수(검색창 오른쪽). 모든 모드에서 노출. */}
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
           className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
         >
           {SORTS.map((s) => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
+        </select>
+        <select
+          value={cols}
+          onChange={(e) => setCols(Number(e.target.value))}
+          title={t("mem.perRow")}
+          className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-600 outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          <option value={0}>{t("mem.perRowAuto")}</option>
+          {[4, 6, 8, 10].map((n) => <option key={n} value={n}>{t("mem.perRowN").replace("{n}", String(n))}</option>)}
         </select>
         <div className="flex-1" />
         {selectMode ? (
@@ -398,7 +417,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {t("mem.noCardsFound")}
           </div>
         ) : (
-          <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(9rem, 1fr))" }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: cols > 0 ? `repeat(${cols}, minmax(0, 1fr))` : "repeat(auto-fill, minmax(9rem, 1fr))" }}>
             {cards.map((c) => (
               <CardTile
                 key={c.key}
@@ -514,29 +533,30 @@ function CardTile({ card, reviews, picking, selected, tone, onToggle, onThrow, t
     <button
       type="button"
       onClick={(e) => (picking ? onToggle() : onThrow(card, e.currentTarget.getBoundingClientRect()))}
-      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border bg-white p-3 text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
+      style={{ containerType: "inline-size" }}
+      className={`group relative flex aspect-[5/7] w-full flex-col items-center justify-center gap-[3%] overflow-hidden rounded-2xl border bg-white p-[6%] text-center shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-700 ${
         picking && selected ? ring : "border-zinc-200"
       }`}
     >
-      <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] border-2 ${cardFrame(card.source).outer}`} />
-      <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] border ${cardFrame(card.source).inner}`} />
-      {/* 선택(삭제/덱만들기) 모드 체크 표시 */}
+      <span className={`pointer-events-none absolute inset-[6%] rounded-[10%] [border-style:solid] [border-width:clamp(1.5px,1.2cqw,5px)] ${cardFrame(card.source).outer}`} />
+      <span className={`pointer-events-none absolute inset-[9%] rounded-[8%] [border-style:solid] [border-width:clamp(1px,0.7cqw,3px)] ${cardFrame(card.source).inner}`} />
+      {/* 선택(삭제/덱만들기) 모드 체크 표시 — 카드 크기 비례 */}
       {picking && (
-        <span className={`absolute right-2 bottom-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
-          {selected && <IconCheck size={12} stroke={3} aria-hidden />}
+        <span className={`absolute bottom-[5cqw] right-[5cqw] z-10 flex h-[13cqw] max-h-6 w-[13cqw] max-w-6 items-center justify-center rounded-full border ${selected ? badge : "border-zinc-300 bg-white/70 dark:border-zinc-600 dark:bg-zinc-800/70"}`}>
+          {selected && <IconCheck size={12} stroke={3} className="h-[8cqw] max-h-3.5 w-[8cqw] max-w-3.5" aria-hidden />}
         </span>
       )}
-      {/* 상단 배지 — 출처 + 분류 점 */}
-      <span className="absolute left-2 top-2 flex items-center gap-1">
-        <span className={`h-2 w-2 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
+      {/* 상단 배지 — 분류 점 + 출처(카드 크기 비례) */}
+      <span className="absolute left-[5cqw] top-[5cqw] flex items-center gap-1">
+        <span className={`h-[5cqw] max-h-2.5 w-[5cqw] max-w-2.5 rounded-full ${CAT_DOT[cardCategory(card)]}`} />
       </span>
-      <span className="absolute right-2 top-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[8px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+      <span className="absolute right-[5cqw] top-[5cqw] rounded bg-zinc-100 px-[2.5cqw] py-[1cqw] font-medium leading-none text-zinc-500 [font-size:clamp(0.5rem,5.5cqw,0.85rem)] dark:bg-zinc-800 dark:text-zinc-400">
         {t(SRC_LABEL[card.source])}
       </span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={SYMBOL} alt="" className="relative mt-2 h-6 w-6 object-contain" />
-      <span className="relative line-clamp-3 text-xs font-bold leading-tight text-zinc-900">{card.front}</span>
-      <span className="absolute bottom-2 text-[9px] tabular-nums text-zinc-400 dark:text-zinc-500">
+      <img src={SYMBOL} alt="" className="relative h-[16cqw] max-h-10 w-[16cqw] max-w-10 object-contain" />
+      <span className="relative line-clamp-3 font-bold leading-tight text-zinc-900 [font-size:clamp(0.75rem,8cqw,1.5rem)]">{card.front}</span>
+      <span className="absolute bottom-[5cqw] tabular-nums text-zinc-400 [font-size:clamp(0.55rem,6cqw,0.9rem)] dark:text-zinc-500">
         {t("mem.reviewsShort").replace("{n}", String(reviews))}
       </span>
     </button>
