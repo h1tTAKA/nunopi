@@ -19,6 +19,7 @@ interface MemorizeChatProps {
 
 type StreamEvent =
   | { type: "progress"; line: string }
+  | { type: "thinking"; line: string }
   | { type: "result"; response: { summary: string } }
   | { type: "error"; message: string };
 
