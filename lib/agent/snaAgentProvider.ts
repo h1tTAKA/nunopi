@@ -63,6 +63,7 @@ async function runViaSna(
     systemPrompt?: string;
     signal?: AbortSignal;
     onProgress?: (line: string) => void;
+    onThinking?: (line: string) => void; // 추론(thinking) 누적 — 대기 구간 활동 표시용
     fullProgress?: boolean;
     effort?: boolean; // 분석은 low; 챗은 미강제
   },
@@ -89,6 +90,7 @@ async function runViaSna(
     : { model: isCodex ? codexModel : openCodeModel }; // codex/opencode: 모델만 명시(claude 플래그 미전달)
 
   let full = "";
+  let think = ""; // 추론 누적
   let streamed = false;
   let usage: AgentUsage | undefined;
 
@@ -107,6 +109,10 @@ async function runViaSna(
       full += (ev.delta as string | undefined) ?? "";
       // 비-full(코드/explain 진행 라벨)은 누적 끝 200자만 — runClaudeCli와 동일(델타 조각 X).
       opts.onProgress?.(opts.fullProgress ? full : full.slice(-200));
+    } else if (type === "thinking_delta") {
+      // 추론 조각 — 답변과 별개로 흘려 대기 구간에 "생각 중" 활동 표시.
+      think += (ev.message as string | undefined) ?? "";
+      opts.onThinking?.(think);
     } else if (type === "assistant" && !streamed) {
       full = (ev.message as string | undefined) ?? "";
       opts.onProgress?.(full);
@@ -256,6 +262,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           systemPrompt: isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
           signal: options?.signal,
           onProgress: streamOnProgress,
+          // 추론 표시는 챗류(덱 모달 등)에서만 — 분석/청크는 partial 파싱 경로라 미전달.
+          onThinking: isChatLike ? options?.onThinking : undefined,
           fullProgress,
           effort: !isChatLike,
         });
