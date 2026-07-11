@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { cardCategory, type CardCategory } from "@/lib/srs/due";
 import { deleteCard } from "@/lib/srs/deleteCard";
-import { addCustomDeck, addCardsToDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { addCustomDeck, addCardsToDeck, removeCardsFromDeck, loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { DECK_SOURCES, type Card, type SrsSource } from "@/lib/srs/types";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
@@ -163,6 +163,23 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     setAddResult({ deckName: target.name, added, skipped });
     exitAll();
   }
+  // 현재 필터 덱에서 선택 카드 빼기(카드 원본·SRS 상태 불변) — 확인 후.
+  async function removeSelectedFromDeck() {
+    if (selected.size === 0 || !deckFilter) return;
+    const deck = customDecks.find((d) => d.id === deckFilter);
+    if (!deck) return;
+    const ok = await confirm({
+      title: t("mem.removeFromDeckTitle"),
+      message: t("mem.removeFromDeckMsg").replace("{deck}", deck.name).replace("{n}", String(selected.size)),
+      confirmText: t("mem.removeFromDeckYes"),
+      danger: true,
+    });
+    if (!ok) return;
+    // await 동안 상태 변동 방어.
+    if (selected.size === 0 || !customDecks.some((d) => d.id === deckFilter)) return;
+    removeCardsFromDeck(deckFilter, [...selected]);
+    exitAll();
+  }
   // 선택 카드로 커스텀 덱 생성 → DeckSelect "내 덱"에 등장(CUSTOM_DECKS_CHANGED_EVENT).
   function createDeck() {
     if (selected.size === 0) return;
@@ -231,6 +248,21 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 >
                   <IconCirclePlus size={15} stroke={2} aria-hidden />
                   {t("mem.addToDeckN").replace("{n}", String(selected.size))}
+                </button>
+                <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
+              </>
+            )}
+            {/* 이 덱에서 빼기 — 특정 덱 필터로 볼 때만(카드 원본은 유지) */}
+            {deckFilter && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => { void removeSelectedFromDeck(); }}
+                  disabled={selected.size === 0}
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400 px-3 py-1.5 text-xs font-semibold text-amber-600 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-500/60 dark:text-amber-400 dark:hover:bg-amber-500/10"
+                >
+                  <IconCircleMinus size={15} stroke={2} aria-hidden />
+                  {t("mem.removeFromDeckN").replace("{n}", String(selected.size))}
                 </button>
                 <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
               </>
