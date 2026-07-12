@@ -277,7 +277,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const sessionId = storeRef.current.activeSessionId;
     updateSession(sessionId, (s) => {
       const layout = s.layout.filter((id) => id !== subId);
-      const nextLayout = layout.length ? layout : [s.activeSubId];
+      // 전부 닫히면 닫은 질문 말고 다른 질문으로 폴백(재표시 방지).
+      const fallback = s.subs.find((x) => x.id !== subId)?.id ?? s.subs[0].id;
+      const nextLayout = layout.length ? layout : [fallback];
       const activeSubId = s.activeSubId === subId ? nextLayout[nextLayout.length - 1] : s.activeSubId;
       return { ...s, layout: nextLayout, activeSubId };
     });
@@ -405,7 +407,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
           setStreamingMap((m) => ({ ...m, [subId]: null }));
           setLoadingMap((m) => ({ ...m, [subId]: false }));
         }
-        abortMap.current.delete(subId);
+        // 같은 질문에 더 새 요청이 시작됐으면 그 컨트롤러를 지우지 않도록 identity 확인.
+        if (abortMap.current.get(subId) === ac) abortMap.current.delete(subId);
       }
     })();
   }
