@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX, IconCommand } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -245,6 +245,18 @@ export default function AskChat({
               <IconArrowUp size={18} stroke={2.5} aria-hidden />
             </button>
           </div>
+          {canSplit && onSplitNew && (
+            <div className="mt-1 flex items-center justify-end gap-0.5 text-[9px] text-zinc-400 dark:text-zinc-500">
+              <kbd className="inline-flex items-center gap-0.5 rounded border border-zinc-200 bg-zinc-50 px-1 py-px font-sans dark:border-zinc-700 dark:bg-zinc-800">
+                <IconCommand size={9} stroke={2} aria-hidden />Cmd
+              </kbd>
+              <span className="text-zinc-300 dark:text-zinc-600">+</span>
+              <kbd className="inline-flex items-center rounded border border-zinc-200 bg-zinc-50 px-1 py-px font-sans dark:border-zinc-700 dark:bg-zinc-800">
+                d
+              </kbd>
+              <span className="ml-0.5">{t("ask.newSubHint")}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
