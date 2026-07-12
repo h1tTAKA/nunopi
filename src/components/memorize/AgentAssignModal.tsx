@@ -447,7 +447,7 @@ export default function AgentAssignModal({
 
       {/* 추가 완료 팝업 — 덱별 합계. 닫으면 모달 종료. */}
       {result && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/50 p-6">
           <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
             <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-lime-500/15 text-lime-600 dark:text-lime-400">
               <IconCheck size={22} stroke={2.5} aria-hidden />
