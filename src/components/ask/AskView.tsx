@@ -263,9 +263,12 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const folder = createFolder("", parentId); // 빈 폴더·이름 미지정(표시는 "제목 없음 N")
     // 부모 폴더가 접혀 있으면 펼쳐 새 하위 폴더가 보이게.
     const folders = prev.folders.map((f) => (f.id === parentId ? { ...f, collapsed: false } : f));
-    commit({ ...prev, folders: [...folders, folder] });
+    const nextFolders = [...folders, folder];
+    commit({ ...prev, folders: nextFolders });
+    // rename 프리필 = 실제 표시 번호(커밋 후 형제 스코프 기준). store는 아직 stale이라 직접 계산.
+    const siblings = nextFolders.filter((f) => (f.parentId ?? null) === (folder.parentId ?? null));
     setRenamingId(folder.id);
-    setRenameDraft(folder.name);
+    setRenameDraft(t("ask.folderN", { n: siblings.findIndex((f) => f.id === folder.id) + 1 }));
   }
 
   function commitRenameFolder(id: string) {
