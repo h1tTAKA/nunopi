@@ -8,6 +8,7 @@ import {
   loadAskStore,
   saveAskStore,
   createSession,
+  newAskId,
   type AskStore,
   type AskSession,
 } from "@/lib/askStore";
@@ -84,6 +85,13 @@ export default function AskView({ active = true, providerId, providerSettings }:
     commit(next);
   }
 
+  // 활성 세션 하나를 mapper로 갱신하고 커밋(서브세션 조작용).
+  function updateActiveSession(mapper: (s: AskSession) => AskSession) {
+    const prev = storeRef.current;
+    const targetId = prev.activeSessionId;
+    commit({ ...prev, sessions: prev.sessions.map((s) => (s.id !== targetId ? s : mapper(s))) });
+  }
+
   function resetStream() {
     abortRef.current?.abort();
     setStreaming(null);
@@ -126,6 +134,29 @@ export default function AskView({ active = true, providerId, providerSettings }:
     if (title) {
       commit({ ...store, sessions: store.sessions.map((s) => (s.id === id ? { ...s, title } : s)) });
     }
+  }
+
+  // ── 서브세션 조작(활성 세션 내 탭) ─────────────────────
+  function handleNewSub() {
+    resetStream();
+    const sub = { id: newAskId(), messages: [] };
+    updateActiveSession((s) => ({ ...s, subs: [...s.subs, sub], activeSubId: sub.id, layout: [sub.id] }));
+  }
+
+  function handleSwitchSub(subId: string) {
+    if (subId === activeSession?.activeSubId) return;
+    resetStream();
+    updateActiveSession((s) => ({ ...s, activeSubId: subId, layout: [subId] }));
+  }
+
+  function handleDeleteSub(subId: string) {
+    resetStream();
+    updateActiveSession((s) => {
+      const subs = s.subs.filter((sub) => sub.id !== subId);
+      if (subs.length === 0) return s; // 최소 1 보장(ChatRoom이 >1일 때만 삭제 노출)
+      const activeSubId = s.activeSubId === subId ? subs[subs.length - 1].id : s.activeSubId;
+      return { ...s, subs, activeSubId, layout: [activeSubId] };
+    });
   }
 
   // ── 챗 조작(활성 세션·서브 대상) ───────────────────────
@@ -313,6 +344,11 @@ export default function AskView({ active = true, providerId, providerSettings }:
             onSend={handleSend}
             onClear={handleClear}
             onCardAction={handleCardAction}
+            sessionIds={activeSession?.subs.map((sub) => sub.id) ?? []}
+            activeSessionId={activeSession?.activeSubId ?? null}
+            onSwitchSession={handleSwitchSub}
+            onNewSession={handleNewSub}
+            onDeleteSession={handleDeleteSub}
           />
         </div>
       </div>
