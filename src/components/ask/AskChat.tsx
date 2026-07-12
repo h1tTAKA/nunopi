@@ -176,7 +176,7 @@ export default function AskChat({
               if (m.role === "user") {
                 return (
                   <div key={i} className="flex justify-end">
-                    <div className="max-w-[80%] select-text whitespace-pre-wrap rounded-3xl bg-zinc-100 px-4 py-2.5 text-[15px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
+                    <div className="max-w-[80%] select-text whitespace-pre-wrap rounded-3xl bg-zinc-100 px-4 py-2.5 text-base text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
                       {m.content}
                     </div>
                   </div>
@@ -187,8 +187,8 @@ export default function AskChat({
               const freshCards = cards.filter((c) => !bookmarkedTermExists(c.term));
               return (
                 <div key={i} className="flex flex-col items-start gap-2">
-                  <div className="w-full select-text text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
-                    <Markdown>{text}</Markdown>
+                  <div className="w-full select-text text-zinc-800 dark:text-zinc-100">
+                    <Markdown className="nunopi-md-lg">{text}</Markdown>
                   </div>
                   {onCardAction && freshCards.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -216,8 +216,8 @@ export default function AskChat({
               );
             })}
             {streaming != null && (
-              <div className="w-full select-text text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-100">
-                {streaming ? <Markdown>{stripStreamingCardBlock(streaming)}</Markdown> : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
+              <div className="w-full select-text text-zinc-800 dark:text-zinc-100">
+                {streaming ? <Markdown className="nunopi-md-lg">{stripStreamingCardBlock(streaming)}</Markdown> : <span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span>}
               </div>
             )}
           </div>
