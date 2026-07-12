@@ -139,13 +139,12 @@ export function loadAskStore(fallbackTitle: string): AskStore {
         return { folders, sessions, activeSessionId };
       }
     }
-    // store 없음 — 레거시 스레드 흡수 시도, 없으면 빈 세션 1개.
+    // store 없음 — 레거시 스레드 흡수 시도. 없으면 빈 store(세션 0개 허용).
     const migrated = migrateLegacyThread(fallbackTitle);
-    const first = migrated ?? createSession(fallbackTitle);
-    return { folders: [], sessions: [first], activeSessionId: first.id };
+    if (migrated) return { folders: [], sessions: [migrated], activeSessionId: migrated.id };
+    return { folders: [], sessions: [], activeSessionId: "" };
   } catch {
-    const first = createSession(fallbackTitle);
-    return { folders: [], sessions: [first], activeSessionId: first.id };
+    return { folders: [], sessions: [], activeSessionId: "" };
   }
 }
 

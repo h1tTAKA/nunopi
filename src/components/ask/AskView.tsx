@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus } from "@tabler/icons-react";
+import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus, IconSparkles } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import AskChat from "@/components/ask/AskChat";
@@ -191,13 +191,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
   function handleDeleteSession(id: string) {
     resetStream();
     const remaining = store.sessions.filter((s) => s.id !== id);
-    if (remaining.length === 0) {
-      const fresh = createSession(t("ask.untitled"));
-      commit({ ...store, sessions: [fresh], activeSessionId: fresh.id });
-      expand(fresh.id);
-      return;
-    }
-    const activeSessionId = store.activeSessionId === id ? remaining[remaining.length - 1].id : store.activeSessionId;
+    // 0개 허용 — 마지막 세션도 삭제 가능(우측은 빈 상태 CTA).
+    const activeSessionId = store.activeSessionId === id ? (remaining[remaining.length - 1]?.id ?? "") : store.activeSessionId;
     commit({ ...store, sessions: remaining, activeSessionId });
   }
   async function confirmDeleteSession(id: string) {
@@ -242,14 +237,13 @@ export default function AskView({ active = true, providerId, providerSettings }:
     resetStream();
     const prev = storeRef.current;
     const folders = prev.folders.filter((f) => f.id !== id);
-    let sessions = deleteSessions
+    const sessions = deleteSessions
       ? prev.sessions.filter((s) => s.folderId !== id)
       : prev.sessions.map((s) => (s.folderId === id ? { ...s, folderId: null } : s));
-    // 항상 세션 1개 이상 보장.
-    if (sessions.length === 0) sessions = [createSession(t("ask.untitled"))];
+    // 0개 허용.
     const activeSessionId = sessions.some((s) => s.id === prev.activeSessionId)
       ? prev.activeSessionId
-      : sessions[sessions.length - 1].id;
+      : (sessions[sessions.length - 1]?.id ?? "");
     commit({ folders, sessions, activeSessionId });
   }
   async function confirmDeleteFolder(id: string) {
@@ -849,7 +843,26 @@ export default function AskView({ active = true, providerId, providerSettings }:
       {/* 우측 활성 세션 작업공간 — layout에 따라 단일 챗 또는 분할 타일 그리드. */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {(() => {
-          if (!activeSession) return null;
+          if (!activeSession) {
+            // 세션 0개 — 빈 상태 + 새 세션 CTA.
+            return (
+              <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
+                <IconSparkles size={40} stroke={1.5} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+                <div>
+                  <p className="text-xl font-semibold text-zinc-700 dark:text-zinc-200">{t("ask.noSessions")}</p>
+                  <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-500">{t("ask.noSessionsHint")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNewSession}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#3B34E2] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#322bc9]"
+                >
+                  <IconPlus size={16} stroke={2.5} aria-hidden />
+                  {t("ask.newSession")}
+                </button>
+              </div>
+            );
+          }
           // layout의 유효한 질문만(삭제된 id 방어). 비면 활성 서브로 폴백.
           const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
           const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
