@@ -84,7 +84,7 @@ export default function AskChat({
             <span className="shrink-0 text-zinc-300 dark:text-zinc-600">/</span>
           </>
         )}
-        <span className="shrink-0 truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</span>
+        <span className="min-w-0 shrink truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</span>
         {subLabel && (
           <>
             <span className="shrink-0 text-zinc-300 dark:text-zinc-600">/</span>
