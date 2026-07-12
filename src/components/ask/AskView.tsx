@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconMessage2, IconPlus, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import ChatRoom from "@/components/learning/ChatRoom";
+import AskChat from "@/components/ask/AskChat";
 import {
   loadAskStore,
   saveAskStore,
@@ -330,27 +330,22 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
       </aside>
 
-      {/* 우측 활성 세션 작업공간(단일 챗 — 서브세션 탭/분할은 이슈3/4). */}
-      <div className="flex min-h-0 flex-1 flex-col items-center overflow-hidden px-4 py-6">
-        <div className="mb-4 flex shrink-0 items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          {activeSession?.title || t("ask.title")}
-        </div>
-        <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-[#15161d]">
-          <ChatRoom
-            messages={messages}
-            streaming={streaming}
-            isLoading={loading}
-            mode="code"
-            onSend={handleSend}
-            onClear={handleClear}
-            onCardAction={handleCardAction}
-            sessionIds={activeSession?.subs.map((sub) => sub.id) ?? []}
-            activeSessionId={activeSession?.activeSubId ?? null}
-            onSwitchSession={handleSwitchSub}
-            onNewSession={handleNewSub}
-            onDeleteSession={handleDeleteSub}
-          />
-        </div>
+      {/* 우측 활성 세션 작업공간 — ChatGPT식 프레임리스 챗(분할 타일은 이슈4). */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <AskChat
+          title={activeSession?.title || t("ask.title")}
+          messages={messages}
+          streaming={streaming}
+          isLoading={loading}
+          onSend={handleSend}
+          onClear={handleClear}
+          onCardAction={handleCardAction}
+          subIds={activeSession?.subs.map((sub) => sub.id) ?? []}
+          activeSubId={activeSession?.activeSubId ?? null}
+          onSwitchSub={handleSwitchSub}
+          onNewSub={handleNewSub}
+          onDeleteSub={handleDeleteSub}
+        />
       </div>
     </div>
   );
