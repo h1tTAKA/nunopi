@@ -24,11 +24,12 @@ export interface AskSession {
   folderId?: string | null; // 속한 폴더. null/미지정 = 루트(그룹 안 됨).
 }
 
-// 세션 그룹 폴더 — 좌측 패널에서 세션을 묶어 관리.
+// 세션 그룹 폴더 — 좌측 패널에서 세션을 묶어 관리. 중첩(하위 폴더) 지원.
 export interface AskFolder {
   id: string;
   name: string;
-  collapsed?: boolean; // 접힘(하위 세션 숨김).
+  collapsed?: boolean; // 접힘(하위 세션·폴더 숨김).
+  parentId?: string | null; // 상위 폴더. null/미지정 = 루트.
 }
 
 export interface AskStore {
@@ -61,9 +62,9 @@ export function createSession(title: string, folderId: string | null = null): As
   };
 }
 
-// 새 폴더 하나 생성.
-export function createFolder(name: string): AskFolder {
-  return { id: newAskId(), name, collapsed: false };
+// 새 폴더 하나 생성(parentId 지정 시 하위 폴더).
+export function createFolder(name: string, parentId: string | null = null): AskFolder {
+  return { id: newAskId(), name, collapsed: false, parentId };
 }
 
 // 저장된 세션 배열이 스키마를 갖추도록 방어적으로 정규화.
@@ -98,7 +99,12 @@ function normalizeFolder(raw: unknown): AskFolder | null {
   if (!raw || typeof raw !== "object") return null;
   const f = raw as Partial<AskFolder>;
   if (typeof f.id !== "string") return null;
-  return { id: f.id, name: typeof f.name === "string" ? f.name : "", collapsed: f.collapsed === true };
+  return {
+    id: f.id,
+    name: typeof f.name === "string" ? f.name : "",
+    collapsed: f.collapsed === true,
+    parentId: typeof f.parentId === "string" ? f.parentId : null,
+  };
 }
 
 // 이슈1 단일 스레드(ask-thread) → 첫 세션으로 흡수 후 제거.
