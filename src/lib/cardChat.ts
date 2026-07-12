@@ -48,7 +48,9 @@ export function loadCardSessions(cardKey: string): CardChatSession[] {
 export function saveCardSessions(cardKey: string, sessions: CardChatSession[]): void {
   try {
     const store = loadRaw() as Store;
-    const meaningful = sessions.some((s) => s.messages.length > 0);
+    // 유의미 = 메시지 있는 세션이 있거나, 세션이 2개 이상(유저가 만든 빈 세션도 보존해야 재로드·동기화 시
+    // 사라지거나 인스턴스 간 id가 갈리지 않음). fresh 단일 빈 세션만 정리(단일이라 발산 무해).
+    const meaningful = sessions.some((s) => s.messages.length > 0) || sessions.length > 1;
     if (!meaningful) delete store[cardKey];
     else store[cardKey] = sessions;
     localStorage.setItem(KEY, JSON.stringify(store));
