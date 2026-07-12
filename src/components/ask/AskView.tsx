@@ -503,6 +503,31 @@ export default function AskView({ active = true, providerId, providerSettings }:
     );
   }
 
+  // 같은 세션(+폴더 서브트리) 다른 질문 대화를 에이전트 참조용 다이제스트로 조립.
+  // 현재 질문 제외, 메시지 있는 것만. 총 길이 상한으로 토큰 폭주 방지.
+  function buildSharedContext(store: AskStore, activeSession: AskSession, currentSubId: string): string {
+    const CAP = 6000;
+    const scope = new Set<string>([activeSession.id]);
+    if (activeSession.folderId) {
+      const fam = descendantFolderIds(activeSession.folderId, store.folders);
+      for (const s of store.sessions) if (s.folderId && fam.has(s.folderId)) scope.add(s.id);
+    }
+    const parts: string[] = [];
+    for (const s of store.sessions) {
+      if (!scope.has(s.id)) continue;
+      s.subs.forEach((sub, i) => {
+        if (sub.id === currentSubId || sub.messages.length === 0) return;
+        const qname = sub.title || t("ask.thread", { n: i + 1 });
+        const transcript = sub.messages.map((m) => `${m.role === "user" ? "Q" : "A"}: ${m.content}`).join("\n");
+        parts.push(`### ${s.title || t("ask.title")} / ${qname}\n${transcript}`);
+      });
+    }
+    if (parts.length === 0) return "";
+    let ctx = `(참고: 같은 세션/폴더의 다른 질문에서 오간 내용입니다. 필요하면 참고해 일관되게 답하세요.)\n\n${parts.join("\n\n")}`;
+    if (ctx.length > CAP) ctx = `${ctx.slice(0, CAP)}\n…(이하 생략)`;
+    return ctx;
+  }
+
   function handleSendTo(subId: string, text: string) {
     if (loadingMap[subId]) return;
     const prev = storeRef.current;
@@ -511,6 +536,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
     if (!session || !sub) return;
     const sessionId = session.id;
     const thread: ChatMessage[] = [...sub.messages, { role: "user", content: text }];
+    // 형제 질문 맥락은 code 슬롯(참조 자료)에만 — messages는 현재 질문 thread 유지(역할 오염 방지).
+    const shared = buildSharedContext(prev, session, subId);
+    const code = shared || NO_CONTEXT;
     updateSubMessages(sessionId, subId, () => thread);
     setStreamingMap((m) => ({ ...m, [subId]: "" }));
     setLoadingMap((m) => ({ ...m, [subId]: true }));
@@ -525,7 +553,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             providerId,
-            request: { code: NO_CONTEXT, locale, providerId, mode: "chat", messages: thread, providerSettings },
+            request: { code, locale, providerId, mode: "chat", messages: thread, providerSettings },
           }),
           signal: ac.signal,
         });
