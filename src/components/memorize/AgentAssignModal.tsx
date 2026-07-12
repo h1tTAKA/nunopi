@@ -316,13 +316,15 @@ export default function AgentAssignModal({
                   {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
                 </button>
               </div>
-              {/* 맡기기 */}
-              <button type="button" onClick={() => { void delegate(); }} disabled={loading || pickedCount === 0 || pickedDecks.size === 0}
-                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#3B34E2] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40">
-                <IconSparkles size={16} stroke={2} aria-hidden />
-                {t("mem.assignDelegate")}
-                <span className="text-xs font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
-              </button>
+              {/* 맡기기 — 우측 정렬 compact */}
+              <div className="flex justify-end">
+                <button type="button" onClick={() => { void delegate(); }} disabled={loading || pickedCount === 0 || pickedDecks.size === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B34E2] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40">
+                  <IconSparkles size={15} stroke={2} aria-hidden />
+                  {t("mem.assignDelegate")}
+                  <span className="font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
+                </button>
+              </div>
             </div>
             {/* 카드 그리드 — 남는 공간 */}
             <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
