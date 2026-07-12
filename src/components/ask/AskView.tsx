@@ -109,6 +109,13 @@ export default function AskView({ active = true, providerId, providerSettings }:
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
+        // 개행으로 끝나지 않은 마지막 이벤트(result) 유실 방지 — 남은 버퍼 flush.
+        if (buffer.trim()) {
+          try {
+            const ev = JSON.parse(buffer) as StreamEvent;
+            if (ev.type === "result") answer = ev.response.summary;
+          } catch { /* 부분 청크 — 무시 */ }
+        }
         if (!ac.signal.aborted) {
           const next: ChatMessage[] = [...thread, { role: "assistant", content: answer || "(빈 응답)" }];
           setMessages(next); saveAskThread(next);
