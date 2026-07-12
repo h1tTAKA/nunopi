@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconMessage2, IconPlus, IconPencil, IconTrash } from "@tabler/icons-react";
+import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import ChatRoom from "@/components/learning/ChatRoom";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
+import AskChat from "@/components/ask/AskChat";
 import {
   loadAskStore,
   saveAskStore,
   createSession,
+  newAskId,
   type AskStore,
   type AskSession,
 } from "@/lib/askStore";
@@ -35,11 +37,14 @@ export default function AskView({ active = true, providerId, providerSettings }:
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const confirm = useConfirm();
   const [store, setStore] = useState<AskStore>(EMPTY_STORE);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
+  // 좌측 트리에서 펼쳐진(서브세션 노출) 세션 id 집합.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   const abortRef = useRef<AbortController | null>(null);
@@ -52,6 +57,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
     storeRef.current = loaded;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStore(loaded);
+    // 활성 세션은 펼친 상태로 시작(그 하위 대화 노출).
+    setExpanded(new Set([loaded.activeSessionId]));
     return () => abortRef.current?.abort();
     // t는 로케일 변경 시 바뀌지만 초기 제목에만 쓰여 재로드 불필요.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,6 +76,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
     ? activeSession.subs.find((sub) => sub.id === activeSession.activeSubId) ?? activeSession.subs[0]
     : null;
   const messages: ChatMessage[] = activeSub?.messages ?? [];
+  // 활성 질문(서브세션) 라벨 — 유저 지정 이름 우선, 없으면 "질문 N".
+  const activeSubIndex = activeSession ? activeSession.subs.findIndex((sub) => sub.id === activeSub?.id) : -1;
+  const subLabel = activeSub ? activeSub.title || t("ask.thread", { n: Math.max(0, activeSubIndex) + 1 }) : undefined;
 
   // 특정 세션·서브의 messages를 mapper로 갱신하고 커밋(async 완료 대비 id로 지목).
   function updateSubMessages(sessionId: string, subId: string, mapper: (msgs: ChatMessage[]) => ChatMessage[]) {
@@ -84,10 +94,29 @@ export default function AskView({ active = true, providerId, providerSettings }:
     commit(next);
   }
 
+  // 특정 세션 하나를 mapper로 갱신하고 커밋(서브세션 조작용).
+  function updateSession(sessionId: string, mapper: (s: AskSession) => AskSession) {
+    const prev = storeRef.current;
+    commit({ ...prev, sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : mapper(s))) });
+  }
+
   function resetStream() {
     abortRef.current?.abort();
     setStreaming(null);
     setLoading(false);
+  }
+
+  function expand(id: string) {
+    setExpanded((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   // ── 세션 조작 ──────────────────────────────────────────
@@ -95,9 +124,11 @@ export default function AskView({ active = true, providerId, providerSettings }:
     resetStream();
     const session = createSession(t("ask.untitled"));
     commit({ sessions: [...store.sessions, session], activeSessionId: session.id });
+    expand(session.id);
   }
 
   function handleSelectSession(id: string) {
+    expand(id);
     if (id === store.activeSessionId) return;
     resetStream();
     commit({ ...store, activeSessionId: id });
@@ -109,6 +140,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
     if (remaining.length === 0) {
       const fresh = createSession(t("ask.untitled"));
       commit({ sessions: [fresh], activeSessionId: fresh.id });
+      expand(fresh.id);
       return;
     }
     const activeSessionId = store.activeSessionId === id ? remaining[remaining.length - 1].id : store.activeSessionId;
@@ -125,6 +157,62 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const title = renameDraft.trim();
     if (title) {
       commit({ ...store, sessions: store.sessions.map((s) => (s.id === id ? { ...s, title } : s)) });
+    }
+  }
+
+  // ── 서브세션(대화) 조작 — 좌측 트리에서 세션 지목 ──────
+  function handleNewSub(sessionId: string) {
+    resetStream();
+    const sub = { id: newAskId(), messages: [] };
+    const prev = storeRef.current;
+    commit({
+      ...prev,
+      activeSessionId: sessionId,
+      sessions: prev.sessions.map((s) =>
+        s.id !== sessionId ? s : { ...s, subs: [...s.subs, sub], activeSubId: sub.id, layout: [sub.id] },
+      ),
+    });
+    expand(sessionId);
+  }
+
+  function handleSelectSub(sessionId: string, subId: string) {
+    if (sessionId === store.activeSessionId && subId === activeSession?.activeSubId) return;
+    resetStream();
+    const prev = storeRef.current;
+    commit({
+      ...prev,
+      activeSessionId: sessionId,
+      sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId: subId, layout: [subId] })),
+    });
+  }
+
+  function handleDeleteSub(sessionId: string, subId: string) {
+    resetStream();
+    updateSession(sessionId, (s) => {
+      const subs = s.subs.filter((sub) => sub.id !== subId);
+      if (subs.length === 0) return s; // 최소 1 보장(트리가 >1일 때만 삭제 노출)
+      const activeSubId = s.activeSubId === subId ? subs[subs.length - 1].id : s.activeSubId;
+      return { ...s, subs, activeSubId, layout: [activeSubId] };
+    });
+  }
+
+  // 질문(서브세션) rename — 세션 rename과 동일 패턴(blur 단일 커밋 + 취소 플래그).
+  function commitRenameSub(sessionId: string, subId: string) {
+    setRenamingId(null);
+    if (renameCancelRef.current) {
+      renameCancelRef.current = false;
+      return;
+    }
+    const title = renameDraft.trim();
+    updateSession(sessionId, (s) => ({
+      ...s,
+      subs: s.subs.map((sub) => (sub.id === subId ? { ...sub, title: title || undefined } : sub)),
+    }));
+  }
+
+  async function confirmDeleteSub(sessionId: string, subId: string) {
+    if (await confirm({ title: t("ask.confirmDeleteThreadTitle"), message: t("ask.confirmDeleteThread"), confirmText: t("common.delete"), danger: true })) {
+      handleDeleteSub(sessionId, subId);
     }
   }
 
@@ -239,59 +327,145 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
         <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {store.sessions.map((s: AskSession) => {
-            const selected = s.id === store.activeSessionId;
+            const isActiveSession = s.id === store.activeSessionId;
             const renaming = s.id === renamingId;
+            const isOpen = expanded.has(s.id);
             return (
-              <div
-                key={s.id}
-                className={`group mb-0.5 flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                  selected
-                    ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                    : "text-zinc-600 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-                }`}
-              >
-                {renaming ? (
-                  <input
-                    autoFocus
-                    value={renameDraft}
-                    onChange={(e) => setRenameDraft(e.target.value)}
-                    onBlur={() => commitRename(s.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                      else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
-                    }}
-                    className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
-                  />
-                ) : (
-                  <>
+              <div key={s.id} className="mb-0.5">
+                {/* 세션(부모 폴더) 행 */}
+                <div
+                  className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm transition-colors ${
+                    isActiveSession
+                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                      : "text-zinc-600 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(s.id)}
+                    aria-label={isOpen ? "접기" : "펼치기"}
+                    className="flex h-7 w-6 shrink-0 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                  >
+                    {isOpen ? <IconChevronDown size={15} stroke={2} aria-hidden /> : <IconChevronRight size={15} stroke={2} aria-hidden />}
+                  </button>
+                  {renaming ? (
+                    <input
+                      autoFocus
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => commitRename(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
+                      }}
+                      className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
+                    />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSession(s.id)}
+                        onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                        className="min-w-0 flex-1 truncate py-1.5 text-left font-medium"
+                        title={s.title || t("ask.untitled")}
+                      >
+                        {s.title || t("ask.untitled")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                        aria-label={t("ask.rename")}
+                        title={t("ask.rename")}
+                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+                      >
+                        <IconPencil size={14} stroke={2} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSession(s.id)}
+                        aria-label={t("ask.deleteSession")}
+                        title={t("ask.deleteSession")}
+                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
+                      >
+                        <IconTrash size={14} stroke={2} aria-hidden />
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* 서브세션(대화) — 세션 밑 들여쓰기 트리 */}
+                {isOpen && (
+                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700/60">
+                    {s.subs.map((sub, i) => {
+                      const isActiveSub = isActiveSession && sub.id === s.activeSubId;
+                      const subRenaming = sub.id === renamingId;
+                      const subName = sub.title || t("ask.thread", { n: i + 1 });
+                      return (
+                        <div
+                          key={sub.id}
+                          className={`group/sub flex items-center gap-1 rounded-md px-2 py-1 text-[13px] transition-colors ${
+                            isActiveSub
+                              ? "bg-[#3B34E2]/10 font-medium text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                              : "text-zinc-500 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
+                          }`}
+                        >
+                          {subRenaming ? (
+                            <input
+                              autoFocus
+                              value={renameDraft}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onBlur={() => commitRenameSub(s.id, sub.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") e.currentTarget.blur();
+                                else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
+                              }}
+                              className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-[13px] text-zinc-800 outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                            />
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectSub(s.id, sub.id)}
+                                onDoubleClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
+                                className="min-w-0 flex-1 truncate text-left"
+                                title={subName}
+                              >
+                                {subName}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
+                                aria-label={t("ask.rename")}
+                                title={t("ask.rename")}
+                                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover/sub:block dark:hover:text-zinc-100"
+                              >
+                                <IconPencil size={12} stroke={2} aria-hidden />
+                              </button>
+                              {s.subs.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => { void confirmDeleteSub(s.id, sub.id); }}
+                                  aria-label={t("ask.deleteThread")}
+                                  className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover/sub:block"
+                                >
+                                  <IconX size={12} stroke={2.5} aria-hidden />
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                     <button
                       type="button"
-                      onClick={() => handleSelectSession(s.id)}
-                      onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
-                      className="min-w-0 flex-1 truncate text-left"
-                      title={s.title || t("ask.untitled")}
+                      onClick={() => handleNewSub(s.id)}
+                      disabled={loading}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
                     >
-                      {s.title || t("ask.untitled")}
+                      <IconPlus size={13} stroke={2.5} aria-hidden />
+                      {t("ask.newThread")}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
-                      aria-label={t("ask.rename")}
-                      title={t("ask.rename")}
-                      className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
-                    >
-                      <IconPencil size={14} stroke={2} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteSession(s.id)}
-                      aria-label={t("ask.deleteSession")}
-                      title={t("ask.deleteSession")}
-                      className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
-                    >
-                      <IconTrash size={14} stroke={2} aria-hidden />
-                    </button>
-                  </>
+                  </div>
                 )}
               </div>
             );
@@ -299,22 +473,18 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
       </aside>
 
-      {/* 우측 활성 세션 작업공간(단일 챗 — 서브세션 탭/분할은 이슈3/4). */}
-      <div className="flex min-h-0 flex-1 flex-col items-center overflow-hidden px-4 py-6">
-        <div className="mb-4 flex shrink-0 items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          {activeSession?.title || t("ask.title")}
-        </div>
-        <div className="flex min-h-0 w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-[#15161d]">
-          <ChatRoom
-            messages={messages}
-            streaming={streaming}
-            isLoading={loading}
-            mode="code"
-            onSend={handleSend}
-            onClear={handleClear}
-            onCardAction={handleCardAction}
-          />
-        </div>
+      {/* 우측 활성 세션 작업공간 — ChatGPT식 프레임리스 챗(분할 타일은 이슈4). */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <AskChat
+          title={activeSession?.title || t("ask.title")}
+          subLabel={subLabel}
+          messages={messages}
+          streaming={streaming}
+          isLoading={loading}
+          onSend={handleSend}
+          onClear={handleClear}
+          onCardAction={handleCardAction}
+        />
       </div>
     </div>
   );
