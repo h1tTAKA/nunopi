@@ -43,6 +43,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   const abortRef = useRef<AbortController | null>(null);
+  // Escape 취소 플래그 — Escape가 input을 blur시키므로, 뒤따르는 onBlur 커밋을 건너뛴다.
+  const renameCancelRef = useRef(false);
 
   // 마운트 시 세션 로드(항상 활성 세션 1개 보장). 언마운트 시 진행 요청 취소.
   useEffect(() => {
@@ -113,9 +115,14 @@ export default function AskView({ active = true, providerId, providerSettings }:
     commit({ sessions: remaining, activeSessionId });
   }
 
+  // rename 커밋은 항상 onBlur 한 경로로만 일어난다(Enter/Escape는 blur를 유발).
   function commitRename(id: string) {
-    const title = renameDraft.trim();
     setRenamingId(null);
+    if (renameCancelRef.current) {
+      renameCancelRef.current = false; // Escape 취소 — 커밋 안 함.
+      return;
+    }
+    const title = renameDraft.trim();
     if (title) {
       commit({ ...store, sessions: store.sessions.map((s) => (s.id === id ? { ...s, title } : s)) });
     }
@@ -250,8 +257,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
                     onChange={(e) => setRenameDraft(e.target.value)}
                     onBlur={() => commitRename(s.id)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename(s.id);
-                      else if (e.key === "Escape") setRenamingId(null);
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
                     }}
                     className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
                   />

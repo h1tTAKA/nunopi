@@ -100,6 +100,8 @@ export function loadAskStore(fallbackTitle: string): AskStore {
         ? parsed.sessions.map(normalizeSession).filter((s): s is AskSession => s !== null)
         : [];
       if (sessions.length > 0) {
+        // 세션 스토어가 이미 있으면 레거시 스레드는 흡수 대상 아님 — 고아 방지 위해 정리.
+        try { localStorage.removeItem(LEGACY_THREAD_KEY); } catch { /* ignore */ }
         const activeSessionId = sessions.some((s) => s.id === parsed.activeSessionId)
           ? parsed.activeSessionId!
           : sessions[0].id;
