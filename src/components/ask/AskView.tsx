@@ -73,7 +73,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "d" || e.key === "D")) {
         e.preventDefault();
-        handleSplit();
+        handleSplitNew();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -202,12 +202,31 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   function handleSelectSub(sessionId: string, subId: string) {
-    if (sessionId === store.activeSessionId && subId === activeSession?.activeSubId) return;
-    resetStream();
     const prev = storeRef.current;
+    // 다른 세션의 질문 클릭 → 그 세션으로 이동 + 그 질문 단일 뷰.
+    if (sessionId !== prev.activeSessionId) {
+      resetStream();
+      commit({
+        ...prev,
+        activeSessionId: sessionId,
+        sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId: subId, layout: [subId] })),
+      });
+      return;
+    }
+    const session = prev.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    // 이미 타일로 열려 있으면 포커스만.
+    if (session.layout.includes(subId)) {
+      focusTile(subId);
+      return;
+    }
+    // 분할 상태면 기존 질문을 타일로 추가. 단일 뷰면 교체.
+    if (session.layout.length > 1) {
+      openInTile(subId);
+      return;
+    }
     commit({
       ...prev,
-      activeSessionId: sessionId,
       sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId: subId, layout: [subId] })),
     });
   }
@@ -223,8 +242,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
     });
   }
 
-  // ── 분할(Cmd+D) 타일 조작 ──────────────────────────────
-  function handleSplit() {
+  // ── 분할 타일 조작 ─────────────────────────────────────
+  // Cmd+D / "새 질문" — 항상 새 질문 타일 추가(추측 없음).
+  function handleSplitNew() {
     const prev = storeRef.current;
     const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
     if (!session || session.layout.length >= 4) return; // 상한 4(그리드 안정)
@@ -236,6 +256,20 @@ export default function AskView({ active = true, providerId, providerSettings }:
       ),
     });
     expand(session.id);
+  }
+
+  // 기존 질문을 타일로 추가(단일 뷰에서도 분할로 확장). 상한이면 포커스 타일 교체.
+  function openInTile(subId: string) {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    if (!session) return;
+    updateSession(session.id, (s) => {
+      if (s.layout.includes(subId)) return { ...s, activeSubId: subId };
+      const layout = s.layout.length >= 4
+        ? s.layout.map((id) => (id === s.activeSubId ? subId : id))
+        : [...s.layout, subId];
+      return { ...s, activeSubId: subId, layout };
+    });
   }
 
   function closeTile(subId: string) {
@@ -550,6 +584,11 @@ export default function AskView({ active = true, providerId, providerSettings }:
           const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
           const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
           const sessionTitle = activeSession.title || t("ask.title");
+          // 분할 드롭다운 후보 — 아직 타일로 안 열린 기존 질문들.
+          const splitOptions = activeSession.subs
+            .filter((sub) => !activeSession.layout.includes(sub.id))
+            .map((sub) => ({ id: sub.id, label: subDisplayLabel(activeSession, sub.id) }));
+          const canSplit = activeSession.layout.length < 4;
 
           const renderTile = (subId: string, tiled: boolean) => {
             const sub = activeSession.subs.find((x) => x.id === subId) ?? activeSession.subs[0];
@@ -564,7 +603,10 @@ export default function AskView({ active = true, providerId, providerSettings }:
                 onSend={(text) => handleSendTo(sub.id, text)}
                 onClear={() => handleClearSub(sub.id)}
                 onCardAction={(i, action) => handleCardActionSub(sub.id, i, action)}
-                onSplit={handleSplit}
+                canSplit={canSplit}
+                splitOptions={splitOptions}
+                onOpenQuestion={openInTile}
+                onSplitNew={handleSplitNew}
                 tiled={tiled}
                 focused={tiled ? sub.id === activeSession.activeSubId : false}
                 onFocus={tiled ? () => focusTile(sub.id) : undefined}
