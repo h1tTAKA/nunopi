@@ -229,6 +229,19 @@ export default function AskView({ active = true, providerId, providerSettings }:
     return out;
   }
 
+  // 폴더의 최상위 조상 id(parentId 체인 위로, 사이클·고아 가드).
+  function rootAncestorFolderId(folderId: string, folders: { id: string; parentId?: string | null }[]): string {
+    const seen = new Set<string>();
+    let cur = folders.find((f) => f.id === folderId);
+    while (cur?.parentId && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      const parent = folders.find((f) => f.id === cur!.parentId);
+      if (!parent) break; // 고아 부모 → 현재가 실질 루트
+      cur = parent;
+    }
+    return cur?.id ?? folderId;
+  }
+
   function handleNewFolder(parentId: string | null = null) {
     const prev = storeRef.current;
     const folder = createFolder(t("ask.untitledFolder"), parentId);
@@ -509,7 +522,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const CAP = 6000;
     const scope = new Set<string>([activeSession.id]);
     if (activeSession.folderId) {
-      const fam = descendantFolderIds(activeSession.folderId, store.folders);
+      // 최상위 조상 폴더의 전체 서브트리 = 하나의 공유 그룹(폴더 깊이 무관 전부 공유).
+      const root = rootAncestorFolderId(activeSession.folderId, store.folders);
+      const fam = descendantFolderIds(root, store.folders);
       for (const s of store.sessions) if (s.folderId && fam.has(s.folderId)) scope.add(s.id);
     }
     const parts: string[] = [];
