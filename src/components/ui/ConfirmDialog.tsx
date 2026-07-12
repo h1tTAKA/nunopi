@@ -10,6 +10,8 @@ export interface ConfirmOptions {
   cancelText?: string;
   // true면 확인 버튼을 위험(빨강)으로 — 삭제 등 되돌릴 수 없는 동작.
   danger?: boolean;
+  // 선택 체크박스 — 토글 시 onChange로 값 전달(호출부가 클로저 변수에 보관).
+  checkbox?: { label: string; defaultChecked?: boolean; onChange?: (checked: boolean) => void };
 }
 
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
@@ -65,6 +67,7 @@ function ConfirmModal({
   onConfirm: () => void;
 }) {
   const t = useT();
+  const [checked, setChecked] = useState(options.checkbox?.defaultChecked ?? false);
   // Esc=취소, Enter=확인.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -91,6 +94,17 @@ function ConfirmModal({
         <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">
           {options.message}
         </p>
+        {options.checkbox && (
+          <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-200">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => { setChecked(e.target.checked); options.checkbox?.onChange?.(e.target.checked); }}
+              className="h-4 w-4 accent-red-600"
+            />
+            {options.checkbox.label}
+          </label>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
