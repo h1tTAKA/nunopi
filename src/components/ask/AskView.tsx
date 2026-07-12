@@ -733,7 +733,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
   const rootFolders = store.folders.filter((f) => !f.parentId || !store.folders.some((p) => p.id === f.parentId));
 
   // 폴더(하위 폴더·세션 포함) 재귀 렌더. 자식 컨테이너의 ml/border-l로 깊이 들여쓰기.
-  const renderFolder = (folder: AskFolder) => {
+  const renderFolder = (folder: AskFolder, seen: Set<string> = new Set()) => {
+    if (seen.has(folder.id)) return null; // 사이클 방어(손상된 store)
+    const nextSeen = new Set(seen).add(folder.id);
     const folderRenaming = folder.id === renamingId;
     const subfolders = store.folders.filter((f) => f.parentId === folder.id);
     const inFolder = store.sessions.filter((s) => s.folderId === folder.id);
@@ -818,7 +820,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
         {!folder.collapsed && (
           <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-1 dark:border-zinc-700/60">
-            {subfolders.map(renderFolder)}
+            {subfolders.map((f) => renderFolder(f, nextSeen))}
             {inFolder.map(renderSessionRow)}
           </div>
         )}
@@ -861,7 +863,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
           onDragOver={(e) => { if (sessDragId) { e.preventDefault(); setDropFolder("__root__"); } }}
           onDrop={(e) => { e.preventDefault(); if (sessDragId) moveSessionToFolder(sessDragId, null); setSessDragId(null); setDropFolder(null); }}
         >
-          {rootFolders.map(renderFolder)}
+          {rootFolders.map((f) => renderFolder(f))}
           {/* 루트(폴더 밖) 세션 */}
           <div className={`rounded-lg ${sessDragId && dropFolder === "__root__" ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}>
             {rootSessions.map(renderSessionRow)}
