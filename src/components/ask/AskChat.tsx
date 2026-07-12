@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconTrash, IconSparkles } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -17,13 +17,19 @@ interface AskChatProps {
   onSend: (text: string) => void;
   onClear?: () => void;
   onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
+  // 분할 타일 모드(이슈4) — 여러 질문을 나란히 표시.
+  tiled?: boolean; // 타일 테두리 표시.
+  focused?: boolean; // 포커스 타일 강조.
+  onFocus?: () => void; // 타일 클릭/포커스 시 활성 전환.
+  onClose?: () => void; // 타일 닫기(×) — 있으면 버튼 노출.
+  onSplit?: () => void; // 분할(Cmd+D) — 있으면 버튼 노출.
 }
 
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
 // 답변은 버블 없이 폭 전체, 유저 말풍선만 우측. 로직(Markdown·카드칩·스트리밍)은 공용 재사용.
-// 서브세션(대화) 전환/추가/삭제는 좌측 세션 트리(AskView)에서 담당.
 export default function AskChat({
   title, subLabel, messages, streaming, isLoading, onSend, onClear, onCardAction,
+  tiled = false, focused = false, onFocus, onClose, onSplit,
 }: AskChatProps) {
   const t = useT();
   const [input, setInput] = useState("");
@@ -46,8 +52,14 @@ export default function AskChat({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {/* 헤더 — 세션 제목(좌) + 대화 지우기(우). 경계선 없음. */}
+    <div
+      onFocusCapture={onFocus}
+      onMouseDown={onFocus}
+      className={`flex h-full flex-col overflow-hidden ${
+        tiled ? `rounded-xl border ${focused ? "border-[#3B34E2] dark:border-[#8b86f5]" : "border-zinc-200 dark:border-zinc-800"}` : ""
+      }`}
+    >
+      {/* 헤더 — 세션 제목(좌) + 분할/지우기/닫기(우). 경계선 없음. */}
       <div className="flex shrink-0 items-center gap-1.5 px-5 py-3">
         <span className="shrink-0 truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</span>
         {subLabel && (
@@ -56,18 +68,42 @@ export default function AskChat({
             <span className="truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">{subLabel}</span>
           </>
         )}
-        {messages.length > 0 && onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            disabled={isLoading}
-            title={t("ask.clearThread")}
-            aria-label={t("ask.clearThread")}
-            className="ml-auto inline-flex shrink-0 items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800"
-          >
-            <IconTrash size={15} stroke={2} aria-hidden />
-          </button>
-        )}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {onSplit && (
+            <button
+              type="button"
+              onClick={onSplit}
+              title={`${t("ask.split")} (⌘D)`}
+              aria-label={t("ask.split")}
+              className="inline-flex items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <IconLayoutColumns size={15} stroke={2} aria-hidden />
+            </button>
+          )}
+          {messages.length > 0 && onClear && (
+            <button
+              type="button"
+              onClick={onClear}
+              disabled={isLoading}
+              title={t("ask.clearThread")}
+              aria-label={t("ask.clearThread")}
+              className="inline-flex items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800"
+            >
+              <IconTrash size={15} stroke={2} aria-hidden />
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              title={t("ask.closeTile")}
+              aria-label={t("ask.closeTile")}
+              className="inline-flex items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <IconX size={15} stroke={2} aria-hidden />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 메시지 영역 */}
