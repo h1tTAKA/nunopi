@@ -39,15 +39,17 @@ export default function AskView({ active = true, providerId, providerSettings }:
   const { locale } = useLocale();
   const confirm = useConfirm();
   const [store, setStore] = useState<AskStore>(EMPTY_STORE);
-  const [streaming, setStreaming] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // 스트리밍/로딩은 질문(서브세션)별로 관리 — 분할 타일 동시 답변 지원(이슈4).
+  const [streamingMap, setStreamingMap] = useState<Record<string, string | null>>({});
+  const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   // 좌측 트리에서 펼쳐진(서브세션 노출) 세션 id 집합.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
-  const abortRef = useRef<AbortController | null>(null);
+  // 질문별 진행 요청 — 타일마다 독립 abort.
+  const abortMap = useRef<Map<string, AbortController>>(new Map());
   // Escape 취소 플래그 — Escape가 input을 blur시키므로, 뒤따르는 onBlur 커밋을 건너뛴다.
   const renameCancelRef = useRef(false);
 
@@ -59,10 +61,26 @@ export default function AskView({ active = true, providerId, providerSettings }:
     setStore(loaded);
     // 활성 세션은 펼친 상태로 시작(그 하위 대화 노출).
     setExpanded(new Set([loaded.activeSessionId]));
-    return () => abortRef.current?.abort();
+    const aborts = abortMap.current;
+    return () => aborts.forEach((a) => a.abort());
     // t는 로케일 변경 시 바뀌지만 초기 제목에만 쓰여 재로드 불필요.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Cmd/Ctrl+D — 활성 모드에서 분할(현재 질문 옆 새 질문 타일). 브라우저 북마크 가로채기 방지.
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        handleSplitNew();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // handleSplit은 storeRef만 읽어 안정적 — active만 의존.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   // 최신 store를 ref+state+localStorage에 한 번에 반영.
   function commit(next: AskStore) {
@@ -72,13 +90,13 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   const activeSession = store.sessions.find((s) => s.id === store.activeSessionId) ?? store.sessions[0] ?? null;
-  const activeSub = activeSession
-    ? activeSession.subs.find((sub) => sub.id === activeSession.activeSubId) ?? activeSession.subs[0]
-    : null;
-  const messages: ChatMessage[] = activeSub?.messages ?? [];
-  // 활성 질문(서브세션) 라벨 — 유저 지정 이름 우선, 없으면 "질문 N".
-  const activeSubIndex = activeSession ? activeSession.subs.findIndex((sub) => sub.id === activeSub?.id) : -1;
-  const subLabel = activeSub ? activeSub.title || t("ask.thread", { n: Math.max(0, activeSubIndex) + 1 }) : undefined;
+
+  // 질문(서브세션) 표시 라벨 — 유저 지정 이름 우선, 없으면 "질문 N"(세션 내 순번).
+  function subDisplayLabel(session: AskSession, subId: string): string {
+    const idx = session.subs.findIndex((sub) => sub.id === subId);
+    const sub = session.subs[idx];
+    return sub?.title || t("ask.thread", { n: Math.max(0, idx) + 1 });
+  }
 
   // 특정 세션·서브의 messages를 mapper로 갱신하고 커밋(async 완료 대비 id로 지목).
   function updateSubMessages(sessionId: string, subId: string, mapper: (msgs: ChatMessage[]) => ChatMessage[]) {
@@ -100,10 +118,18 @@ export default function AskView({ active = true, providerId, providerSettings }:
     commit({ ...prev, sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : mapper(s))) });
   }
 
+  // 특정 질문의 진행 요청만 취소.
+  function abortSub(subId: string) {
+    abortMap.current.get(subId)?.abort();
+    abortMap.current.delete(subId);
+  }
+
+  // 모든 진행 요청 취소 + 스트림 상태 초기화(세션/질문 네비게이션 시).
   function resetStream() {
-    abortRef.current?.abort();
-    setStreaming(null);
-    setLoading(false);
+    abortMap.current.forEach((a) => a.abort());
+    abortMap.current.clear();
+    setStreamingMap({});
+    setLoadingMap({});
   }
 
   function expand(id: string) {
@@ -176,24 +202,94 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   function handleSelectSub(sessionId: string, subId: string) {
-    if (sessionId === store.activeSessionId && subId === activeSession?.activeSubId) return;
-    resetStream();
     const prev = storeRef.current;
+    // 다른 세션의 질문 클릭 → 그 세션으로 이동 + 그 질문 단일 뷰.
+    if (sessionId !== prev.activeSessionId) {
+      resetStream();
+      commit({
+        ...prev,
+        activeSessionId: sessionId,
+        sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId: subId, layout: [subId] })),
+      });
+      return;
+    }
+    const session = prev.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    // 이미 타일로 열려 있으면 포커스만.
+    if (session.layout.includes(subId)) {
+      focusTile(subId);
+      return;
+    }
+    // 분할 상태면 기존 질문을 타일로 추가. 단일 뷰면 교체.
+    if (session.layout.length > 1) {
+      openInTile(subId);
+      return;
+    }
     commit({
       ...prev,
-      activeSessionId: sessionId,
       sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId: subId, layout: [subId] })),
     });
   }
 
   function handleDeleteSub(sessionId: string, subId: string) {
-    resetStream();
+    abortSub(subId);
     updateSession(sessionId, (s) => {
       const subs = s.subs.filter((sub) => sub.id !== subId);
       if (subs.length === 0) return s; // 최소 1 보장(트리가 >1일 때만 삭제 노출)
       const activeSubId = s.activeSubId === subId ? subs[subs.length - 1].id : s.activeSubId;
-      return { ...s, subs, activeSubId, layout: [activeSubId] };
+      const layoutLeft = s.layout.filter((id) => id !== subId && subs.some((x) => x.id === id));
+      return { ...s, subs, activeSubId, layout: layoutLeft.length ? layoutLeft : [activeSubId] };
     });
+  }
+
+  // ── 분할 타일 조작 ─────────────────────────────────────
+  // Cmd+D / "새 질문" — 항상 새 질문 타일 추가(추측 없음).
+  function handleSplitNew() {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    if (!session || session.layout.length >= 4) return; // 상한 4(그리드 안정)
+    const sub = { id: newAskId(), title: undefined, messages: [] };
+    commit({
+      ...prev,
+      sessions: prev.sessions.map((s) =>
+        s.id !== session.id ? s : { ...s, subs: [...s.subs, sub], activeSubId: sub.id, layout: [...s.layout, sub.id] },
+      ),
+    });
+    expand(session.id);
+  }
+
+  // 기존 질문을 타일로 추가(단일 뷰에서도 분할로 확장). 상한이면 포커스 타일 교체.
+  function openInTile(subId: string) {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    if (!session) return;
+    updateSession(session.id, (s) => {
+      if (s.layout.includes(subId)) return { ...s, activeSubId: subId };
+      const layout = s.layout.length >= 4
+        ? s.layout.map((id) => (id === s.activeSubId ? subId : id))
+        : [...s.layout, subId];
+      return { ...s, activeSubId: subId, layout };
+    });
+  }
+
+  function closeTile(subId: string) {
+    abortSub(subId);
+    const sessionId = storeRef.current.activeSessionId;
+    updateSession(sessionId, (s) => {
+      const layout = s.layout.filter((id) => id !== subId);
+      // 전부 닫히면 닫은 질문 말고 다른 질문으로 폴백(재표시 방지).
+      const fallback = s.subs.find((x) => x.id !== subId)?.id ?? s.subs[0].id;
+      const nextLayout = layout.length ? layout : [fallback];
+      const activeSubId = s.activeSubId === subId ? nextLayout[nextLayout.length - 1] : s.activeSubId;
+      return { ...s, layout: nextLayout, activeSubId };
+    });
+  }
+
+  function focusTile(subId: string) {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    if (!session || session.activeSubId === subId) return;
+    updateSession(session.id, (s) => ({ ...s, activeSubId: subId }));
   }
 
   // 질문(서브세션) rename — 세션 rename과 동일 패턴(blur 단일 커밋 + 취소 플래그).
@@ -216,22 +312,25 @@ export default function AskView({ active = true, providerId, providerSettings }:
     }
   }
 
-  // ── 챗 조작(활성 세션·서브 대상) ───────────────────────
-  function handleClear() {
-    if (!activeSession || !activeSub) return;
-    resetStream();
-    updateSubMessages(activeSession.id, activeSub.id, () => []);
+  // ── 챗 조작(질문 subId 지목 — 타일별 독립) ─────────────
+  function handleClearSub(subId: string) {
+    abortSub(subId);
+    setStreamingMap((m) => ({ ...m, [subId]: null }));
+    setLoadingMap((m) => ({ ...m, [subId]: false }));
+    updateSubMessages(storeRef.current.activeSessionId, subId, () => []);
   }
 
   // 카드 제안 칩 — 답에서 나온 용어를 카드로 저장(출처=세션명). 저장 후 해당 블록 제거.
-  function handleCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
-    if (!activeSession || !activeSub) return;
+  function handleCardActionSub(subId: string, messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    if (!session) return;
     if (action.add) {
-      const source = activeSession.title || t("ask.cardSource");
+      const source = session.title || t("ask.cardSource");
       createChatCard(action.add.kind ?? "term", action.add.term, action.add.definition, source, undefined, {});
     }
     const addedTerm = action.add?.term;
-    updateSubMessages(activeSession.id, activeSub.id, (msgs) =>
+    updateSubMessages(session.id, subId, (msgs) =>
       msgs.map((m, i) =>
         i === messageIndex && m.role === "assistant"
           ? { ...m, content: addedTerm ? removeSuggestedCard(m.content, addedTerm) : stripCardBlock(m.content) }
@@ -240,17 +339,20 @@ export default function AskView({ active = true, providerId, providerSettings }:
     );
   }
 
-  function handleSend(text: string) {
-    if (loading || !activeSession || !activeSub) return;
-    const sessionId = activeSession.id;
-    const subId = activeSub.id;
-    const thread: ChatMessage[] = [...activeSub.messages, { role: "user", content: text }];
+  function handleSendTo(subId: string, text: string) {
+    if (loadingMap[subId]) return;
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
+    const sub = session?.subs.find((x) => x.id === subId);
+    if (!session || !sub) return;
+    const sessionId = session.id;
+    const thread: ChatMessage[] = [...sub.messages, { role: "user", content: text }];
     updateSubMessages(sessionId, subId, () => thread);
-    setStreaming("");
-    setLoading(true);
-    abortRef.current?.abort();
+    setStreamingMap((m) => ({ ...m, [subId]: "" }));
+    setLoadingMap((m) => ({ ...m, [subId]: true }));
+    abortSub(subId);
     const ac = new AbortController();
-    abortRef.current = ac;
+    abortMap.current.set(subId, ac);
     (async () => {
       let answer = "";
       try {
@@ -282,7 +384,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
             if (!l.trim()) continue;
             let ev: StreamEvent;
             try { ev = JSON.parse(l) as StreamEvent; } catch { continue; }
-            if (ev.type === "progress" && providerId !== "codex-agent") setStreaming(ev.line);
+            if (ev.type === "progress" && providerId !== "codex-agent") setStreamingMap((m) => ({ ...m, [subId]: ev.line }));
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
@@ -301,7 +403,12 @@ export default function AskView({ active = true, providerId, providerSettings }:
           updateSubMessages(sessionId, subId, (m) => [...m, { role: "assistant", content: t("chat.replyError") }]);
         }
       } finally {
-        if (!ac.signal.aborted) { setStreaming(null); setLoading(false); }
+        if (!ac.signal.aborted) {
+          setStreamingMap((m) => ({ ...m, [subId]: null }));
+          setLoadingMap((m) => ({ ...m, [subId]: false }));
+        }
+        // 같은 질문에 더 새 요청이 시작됐으면 그 컨트롤러를 지우지 않도록 identity 확인.
+        if (abortMap.current.get(subId) === ac) abortMap.current.delete(subId);
       }
     })();
   }
@@ -459,8 +566,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
                     <button
                       type="button"
                       onClick={() => handleNewSub(s.id)}
-                      disabled={loading}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-600 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
                     >
                       <IconPlus size={13} stroke={2.5} aria-hidden />
                       {t("ask.newThread")}
@@ -473,18 +579,58 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
       </aside>
 
-      {/* 우측 활성 세션 작업공간 — ChatGPT식 프레임리스 챗(분할 타일은 이슈4). */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <AskChat
-          title={activeSession?.title || t("ask.title")}
-          subLabel={subLabel}
-          messages={messages}
-          streaming={streaming}
-          isLoading={loading}
-          onSend={handleSend}
-          onClear={handleClear}
-          onCardAction={handleCardAction}
-        />
+      {/* 우측 활성 세션 작업공간 — layout에 따라 단일 챗 또는 분할 타일 그리드. */}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {(() => {
+          if (!activeSession) return null;
+          // layout의 유효한 질문만(삭제된 id 방어). 비면 활성 서브로 폴백.
+          const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
+          const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
+          const sessionTitle = activeSession.title || t("ask.title");
+          // 분할 드롭다운 후보 — 아직 타일로 안 열린 기존 질문들.
+          const splitOptions = activeSession.subs
+            .filter((sub) => !activeSession.layout.includes(sub.id))
+            .map((sub) => ({ id: sub.id, label: subDisplayLabel(activeSession, sub.id) }));
+          const canSplit = activeSession.layout.length < 4;
+
+          const renderTile = (subId: string, tiled: boolean) => {
+            const sub = activeSession.subs.find((x) => x.id === subId) ?? activeSession.subs[0];
+            return (
+              <AskChat
+                key={sub.id}
+                title={sessionTitle}
+                subLabel={subDisplayLabel(activeSession, sub.id)}
+                messages={sub.messages}
+                streaming={streamingMap[sub.id] ?? null}
+                isLoading={!!loadingMap[sub.id]}
+                onSend={(text) => handleSendTo(sub.id, text)}
+                onClear={() => handleClearSub(sub.id)}
+                onCardAction={(i, action) => handleCardActionSub(sub.id, i, action)}
+                canSplit={canSplit}
+                splitOptions={splitOptions}
+                onOpenQuestion={openInTile}
+                onSplitNew={handleSplitNew}
+                tiled={tiled}
+                focused={tiled ? sub.id === activeSession.activeSubId : false}
+                onFocus={tiled ? () => focusTile(sub.id) : undefined}
+                onClose={tiled ? () => closeTile(sub.id) : undefined}
+              />
+            );
+          };
+
+          if (ids.length <= 1) {
+            return <div className="h-full">{renderTile(ids[0], false)}</div>;
+          }
+          return (
+            <div className="grid h-full grid-cols-2 gap-2 p-2">
+              {ids.map((id) => (
+                <div key={id} className="min-h-0 overflow-hidden">
+                  {renderTile(id, true)}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
