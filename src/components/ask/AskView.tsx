@@ -28,6 +28,13 @@ const NO_CONTEXT = "(일반 질문 — 특정 코드/글 맥락 없음)";
 
 const EMPTY_STORE: AskStore = { sessions: [], activeSessionId: "" };
 
+// 좌측 세션 패널 폭(px) — 기본/최소/최대 + 영속 키.
+const PANEL_DEFAULT = 240;
+const PANEL_MIN = 220;
+const PANEL_MAX = 460;
+const PANEL_WIDTH_KEY = "nunopi:ask-panel-width";
+const clampPanel = (w: number) => Math.min(PANEL_MAX, Math.max(PANEL_MIN, w));
+
 // 에이전트 질문(Ask) 모드 — 좌측 세션 히스토리 + 활성 세션 챗(이슈2).
 // 서브세션 탭/분할은 후속 이슈. 지금은 세션당 단일 챗(subs[0]).
 export default function AskView({ active = true, providerId, providerSettings }: {
@@ -46,6 +53,17 @@ export default function AskView({ active = true, providerId, providerSettings }:
   const [renameDraft, setRenameDraft] = useState("");
   // 좌측 트리에서 펼쳐진(서브세션 노출) 세션 id 집합.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // 좌측 세션 패널 폭(px) — 드래그로 조절, localStorage 영속.
+  const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
+  const [resizing, setResizing] = useState(false);
+  const panelWidthRef = useRef(PANEL_DEFAULT);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef(false);
+  // 분할 타일 드래그 재배치 상태(방향 분할).
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [overDir, setOverDir] = useState<"row" | "col" | null>(null);
+  const [overAfter, setOverAfter] = useState(false);
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   // 질문별 진행 요청 — 타일마다 독립 abort.
@@ -61,6 +79,12 @@ export default function AskView({ active = true, providerId, providerSettings }:
     setStore(loaded);
     // 활성 세션은 펼친 상태로 시작(그 하위 대화 노출).
     setExpanded(new Set([loaded.activeSessionId]));
+    const storedWidth = Number(localStorage.getItem(PANEL_WIDTH_KEY));
+    if (Number.isFinite(storedWidth) && storedWidth > 0) {
+      const w = clampPanel(storedWidth);
+      panelWidthRef.current = w;
+      setPanelWidth(w);
+    }
     const aborts = abortMap.current;
     return () => aborts.forEach((a) => a.abort());
     // t는 로케일 변경 시 바뀌지만 초기 제목에만 쓰여 재로드 불필요.
@@ -292,6 +316,51 @@ export default function AskView({ active = true, providerId, providerSettings }:
     updateSession(session.id, (s) => ({ ...s, activeSubId: subId }));
   }
 
+  // 타일 방향 이동(드래그 재배치) — 대상 타일의 어느 쪽에 놓느냐로 방향/순서 결정.
+  // dir "col"=위아래, "row"=좌우. after=대상 뒤(아래/오른쪽)에 배치.
+  function moveTile(fromId: string, toId: string, dir: "row" | "col", after: boolean) {
+    if (fromId === toId) return;
+    updateSession(storeRef.current.activeSessionId, (s) => {
+      const layout = s.layout.filter((id) => id !== fromId);
+      let idx = layout.indexOf(toId);
+      if (idx < 0) return s;
+      if (after) idx += 1;
+      layout.splice(idx, 0, fromId);
+      return { ...s, layout, splitDir: dir };
+    });
+  }
+
+  // 드래그 오버 지점(타일 내 비율)으로 방향·전후 판정 — 상하 가장자리=col, 좌우=row.
+  function dropZone(e: React.DragEvent<HTMLDivElement>): { dir: "row" | "col"; after: boolean } {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = r.width ? (e.clientX - r.left) / r.width : 0.5;
+    const y = r.height ? (e.clientY - r.top) / r.height : 0.5;
+    const nearV = Math.min(y, 1 - y); // 상/하 가장자리 근접
+    const nearH = Math.min(x, 1 - x); // 좌/우 가장자리 근접
+    return nearV < nearH ? { dir: "col", after: y > 0.5 } : { dir: "row", after: x > 0.5 };
+  }
+
+  // ── 좌측 패널 리사이즈(드래그 핸들) ────────────────────
+  function onResizeDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    resizingRef.current = true;
+    setResizing(true);
+  }
+  function onResizeMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizingRef.current || !rootRef.current) return;
+    const left = rootRef.current.getBoundingClientRect().left;
+    const w = clampPanel(e.clientX - left);
+    panelWidthRef.current = w;
+    setPanelWidth(w);
+  }
+  function onResizeUp(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    if (!resizingRef.current) return;
+    resizingRef.current = false;
+    setResizing(false);
+    try { localStorage.setItem(PANEL_WIDTH_KEY, String(Math.round(panelWidthRef.current))); } catch { /* ignore */ }
+  }
+
   // 질문(서브세션) rename — 세션 rename과 동일 패턴(blur 단일 커밋 + 취소 플래그).
   function commitRenameSub(sessionId: string, subId: string) {
     setRenamingId(null);
@@ -414,9 +483,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   return (
-    <div aria-hidden={!active} className="flex h-full w-full overflow-hidden">
+    <div ref={rootRef} aria-hidden={!active} className={`flex h-full w-full overflow-hidden ${resizing ? "select-none" : ""}`}>
       {/* 좌측 세션 히스토리 패널 */}
-      <aside className="flex w-60 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+      <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             <IconMessage2 size={15} stroke={2} aria-hidden />
@@ -579,6 +648,19 @@ export default function AskView({ active = true, providerId, providerSettings }:
         </div>
       </aside>
 
+      {/* 패널 폭 조절 핸들 */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t("layout.splitHandle")}
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        className={`w-1.5 shrink-0 cursor-col-resize border-x border-zinc-200 transition-colors dark:border-zinc-800 ${
+          resizing ? "bg-blue-400/60" : "bg-zinc-100 hover:bg-blue-400/40 dark:bg-zinc-900"
+        }`}
+      />
+
       {/* 우측 활성 세션 작업공간 — layout에 따라 단일 챗 또는 분할 타일 그리드. */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {(() => {
@@ -614,6 +696,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
                 focused={tiled ? sub.id === activeSession.activeSubId : false}
                 onFocus={tiled ? () => focusTile(sub.id) : undefined}
                 onClose={tiled ? () => closeTile(sub.id) : undefined}
+                draggable={tiled}
+                onHeaderDragStart={tiled ? () => setDragId(sub.id) : undefined}
+                onHeaderDragEnd={tiled ? () => { setDragId(null); setOverId(null); setOverDir(null); } : undefined}
               />
             );
           };
@@ -621,13 +706,43 @@ export default function AskView({ active = true, providerId, providerSettings }:
           if (ids.length <= 1) {
             return <div className="h-full">{renderTile(ids[0], false)}</div>;
           }
+          const dir = activeSession.splitDir === "col" ? "col" : "row";
+          const clearDrag = () => { setDragId(null); setOverId(null); setOverDir(null); };
+          // 드롭 미리보기 오버레이 — 놓일 절반 영역을 반투명 박스로 표시.
+          const overlayRect = () => {
+            if (overDir === "col") return overAfter ? "inset-x-0 bottom-0 top-1/2" : "inset-x-0 top-0 bottom-1/2";
+            return overAfter ? "inset-y-0 right-0 left-1/2" : "inset-y-0 left-0 right-1/2";
+          };
           return (
-            <div className="grid h-full grid-cols-2 gap-2 p-2">
-              {ids.map((id) => (
-                <div key={id} className="min-h-0 overflow-hidden">
-                  {renderTile(id, true)}
-                </div>
-              ))}
+            <div className={`flex h-full gap-2 p-2 ${dir === "col" ? "flex-col" : "flex-row"}`}>
+              {ids.map((id) => {
+                const showHint = !!dragId && overId === id && dragId !== id && !!overDir;
+                return (
+                  <div
+                    key={id}
+                    onDragOver={(e) => {
+                      if (!dragId) return;
+                      e.preventDefault();
+                      const z = dropZone(e);
+                      setOverId(id);
+                      setOverDir(z.dir);
+                      setOverAfter(z.after);
+                    }}
+                    onDragLeave={() => setOverId((o) => (o === id ? null : o))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId) { const z = dropZone(e); moveTile(dragId, id, z.dir, z.after); }
+                      clearDrag();
+                    }}
+                    className={`relative min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl transition ${dragId === id ? "opacity-50" : ""}`}
+                  >
+                    {renderTile(id, true)}
+                    {showHint && (
+                      <div className={`pointer-events-none absolute z-20 rounded-lg border-2 border-[#3B34E2] bg-[#3B34E2]/20 transition-all dark:border-[#8b86f5] dark:bg-[#8b86f5]/20 ${overlayRect()}`} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })()}

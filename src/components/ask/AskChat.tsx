@@ -27,6 +27,10 @@ interface AskChatProps {
   splitOptions?: { id: string; label: string }[];
   onOpenQuestion?: (id: string) => void;
   onSplitNew?: () => void;
+  // 타일 헤더 드래그 재배치(HTML5 DnD).
+  draggable?: boolean;
+  onHeaderDragStart?: () => void;
+  onHeaderDragEnd?: () => void;
 }
 
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
@@ -35,6 +39,7 @@ export default function AskChat({
   title, subLabel, messages, streaming, isLoading, onSend, onClear, onCardAction,
   tiled = false, focused = false, onFocus, onClose,
   canSplit = false, splitOptions = [], onOpenQuestion, onSplitNew,
+  draggable = false, onHeaderDragStart, onHeaderDragEnd,
 }: AskChatProps) {
   const t = useT();
   const [input, setInput] = useState("");
@@ -65,8 +70,13 @@ export default function AskChat({
         tiled ? `rounded-xl border ${focused ? "border-[#3B34E2] dark:border-[#8b86f5]" : "border-zinc-200 dark:border-zinc-800"}` : ""
       }`}
     >
-      {/* 헤더 — 세션 제목(좌) + 분할/지우기/닫기(우). 경계선 없음. */}
-      <div className="flex shrink-0 items-center gap-1.5 px-5 py-3">
+      {/* 헤더 — 세션 제목(좌) + 분할/지우기/닫기(우). 타일 모드면 드래그로 재배치. */}
+      <div
+        draggable={draggable}
+        onDragStart={onHeaderDragStart}
+        onDragEnd={onHeaderDragEnd}
+        className={`flex shrink-0 items-center gap-1.5 px-5 py-3 ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      >
         <span className="shrink-0 truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</span>
         {subLabel && (
           <>
