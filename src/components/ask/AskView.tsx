@@ -354,7 +354,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
     setPanelWidth(w);
   }
   function onResizeUp(e: React.PointerEvent<HTMLDivElement>) {
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* 이미 해제됨(pointercancel) */ }
     if (!resizingRef.current) return;
     resizingRef.current = false;
     setResizing(false);
@@ -656,6 +656,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
         onPointerDown={onResizeDown}
         onPointerMove={onResizeMove}
         onPointerUp={onResizeUp}
+        onPointerCancel={onResizeUp}
         className={`w-1.5 shrink-0 cursor-col-resize border-x border-zinc-200 transition-colors dark:border-zinc-800 ${
           resizing ? "bg-blue-400/60" : "bg-zinc-100 hover:bg-blue-400/40 dark:bg-zinc-900"
         }`}
