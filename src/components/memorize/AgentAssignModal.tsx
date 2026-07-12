@@ -235,6 +235,10 @@ export default function AgentAssignModal({
   function toggleAllCards() {
     setPickedCards(allCardsPicked ? new Set() : new Set(candidates.map((c) => c.key)));
   }
+  const allDecksPicked = existingDecks.length > 0 && existingDecks.every((d) => pickedDecks.has(d.id));
+  function toggleAllDecks() {
+    setPickedDecks(allDecksPicked ? new Set() : new Set(existingDecks.map((d) => d.id)));
+  }
 
   // preview 조작
   function toggleExclude(deckId: string, key: string) {
@@ -300,23 +304,33 @@ export default function AgentAssignModal({
                 </div>
               )}
             </div>
-            {/* 대상 덱 + 맡기기 */}
-            <div className="shrink-0 border-t border-zinc-200 px-5 py-3 dark:border-zinc-800">
-              <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">{t("mem.assignPickDecks")}</span>
+            {/* 대상 덱 + 맡기기 — 하단 고정 바 */}
+            <div className="shrink-0 space-y-3 border-t border-zinc-200 bg-white/60 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">{t("mem.assignPickDecks")}</span>
+                <button type="button" onClick={toggleAllDecks} className="text-[11px] font-medium text-zinc-400 transition hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
+                  {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
+                </button>
+              </div>
+              <div className="nunopi-scroll flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
                 {existingDecks.map((d) => {
                   const on = pickedDecks.has(d.id);
                   return (
                     <button key={d.id} type="button" onClick={() => toggleDeck(d.id)}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
-                      {on && <IconCheck size={11} stroke={3} aria-hidden />} {d.name}
+                      className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
+                      <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[4px] border ${on ? "border-white/70 bg-white/20" : "border-zinc-300 dark:border-zinc-600"}`}>
+                        {on && <IconCheck size={10} stroke={3} aria-hidden />}
+                      </span>
+                      {d.name}
                     </button>
                   );
                 })}
               </div>
               <button type="button" onClick={() => { void delegate(); }} disabled={loading || pickedCount === 0 || pickedDecks.size === 0}
-                className="w-full rounded-lg bg-[#3B34E2] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40">
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#3B34E2] px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40">
+                <IconSparkles size={16} stroke={2} aria-hidden />
                 {t("mem.assignDelegate")}
+                <span className="text-xs font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
               </button>
             </div>
           </>
