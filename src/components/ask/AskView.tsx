@@ -127,6 +127,22 @@ export default function AskView({ active = true, providerId, providerSettings }:
     return sub?.title || t("ask.thread", { n: Math.max(0, idx) + 1 });
   }
 
+  // 세션 표시 라벨 — 이름 없으면 "세션 N"(같은 폴더 스코프 내 순번). 스코프별 1부터.
+  function sessionLabel(s: AskSession): string {
+    if (s.title) return s.title;
+    const scope = (s.folderId ?? null);
+    const siblings = store.sessions.filter((x) => (x.folderId ?? null) === scope);
+    return t("ask.sessionN", { n: Math.max(0, siblings.findIndex((x) => x.id === s.id)) + 1 });
+  }
+
+  // 폴더 표시 라벨 — 이름 없으면 "제목 없음 N"(같은 부모 스코프 내 순번). 스코프별 1부터.
+  function folderLabel(f: AskFolder): string {
+    if (f.name) return f.name;
+    const scope = (f.parentId ?? null);
+    const siblings = store.folders.filter((x) => (x.parentId ?? null) === scope);
+    return t("ask.folderN", { n: Math.max(0, siblings.findIndex((x) => x.id === f.id)) + 1 });
+  }
+
   // 특정 세션·서브의 messages를 mapper로 갱신하고 커밋(async 완료 대비 id로 지목).
   function updateSubMessages(sessionId: string, subId: string, mapper: (msgs: ChatMessage[]) => ChatMessage[]) {
     const prev = storeRef.current;
@@ -177,7 +193,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
   // ── 세션 조작 ──────────────────────────────────────────
   function handleNewSession() {
     resetStream();
-    const session = createSession(t("ask.untitled"));
+    const session = createSession(""); // 이름 미지정(표시는 "세션 N")
     commit({ ...store, sessions: [...store.sessions, session], activeSessionId: session.id });
     expand(session.id);
   }
@@ -244,12 +260,15 @@ export default function AskView({ active = true, providerId, providerSettings }:
 
   function handleNewFolder(parentId: string | null = null) {
     const prev = storeRef.current;
-    const folder = createFolder(t("ask.untitledFolder"), parentId);
+    const folder = createFolder("", parentId); // 빈 폴더·이름 미지정(표시는 "제목 없음 N")
     // 부모 폴더가 접혀 있으면 펼쳐 새 하위 폴더가 보이게.
     const folders = prev.folders.map((f) => (f.id === parentId ? { ...f, collapsed: false } : f));
-    commit({ ...prev, folders: [...folders, folder] });
+    const nextFolders = [...folders, folder];
+    commit({ ...prev, folders: nextFolders });
+    // rename 프리필 = 실제 표시 번호(커밋 후 형제 스코프 기준). store는 아직 stale이라 직접 계산.
+    const siblings = nextFolders.filter((f) => (f.parentId ?? null) === (folder.parentId ?? null));
     setRenamingId(folder.id);
-    setRenameDraft(folder.name);
+    setRenameDraft(t("ask.folderN", { n: siblings.findIndex((f) => f.id === folder.id) + 1 }));
   }
 
   function commitRenameFolder(id: string) {
@@ -263,39 +282,26 @@ export default function AskView({ active = true, providerId, providerSettings }:
 
   // 폴더 삭제. 기본: 이 폴더의 직속 세션·하위폴더를 상위로 승격(보존). deleteSessions=true:
   // 이 폴더 + 모든 하위폴더(재귀) 제거 + 그 안의 세션 전부 삭제.
-  function handleDeleteFolder(id: string, deleteSessions: boolean) {
+  // 폴더 삭제 = 안의 세션·질문·하위 폴더까지 재귀로 전부 삭제(파일 폴더 개념).
+  function handleDeleteFolder(id: string) {
     resetStream();
     const prev = storeRef.current;
-    const target = prev.folders.find((f) => f.id === id);
-    const parentId = target?.parentId ?? null;
-    let folders: typeof prev.folders;
-    let sessions: typeof prev.sessions;
-    if (deleteSessions) {
-      const doomed = descendantFolderIds(id, prev.folders); // 자신 + 하위폴더 전부
-      folders = prev.folders.filter((f) => !doomed.has(f.id));
-      sessions = prev.sessions.filter((s) => !(s.folderId && doomed.has(s.folderId)));
-    } else {
-      // 직속 하위폴더는 상위로 승격, 직속 세션도 상위로.
-      folders = prev.folders
-        .filter((f) => f.id !== id)
-        .map((f) => (f.parentId === id ? { ...f, parentId } : f));
-      sessions = prev.sessions.map((s) => (s.folderId === id ? { ...s, folderId: parentId } : s));
-    }
+    const doomed = descendantFolderIds(id, prev.folders); // 자신 + 하위폴더 전부
+    const folders = prev.folders.filter((f) => !doomed.has(f.id));
+    const sessions = prev.sessions.filter((s) => !(s.folderId && doomed.has(s.folderId)));
     const activeSessionId = sessions.some((s) => s.id === prev.activeSessionId)
       ? prev.activeSessionId
       : (sessions[sessions.length - 1]?.id ?? "");
     commit({ folders, sessions, activeSessionId });
   }
   async function confirmDeleteFolder(id: string) {
-    let deleteSessions = false;
     if (await confirm({
       title: t("ask.confirmDeleteFolderTitle"),
       message: t("ask.confirmDeleteFolder"),
       confirmText: t("common.delete"),
       danger: true,
-      checkbox: { label: t("ask.deleteFolderWithSessions"), onChange: (v) => { deleteSessions = v; } },
     })) {
-      handleDeleteFolder(id, deleteSessions);
+      handleDeleteFolder(id);
     }
   }
 
@@ -305,8 +311,11 @@ export default function AskView({ active = true, providerId, providerSettings }:
 
   function handleNewSessionInFolder(folderId: string) {
     resetStream();
-    const session = createSession(t("ask.untitled"), folderId);
-    commit({ ...storeRef.current, sessions: [...storeRef.current.sessions, session], activeSessionId: session.id });
+    const prev = storeRef.current;
+    const session = createSession("", folderId); // 이름 미지정(표시는 "세션 N")
+    // 폴더 펼쳐서 새 세션이 보이게(접혀 있으면 만든 게 안 보이던 문제).
+    const folders = prev.folders.map((f) => (f.id === folderId ? { ...f, collapsed: false } : f));
+    commit({ ...prev, folders, sessions: [...prev.sessions, session], activeSessionId: session.id });
     expand(session.id);
   }
 
@@ -666,15 +675,15 @@ export default function AskView({ active = true, providerId, providerSettings }:
               <button
                 type="button"
                 onClick={() => handleSelectSession(s.id)}
-                onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(sessionLabel(s)); }}
                 className="min-w-0 flex-1 truncate py-1.5 text-left font-medium"
-                title={s.title || t("ask.untitled")}
+                title={sessionLabel(s)}
               >
-                {s.title || t("ask.untitled")}
+                {sessionLabel(s)}
               </button>
               <button
                 type="button"
-                onClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                onClick={() => { setRenamingId(s.id); setRenameDraft(sessionLabel(s)); }}
                 aria-label={t("ask.rename")}
                 title={t("ask.rename")}
                 className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
@@ -816,11 +825,11 @@ export default function AskView({ active = true, providerId, providerSettings }:
               <button
                 type="button"
                 onClick={() => toggleFolderCollapse(folder.id)}
-                onDoubleClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                onDoubleClick={() => { setRenamingId(folder.id); setRenameDraft(folderLabel(folder)); }}
                 className="ml-1 min-w-0 flex-1 truncate py-1.5 text-left font-semibold"
-                title={folder.name || t("ask.untitledFolder")}
+                title={folderLabel(folder)}
               >
-                {folder.name || t("ask.untitledFolder")}
+                {folderLabel(folder)}
               </button>
               <button
                 type="button"
@@ -842,7 +851,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
               </button>
               <button
                 type="button"
-                onClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                onClick={() => { setRenamingId(folder.id); setRenameDraft(folderLabel(folder)); }}
                 aria-label={t("ask.renameFolder")}
                 title={t("ask.renameFolder")}
                 className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
@@ -954,7 +963,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
           // layout의 유효한 질문만(삭제된 id 방어). 비면 활성 서브로 폴백.
           const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
           const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
-          const sessionTitle = activeSession.title || t("ask.title");
+          const sessionTitle = sessionLabel(activeSession);
           // 폴더 경로(상위→하위) — 브레드크럼 맨 앞. 사이클 가드.
           const folderPath: string[] = [];
           {
@@ -962,7 +971,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
             let cur = activeSession.folderId ? store.folders.find((f) => f.id === activeSession.folderId) : undefined;
             while (cur && !seen.has(cur.id)) {
               seen.add(cur.id);
-              folderPath.unshift(cur.name || t("ask.untitledFolder"));
+              folderPath.unshift(folderLabel(cur));
               cur = cur.parentId ? store.folders.find((f) => f.id === cur!.parentId) : undefined;
             }
           }
