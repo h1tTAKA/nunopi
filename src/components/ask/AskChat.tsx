@@ -9,8 +9,9 @@ import { bookmarkedTermExists } from "@/lib/bookmarkDetails";
 import type { ChatMessage } from "@/lib/agent";
 
 interface AskChatProps {
+  folderName?: string; // 세션이 폴더에 속하면 폴더명(브레드크럼 맨 앞).
   title: string; // 활성 세션 제목(포괄적) — 좌상단 헤더.
-  subLabel?: string; // 활성 질문(서브세션) 라벨 — "세션 / 질문 N" 브레드크럼.
+  subLabel?: string; // 활성 질문(서브세션) 라벨 — "폴더 / 세션 / 질문" 브레드크럼.
   messages: ChatMessage[];
   streaming?: string | null;
   isLoading: boolean;
@@ -36,7 +37,7 @@ interface AskChatProps {
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
 // 답변은 버블 없이 폭 전체, 유저 말풍선만 우측. 로직(Markdown·카드칩·스트리밍)은 공용 재사용.
 export default function AskChat({
-  title, subLabel, messages, streaming, isLoading, onSend, onClear, onCardAction,
+  folderName, title, subLabel, messages, streaming, isLoading, onSend, onClear, onCardAction,
   tiled = false, focused = false, onFocus, onClose,
   canSplit = false, splitOptions = [], onOpenQuestion, onSplitNew,
   draggable = false, onHeaderDragStart, onHeaderDragEnd,
@@ -77,6 +78,12 @@ export default function AskChat({
         onDragEnd={onHeaderDragEnd}
         className={`flex shrink-0 items-center gap-1.5 px-5 py-3 ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
       >
+        {folderName && (
+          <>
+            <span className="min-w-0 max-w-[8rem] shrink-0 truncate text-sm font-medium text-zinc-500 dark:text-zinc-400">{folderName}</span>
+            <span className="shrink-0 text-zinc-300 dark:text-zinc-600">/</span>
+          </>
+        )}
         <span className="shrink-0 truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{title}</span>
         {subLabel && (
           <>
