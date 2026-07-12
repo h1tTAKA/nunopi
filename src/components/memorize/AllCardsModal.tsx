@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus, IconFolderShare } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
@@ -15,6 +15,7 @@ import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import { useFlyCard } from "./FlyCard";
 import AgentDeckModal from "./AgentDeckModal";
+import AgentAssignModal from "./AgentAssignModal";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 
@@ -74,7 +75,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
-  const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent">(null);
+  const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent" | "assign">(null);
   const [deckName, setDeckName] = useState("");
   // 선택 모드에서 카드를 넣을 대상 덱(삭제/덱추가 액션을 한 선택에서 함께 제공).
   const [addTarget, setAddTarget] = useState<string | null>(null);
@@ -438,9 +439,9 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
       {/* 커스터마이징 방식 선택 — 수동(직접 고르기) / 에이전트(이슈2, 곧). */}
       {customize === "choose" && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-6" onClick={() => setCustomize(null)}>
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-center text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeTitle")}</h3>
-            <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => { setCustomize("manual"); setSelected(new Set()); setDeckName(""); }}
@@ -458,6 +459,18 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
                 <IconSparkles size={22} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
                 <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeAgent")}</span>
                 <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeAgentDesc")}</span>
+              </button>
+              {/* 기존 덱에 자동 분류 — 커스텀 덱 있을 때만 */}
+              <button
+                type="button"
+                onClick={() => setCustomize("assign")}
+                disabled={customDecks.length === 0}
+                title={customDecks.length === 0 ? t("mem.customizeAssignNone") : undefined}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 p-4 text-center transition hover:border-[#3B34E2] hover:bg-[#3B34E2]/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-zinc-200 disabled:hover:bg-transparent dark:border-zinc-700"
+              >
+                <IconFolderShare size={22} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeAssign")}</span>
+                <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{t("mem.customizeAssignDesc")}</span>
               </button>
             </div>
           </div>
@@ -501,6 +514,17 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
           providerSettings={providerSettings}
           onBack={() => setCustomize(null)}
           onCreated={() => { setCustomize(null); }}
+        />
+      )}
+
+      {/* 에이전트 기존 덱 자동 분류 — 카드를 어울리는 기존 덱에 배정. */}
+      {customize === "assign" && (
+        <AgentAssignModal
+          now={now}
+          providerId={providerId}
+          providerSettings={providerSettings}
+          onBack={() => setCustomize(null)}
+          onApplied={() => { setCustomize(null); }}
         />
       )}
     </div>,
