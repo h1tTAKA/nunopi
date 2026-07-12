@@ -14,6 +14,7 @@ import ChatRoom from "@/components/learning/ChatRoom";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import MemorizeView from "@/components/memorize/MemorizeView";
+import AskView from "@/components/ask/AskView";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
@@ -208,7 +209,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
     const storedView = localStorage.getItem(VIEW_MODE_KEY);
-    if (storedView === "text" || storedView === "memorize") {
+    if (storedView === "text" || storedView === "memorize" || storedView === "ask") {
 
       setViewMode(storedView);
       if (storedView === "text") setMode("text");
@@ -1019,6 +1020,8 @@ export default function Home() {
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
         memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} />}
+        ask={viewMode === "ask"}
+        askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
