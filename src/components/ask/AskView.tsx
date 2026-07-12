@@ -867,6 +867,10 @@ export default function AskView({ active = true, providerId, providerSettings }:
           const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
           const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
           const sessionTitle = activeSession.title || t("ask.title");
+          // 폴더 소속이면 브레드크럼 맨 앞에 폴더명.
+          const folderName = activeSession.folderId
+            ? store.folders.find((f) => f.id === activeSession.folderId)?.name || t("ask.untitledFolder")
+            : undefined;
           // 분할 드롭다운 후보 — 아직 타일로 안 열린 기존 질문들.
           const splitOptions = activeSession.subs
             .filter((sub) => !activeSession.layout.includes(sub.id))
@@ -878,6 +882,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
             return (
               <AskChat
                 key={sub.id}
+                folderName={folderName}
                 title={sessionTitle}
                 subLabel={subDisplayLabel(activeSession, sub.id)}
                 messages={sub.messages}
