@@ -21,9 +21,18 @@ export interface AskSession {
   activeSubId: string; // 탭 활성(이번 이슈엔 subs[0].id)
   layout: string[]; // 분할 표시 sub id들(이번 이슈엔 [activeSubId])
   splitDir?: "row" | "col"; // 분할 방향 — row=좌우, col=위아래(기본 row).
+  folderId?: string | null; // 속한 폴더. null/미지정 = 루트(그룹 안 됨).
+}
+
+// 세션 그룹 폴더 — 좌측 패널에서 세션을 묶어 관리.
+export interface AskFolder {
+  id: string;
+  name: string;
+  collapsed?: boolean; // 접힘(하위 세션 숨김).
 }
 
 export interface AskStore {
+  folders: AskFolder[];
   sessions: AskSession[];
   activeSessionId: string;
 }
@@ -38,7 +47,7 @@ export function newAskId(): string {
 }
 
 // 새 세션 하나 생성 — 서브세션 1개(빈 스레드), layout은 그 서브 단일.
-export function createSession(title: string): AskSession {
+export function createSession(title: string, folderId: string | null = null): AskSession {
   const sub: AskSub = { id: newAskId(), messages: [] };
   return {
     id: newAskId(),
@@ -48,7 +57,13 @@ export function createSession(title: string): AskSession {
     activeSubId: sub.id,
     layout: [sub.id],
     splitDir: "row",
+    folderId,
   };
+}
+
+// 새 폴더 하나 생성.
+export function createFolder(name: string): AskFolder {
+  return { id: newAskId(), name, collapsed: false };
 }
 
 // 저장된 세션 배열이 스키마를 갖추도록 방어적으로 정규화.
@@ -74,7 +89,16 @@ function normalizeSession(raw: unknown): AskSession | null {
     activeSubId,
     layout,
     splitDir: s.splitDir === "col" ? "col" : "row",
+    folderId: typeof s.folderId === "string" ? s.folderId : null,
   };
+}
+
+// 저장된 폴더 배열 정규화.
+function normalizeFolder(raw: unknown): AskFolder | null {
+  if (!raw || typeof raw !== "object") return null;
+  const f = raw as Partial<AskFolder>;
+  if (typeof f.id !== "string") return null;
+  return { id: f.id, name: typeof f.name === "string" ? f.name : "", collapsed: f.collapsed === true };
 }
 
 // 이슈1 단일 스레드(ask-thread) → 첫 세션으로 흡수 후 제거.
@@ -103,22 +127,25 @@ export function loadAskStore(fallbackTitle: string): AskStore {
       const sessions = Array.isArray(parsed.sessions)
         ? parsed.sessions.map(normalizeSession).filter((s): s is AskSession => s !== null)
         : [];
+      const folders = Array.isArray(parsed.folders)
+        ? parsed.folders.map(normalizeFolder).filter((f): f is AskFolder => f !== null)
+        : [];
       if (sessions.length > 0) {
         // 세션 스토어가 이미 있으면 레거시 스레드는 흡수 대상 아님 — 고아 방지 위해 정리.
         try { localStorage.removeItem(LEGACY_THREAD_KEY); } catch { /* ignore */ }
         const activeSessionId = sessions.some((s) => s.id === parsed.activeSessionId)
           ? parsed.activeSessionId!
           : sessions[0].id;
-        return { sessions, activeSessionId };
+        return { folders, sessions, activeSessionId };
       }
     }
     // store 없음 — 레거시 스레드 흡수 시도, 없으면 빈 세션 1개.
     const migrated = migrateLegacyThread(fallbackTitle);
     const first = migrated ?? createSession(fallbackTitle);
-    return { sessions: [first], activeSessionId: first.id };
+    return { folders: [], sessions: [first], activeSessionId: first.id };
   } catch {
     const first = createSession(fallbackTitle);
-    return { sessions: [first], activeSessionId: first.id };
+    return { folders: [], sessions: [first], activeSessionId: first.id };
   }
 }
 

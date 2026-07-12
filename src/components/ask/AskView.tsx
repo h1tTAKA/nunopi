@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX } from "@tabler/icons-react";
+import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import AskChat from "@/components/ask/AskChat";
@@ -9,6 +9,7 @@ import {
   loadAskStore,
   saveAskStore,
   createSession,
+  createFolder,
   newAskId,
   type AskStore,
   type AskSession,
@@ -26,7 +27,7 @@ type StreamEvent =
 // 맥락 없는 순수 질문임을 에이전트에 알리는 placeholder(chat 모드 code 슬롯).
 const NO_CONTEXT = "(일반 질문 — 특정 코드/글 맥락 없음)";
 
-const EMPTY_STORE: AskStore = { sessions: [], activeSessionId: "" };
+const EMPTY_STORE: AskStore = { folders: [], sessions: [], activeSessionId: "" };
 
 // 좌측 세션 패널 폭(px) — 기본/최소/최대 + 영속 키.
 const PANEL_DEFAULT = 240;
@@ -64,6 +65,9 @@ export default function AskView({ active = true, providerId, providerSettings }:
   const [overId, setOverId] = useState<string | null>(null);
   const [overDir, setOverDir] = useState<"row" | "col" | null>(null);
   const [overAfter, setOverAfter] = useState(false);
+  // 세션→폴더 드래그 이동 상태. dropFolder: 폴더 id 또는 "root"(그룹 해제).
+  const [sessDragId, setSessDragId] = useState<string | null>(null);
+  const [dropFolder, setDropFolder] = useState<string | null>(null);
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   // 질문별 진행 요청 — 타일마다 독립 abort.
@@ -173,7 +177,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
   function handleNewSession() {
     resetStream();
     const session = createSession(t("ask.untitled"));
-    commit({ sessions: [...store.sessions, session], activeSessionId: session.id });
+    commit({ ...store, sessions: [...store.sessions, session], activeSessionId: session.id });
     expand(session.id);
   }
 
@@ -189,12 +193,17 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const remaining = store.sessions.filter((s) => s.id !== id);
     if (remaining.length === 0) {
       const fresh = createSession(t("ask.untitled"));
-      commit({ sessions: [fresh], activeSessionId: fresh.id });
+      commit({ ...store, sessions: [fresh], activeSessionId: fresh.id });
       expand(fresh.id);
       return;
     }
     const activeSessionId = store.activeSessionId === id ? remaining[remaining.length - 1].id : store.activeSessionId;
-    commit({ sessions: remaining, activeSessionId });
+    commit({ ...store, sessions: remaining, activeSessionId });
+  }
+  async function confirmDeleteSession(id: string) {
+    if (await confirm({ title: t("ask.confirmDeleteSessionTitle"), message: t("ask.confirmDeleteSession"), confirmText: t("common.delete"), danger: true })) {
+      handleDeleteSession(id);
+    }
   }
 
   // rename 커밋은 항상 onBlur 한 경로로만 일어난다(Enter/Escape는 blur를 유발).
@@ -208,6 +217,71 @@ export default function AskView({ active = true, providerId, providerSettings }:
     if (title) {
       commit({ ...store, sessions: store.sessions.map((s) => (s.id === id ? { ...s, title } : s)) });
     }
+  }
+
+  // ── 폴더 조작 ──────────────────────────────────────────
+  function handleNewFolder() {
+    const folder = createFolder(t("ask.untitledFolder"));
+    commit({ ...store, folders: [...store.folders, folder] });
+    // 새 폴더는 바로 이름 편집.
+    setRenamingId(folder.id);
+    setRenameDraft(folder.name);
+  }
+
+  function commitRenameFolder(id: string) {
+    setRenamingId(null);
+    if (renameCancelRef.current) { renameCancelRef.current = false; return; }
+    const name = renameDraft.trim();
+    if (name) {
+      commit({ ...store, folders: store.folders.map((f) => (f.id === id ? { ...f, name } : f)) });
+    }
+  }
+
+  // 폴더 삭제 — 기본은 폴더만 제거(세션 루트로 보존). deleteSessions=true면 안의 세션까지 삭제.
+  function handleDeleteFolder(id: string, deleteSessions: boolean) {
+    resetStream();
+    const prev = storeRef.current;
+    const folders = prev.folders.filter((f) => f.id !== id);
+    let sessions = deleteSessions
+      ? prev.sessions.filter((s) => s.folderId !== id)
+      : prev.sessions.map((s) => (s.folderId === id ? { ...s, folderId: null } : s));
+    // 항상 세션 1개 이상 보장.
+    if (sessions.length === 0) sessions = [createSession(t("ask.untitled"))];
+    const activeSessionId = sessions.some((s) => s.id === prev.activeSessionId)
+      ? prev.activeSessionId
+      : sessions[sessions.length - 1].id;
+    commit({ folders, sessions, activeSessionId });
+  }
+  async function confirmDeleteFolder(id: string) {
+    let deleteSessions = false;
+    if (await confirm({
+      title: t("ask.confirmDeleteFolderTitle"),
+      message: t("ask.confirmDeleteFolder"),
+      confirmText: t("common.delete"),
+      danger: true,
+      checkbox: { label: t("ask.deleteFolderWithSessions"), onChange: (v) => { deleteSessions = v; } },
+    })) {
+      handleDeleteFolder(id, deleteSessions);
+    }
+  }
+
+  function toggleFolderCollapse(id: string) {
+    commit({ ...storeRef.current, folders: storeRef.current.folders.map((f) => (f.id === id ? { ...f, collapsed: !f.collapsed } : f)) });
+  }
+
+  function handleNewSessionInFolder(folderId: string) {
+    resetStream();
+    const session = createSession(t("ask.untitled"), folderId);
+    commit({ ...storeRef.current, sessions: [...storeRef.current.sessions, session], activeSessionId: session.id });
+    expand(session.id);
+  }
+
+  // 세션을 폴더로(또는 null=루트로) 이동.
+  function moveSessionToFolder(sessionId: string, folderId: string | null) {
+    const prev = storeRef.current;
+    const target = prev.sessions.find((s) => s.id === sessionId);
+    if (!target || (target.folderId ?? null) === folderId) return;
+    commit({ ...prev, sessions: prev.sessions.map((s) => (s.id === sessionId ? { ...s, folderId } : s)) });
   }
 
   // ── 서브세션(대화) 조작 — 좌측 트리에서 세션 지목 ──────
@@ -482,6 +556,159 @@ export default function AskView({ active = true, providerId, providerSettings }:
     })();
   }
 
+  // 세션 행(+하위 질문 트리) — 폴더 안/루트 공용. 폴더 이동 드래그 소스.
+  const renderSessionRow = (s: AskSession) => {
+    const isActiveSession = s.id === store.activeSessionId;
+    const renaming = s.id === renamingId;
+    const isOpen = expanded.has(s.id);
+    return (
+      <div
+        key={s.id}
+        className="mb-0.5"
+        draggable={!renaming}
+        onDragStart={(e) => { setSessDragId(s.id); e.dataTransfer.effectAllowed = "move"; }}
+        onDragEnd={() => { setSessDragId(null); setDropFolder(null); }}
+      >
+        {/* 세션(부모) 행 */}
+        <div
+          className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm transition-colors ${
+            isActiveSession
+              ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+              : "text-zinc-600 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => toggleExpand(s.id)}
+            aria-label={isOpen ? "접기" : "펼치기"}
+            className="flex h-7 w-6 shrink-0 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+          >
+            {isOpen ? <IconChevronDown size={15} stroke={2} aria-hidden /> : <IconChevronRight size={15} stroke={2} aria-hidden />}
+          </button>
+          {renaming ? (
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onBlur={() => commitRename(s.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
+              }}
+              className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
+            />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => handleSelectSession(s.id)}
+                onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                className="min-w-0 flex-1 truncate py-1.5 text-left font-medium"
+                title={s.title || t("ask.untitled")}
+              >
+                {s.title || t("ask.untitled")}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
+                aria-label={t("ask.rename")}
+                title={t("ask.rename")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+              >
+                <IconPencil size={14} stroke={2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => { void confirmDeleteSession(s.id); }}
+                aria-label={t("ask.deleteSession")}
+                title={t("ask.deleteSession")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
+              >
+                <IconTrash size={14} stroke={2} aria-hidden />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* 서브세션(질문) — 세션 밑 들여쓰기 트리 */}
+        {isOpen && (
+          <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700/60">
+            {s.subs.map((sub, i) => {
+              const isActiveSub = isActiveSession && sub.id === s.activeSubId;
+              const subRenaming = sub.id === renamingId;
+              const subName = sub.title || t("ask.thread", { n: i + 1 });
+              return (
+                <div
+                  key={sub.id}
+                  className={`group/sub flex items-center gap-1 rounded-md px-2 py-1 text-[13px] transition-colors ${
+                    isActiveSub
+                      ? "bg-[#3B34E2]/10 font-medium text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                      : "text-zinc-500 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
+                  }`}
+                >
+                  {subRenaming ? (
+                    <input
+                      autoFocus
+                      value={renameDraft}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onBlur={() => commitRenameSub(s.id, sub.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
+                      }}
+                      className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-[13px] text-zinc-800 outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
+                    />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSub(s.id, sub.id)}
+                        onDoubleClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
+                        className="min-w-0 flex-1 truncate text-left"
+                        title={subName}
+                      >
+                        {subName}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
+                        aria-label={t("ask.rename")}
+                        title={t("ask.rename")}
+                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover/sub:block dark:hover:text-zinc-100"
+                      >
+                        <IconPencil size={12} stroke={2} aria-hidden />
+                      </button>
+                      {s.subs.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => { void confirmDeleteSub(s.id, sub.id); }}
+                          aria-label={t("ask.deleteThread")}
+                          className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover/sub:block"
+                        >
+                          <IconX size={12} stroke={2.5} aria-hidden />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => handleNewSub(s.id)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-600 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+            >
+              <IconPlus size={13} stroke={2.5} aria-hidden />
+              {t("ask.newThread")}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const rootSessions = store.sessions.filter((s) => !s.folderId || !store.folders.some((f) => f.id === s.folderId));
+
   return (
     <div ref={rootRef} aria-hidden={!active} className={`flex h-full w-full overflow-hidden ${resizing ? "select-none" : ""}`}>
       {/* 좌측 세션 히스토리 패널 */}
@@ -491,76 +718,98 @@ export default function AskView({ active = true, providerId, providerSettings }:
             <IconMessage2 size={15} stroke={2} aria-hidden />
             {t("ask.sessions")}
           </span>
-          <button
-            type="button"
-            onClick={handleNewSession}
-            aria-label={t("ask.newSession")}
-            title={t("ask.newSession")}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-          >
-            <IconPlus size={16} stroke={2} aria-hidden />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={handleNewFolder}
+              aria-label={t("ask.newFolder")}
+              title={t("ask.newFolder")}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <IconFolderPlus size={16} stroke={2} aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={handleNewSession}
+              aria-label={t("ask.newSession")}
+              title={t("ask.newSession")}
+              className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            >
+              <IconPlus size={16} stroke={2} aria-hidden />
+            </button>
+          </div>
         </div>
-        <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2">
-          {store.sessions.map((s: AskSession) => {
-            const isActiveSession = s.id === store.activeSessionId;
-            const renaming = s.id === renamingId;
-            const isOpen = expanded.has(s.id);
+        <div
+          className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-2 pt-1"
+          onDragOver={(e) => { if (sessDragId) { e.preventDefault(); setDropFolder("__root__"); } }}
+          onDrop={(e) => { e.preventDefault(); if (sessDragId) moveSessionToFolder(sessDragId, null); setSessDragId(null); setDropFolder(null); }}
+        >
+          {store.folders.map((folder) => {
+            const folderRenaming = folder.id === renamingId;
+            const inFolder = store.sessions.filter((s) => s.folderId === folder.id);
+            const isDropTarget = !!sessDragId && dropFolder === folder.id;
             return (
-              <div key={s.id} className="mb-0.5">
-                {/* 세션(부모 폴더) 행 */}
+              <div key={folder.id} className="mb-1">
                 <div
-                  className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm transition-colors ${
-                    isActiveSession
-                      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
-                      : "text-zinc-600 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
-                  }`}
+                  onDragOver={(e) => { if (sessDragId) { e.preventDefault(); e.stopPropagation(); setDropFolder(folder.id); } }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (sessDragId) moveSessionToFolder(sessDragId, folder.id); setSessDragId(null); setDropFolder(null); }}
+                  className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60 ${isDropTarget ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}
                 >
                   <button
                     type="button"
-                    onClick={() => toggleExpand(s.id)}
-                    aria-label={isOpen ? "접기" : "펼치기"}
+                    onClick={() => toggleFolderCollapse(folder.id)}
+                    aria-label={folder.collapsed ? "펼치기" : "접기"}
                     className="flex h-7 w-6 shrink-0 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                   >
-                    {isOpen ? <IconChevronDown size={15} stroke={2} aria-hidden /> : <IconChevronRight size={15} stroke={2} aria-hidden />}
+                    {folder.collapsed ? <IconChevronRight size={15} stroke={2} aria-hidden /> : <IconChevronDown size={15} stroke={2} aria-hidden />}
                   </button>
-                  {renaming ? (
+                  <IconFolder size={14} stroke={2} className="shrink-0 text-zinc-400" aria-hidden />
+                  {folderRenaming ? (
                     <input
                       autoFocus
                       value={renameDraft}
                       onChange={(e) => setRenameDraft(e.target.value)}
-                      onBlur={() => commitRename(s.id)}
+                      onBlur={() => commitRenameFolder(folder.id)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") e.currentTarget.blur();
                         else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
                       }}
-                      className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
+                      className="ml-1 min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
                     />
                   ) : (
                     <>
                       <button
                         type="button"
-                        onClick={() => handleSelectSession(s.id)}
-                        onDoubleClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
-                        className="min-w-0 flex-1 truncate py-1.5 text-left font-medium"
-                        title={s.title || t("ask.untitled")}
+                        onClick={() => toggleFolderCollapse(folder.id)}
+                        onDoubleClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                        className="ml-1 min-w-0 flex-1 truncate py-1.5 text-left font-semibold"
+                        title={folder.name || t("ask.untitledFolder")}
                       >
-                        {s.title || t("ask.untitled")}
+                        {folder.name || t("ask.untitledFolder")}
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setRenamingId(s.id); setRenameDraft(s.title); }}
-                        aria-label={t("ask.rename")}
-                        title={t("ask.rename")}
+                        onClick={() => handleNewSessionInFolder(folder.id)}
+                        aria-label={t("ask.newSession")}
+                        title={t("ask.newSession")}
+                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+                      >
+                        <IconPlus size={14} stroke={2} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                        aria-label={t("ask.renameFolder")}
+                        title={t("ask.renameFolder")}
                         className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
                       >
                         <IconPencil size={14} stroke={2} aria-hidden />
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteSession(s.id)}
-                        aria-label={t("ask.deleteSession")}
-                        title={t("ask.deleteSession")}
+                        onClick={() => { void confirmDeleteFolder(folder.id); }}
+                        aria-label={t("ask.deleteFolder")}
+                        title={t("ask.deleteFolder")}
                         className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
                       >
                         <IconTrash size={14} stroke={2} aria-hidden />
@@ -568,83 +817,18 @@ export default function AskView({ active = true, providerId, providerSettings }:
                     </>
                   )}
                 </div>
-
-                {/* 서브세션(대화) — 세션 밑 들여쓰기 트리 */}
-                {isOpen && (
-                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-2 dark:border-zinc-700/60">
-                    {s.subs.map((sub, i) => {
-                      const isActiveSub = isActiveSession && sub.id === s.activeSubId;
-                      const subRenaming = sub.id === renamingId;
-                      const subName = sub.title || t("ask.thread", { n: i + 1 });
-                      return (
-                        <div
-                          key={sub.id}
-                          className={`group/sub flex items-center gap-1 rounded-md px-2 py-1 text-[13px] transition-colors ${
-                            isActiveSub
-                              ? "bg-[#3B34E2]/10 font-medium text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
-                              : "text-zinc-500 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:bg-zinc-800/60"
-                          }`}
-                        >
-                          {subRenaming ? (
-                            <input
-                              autoFocus
-                              value={renameDraft}
-                              onChange={(e) => setRenameDraft(e.target.value)}
-                              onBlur={() => commitRenameSub(s.id, sub.id)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") e.currentTarget.blur();
-                                else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
-                              }}
-                              className="min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-[13px] text-zinc-800 outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
-                            />
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectSub(s.id, sub.id)}
-                                onDoubleClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
-                                className="min-w-0 flex-1 truncate text-left"
-                                title={subName}
-                              >
-                                {subName}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setRenamingId(sub.id); setRenameDraft(subName); }}
-                                aria-label={t("ask.rename")}
-                                title={t("ask.rename")}
-                                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover/sub:block dark:hover:text-zinc-100"
-                              >
-                                <IconPencil size={12} stroke={2} aria-hidden />
-                              </button>
-                              {s.subs.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => { void confirmDeleteSub(s.id, sub.id); }}
-                                  aria-label={t("ask.deleteThread")}
-                                  className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover/sub:block"
-                                >
-                                  <IconX size={12} stroke={2.5} aria-hidden />
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => handleNewSub(s.id)}
-                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-zinc-400 transition-colors hover:bg-zinc-200/60 hover:text-zinc-600 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
-                    >
-                      <IconPlus size={13} stroke={2.5} aria-hidden />
-                      {t("ask.newThread")}
-                    </button>
+                {!folder.collapsed && (
+                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-1 dark:border-zinc-700/60">
+                    {inFolder.map(renderSessionRow)}
                   </div>
                 )}
               </div>
             );
           })}
+          {/* 루트(폴더 밖) 세션 */}
+          <div className={`rounded-lg ${sessDragId && dropFolder === "__root__" ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}>
+            {rootSessions.map(renderSessionRow)}
+          </div>
         </div>
       </aside>
 
