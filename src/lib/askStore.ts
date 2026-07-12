@@ -20,6 +20,7 @@ export interface AskSession {
   subs: AskSub[]; // ≥1
   activeSubId: string; // 탭 활성(이번 이슈엔 subs[0].id)
   layout: string[]; // 분할 표시 sub id들(이번 이슈엔 [activeSubId])
+  splitDir?: "row" | "col"; // 분할 방향 — row=좌우, col=위아래(기본 row).
 }
 
 export interface AskStore {
@@ -46,6 +47,7 @@ export function createSession(title: string): AskSession {
     subs: [sub],
     activeSubId: sub.id,
     layout: [sub.id],
+    splitDir: "row",
   };
 }
 
@@ -71,6 +73,7 @@ function normalizeSession(raw: unknown): AskSession | null {
     subs,
     activeSubId,
     layout,
+    splitDir: s.splitDir === "col" ? "col" : "row",
   };
 }
 
