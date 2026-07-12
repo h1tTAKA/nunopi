@@ -5,7 +5,7 @@ import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { loadCardExplain } from "@/lib/cardExplain";
-import { loadCardChat, saveCardChat, CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
+import { loadCardSessions, saveCardSessions, newSessionId, CARD_CHAT_CHANGED_EVENT, type CardChatSession } from "@/lib/cardChat";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -35,37 +35,84 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [sessions, setSessions] = useState<CardChatSession[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
   const [streaming, setStreaming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // 카드가 바뀌면 그 카드의 저장된 스레드 로드(카드별 고유 세션) + 진행 중 요청 취소.
-  // 언마운트(탭 이탈/세션 종료) 시에도 abort(요청 누수 방지).
+  const messages = sessions.find((s) => s.id === activeId)?.messages ?? [];
+
+  // 활성 세션 messages만 갱신 + 저장.
+  function commitActive(nextMsgs: ChatMessage[]) {
+    setSessions((prev) => {
+      const next = prev.map((s) => (s.id === activeId ? { ...s, messages: nextMsgs } : s));
+      saveCardSessions(card.key, next);
+      return next;
+    });
+  }
+
+  // 카드가 바뀌면 그 카드의 세션 목록 로드(없으면 새 세션 1개) + 진행 중 요청 취소.
   useEffect(() => {
     abortRef.current?.abort();
     /* eslint-disable react-hooks/set-state-in-effect */
-    setMessages(loadCardChat(card.key));
+    const loaded = loadCardSessions(card.key);
+    const list = loaded.length > 0 ? loaded : [{ id: newSessionId(), messages: [] }];
+    setSessions(list);
+    setActiveId(list[list.length - 1].id);
     setStreaming(null);
     setLoading(false);
     /* eslint-enable react-hooks/set-state-in-effect */
     return () => abortRef.current?.abort();
   }, [card.key]);
 
-  // 같은 카드의 다른 인스턴스(확대 모달 챗↔뒤 peek 챗)가 저장하면 스레드 재로드로 동기화(유실 방지).
+  // 다른 인스턴스(확대 모달 챗↔뒤 peek 챗)가 저장하면 세션 목록 재로드로 동기화(유실 방지).
   // 스트리밍/로딩 중엔 진행 중 대화를 덮지 않도록 스킵.
   useEffect(() => {
-    const sync = () => { if (!loading && streaming == null) setMessages(loadCardChat(card.key)); };
+    const sync = () => {
+      if (loading || streaming != null) return;
+      const loaded = loadCardSessions(card.key);
+      if (loaded.length > 0) {
+        setSessions(loaded);
+        setActiveId((cur) => (loaded.some((s) => s.id === cur) ? cur : loaded[loaded.length - 1].id));
+      }
+    };
     window.addEventListener(CARD_CHAT_CHANGED_EVENT, sync);
     return () => window.removeEventListener(CARD_CHAT_CHANGED_EVENT, sync);
   }, [card.key, loading, streaming]);
 
   function handleClear() {
     abortRef.current?.abort();
-    setMessages([]);
-    saveCardChat(card.key, []);
+    commitActive([]);
     setStreaming(null);
     setLoading(false);
+  }
+
+  // 세션 추가 — 새 빈 세션으로 전환.
+  function handleNewSession() {
+    if (loading) return;
+    abortRef.current?.abort();
+    const s: CardChatSession = { id: newSessionId(), messages: [] };
+    setSessions((prev) => { const next = [...prev, s]; saveCardSessions(card.key, next); return next; });
+    setActiveId(s.id);
+    setStreaming(null);
+  }
+  function handleSwitchSession(id: string) {
+    abortRef.current?.abort();
+    setActiveId(id);
+    setStreaming(null);
+    setLoading(false);
+  }
+  // 세션 삭제 — 최소 1개 유지. 활성 삭제 시 남은 마지막으로.
+  function handleDeleteSession(id: string) {
+    if (loading) return;
+    if (sessions.length <= 1) return;
+    abortRef.current?.abort();
+    const next = sessions.filter((s) => s.id !== id);
+    if (id === activeId) setActiveId(next[next.length - 1].id);
+    setSessions(next);
+    saveCardSessions(card.key, next);
+    setStreaming(null);
   }
 
   // 카드 제안 칩 — 이 플래시카드의 source(token/concept/term) 사전에 저장. 출처=이 카드 챗룸(갤러리로 이동).
@@ -77,22 +124,18 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
       });
     }
     const addedTerm = action.add?.term;
-    setMessages((prev) => {
-      const next = prev.map((m, i) =>
-        i === messageIndex && m.role === "assistant"
-          ? { ...m, content: addedTerm ? removeSuggestedCard(m.content, addedTerm) : stripCardBlock(m.content) }
-          : m,
-      );
-      saveCardChat(card.key, next);
-      return next;
-    });
+    const next = messages.map((m, i) =>
+      i === messageIndex && m.role === "assistant"
+        ? { ...m, content: addedTerm ? removeSuggestedCard(m.content, addedTerm) : stripCardBlock(m.content) }
+        : m,
+    );
+    commitActive(next);
   }
 
   function handleSend(text: string) {
     if (loading) return;
     const thread: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(thread);
-    saveCardChat(card.key, thread);
+    commitActive(thread);
     setStreaming("");
     setLoading(true);
     const ac = new AbortController();
@@ -120,11 +163,7 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
           signal: ac.signal,
         });
         if (!res.ok || !res.body) {
-          if (!ac.signal.aborted) {
-            const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyFailed") }];
-            setMessages(next);
-            saveCardChat(card.key, next);
-          }
+          if (!ac.signal.aborted) commitActive([...thread, { role: "assistant", content: t("chat.replyFailed") }]);
           return;
         }
         const reader = res.body.getReader();
@@ -149,17 +188,9 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
-        if (!ac.signal.aborted) {
-          const next: ChatMessage[] = [...thread, { role: "assistant", content: answer || "(빈 응답)" }];
-          setMessages(next);
-          saveCardChat(card.key, next);
-        }
+        if (!ac.signal.aborted) commitActive([...thread, { role: "assistant", content: answer || "(빈 응답)" }]);
       } catch {
-        if (!ac.signal.aborted) {
-          const next: ChatMessage[] = [...thread, { role: "assistant", content: t("chat.replyError") }];
-          setMessages(next);
-          saveCardChat(card.key, next);
-        }
+        if (!ac.signal.aborted) commitActive([...thread, { role: "assistant", content: t("chat.replyError") }]);
       } finally {
         if (!ac.signal.aborted) {
           setStreaming(null);
@@ -193,6 +224,11 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
             onSend={handleSend}
             onClear={handleClear}
             onCardAction={handleCardAction}
+            sessionIds={sessions.map((s) => s.id)}
+            activeSessionId={activeId}
+            onSwitchSession={handleSwitchSession}
+            onNewSession={handleNewSession}
+            onDeleteSession={handleDeleteSession}
             large={expanded}
           />
         </div>
