@@ -211,7 +211,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   async function confirmDeleteSub(sessionId: string, subId: string) {
-    if (await confirm({ title: t("confirm.deleteSessionTitle"), message: t("confirm.deleteSession"), confirmText: t("common.delete"), danger: true })) {
+    if (await confirm({ title: t("ask.confirmDeleteThreadTitle"), message: t("ask.confirmDeleteThread"), confirmText: t("common.delete"), danger: true })) {
       handleDeleteSub(sessionId, subId);
     }
   }
@@ -445,7 +445,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
                                 <button
                                   type="button"
                                   onClick={() => { void confirmDeleteSub(s.id, sub.id); }}
-                                  aria-label={t("ask.deleteSession")}
+                                  aria-label={t("ask.deleteThread")}
                                   className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover/sub:block"
                                 >
                                   <IconX size={12} stroke={2.5} aria-hidden />
