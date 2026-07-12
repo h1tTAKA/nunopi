@@ -26,7 +26,7 @@ type StreamEvent =
 // 맥락 없는 순수 질문임을 에이전트에 알리는 placeholder(chat 모드 code 슬롯).
 const NO_CONTEXT = "(일반 질문 — 특정 코드/글 맥락 없음)";
 
-const EMPTY_STORE: AskStore = { sessions: [], activeSessionId: "" };
+const EMPTY_STORE: AskStore = { folders: [], sessions: [], activeSessionId: "" };
 
 // 좌측 세션 패널 폭(px) — 기본/최소/최대 + 영속 키.
 const PANEL_DEFAULT = 240;
@@ -173,7 +173,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
   function handleNewSession() {
     resetStream();
     const session = createSession(t("ask.untitled"));
-    commit({ sessions: [...store.sessions, session], activeSessionId: session.id });
+    commit({ ...store, sessions: [...store.sessions, session], activeSessionId: session.id });
     expand(session.id);
   }
 
@@ -189,12 +189,12 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const remaining = store.sessions.filter((s) => s.id !== id);
     if (remaining.length === 0) {
       const fresh = createSession(t("ask.untitled"));
-      commit({ sessions: [fresh], activeSessionId: fresh.id });
+      commit({ ...store, sessions: [fresh], activeSessionId: fresh.id });
       expand(fresh.id);
       return;
     }
     const activeSessionId = store.activeSessionId === id ? remaining[remaining.length - 1].id : store.activeSessionId;
-    commit({ sessions: remaining, activeSessionId });
+    commit({ ...store, sessions: remaining, activeSessionId });
   }
 
   // rename 커밋은 항상 onBlur 한 경로로만 일어난다(Enter/Escape는 blur를 유발).
