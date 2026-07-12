@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconSparkles, IconX, IconSend2, IconCheck, IconEye, IconChevronLeft } from "@tabler/icons-react";
+import { IconSparkles, IconX, IconSend2, IconCheck, IconEye } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
 import { addCardsToDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
@@ -69,6 +70,7 @@ export default function AgentAssignModal({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const confirm = useConfirm();
   const { throwCard } = useFlyCard();
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
@@ -89,20 +91,13 @@ export default function AgentAssignModal({
     [all, assignedKeys, scope],
   );
 
-  const [phase, setPhase] = useState<"setup" | "preview">("setup");
-  // setup 선택 상태 — 카드/덱(기본 전체 선택).
+  // 선택 상태 — 카드/덱(기본 전체 선택). 배정 결과 유무와 무관하게 옵션 패널은 항상 유지.
   const [pickedCards, setPickedCards] = useState<Set<string>>(new Set());
   const [pickedDecks, setPickedDecks] = useState<Set<string>>(new Set());
-  // 후보/덱 목록 바뀌면 기본 전체 선택으로 초기화(setup 단계 한정).
+  // 후보/덱 목록 바뀌면 기본 전체 선택으로 초기화.
   /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (phase !== "setup") return;
-    setPickedCards(new Set(candidates.map((c) => c.key)));
-  }, [candidates, phase]);
-  useEffect(() => {
-    if (phase !== "setup") return;
-    setPickedDecks(new Set(existingDecks.map((d) => d.id)));
-  }, [existingDecks, phase]);
+  useEffect(() => { setPickedCards(new Set(candidates.map((c) => c.key))); }, [candidates]);
+  useEffect(() => { setPickedDecks(new Set(existingDecks.map((d) => d.id))); }, [existingDecks]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -124,13 +119,13 @@ export default function AgentAssignModal({
   const totalCards = useMemo(() => groups.reduce((n, g) => n + g.cards.length, 0), [groups]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (phase !== "preview" || totalCards === 0) { setReveal(0); return; }
+    if (totalCards === 0) { setReveal(0); return; }
     if (reduced) { setReveal(totalCards); return; }
     setReveal(0);
     let i = 0;
     const id = window.setInterval(() => { i += 1; setReveal(i); if (i >= totalCards) window.clearInterval(id); }, 110);
     return () => window.clearInterval(id);
-  }, [totalCards, reduced, phase]);
+  }, [totalCards, reduced]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // 에이전트 호출 — context(요청 시 고정)와 스레드로. answer 반환.
@@ -204,7 +199,6 @@ export default function AgentAssignModal({
     const prompt = t("mem.assignAutoPrompt").replace("{n}", String(cards.length)).replace("{decks}", decks.map((d) => d.name).join(", "));
     const thread: ChatMessage[] = [{ role: "user", content: prompt }];
     setMessages(thread);
-    setPhase("preview");
     try {
       const answer = await runAgent(thread, context);
       applyReply(thread, answer || t("mem.agentDeckNone"));
@@ -252,14 +246,25 @@ export default function AgentAssignModal({
   }
   const includedCount = (g: AssignGroup) => g.cards.filter((c) => !g.excluded.has(c.key)).length;
   const canApply = groups.some((g) => g.checked && includedCount(g) > 0);
-  function applyChecked() {
+  // 추가 완료 결과(팝업) — 확인 후 세팅. 닫으면 onApplied.
+  const [result, setResult] = useState<{ decks: number; added: number; skipped: number } | null>(null);
+  async function applyChecked() {
     if (!canApply) return;
-    for (const g of groups) {
-      if (!g.checked) continue;
+    const targets = groups.filter((g) => g.checked && includedCount(g) > 0);
+    const cardTotal = targets.reduce((n, g) => n + includedCount(g), 0);
+    const ok = await confirm({
+      title: t("mem.assignApplyConfirmTitle"),
+      message: t("mem.assignApplyConfirmMsg").replace("{decks}", String(targets.length)).replace("{n}", String(cardTotal)),
+      confirmText: t("mem.assignApply"),
+    });
+    if (!ok) return;
+    let added = 0, skipped = 0;
+    for (const g of targets) {
       const keys = g.cards.filter((c) => !g.excluded.has(c.key)).map((c) => c.key);
-      if (keys.length > 0) addCardsToDeck(g.deckId, keys);
+      const r = addCardsToDeck(g.deckId, keys);
+      added += r.added; skipped += r.skipped;
     }
-    onApplied();
+    setResult({ decks: targets.length, added, skipped });
   }
 
   const pickedCount = candidates.filter((c) => pickedCards.has(c.key)).length;
@@ -273,127 +278,118 @@ export default function AgentAssignModal({
 
   return (
     <div className="absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm">
-      {/* 좌: setup(고르기) 또는 preview(배정 제안) */}
+      {/* 좌: 옵션 패널(항상) + 본문(후보 그리드 ↔ 배정 결과) */}
       <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
-        {phase === "setup" ? (
-          <>
-            {/* 상단 옵션 패널 — 범위 토글·카드 선택·대상 덱·맡기기 한데 모음 */}
-            <div className="shrink-0 space-y-3 border-b border-zinc-200 bg-white/60 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-              {/* 맡길 카드: 라벨 + 범위 토글 + 전체선택 */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignPickCards")}</span>
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">{pickedCount}/{candidates.length}</span>
-                <div className="ml-auto flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800">
-                  {(["unassigned", "all"] as const).map((s) => (
-                    <button key={s} type="button" onClick={() => setScope(s)}
-                      className={`rounded-md px-2 py-1 font-medium transition ${scope === s ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
-                      {t(s === "unassigned" ? "mem.assignScopeUnassigned" : "mem.assignScopeAll")}
-                    </button>
-                  ))}
-                </div>
-                <button type="button" onClick={toggleAllCards} className="rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
-                  {allCardsPicked ? t("mem.selectNone") : t("mem.selectAll")}
+        {/* 상단 옵션 패널 — 범위 토글·카드 선택·대상 덱·실행 버튼. 배정 결과와 무관하게 항상 유지. */}
+        <div className="shrink-0 space-y-3 border-b border-zinc-200 bg-white/60 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignPickCards")}</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">{pickedCount}/{candidates.length}</span>
+            <div className="ml-auto flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800">
+              {(["unassigned", "all"] as const).map((s) => (
+                <button key={s} type="button" onClick={() => setScope(s)} disabled={loading}
+                  className={`rounded-md px-2 py-1 font-medium transition disabled:opacity-50 ${scope === s ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
+                  {t(s === "unassigned" ? "mem.assignScopeUnassigned" : "mem.assignScopeAll")}
                 </button>
-              </div>
-              {/* 대상 덱: 라벨 + 전체토글 + 칩 */}
-              <div className="flex items-start gap-2">
-                <span className="mt-1.5 shrink-0 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{t("mem.assignPickDecks")}</span>
-                <div className="nunopi-scroll flex max-h-16 flex-1 flex-wrap gap-1.5 overflow-y-auto">
-                  {existingDecks.map((d) => {
-                    const on = pickedDecks.has(d.id);
-                    return (
-                      <button key={d.id} type="button" onClick={() => toggleDeck(d.id)}
-                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
-                        <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[4px] border ${on ? "border-white/70 bg-white/20" : "border-zinc-300 dark:border-zinc-600"}`}>
-                          {on && <IconCheck size={10} stroke={3} aria-hidden />}
-                        </span>
-                        {d.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button type="button" onClick={toggleAllDecks} className="mt-1.5 shrink-0 text-[11px] font-medium text-zinc-400 transition hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300">
-                  {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
-                </button>
-              </div>
-              {/* 맡기기 — 우측 정렬 compact */}
-              <div className="flex justify-end">
-                <button type="button" onClick={() => { void delegate(); }} disabled={loading || pickedCount === 0 || pickedDecks.size === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#3B34E2] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40">
-                  <IconSparkles size={15} stroke={2} aria-hidden />
-                  {t("mem.assignDelegate")}
-                  <span className="font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
-                </button>
-              </div>
+              ))}
             </div>
-            {/* 카드 그리드 — 남는 공간 */}
-            <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
-              {candidates.length === 0 ? (
-                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
-              ) : (
-                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(8.5rem, 1fr))" }}>
-                  {candidates.map((c) => (
-                    <MiniTile key={c.key} card={c} dimmed={!pickedCards.has(c.key)} check={pickedCards.has(c.key)} onToggle={() => toggleCard(c.key)} throwCard={throwCard} t={t} />
-                  ))}
-                </div>
-              )}
+            <button type="button" onClick={toggleAllCards} disabled={loading} className="rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
+              {allCardsPicked ? t("mem.selectNone") : t("mem.selectAll")}
+            </button>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="mt-1.5 shrink-0 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{t("mem.assignPickDecks")}</span>
+            <div className="nunopi-scroll flex max-h-16 flex-1 flex-wrap gap-1.5 overflow-y-auto">
+              {existingDecks.map((d) => {
+                const on = pickedDecks.has(d.id);
+                return (
+                  <button key={d.id} type="button" onClick={() => toggleDeck(d.id)} disabled={loading}
+                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
+                    <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[4px] border ${on ? "border-white/70 bg-white/20" : "border-zinc-300 dark:border-zinc-600"}`}>
+                      {on && <IconCheck size={10} stroke={3} aria-hidden />}
+                    </span>
+                    {d.name}
+                  </button>
+                );
+              })}
             </div>
-          </>
-        ) : (
-          <>
-            <div className="flex h-14 shrink-0 items-center gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
-              <button type="button" onClick={() => { abortRef.current?.abort(); setPhase("setup"); setGroups([]); }} aria-label={t("mem.assignReselect")} title={t("mem.assignReselect")}
-                className="rounded-lg p-1 text-zinc-500 transition hover:bg-zinc-200 dark:hover:bg-zinc-800">
-                <IconChevronLeft size={16} stroke={2} aria-hidden />
+            <button type="button" onClick={toggleAllDecks} disabled={loading} className="mt-1.5 shrink-0 text-[11px] font-medium text-zinc-400 transition hover:text-zinc-600 disabled:opacity-50 dark:text-zinc-500 dark:hover:text-zinc-300">
+              {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
+            </button>
+          </div>
+          {/* 실행 버튼 — 상태별 전환. 생각 중엔 비활성. 결과 있으면 [다시 고르기] + [선택 덱에 추가]. */}
+          <div className="flex justify-end gap-2">
+            {loading ? (
+              <button type="button" disabled className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white opacity-60">
+                <IconSparkles size={15} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
+                {t("mem.assignSorting")}
               </button>
-              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignPreviewTitle")}</span>
-              {groups.length > 0 && <span className="text-xs text-zinc-400 dark:text-zinc-500">{groups.length}</span>}
-              {totalCards > 0 && <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</span>}
-            </div>
-            <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
-              {groups.length === 0 ? (
-                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignEmpty")}</div>
-              ) : (
-                <div className="flex flex-col gap-5">
-                  {groups.map((g, gi) => {
-                    const offset = groupOffsets[gi];
-                    return (
-                      <section key={g.deckId} className="flex flex-col gap-2.5">
-                        <div className="flex items-center gap-2">
-                          <button type="button" role="checkbox" aria-checked={g.checked} onClick={() => toggleGroup(g.deckId)}
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${g.checked ? "border-[#3B34E2] bg-[#3B34E2] text-white" : "border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"}`}>
-                            {g.checked && <IconCheck size={13} stroke={3} aria-hidden />}
-                          </button>
-                          <span className="min-w-0 flex-1 truncate px-1.5 py-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{g.deckName}</span>
-                          <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">+{includedCount(g)}</span>
-                        </div>
-                        <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(8.5rem, 1fr))" }}>
-                          {g.cards.map((c, i) => {
-                            if (offset + i >= reveal) return null;
-                            const ex = g.excluded.has(c.key);
-                            return <MiniTile key={c.key} card={c} dimmed={ex} check={!ex} onToggle={() => toggleExclude(g.deckId, c.key)} throwCard={throwCard} t={t} />;
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {groups.length > 0 && (
-              <div className="flex shrink-0 items-center gap-2 border-t border-zinc-200 px-5 py-3 dark:border-zinc-800">
-                <button type="button" onClick={() => { abortRef.current?.abort(); setPhase("setup"); setGroups([]); }}
-                  className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-200 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
-                  {t("mem.assignReselect")}
+            ) : groups.length > 0 ? (
+              <>
+                <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
+                  <IconSparkles size={14} stroke={2} aria-hidden />
+                  {t("mem.assignReclassify")}
                 </button>
-                <button type="button" onClick={applyChecked} disabled={!canApply}
-                  className="ml-auto rounded-lg bg-[#3B34E2] px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-[#322bc9] disabled:opacity-40">
+                <button type="button" onClick={() => { void applyChecked(); }} disabled={!canApply}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40">
+                  <IconCheck size={15} stroke={2.5} aria-hidden />
                   {t("mem.assignApply")}
                 </button>
-              </div>
+              </>
+            ) : (
+              <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
+                <IconSparkles size={15} stroke={2} aria-hidden />
+                {t("mem.assignDelegate")}
+                <span className="font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
+              </button>
             )}
-          </>
-        )}
+          </div>
+        </div>
+
+        {/* 본문 — 결과 있으면 덱별 배정, 생각 중(첫 제안)엔 안내, 아니면 후보 카드 그리드 */}
+        <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
+          {groups.length > 0 ? (
+            <div className={`flex flex-col gap-5 ${loading ? "opacity-50" : ""}`}>
+              {groups.map((g, gi) => {
+                const offset = groupOffsets[gi];
+                return (
+                  <section key={g.deckId} className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <button type="button" role="checkbox" aria-checked={g.checked} onClick={() => toggleGroup(g.deckId)}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${g.checked ? "border-[#3B34E2] bg-[#3B34E2] text-white" : "border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"}`}>
+                        {g.checked && <IconCheck size={13} stroke={3} aria-hidden />}
+                      </button>
+                      <span className="min-w-0 flex-1 truncate px-1.5 py-1 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{g.deckName}</span>
+                      <span className="shrink-0 text-xs text-zinc-400 dark:text-zinc-500">+{includedCount(g)}</span>
+                    </div>
+                    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(8.5rem, 1fr))" }}>
+                      {g.cards.map((c, i) => {
+                        if (offset + i >= reveal) return null;
+                        const ex = g.excluded.has(c.key);
+                        return <MiniTile key={c.key} card={c} dimmed={ex} check={!ex} onToggle={() => toggleExclude(g.deckId, c.key)} throwCard={throwCard} t={t} />;
+                      })}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          ) : loading ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+              <IconSparkles size={22} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
+              {t("mem.assignSorting")}
+            </div>
+          ) : candidates.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
+          ) : (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(8.5rem, 1fr))" }}>
+              {candidates.map((c) => (
+                <MiniTile key={c.key} card={c} dimmed={!pickedCards.has(c.key)} check={pickedCards.has(c.key)} onToggle={() => toggleCard(c.key)} throwCard={throwCard} t={t} />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 우: 대화(보조) */}
@@ -437,17 +433,37 @@ export default function AgentAssignModal({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
-            disabled={loading || phase === "setup"}
+            disabled={loading || messages.length === 0}
             rows={1}
-            placeholder={phase === "setup" ? t("mem.assignChatDisabled") : t("mem.assignPlaceholder")}
+            placeholder={messages.length === 0 ? t("mem.assignChatDisabled") : t("mem.assignPlaceholder")}
             className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none focus:border-[#3B34E2] disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
-          <button type="button" onClick={() => { void send(); }} disabled={loading || phase === "setup" || !input.trim()}
+          <button type="button" onClick={() => { void send(); }} disabled={loading || messages.length === 0 || !input.trim()}
             className="shrink-0 rounded-xl bg-[#3B34E2] p-2.5 text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40" aria-label={t("chat.send")}>
             <IconSend2 size={16} stroke={2} aria-hidden />
           </button>
         </div>
       </div>
+
+      {/* 추가 완료 팝업 — 덱별 합계. 닫으면 모달 종료. */}
+      {result && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-lime-500/15 text-lime-600 dark:text-lime-400">
+              <IconCheck size={22} stroke={2.5} aria-hidden />
+            </span>
+            <h3 className="mt-3 text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignDoneTitle")}</h3>
+            <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              {t("mem.assignDoneMsg").replace("{decks}", String(result.decks)).replace("{n}", String(result.added))}
+              {result.skipped > 0 && <> {t("mem.addSkippedMsg").replace("{n}", String(result.skipped))}</>}
+            </p>
+            <button type="button" onClick={() => { setResult(null); onApplied(); }}
+              className="mt-4 w-full rounded-lg bg-[#3B34E2] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#322bc9]">
+              {t("confirm.ok")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
