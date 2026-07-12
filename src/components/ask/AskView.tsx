@@ -13,6 +13,7 @@ import {
   newAskId,
   type AskStore,
   type AskSession,
+  type AskFolder,
 } from "@/lib/askStore";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -215,10 +216,25 @@ export default function AskView({ active = true, providerId, providerSettings }:
   }
 
   // ── 폴더 조작 ──────────────────────────────────────────
-  function handleNewFolder() {
-    const folder = createFolder(t("ask.untitledFolder"));
-    commit({ ...store, folders: [...store.folders, folder] });
-    // 새 폴더는 바로 이름 편집.
+  // 폴더 id의 모든 하위 폴더 id(자신 포함) 재귀 수집.
+  function descendantFolderIds(rootId: string, folders: { id: string; parentId?: string | null }[]): Set<string> {
+    const out = new Set<string>([rootId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const f of folders) {
+        if (f.parentId && out.has(f.parentId) && !out.has(f.id)) { out.add(f.id); grew = true; }
+      }
+    }
+    return out;
+  }
+
+  function handleNewFolder(parentId: string | null = null) {
+    const prev = storeRef.current;
+    const folder = createFolder(t("ask.untitledFolder"), parentId);
+    // 부모 폴더가 접혀 있으면 펼쳐 새 하위 폴더가 보이게.
+    const folders = prev.folders.map((f) => (f.id === parentId ? { ...f, collapsed: false } : f));
+    commit({ ...prev, folders: [...folders, folder] });
     setRenamingId(folder.id);
     setRenameDraft(folder.name);
   }
@@ -232,15 +248,26 @@ export default function AskView({ active = true, providerId, providerSettings }:
     }
   }
 
-  // 폴더 삭제 — 기본은 폴더만 제거(세션 루트로 보존). deleteSessions=true면 안의 세션까지 삭제.
+  // 폴더 삭제. 기본: 이 폴더의 직속 세션·하위폴더를 상위로 승격(보존). deleteSessions=true:
+  // 이 폴더 + 모든 하위폴더(재귀) 제거 + 그 안의 세션 전부 삭제.
   function handleDeleteFolder(id: string, deleteSessions: boolean) {
     resetStream();
     const prev = storeRef.current;
-    const folders = prev.folders.filter((f) => f.id !== id);
-    const sessions = deleteSessions
-      ? prev.sessions.filter((s) => s.folderId !== id)
-      : prev.sessions.map((s) => (s.folderId === id ? { ...s, folderId: null } : s));
-    // 0개 허용.
+    const target = prev.folders.find((f) => f.id === id);
+    const parentId = target?.parentId ?? null;
+    let folders: typeof prev.folders;
+    let sessions: typeof prev.sessions;
+    if (deleteSessions) {
+      const doomed = descendantFolderIds(id, prev.folders); // 자신 + 하위폴더 전부
+      folders = prev.folders.filter((f) => !doomed.has(f.id));
+      sessions = prev.sessions.filter((s) => !(s.folderId && doomed.has(s.folderId)));
+    } else {
+      // 직속 하위폴더는 상위로 승격, 직속 세션도 상위로.
+      folders = prev.folders
+        .filter((f) => f.id !== id)
+        .map((f) => (f.parentId === id ? { ...f, parentId } : f));
+      sessions = prev.sessions.map((s) => (s.folderId === id ? { ...s, folderId: parentId } : s));
+    }
     const activeSessionId = sessions.some((s) => s.id === prev.activeSessionId)
       ? prev.activeSessionId
       : (sessions[sessions.length - 1]?.id ?? "");
@@ -702,6 +729,102 @@ export default function AskView({ active = true, providerId, providerSettings }:
   };
 
   const rootSessions = store.sessions.filter((s) => !s.folderId || !store.folders.some((f) => f.id === s.folderId));
+  // 루트 폴더 = 부모 없음 또는 부모 고아(삭제됨).
+  const rootFolders = store.folders.filter((f) => !f.parentId || !store.folders.some((p) => p.id === f.parentId));
+
+  // 폴더(하위 폴더·세션 포함) 재귀 렌더. 자식 컨테이너의 ml/border-l로 깊이 들여쓰기.
+  const renderFolder = (folder: AskFolder) => {
+    const folderRenaming = folder.id === renamingId;
+    const subfolders = store.folders.filter((f) => f.parentId === folder.id);
+    const inFolder = store.sessions.filter((s) => s.folderId === folder.id);
+    const isDropTarget = !!sessDragId && dropFolder === folder.id;
+    return (
+      <div key={folder.id} className="mb-0.5">
+        <div
+          onDragOver={(e) => { if (sessDragId) { e.preventDefault(); e.stopPropagation(); setDropFolder(folder.id); } }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (sessDragId) moveSessionToFolder(sessDragId, folder.id); setSessDragId(null); setDropFolder(null); }}
+          className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60 ${isDropTarget ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}
+        >
+          <button
+            type="button"
+            onClick={() => toggleFolderCollapse(folder.id)}
+            aria-label={folder.collapsed ? "펼치기" : "접기"}
+            className="flex h-7 w-6 shrink-0 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+          >
+            {folder.collapsed ? <IconChevronRight size={15} stroke={2} aria-hidden /> : <IconChevronDown size={15} stroke={2} aria-hidden />}
+          </button>
+          <IconFolder size={14} stroke={2} className="shrink-0 text-zinc-400" aria-hidden />
+          {folderRenaming ? (
+            <input
+              autoFocus
+              value={renameDraft}
+              onChange={(e) => setRenameDraft(e.target.value)}
+              onBlur={() => commitRenameFolder(folder.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+                else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
+              }}
+              className="ml-1 min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
+            />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => toggleFolderCollapse(folder.id)}
+                onDoubleClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                className="ml-1 min-w-0 flex-1 truncate py-1.5 text-left font-semibold"
+                title={folder.name || t("ask.untitledFolder")}
+              >
+                {folder.name || t("ask.untitledFolder")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNewFolder(folder.id)}
+                aria-label={t("ask.newSubfolder")}
+                title={t("ask.newSubfolder")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+              >
+                <IconFolderPlus size={14} stroke={2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNewSessionInFolder(folder.id)}
+                aria-label={t("ask.newSession")}
+                title={t("ask.newSession")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+              >
+                <IconPlus size={14} stroke={2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
+                aria-label={t("ask.renameFolder")}
+                title={t("ask.renameFolder")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
+              >
+                <IconPencil size={14} stroke={2} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => { void confirmDeleteFolder(folder.id); }}
+                aria-label={t("ask.deleteFolder")}
+                title={t("ask.deleteFolder")}
+                className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
+              >
+                <IconTrash size={14} stroke={2} aria-hidden />
+              </button>
+            </>
+          )}
+        </div>
+        {!folder.collapsed && (
+          <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-1 dark:border-zinc-700/60">
+            {subfolders.map(renderFolder)}
+            {inFolder.map(renderSessionRow)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div ref={rootRef} aria-hidden={!active} className={`flex h-full w-full overflow-hidden ${resizing ? "select-none" : ""}`}>
@@ -715,7 +838,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
           <div className="flex items-center gap-0.5">
             <button
               type="button"
-              onClick={handleNewFolder}
+              onClick={() => handleNewFolder()}
               aria-label={t("ask.newFolder")}
               title={t("ask.newFolder")}
               className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
@@ -738,87 +861,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
           onDragOver={(e) => { if (sessDragId) { e.preventDefault(); setDropFolder("__root__"); } }}
           onDrop={(e) => { e.preventDefault(); if (sessDragId) moveSessionToFolder(sessDragId, null); setSessDragId(null); setDropFolder(null); }}
         >
-          {store.folders.map((folder) => {
-            const folderRenaming = folder.id === renamingId;
-            const inFolder = store.sessions.filter((s) => s.folderId === folder.id);
-            const isDropTarget = !!sessDragId && dropFolder === folder.id;
-            return (
-              <div key={folder.id} className="mb-1">
-                <div
-                  onDragOver={(e) => { if (sessDragId) { e.preventDefault(); e.stopPropagation(); setDropFolder(folder.id); } }}
-                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (sessDragId) moveSessionToFolder(sessDragId, folder.id); setSessDragId(null); setDropFolder(null); }}
-                  className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm text-zinc-600 transition-colors hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60 ${isDropTarget ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleFolderCollapse(folder.id)}
-                    aria-label={folder.collapsed ? "펼치기" : "접기"}
-                    className="flex h-7 w-6 shrink-0 items-center justify-center text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                  >
-                    {folder.collapsed ? <IconChevronRight size={15} stroke={2} aria-hidden /> : <IconChevronDown size={15} stroke={2} aria-hidden />}
-                  </button>
-                  <IconFolder size={14} stroke={2} className="shrink-0 text-zinc-400" aria-hidden />
-                  {folderRenaming ? (
-                    <input
-                      autoFocus
-                      value={renameDraft}
-                      onChange={(e) => setRenameDraft(e.target.value)}
-                      onBlur={() => commitRenameFolder(folder.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") e.currentTarget.blur();
-                        else if (e.key === "Escape") { renameCancelRef.current = true; e.currentTarget.blur(); }
-                      }}
-                      className="ml-1 min-w-0 flex-1 rounded border border-zinc-300 bg-white px-1 py-0.5 text-sm outline-none focus:border-[#3B34E2] dark:border-zinc-600 dark:bg-zinc-900"
-                    />
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => toggleFolderCollapse(folder.id)}
-                        onDoubleClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
-                        className="ml-1 min-w-0 flex-1 truncate py-1.5 text-left font-semibold"
-                        title={folder.name || t("ask.untitledFolder")}
-                      >
-                        {folder.name || t("ask.untitledFolder")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleNewSessionInFolder(folder.id)}
-                        aria-label={t("ask.newSession")}
-                        title={t("ask.newSession")}
-                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
-                      >
-                        <IconPlus size={14} stroke={2} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setRenamingId(folder.id); setRenameDraft(folder.name); }}
-                        aria-label={t("ask.renameFolder")}
-                        title={t("ask.renameFolder")}
-                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-zinc-700 group-hover:block dark:hover:text-zinc-100"
-                      >
-                        <IconPencil size={14} stroke={2} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { void confirmDeleteFolder(folder.id); }}
-                        aria-label={t("ask.deleteFolder")}
-                        title={t("ask.deleteFolder")}
-                        className="hidden shrink-0 rounded p-0.5 text-zinc-400 hover:text-rose-500 group-hover:block"
-                      >
-                        <IconTrash size={14} stroke={2} aria-hidden />
-                      </button>
-                    </>
-                  )}
-                </div>
-                {!folder.collapsed && (
-                  <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-zinc-200 pl-1 dark:border-zinc-700/60">
-                    {inFolder.map(renderSessionRow)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {rootFolders.map(renderFolder)}
           {/* 루트(폴더 밖) 세션 */}
           <div className={`rounded-lg ${sessDragId && dropFolder === "__root__" ? "ring-2 ring-inset ring-[#3B34E2] dark:ring-[#8b86f5]" : ""}`}>
             {rootSessions.map(renderSessionRow)}
@@ -867,10 +910,17 @@ export default function AskView({ active = true, providerId, providerSettings }:
           const tileIds = activeSession.layout.filter((id) => activeSession.subs.some((sub) => sub.id === id));
           const ids = tileIds.length ? tileIds : [activeSession.activeSubId];
           const sessionTitle = activeSession.title || t("ask.title");
-          // 폴더 소속이면 브레드크럼 맨 앞에 폴더명.
-          const folderName = activeSession.folderId
-            ? store.folders.find((f) => f.id === activeSession.folderId)?.name || t("ask.untitledFolder")
-            : undefined;
+          // 폴더 경로(상위→하위) — 브레드크럼 맨 앞. 사이클 가드.
+          const folderPath: string[] = [];
+          {
+            const seen = new Set<string>();
+            let cur = activeSession.folderId ? store.folders.find((f) => f.id === activeSession.folderId) : undefined;
+            while (cur && !seen.has(cur.id)) {
+              seen.add(cur.id);
+              folderPath.unshift(cur.name || t("ask.untitledFolder"));
+              cur = cur.parentId ? store.folders.find((f) => f.id === cur!.parentId) : undefined;
+            }
+          }
           // 분할 드롭다운 후보 — 아직 타일로 안 열린 기존 질문들.
           const splitOptions = activeSession.subs
             .filter((sub) => !activeSession.layout.includes(sub.id))
@@ -882,7 +932,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
             return (
               <AskChat
                 key={sub.id}
-                folderName={folderName}
+                folderPath={folderPath.length ? folderPath : undefined}
                 title={sessionTitle}
                 subLabel={subDisplayLabel(activeSession, sub.id)}
                 messages={sub.messages}
