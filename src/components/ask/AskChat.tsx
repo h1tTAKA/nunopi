@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useToast } from "@/components/ui/Toast";
@@ -17,7 +17,6 @@ interface AskChatProps {
   streaming?: string | null;
   isLoading: boolean;
   onSend: (text: string) => void;
-  onClear?: () => void;
   onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
   // 분할 타일 모드(이슈4) — 여러 질문을 나란히 표시.
   tiled?: boolean; // 타일 테두리 표시.
@@ -41,7 +40,7 @@ interface AskChatProps {
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
 // 답변은 버블 없이 폭 전체, 유저 말풍선만 우측. 로직(Markdown·카드칩·스트리밍)은 공용 재사용.
 export default function AskChat({
-  folderPath, title, subLabel, messages, streaming, isLoading, onSend, onClear, onCardAction,
+  folderPath, title, subLabel, messages, streaming, isLoading, onSend, onCardAction,
   tiled = false, focused = false, onFocus, onClose,
   canSplit = false, splitOptions = [], onOpenQuestion, onSplitNew,
   draggable = false, onHeaderDragStart, onHeaderDragEnd,
@@ -157,18 +156,6 @@ export default function AskChat({
                 </>
               )}
             </div>
-          )}
-          {messages.length > 0 && onClear && (
-            <button
-              type="button"
-              onClick={onClear}
-              disabled={isLoading}
-              title={t("ask.clearThread")}
-              aria-label={t("ask.clearThread")}
-              className="inline-flex items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800"
-            >
-              <IconTrash size={15} stroke={2} aria-hidden />
-            </button>
           )}
           {onClose && (
             <button

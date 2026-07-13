@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { IconCards } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useFlyCard } from "@/components/memorize/FlyCard";
 import { collectCards } from "@/lib/srs/collect";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { Card } from "@/lib/srs/types";
 
 const SOURCES = ["token", "concept", "term"] as const;
+const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
 // 현재 Ask 세션에서 생성된 카드 목록 패널. 클릭 시 FlyCard 연출(클릭 지점에서 날아옴).
 // 카드는 sourceKind==="ask" && sourceSessionId===sessionId 로 필터(전역 카드 풀에서 파생).
@@ -18,6 +19,7 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
   sourceLabel: (sessionId?: string, subId?: string) => string;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const { throwCard } = useFlyCard();
   const [cards, setCards] = useState<Card[]>([]);
 
@@ -58,6 +60,11 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
             >
               <span className="w-full truncate text-sm font-medium text-zinc-800 dark:text-zinc-100">{card.front}</span>
               {card.back && <span className="line-clamp-2 text-[12px] text-zinc-500 dark:text-zinc-400">{card.back}</span>}
+              {card.bookmarkedAt && (
+                <span className="mt-0.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+                  {new Date(card.bookmarkedAt).toLocaleString(LOCALE_TAG[locale] ?? "en-US", { dateStyle: "medium", timeStyle: "short" })}
+                </span>
+              )}
             </button>
           ))
         )}
