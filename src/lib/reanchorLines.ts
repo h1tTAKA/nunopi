@@ -26,15 +26,18 @@ export function reanchorLineNumbers(
     const target = exp.code.trim();
     let actual = exp.line;
     if (target) {
-      // searchStart 이후에서 먼저 찾고, 없으면 처음부터(중복 줄은 위→아래 순서 우선).
-      let j = -1;
-      for (let i = searchStart; i < trimmed.length; i++) {
-        if (!used[i] && trimmed[i] === target) { j = i; break; }
-      }
+      // 미사용 줄 중 pred 만족 첫 인덱스 — searchStart 이후 우선, 없으면 처음부터.
+      const findFrom = (pred: (s: string) => boolean): number => {
+        for (let i = searchStart; i < trimmed.length; i++) if (!used[i] && pred(trimmed[i])) return i;
+        for (let i = 0; i < trimmed.length; i++) if (!used[i] && pred(trimmed[i])) return i;
+        return -1;
+      };
+      // 1) 정확 일치. 2) 실패 시 느슨한 접두 일치(모델 축약/상이 대비, 짧은 target 제외).
+      let j = findFrom((s) => s === target);
       if (j === -1) {
-        for (let i = 0; i < trimmed.length; i++) {
-          if (!used[i] && trimmed[i] === target) { j = i; break; }
-        }
+        const loose = target.replace(/\s*(?:\.\.\.|…)\s*$/, "").trim(); // 후행 생략부호 제거
+        // 소스 줄이 모델 축약 코드로 "시작"할 때만(한 방향). 역방향은 짧은 줄("}") 오매치 유발.
+        if (loose.length >= 4) j = findFrom((s) => s.startsWith(loose));
       }
       if (j >= 0) {
         actual = j + 1;
@@ -45,6 +48,9 @@ export function reanchorLineNumbers(
     lineMap.set(exp.line, actual);
     return actual === exp.line ? exp : { ...exp, line: actual };
   });
+
+  // 실제 행번호 오름차순 정렬 — 방출 순서와 무관하게 코드 순서대로. stable.
+  anchored.sort((a, b) => a.line - b.line);
 
   return { lineExplanations: anchored, lineMap };
 }
