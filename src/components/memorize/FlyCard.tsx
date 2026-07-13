@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { IconExternalLink, IconTrash } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import type { Card } from "@/lib/srs/types";
 import { canGoToSource } from "@/lib/srs/cardSource";
 import { cardFrame } from "@/lib/srs/cardFrame";
@@ -59,6 +60,7 @@ export function FlyCardProvider({
 }) {
   const t = useT();
   const confirm = useConfirm();
+  const toast = useToast();
   const [fly, setFly] = useState<Fly | null>(null);
   const [arrived, setArrived] = useState(false); // 중앙 도착·정지 완료(이후 클릭하면 낙하)
   const [dropping, setDropping] = useState(false); // 낙하 진행 중
@@ -140,6 +142,7 @@ export function FlyCardProvider({
     if (!ok) return;
     deleteCard(card);
     setFly(null); setArrived(false); setDropping(false);
+    toast(t("card.deleted", { term: card.front }));
   }
 
   return (
