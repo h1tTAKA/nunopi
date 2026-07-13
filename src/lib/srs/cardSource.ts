@@ -4,5 +4,6 @@ import type { Card } from "./types";
 
 export function canGoToSource(card: Card, sourceIds: Set<string>): boolean {
   if (card.sourceKind === "card") return !!card.originCardKey;
+  if (card.sourceKind === "ask") return !!card.sourceSessionId; // 질문 세션으로 이동
   return !!card.sourceId && sourceIds.has(card.sourceId);
 }
