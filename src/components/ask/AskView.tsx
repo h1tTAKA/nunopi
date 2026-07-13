@@ -5,6 +5,9 @@ import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconCh
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import AskChat from "@/components/ask/AskChat";
+import AskSessionCards from "@/components/ask/AskSessionCards";
+import { FlyCardProvider } from "@/components/memorize/FlyCard";
+import type { Card } from "@/lib/srs/types";
 import {
   loadAskStore,
   saveAskStore,
@@ -29,6 +32,8 @@ type StreamEvent =
 const NO_CONTEXT = "(일반 질문 — 특정 코드/글 맥락 없음)";
 
 const EMPTY_STORE: AskStore = { folders: [], sessions: [], activeSessionId: "" };
+// ask 카드는 sourceSessionId로 출처 이동 판별 — analysis용 sourceIds는 빈 Set.
+const EMPTY_SOURCE_IDS: Set<string> = new Set();
 
 // 좌측 세션 패널 폭(px) — 기본/최소/최대 + 영속 키.
 const PANEL_DEFAULT = 240;
@@ -39,10 +44,12 @@ const clampPanel = (w: number) => Math.min(PANEL_MAX, Math.max(PANEL_MIN, w));
 
 // 에이전트 질문(Ask) 모드 — 좌측 세션 히스토리 + 활성 세션 챗(이슈2).
 // 서브세션 탭/분할은 후속 이슈. 지금은 세션당 단일 챗(subs[0]).
-export default function AskView({ active = true, providerId, providerSettings }: {
+export default function AskView({ active = true, providerId, providerSettings, goToTarget }: {
   active?: boolean;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  // 외부(암기 갤러리 등)에서 특정 세션·질문으로 이동 요청. nonce 변경 시 네비.
+  goToTarget?: { sessionId: string; subId?: string; nonce: number };
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -69,6 +76,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
   // 세션→폴더 드래그 이동 상태. dropFolder: 폴더 id 또는 "root"(그룹 해제).
   const [sessDragId, setSessDragId] = useState<string | null>(null);
   const [dropFolder, setDropFolder] = useState<string | null>(null);
+  // 우측 카드 목록 패널 열림.
+  const [cardsOpen, setCardsOpen] = useState(false);
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   // 질문별 진행 요청 — 타일마다 독립 abort.
@@ -111,6 +120,13 @@ export default function AskView({ active = true, providerId, providerSettings }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
+  // 외부 출처 이동 요청 — nonce 바뀌면 그 세션·질문으로.
+  useEffect(() => {
+    if (goToTarget) navigateToAskSource(goToTarget.sessionId, goToTarget.subId);
+    // navigateToAskSource는 storeRef만 읽어 안정적 — nonce만 트리거.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goToTarget?.nonce]);
+
   // 최신 store를 ref+state+localStorage에 한 번에 반영.
   function commit(next: AskStore) {
     storeRef.current = next;
@@ -141,6 +157,48 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const scope = (f.parentId ?? null);
     const siblings = store.folders.filter((x) => (x.parentId ?? null) === scope);
     return t("ask.folderN", { n: Math.max(0, siblings.findIndex((x) => x.id === f.id)) + 1 });
+  }
+
+  // 카드 출처 브레드크럼 문자열 — "폴더/…/세션/질문"(저장 시점 스냅샷). 표시용.
+  function cardSourceLabel(session: AskSession, subId: string): string {
+    const parts: string[] = [];
+    const seen = new Set<string>();
+    let cur = session.folderId ? store.folders.find((f) => f.id === session.folderId) : undefined;
+    while (cur && !seen.has(cur.id)) {
+      seen.add(cur.id);
+      parts.unshift(folderLabel(cur));
+      cur = cur.parentId ? store.folders.find((f) => f.id === cur!.parentId) : undefined;
+    }
+    parts.push(sessionLabel(session));
+    parts.push(subDisplayLabel(session, subId));
+    return parts.join(" / ");
+  }
+
+  // 카드 출처 브레드크럼 — id로 현재 store에서 재계산(폴더/세션/질문 rename 즉시 반영).
+  function cardSourceLabelById(sessionId?: string, subId?: string): string {
+    if (!sessionId) return "";
+    const session = store.sessions.find((s) => s.id === sessionId);
+    if (!session) return "";
+    return cardSourceLabel(session, subId ?? session.activeSubId);
+  }
+
+  // 카드 출처로 이동 — 그 세션 활성 + 생성 질문(sub) 활성 + 폴더 펼침. 대상 없으면 no-op.
+  function navigateToAskSource(sessionId: string, subId?: string) {
+    const prev = storeRef.current;
+    const session = prev.sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    resetStream();
+    const activeSubId = subId && session.subs.some((x) => x.id === subId) ? subId : session.activeSubId;
+    commit({
+      ...prev,
+      activeSessionId: sessionId,
+      sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId, layout: [activeSubId] })),
+    });
+    expand(sessionId);
+  }
+
+  function handleCardGoToSource(card: Card) {
+    if (card.sourceKind === "ask" && card.sourceSessionId) navigateToAskSource(card.sourceSessionId, card.sourceSubId);
   }
 
   // 특정 세션·서브의 messages를 mapper로 갱신하고 커밋(async 완료 대비 id로 지목).
@@ -512,8 +570,14 @@ export default function AskView({ active = true, providerId, providerSettings }:
     const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
     if (!session) return;
     if (action.add) {
-      const source = session.title || t("ask.cardSource");
-      createChatCard(action.add.kind ?? "term", action.add.term, action.add.definition, source, undefined, {});
+      // 출처 = 폴더/세션/질문 브레드크럼(표시용) + kind/sessionId/subId(출처 이동용).
+      const source = cardSourceLabel(session, subId);
+      createChatCard(action.add.kind ?? "term", action.add.term, action.add.definition, source, undefined, {
+        kind: "ask",
+        sessionId: session.id,
+        subId,
+      });
+      setCardsOpen(true); // 추가 즉시 우측 카드 패널 펼쳐 체감.
     }
     const addedTerm = action.add?.term;
     updateSubMessages(session.id, subId, (msgs) =>
@@ -881,6 +945,7 @@ export default function AskView({ active = true, providerId, providerSettings }:
   };
 
   return (
+    <FlyCardProvider active={active} providerId={providerId} providerSettings={providerSettings} sourceIds={EMPTY_SOURCE_IDS} onGoToSource={handleCardGoToSource}>
     <div ref={rootRef} aria-hidden={!active} className={`flex h-full w-full overflow-hidden ${resizing ? "select-none" : ""}`}>
       {/* 좌측 세션 히스토리 패널 */}
       <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
@@ -1006,6 +1071,8 @@ export default function AskView({ active = true, providerId, providerSettings }:
                 draggable={tiled}
                 onHeaderDragStart={tiled ? () => setDragId(sub.id) : undefined}
                 onHeaderDragEnd={tiled ? () => { setDragId(null); setOverId(null); setOverDir(null); } : undefined}
+                cardsOpen={cardsOpen}
+                onToggleCards={() => setCardsOpen((v) => !v)}
               />
             );
           };
@@ -1054,6 +1121,10 @@ export default function AskView({ active = true, providerId, providerSettings }:
           );
         })()}
       </div>
+
+      {/* 우측 카드 목록 패널(토글) — 현재 세션에서 추가된 카드. */}
+      {cardsOpen && activeSession && <AskSessionCards sessionId={activeSession.id} sourceLabel={cardSourceLabelById} />}
     </div>
+    </FlyCardProvider>
   );
 }

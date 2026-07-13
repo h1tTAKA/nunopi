@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX, IconCommand } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconTrash, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
+import { useToast } from "@/components/ui/Toast";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import { bookmarkedTermExists } from "@/lib/bookmarkDetails";
 import type { ChatMessage } from "@/lib/agent";
@@ -32,6 +33,9 @@ interface AskChatProps {
   draggable?: boolean;
   onHeaderDragStart?: () => void;
   onHeaderDragEnd?: () => void;
+  // 우측 카드 목록 패널 토글.
+  cardsOpen?: boolean;
+  onToggleCards?: () => void;
 }
 
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
@@ -41,8 +45,10 @@ export default function AskChat({
   tiled = false, focused = false, onFocus, onClose,
   canSplit = false, splitOptions = [], onOpenQuestion, onSplitNew,
   draggable = false, onHeaderDragStart, onHeaderDragEnd,
+  cardsOpen = false, onToggleCards,
 }: AskChatProps) {
   const t = useT();
+  const toast = useToast();
   const [input, setInput] = useState("");
   const [splitMenu, setSplitMenu] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -92,6 +98,22 @@ export default function AskChat({
           </>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {onToggleCards && (
+            <button
+              type="button"
+              onClick={onToggleCards}
+              title={t("ask.toggleCards")}
+              aria-label={t("ask.toggleCards")}
+              aria-pressed={cardsOpen}
+              className={`inline-flex items-center rounded-full p-1.5 transition ${
+                cardsOpen
+                  ? "bg-[#3B34E2]/10 text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                  : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              <IconCards size={15} stroke={2} aria-hidden />
+            </button>
+          )}
           {canSplit && onSplitNew && (
             <div className="relative">
               <button
@@ -196,7 +218,7 @@ export default function AskChat({
                         <button
                           key={c.term}
                           type="button"
-                          onClick={() => onCardAction(i, { add: c })}
+                          onClick={() => { onCardAction(i, { add: c }); toast(t("card.added", { term: c.term })); }}
                           className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
                         >
                           <IconPlus size={12} stroke={2.5} aria-hidden />
