@@ -36,7 +36,8 @@ export function reanchorLineNumbers(
       let j = findFrom((s) => s === target);
       if (j === -1) {
         const loose = target.replace(/\s*(?:\.\.\.|…)\s*$/, "").trim(); // 후행 생략부호 제거
-        if (loose.length >= 4) j = findFrom((s) => s.startsWith(loose) || loose.startsWith(s));
+        // 소스 줄이 모델 축약 코드로 "시작"할 때만(한 방향). 역방향은 짧은 줄("}") 오매치 유발.
+        if (loose.length >= 4) j = findFrom((s) => s.startsWith(loose));
       }
       if (j >= 0) {
         actual = j + 1;
