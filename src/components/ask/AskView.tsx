@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus, IconSparkles } from "@tabler/icons-react";
+import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus, IconSparkles, IconCards } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import AskChat from "@/components/ask/AskChat";
 import AskSessionCards from "@/components/ask/AskSessionCards";
 import { FlyCardProvider } from "@/components/memorize/FlyCard";
+import { collectCards } from "@/lib/srs/collect";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import type { Card } from "@/lib/srs/types";
 import {
   loadAskStore,
@@ -78,6 +80,8 @@ export default function AskView({ active = true, providerId, providerSettings, g
   const [dropFolder, setDropFolder] = useState<string | null>(null);
   // 우측 카드 목록 패널 열림.
   const [cardsOpen, setCardsOpen] = useState(false);
+  // 세션별 ask 카드 수(좌측 배지). 전역 카드 store에서 파생.
+  const [cardCounts, setCardCounts] = useState<Record<string, number>>({});
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
   const storeRef = useRef<AskStore>(EMPTY_STORE);
   // 질문별 진행 요청 — 타일마다 독립 abort.
@@ -126,6 +130,20 @@ export default function AskView({ active = true, providerId, providerSettings, g
     // navigateToAskSource는 storeRef만 읽어 안정적 — nonce만 트리거.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goToTarget?.nonce]);
+
+  // 세션별 카드 수 — 마운트 + 카드 변경 시 갱신(전역 카드 store 파생).
+  useEffect(() => {
+    const recount = () => {
+      const counts: Record<string, number> = {};
+      for (const c of collectCards(["token", "concept", "term"], new Date())) {
+        if (c.sourceKind === "ask" && c.sourceSessionId) counts[c.sourceSessionId] = (counts[c.sourceSessionId] ?? 0) + 1;
+      }
+      setCardCounts(counts);
+    };
+    recount();
+    window.addEventListener(CARDS_CHANGED_EVENT, recount);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, recount);
+  }, []);
 
   // 최신 store를 ref+state+localStorage에 한 번에 반영.
   function commit(next: AskStore) {
@@ -739,6 +757,15 @@ export default function AskView({ active = true, providerId, providerSettings, g
               >
                 {sessionLabel(s)}
               </button>
+              {cardCounts[s.id] > 0 && (
+                <span
+                  title={t("ask.sessionCards")}
+                  className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-200/70 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-700/60 dark:text-zinc-400"
+                >
+                  <IconCards size={11} stroke={2} aria-hidden />
+                  {cardCounts[s.id]}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => { setRenamingId(s.id); setRenameDraft(sessionLabel(s)); }}
