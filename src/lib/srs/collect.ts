@@ -30,6 +30,7 @@ function collectSource(source: SrsSource): Omit<Card, "state">[] {
       sourceKind: t.sourceKind,
       sourceSessionId: t.sourceSessionId,
       originCardKey: t.originCardKey,
+      sourceSubId: t.sourceSubId,
     }));
   }
   if (source === "concept") {
@@ -44,6 +45,7 @@ function collectSource(source: SrsSource): Omit<Card, "state">[] {
       sourceKind: c.sourceKind,
       sourceSessionId: c.sourceSessionId,
       originCardKey: c.originCardKey,
+      sourceSubId: c.sourceSubId,
     }));
   }
   // term — 글 IT용어 + 관련개념(asTerm 병합).
@@ -58,6 +60,7 @@ function collectSource(source: SrsSource): Omit<Card, "state">[] {
     sourceKind: t.sourceKind,
     sourceSessionId: t.sourceSessionId,
     originCardKey: t.originCardKey,
+    sourceSubId: t.sourceSubId,
   }));
 }
 

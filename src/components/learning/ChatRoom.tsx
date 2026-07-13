@@ -7,6 +7,7 @@ import type { ChatMessage } from "@/lib/agent";
 import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import { bookmarkedTermExists } from "@/lib/bookmarkDetails";
 
@@ -46,6 +47,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
   const userTxt = large ? "text-[15px]" : "text-xs"; // 유저 말풍선·안내 글씨
   const t = useT();
   const confirm = useConfirm();
+  const toast = useToast();
   const disabledHint = t(mode === "text" ? "chat.disabledText" : "chat.disabledCode");
 
   // 세션 삭제는 실수 방지로 확인 모달 — 대화가 사라진다는 안내.
@@ -216,7 +218,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
                     <button
                       key={c.term}
                       type="button"
-                      onClick={() => onCardAction(i, { add: c })}
+                      onClick={() => { onCardAction(i, { add: c }); toast(t("card.added", { term: c.term })); }}
                       className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
                     >
                       <IconPlus size={12} stroke={2.5} aria-hidden />

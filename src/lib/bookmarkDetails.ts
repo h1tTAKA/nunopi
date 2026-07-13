@@ -2,13 +2,15 @@ import type { CodeToken, ConceptOccurrence, ItTerm } from "@/lib/translator/type
 
 // 출처 종류 — 출처로 이동 목적지 분기용.
 // analysis: 코드/글 분석(챗 세션까지). card: 플래시카드 챗에서 생성(생성처 카드로).
-export type SourceKind = "analysis" | "card";
+// ask: 에이전트 질문 모드(세션+질문으로).
+export type SourceKind = "analysis" | "card" | "ask";
 
 // 출처 부가 정보(옵셔널) — sourceTitle/sourceId 외 확장. 챗에서 카드 생성 시 채운다.
 export interface SourceExtra {
   kind?: SourceKind;
-  sessionId?: string; // analysis: 그 분석의 챗 세션 id
+  sessionId?: string; // analysis: 그 분석의 챗 세션 id / ask: 질문 세션 id
   originCardKey?: string; // card: 생성처(그 챗룸을 연) 카드 key
+  subId?: string; // ask: 카드가 생성된 질문(서브세션) id
 }
 
 // 북마크 detail 공통 출처 필드(전부 옵셔널 — 기존 데이터 하위호환).
@@ -16,8 +18,9 @@ interface SourceFields {
   sourceTitle?: string; // 담을 때의 분석 제목(출처)
   sourceId?: string; // 담을 때의 분석 히스토리 id(출처로 이동용)
   sourceKind?: SourceKind; // 없으면 analysis로 간주(기존 동작)
-  sourceSessionId?: string; // analysis 출처의 챗 세션 id
+  sourceSessionId?: string; // analysis 출처의 챗 세션 id / ask 질문 세션 id
   originCardKey?: string; // card 출처의 생성처 카드 key
+  sourceSubId?: string; // ask 출처의 질문(서브세션) id
 }
 
 export interface BookmarkedTokenDetail extends CodeToken, SourceFields {
@@ -42,6 +45,7 @@ function sourceFields(sourceTitle?: string, sourceId?: string, extra?: SourceExt
     sourceKind: extra?.kind,
     sourceSessionId: extra?.sessionId,
     originCardKey: extra?.originCardKey,
+    sourceSubId: extra?.subId,
   };
 }
 

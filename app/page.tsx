@@ -6,6 +6,7 @@ import ModeToggle from "@/components/layout/ModeToggle";
 import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { ToastProvider } from "@/components/ui/Toast";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
@@ -175,6 +176,9 @@ export default function Home() {
   const [editorCollapsed, setEditorCollapsed] = useState(false);
   // 화면 전환 축(코드/글/암기). code·text는 분석 모드(mode)와 연동, memorize는 분석 안 함.
   const [viewMode, setViewMode] = useState<ViewMode>("code");
+  // Ask 출처 이동 타깃(암기 갤러리 등에서). nonce로 재트리거.
+  const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; nonce: number } | undefined>(undefined);
+  const askGoNonceRef = useRef(0);
   // 암기 탭 배지 — 오늘 복습할 전체 due 수(0이면 숨김). 뷰 진입 시 갱신.
   const [memorizeDue, setMemorizeDue] = useState(0);
   // 암기 카드 추가 설명 생성 provider(분석 provider와 별개, 설정에서 지정). localStorage 영속.
@@ -989,6 +993,13 @@ export default function Home() {
     }
   }
 
+  // 암기 갤러리 등에서 질문(Ask) 카드 "출처로 가기" — Ask 모드로 전환 + 세션·질문 타깃 전달.
+  function handleGoToAskSource(sessionId: string, subId?: string) {
+    setAskGoTarget({ sessionId, subId, nonce: askGoNonceRef.current + 1 });
+    askGoNonceRef.current += 1;
+    handleViewModeChange("ask");
+  }
+
   function handleDeleteHistory(id: string) {
     deleteFromHistory(id).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
     // 지금 화면에 보고 있는 분석을 지웠으면 화면(입력+결과)도 비운다 — 안 그러면 삭제했는데 그대로 남음.
@@ -1013,15 +1024,16 @@ export default function Home() {
   return (
     <I18nProvider>
     <ConfirmProvider>
+    <ToastProvider>
       <AppShell
         onOpenSettings={() => setIsSettingsOpen(true)}
         editorCollapsed={editorCollapsed}
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
-        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} />}
+        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} />}
         ask={viewMode === "ask"}
-        askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} />}
+        askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
@@ -1161,6 +1173,7 @@ export default function Home() {
         memorizeProviderId={memorizeProviderId}
         onMemorizeProviderChange={handleMemorizeProviderChange}
       />
+    </ToastProvider>
     </ConfirmProvider>
     </I18nProvider>
   );
