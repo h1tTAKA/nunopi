@@ -557,12 +557,6 @@ export default function AskView({ active = true, providerId, providerSettings, g
   }
 
   // ── 챗 조작(질문 subId 지목 — 타일별 독립) ─────────────
-  function handleClearSub(subId: string) {
-    abortSub(subId);
-    setStreamingMap((m) => ({ ...m, [subId]: null }));
-    setLoadingMap((m) => ({ ...m, [subId]: false }));
-    updateSubMessages(storeRef.current.activeSessionId, subId, () => []);
-  }
 
   // 카드 제안 칩 — 답에서 나온 용어를 카드로 저장(출처=세션명). 저장 후 해당 블록 제거.
   function handleCardActionSub(subId: string, messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
@@ -1058,7 +1052,6 @@ export default function AskView({ active = true, providerId, providerSettings, g
                 streaming={streamingMap[sub.id] ?? null}
                 isLoading={!!loadingMap[sub.id]}
                 onSend={(text) => handleSendTo(sub.id, text)}
-                onClear={() => handleClearSub(sub.id)}
                 onCardAction={(i, action) => handleCardActionSub(sub.id, i, action)}
                 canSplit={canSplit}
                 splitOptions={splitOptions}
