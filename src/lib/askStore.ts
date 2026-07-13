@@ -154,6 +154,21 @@ export function loadAskStore(fallbackTitle: string): AskStore {
   }
 }
 
+// 출처(세션 + 선택적 질문)가 아직 존재하는지 — 부수효과 없는 순수 읽기(모드 전환 전 검사용).
+export function askSourceExists(sessionId: string, subId?: string): boolean {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as Partial<AskStore>;
+    const session = (parsed.sessions ?? []).find((s) => s?.id === sessionId);
+    if (!session) return false;
+    if (!subId) return true;
+    return (session.subs ?? []).some((x) => x?.id === subId);
+  } catch {
+    return false;
+  }
+}
+
 export function saveAskStore(store: AskStore): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(store));

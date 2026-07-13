@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus, IconSparkles, IconCards } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
 import AskChat from "@/components/ask/AskChat";
 import AskSessionCards from "@/components/ask/AskSessionCards";
 import { FlyCardProvider } from "@/components/memorize/FlyCard";
@@ -56,6 +57,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
   const t = useT();
   const { locale } = useLocale();
   const confirm = useConfirm();
+  const toast = useToast();
   const [store, setStore] = useState<AskStore>(EMPTY_STORE);
   // 스트리밍/로딩은 질문(서브세션)별로 관리 — 분할 타일 동시 답변 지원(이슈4).
   const [streamingMap, setStreamingMap] = useState<Record<string, string | null>>({});
@@ -200,11 +202,13 @@ export default function AskView({ active = true, providerId, providerSettings, g
     return cardSourceLabel(session, subId ?? session.activeSubId);
   }
 
-  // 카드 출처로 이동 — 그 세션 활성 + 생성 질문(sub) 활성 + 폴더 펼침. 대상 없으면 no-op.
+  // 카드 출처로 이동 — 그 세션 활성 + 생성 질문(sub) 활성 + 폴더 펼침.
+  // 출처(세션 또는 그 질문)가 삭제됐으면 이동 대신 안내 토스트.
   function navigateToAskSource(sessionId: string, subId?: string) {
     const prev = storeRef.current;
     const session = prev.sessions.find((s) => s.id === sessionId);
-    if (!session) return;
+    const subOk = !subId || !!session?.subs.some((x) => x.id === subId);
+    if (!session || !subOk) { toast(t("ask.sourceDeleted"), "error"); return; }
     resetStream();
     const activeSubId = subId && session.subs.some((x) => x.id === subId) ? subId : session.activeSubId;
     commit({

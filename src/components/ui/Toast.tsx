@@ -1,27 +1,28 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { IconCircleCheck } from "@tabler/icons-react";
+import { IconCircleCheck, IconCircleX } from "@tabler/icons-react";
 
-type ToastFn = (message: string) => void;
+type ToastVariant = "success" | "error";
+type ToastFn = (message: string, variant?: ToastVariant) => void;
 
 const ToastContext = createContext<ToastFn>(() => {});
 
-// 짧게 뜨는 안내 토스트. `const toast = useToast()` 후 `toast("메시지")`.
+// 짧게 뜨는 안내 토스트. `const toast = useToast()` 후 `toast("메시지")` / `toast("메시지", "error")`.
 export function useToast(): ToastFn {
   return useContext(ToastContext);
 }
 
-interface ToastItem { id: number; message: string; }
+interface ToastItem { id: number; message: string; variant: ToastVariant; }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
 
-  const toast = useCallback<ToastFn>((message) => {
+  const toast = useCallback<ToastFn>((message, variant = "success") => {
     idRef.current += 1;
     const id = idRef.current;
-    setItems((prev) => [...prev, { id, message }]);
+    setItems((prev) => [...prev, { id, message, variant }]);
     // 2.8초 후 자동 제거.
     setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 2800);
   }, []);
@@ -32,7 +33,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {items.length > 0 && (
         <div className="pointer-events-none fixed bottom-6 left-1/2 z-[90] flex -translate-x-1/2 flex-col items-center gap-2">
           {items.map((t) => (
-            <ToastCard key={t.id} message={t.message} />
+            <ToastCard key={t.id} message={t.message} variant={t.variant} />
           ))}
         </div>
       )}
@@ -40,7 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ToastCard({ message }: { message: string }) {
+function ToastCard({ message, variant }: { message: string; variant: ToastVariant }) {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const r = requestAnimationFrame(() => setShown(true));
@@ -52,7 +53,11 @@ function ToastCard({ message }: { message: string }) {
         shown ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
       }`}
     >
-      <IconCircleCheck size={17} stroke={2} className="shrink-0 text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+      {variant === "error" ? (
+        <IconCircleX size={17} stroke={2} className="shrink-0 text-red-500" aria-hidden />
+      ) : (
+        <IconCircleCheck size={17} stroke={2} className="shrink-0 text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
+      )}
       <span>{message}</span>
     </div>
   );

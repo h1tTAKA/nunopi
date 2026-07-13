@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { IconLayoutGrid } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
+import { useToast } from "@/components/ui/Toast";
+import { askSourceExists } from "@/lib/askStore";
 import DeckSelect from "./DeckSelect";
 import CardSession from "./CardSession";
 import MemorizeStats from "./MemorizeStats";
@@ -21,6 +23,7 @@ type ReviewMode = "due" | "all";
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
 export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource, onGoToAskSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string, sessionId?: string) => void; onGoToAskSource?: (sessionId: string, subId?: string) => void }) {
   const t = useT();
+  const toast = useToast();
   const [phase, setPhase] = useState<MemPhase>("select");
   const [showAllCards, setShowAllCards] = useState(false);
   const [autoThrowKey, setAutoThrowKey] = useState<string | undefined>(undefined);
@@ -33,8 +36,9 @@ export default function MemorizeView({ active = true, providerId, providerSettin
       setAutoThrowKey(card.originCardKey);
       setShowAllCards(true);
     } else if (card.sourceKind === "ask" && card.sourceSessionId) {
-      // 질문발 — 질문(Ask) 모드로 전환 + 그 세션·질문으로.
-      onGoToAskSource?.(card.sourceSessionId, card.sourceSubId);
+      // 질문발 — 출처(세션/질문)가 남아 있을 때만 Ask로 전환·이동. 삭제됐으면 여기서 안내(모드 전환 X).
+      if (askSourceExists(card.sourceSessionId, card.sourceSubId)) onGoToAskSource?.(card.sourceSessionId, card.sourceSubId);
+      else toast(t("ask.sourceDeleted"), "error");
     } else if (card.sourceId) {
       // 분석발 — 다른 뷰(코드/글)로 전환만. 갤러리는 열린 채 두고(active=false로 자동 숨김),
       // 암기로 돌아오면 갤러리 그대로 복귀. (닫으면 상태 유실)
