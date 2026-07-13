@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
+import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useToast } from "@/components/ui/Toast";
 import { parseCardSuggestions, stripStreamingCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -68,6 +69,14 @@ export default function AskChat({
     onSend(text);
   }
 
+  // 대화를 마크다운으로 클립보드 복사(다른 챗룸과 동일).
+  async function handleCopyMd() {
+    try {
+      await navigator.clipboard.writeText(formatChatAsMarkdown(messages, t));
+      toast(t("chat.mdCopied"));
+    } catch { /* clipboard 불가 — 무시 */ }
+  }
+
   return (
     <div
       onFocusCapture={onFocus}
@@ -97,6 +106,17 @@ export default function AskChat({
           </>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { void handleCopyMd(); }}
+              title={t("chat.copyMd")}
+              aria-label={t("chat.copyMd")}
+              className="inline-flex items-center rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <IconFileText size={15} stroke={2} aria-hidden />
+            </button>
+          )}
           {onToggleCards && (
             <button
               type="button"
