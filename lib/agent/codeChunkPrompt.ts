@@ -19,8 +19,9 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
       .map((c) => `${c.conceptId} (${c.title})`)
       .join(", ");
     return [
-      `LINE-RANGE MODE: the full code is provided for context, but produce lineExplanations ONLY for lines ${start} to ${end} (inclusive, 1-based). Give one entry for EVERY meaningful CODE line in that range using its real absolute line number. Each explanation is ONE short sentence.`,
-      "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code.",
+      `LINE-RANGE MODE: the code below is a SNIPPET — it is lines ${start} to ${end} (inclusive, 1-based) of a larger file. Explain EVERY meaningful CODE line in this snippet. Do NOT return an empty array — this snippet has code to explain.`,
+      `Number each lineExplanation with its ABSOLUTE line number in the larger file: this snippet's FIRST line is line ${start}, so count up from ${start}.`,
+      "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code. Each explanation is ONE short sentence.",
       'Set concepts to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
       known
         ? `lineExplanations.conceptIds must reference ONLY these existing concept ids: ${known}. Do NOT invent new concept ids.`
