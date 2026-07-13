@@ -36,7 +36,7 @@ interface ChatRoomProps {
 // 대화를 마크다운 문자열로(어시스턴트 답은 이미 마크다운이라 그대로 → 표/코드 보존).
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
-function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
+export function formatChatAsMarkdown(messages: ChatMessage[], t: TFn): string {
   return messages
     .map((m) => `${m.role === "user" ? `**🙋 ${t("chat.you")}**` : `**🤖 ${t("chat.tutor")}**`}\n\n${m.content}`)
     .join("\n\n---\n\n");
