@@ -5,6 +5,16 @@
 // - 둘 다 아니면: 기존 전체 분석.
 import type { AgentAnalyzeRequest } from "./schema";
 
+// 줄별 설명(explanation)의 공통 형식 지시. 누노피 타깃(비개발자 바이브코더·주니어)이
+// 한 줄 한 줄 이해하도록: 한 문장 퉁 금지, 쉬운말 요약 + 코드 조각별 풀이(마크다운, #503).
+// full/lineRange 두 분기가 공유한다. 출력 언어는 분석 언어를 따른다(별도 지시).
+const EXPLANATION_FORMAT: string[] = [
+  "Each `explanation` is for a NON-DEVELOPER reader (a beginner / vibe-coder / junior). Do NOT gloss the whole line with a single terse sentence. Write it as MARKDOWN with two parts:",
+  "(1) A plain-language summary (1-2 sentences) of WHAT this line does and WHY, in everyday words. Avoid unexplained jargon — if a technical term is unavoidable, immediately explain it in plain words a non-programmer understands.",
+  "(2) Then a markdown bullet list (each line starting with '- ') that breaks down EVERY meaningful part of the line: put the exact code piece in `backticks`, then ' — ', then its meaning in plain language. Cover keywords, identifiers, types, AND symbols/operators too (e.g. `=`, `{ }`, `=>`, `?`, `:`). Assume the reader knows nothing about programming.",
+  "Be concrete and genuinely helpful, not padded with filler. Write the whole explanation in the analysis output language.",
+];
+
 export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   if (request.outlineOnly) {
     return [
@@ -21,7 +31,8 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
     return [
       `LINE-RANGE MODE: the code below is a SNIPPET — it is lines ${start} to ${end} (inclusive, 1-based) of a larger file. Explain EVERY meaningful CODE line in this snippet. Do NOT return an empty array — this snippet has code to explain.`,
       `Number each lineExplanation with its ABSOLUTE line number in the larger file: this snippet's FIRST line is line ${start}, so count up from ${start}.`,
-      "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code. Each explanation is ONE short sentence.",
+      "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code.",
+      ...EXPLANATION_FORMAT,
       'Set concepts to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
       known
         ? `lineExplanations.conceptIds must reference ONLY these existing concept ids: ${known}. Do NOT invent new concept ids.`
@@ -31,6 +42,7 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   return [
     "lineExplanations.conceptIds must reference concepts[].conceptId.",
     "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size), but skip trivial or duplicate ones — each concept should be worth a beginner actually learning. Do NOT add general concepts unrelated to this code. Each conceptId UNIQUE.",
-    "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). Each line explanation is ONE short sentence; summary is 2-3 sentences. Do not pad.",
+    "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). The top-level summary is 2-3 sentences.",
+    ...EXPLANATION_FORMAT,
   ];
 }

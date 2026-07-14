@@ -405,7 +405,7 @@ function buildOpenAICompatibleMessages(
         "    {",
         '      "line": number,',
         '      "code": "string",',
-        '      "explanation": "string (ONE short sentence)",',
+        '      "explanation": "string (markdown: plain-language summary + a per-part bullet breakdown, beginner-friendly)",',
         '      "conceptIds": string[]',
         "    }",
         "  ],",
