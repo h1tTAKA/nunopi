@@ -16,12 +16,22 @@ const EXPLANATION_FORMAT: string[] = [
   "Be concrete and genuinely helpful, not padded with filler. Write the whole explanation in the analysis output language.",
 ];
 
+// 범용 토큰 추출 지시. 코드 전체에서 "어디서나 통용되는" 기초 토큰만 뽑아 tokens[]에 담는다
+// (#505). 유저가 지어낸 이름(커스텀 함수/변수/타입/prop)은 재사용성이 없어 학습에 방해 →
+// 제외. outlineOnly(청크 1차, 전체 코드)와 full(비청크)에서만 추출한다.
+const TOKEN_EXTRACT: string[] = [
+  "Also fill a `tokens` array with the UNIVERSAL, reusable tokens that ACTUALLY APPEAR in this code — things that mean the same in any codebase and are worth a beginner learning once: operators (`=`, `===`, `!`, `?`, `:`, `=>`, `&&`, `||`, `??`, `?.`, `...`), keywords (`const`, `let`, `function`, `return`, `export default`, `void`, `async`, `await`), built-in types (`boolean`, `string`, `number`), built-in/runtime APIs, hooks and common methods (`useState`, `useMemo`, `useEffect`, `map`, `filter`, `reduce`), and DOM/JSX basics (`className`, `<button>`, `<div>`, event params like `e`).",
+  "Do NOT include names the author made up for THIS project — custom function/variable/type/prop names (e.g. `CardSession`, `CardSessionProps`, `sources`, `setClick`, `TONES`). They are not reused elsewhere, so listing them only distracts a learner. When unsure, ask: 'would this exact token appear, meaning the same thing, in a totally different project?' — if no, skip it.",
+  "Each token object: { token (the exact text), category (one of: react_hook, state_variable, state_setter, prop, function, event_handler, jsx_element, operator, keyword, punctuation, api_call, dependency_array, initial_value), label (a short name), description (a short plain-language meaning for a non-developer), example (optional), lines (the 1-based line numbers where it appears) }. Do NOT output `id` or `bookmarkable`. List each distinct token ONCE with all its line numbers; do not duplicate.",
+];
+
 export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   if (request.outlineOnly) {
     return [
       "OUTLINE MODE: set lineExplanations to an empty array []. Do NOT explain individual lines.",
-      "Produce ONLY title, summary (2-3 sentences), language, and concepts. Each concept conceptId must be UNIQUE.",
+      "Produce title, summary (2-3 sentences), language, concepts, and tokens (no lineExplanations). Each concept conceptId must be UNIQUE.",
       "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size), but skip trivial or duplicate ones — each concept should be worth a beginner actually learning. Do NOT add general concepts unrelated to this code.",
+      ...TOKEN_EXTRACT,
     ];
   }
   if (request.lineRange) {
@@ -34,7 +44,7 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
       `Number each lineExplanation with its ABSOLUTE line number in the larger file: this snippet's FIRST line is line ${start}, so count up from ${start}.`,
       "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code.",
       ...EXPLANATION_FORMAT,
-      'Set concepts to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
+      'Set concepts to [] and tokens to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
       known
         ? `lineExplanations.conceptIds must reference ONLY these existing concept ids: ${known}. Do NOT invent new concept ids.`
         : "lineExplanations.conceptIds may be an empty array.",
@@ -45,5 +55,6 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
     "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size), but skip trivial or duplicate ones — each concept should be worth a beginner actually learning. Do NOT add general concepts unrelated to this code. Each conceptId UNIQUE.",
     "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). The top-level summary is 2-3 sentences.",
     ...EXPLANATION_FORMAT,
+    ...TOKEN_EXTRACT,
   ];
 }
