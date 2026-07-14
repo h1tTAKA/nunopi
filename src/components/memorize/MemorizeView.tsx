@@ -103,10 +103,11 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (customId && !customDecks.some((d) => d.id === customId)) setCustomId(null);
   }, [customDecks, customId]);
-  // 커스텀 부채꼴 카드(선택 시).
+  // 커스텀 부채꼴 카드(선택 시). cardsNonce: 커스텀 덱 내 카드가 삭제되면 반영(#509).
   const customFanCards = useMemo(
     () => (activeCustom ? collectCardsByKeys(activeCustom.cardKeys, now) : null),
-    [activeCustom, now],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeCustom, now, cardsNonce],
   );
   // 항상 마운트되지만 localStorage(deckStats)를 읽으므로 서버/첫 렌더에선 비운다(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
