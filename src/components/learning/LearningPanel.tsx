@@ -35,6 +35,8 @@ import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
@@ -171,6 +173,7 @@ export default function LearningPanel({
   onToggleEntryCollection,
 }: LearningPanelProps) {
   const confirm = useConfirm();
+  const toast = useToast();
   const t = useT();
   const { locale } = useLocale();
   const dateLocale = locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "ko-KR";
@@ -320,6 +323,21 @@ export default function LearningPanel({
     setBookmarkedConceptDetails(loadConceptDetails());
   }, []);
 
+  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 북마크 상태를 detail
+  // store 기준으로 다시 맞춘다(#509). 안 그러면 삭제됐는데 별이 켜진 채 남아 재북마크가
+  // "제거"로 오판된다. detail store가 진실의 원천 — bookmarkedTokenTexts는 그 키의 캐시.
+  useEffect(() => {
+    const refresh = () => {
+      const details = loadTokenDetails();
+      setBookmarkedTokenDetails(details);
+      const keys = Object.keys(details);
+      setBookmarkedTokenTexts(keys);
+      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
+    };
+    window.addEventListener(CARDS_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTokenIds([]);
@@ -387,8 +405,10 @@ export default function LearningPanel({
 
   async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
-    // Compute isAdding synchronously before queueing updater
-    const isAdding = !bookmarkedTokenTexts.includes(tokenText);
+    // isAdding은 detail store(카드의 진실의 원천) 기준으로 판정한다(#509). bookmarkedTokenTexts는
+    // 갤러리 삭제(deleteCard) 후 stale일 수 있어, 그걸 기준으로 하면 삭제한 카드 재북마크가
+    // "제거"로 오판돼 재생성이 안 됐다.
+    const isAdding = !loadTokenDetails()[tokenText];
     // 설명 없는 토큰을 북마크하면 "설명 없음"으로 저장되던 문제(#509) — 먼저 뜻을 받아 붙인다.
     let toSave = token;
     if (isAdding && !token.description && onTokenExplain) {
@@ -398,17 +418,17 @@ export default function LearningPanel({
     // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
     if (isAdding) saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTokenDetail(tokenText);
-    // Update details state immediately after localStorage is mutated
-    setBookmarkedTokenDetails(loadTokenDetails());
-    // Queue texts updater (runs later, but localStorage already updated)
-    setBookmarkedTokenTexts((prev) => {
-      const next = isAdding
-        ? [...prev, tokenText]
-        : prev.filter((t) => t !== tokenText);
-      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      if (next.length === 0) setFilterBookmarked(false);
-      return next;
-    });
+    // detail store 기준으로 texts/details 상태를 다시 맞춘다(캐시).
+    const details = loadTokenDetails();
+    setBookmarkedTokenDetails(details);
+    const keys = Object.keys(details);
+    setBookmarkedTokenTexts(keys);
+    try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
+    if (keys.length === 0) setFilterBookmarked(false);
+    // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    // 추가(카드 생성) 시 안내 토스트 — 갤러리 확인 유도(#509).
+    if (isAdding) toast(t("card.added", { term: tokenText }));
   }
 
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
