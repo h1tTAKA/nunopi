@@ -5,6 +5,7 @@ import type { AgentLineExplanation } from "@/lib/agent";
 import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
 import { tokenizeCodeLine } from "@/lib/tokenizeCodeLine";
 import CodeBlock from "./CodeBlock";
+import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface LineExplanationListProps {
@@ -149,9 +150,9 @@ export default function LineExplanationList({
               )}
             </div>
             <CodeBlock code={item.code} language={language} />
-            <p className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
+            <Markdown className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
               {item.explanation}
-            </p>
+            </Markdown>
             {tagTexts.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {tagTexts.map((text) => (
