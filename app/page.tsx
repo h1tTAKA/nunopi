@@ -38,6 +38,9 @@ import { type Collection, loadCollections, saveCollections } from "@/lib/collect
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 
+// 토큰 카드 클릭/북마크 시 on-demand로 받는 뜻(#505/#509). 북마크 저장에 붙인다.
+type TokenMeaning = { label: string; description: string; example?: string };
+
 type AnalyzeStreamEvent =
   | { type: "progress"; line: string }
   | { type: "thinking"; line: string }
@@ -672,69 +675,73 @@ export default function Home() {
 
   // 토큰 카드 클릭 → 그 토큰의 뜻(label/description/example)을 on-demand로 받아 병합(#505).
   // 이미 설명이 있거나 로딩 중이면 무시. 등장 줄(lines)/category/id는 기존 것 유지.
-  function handleTokenExplain(tokenText: string) {
-    if (explainingTokens.includes(tokenText)) return;
+  // 토큰 뜻을 on-demand로 받아 기존 토큰 카드에 병합하고, 받은 뜻을 반환한다(#505/#509).
+  // 반환값은 북마크 시 "설명 붙여 저장"에 쓴다(#509). 이미 설명이 있으면 그걸 반환.
+  async function handleTokenExplain(tokenText: string): Promise<TokenMeaning | null> {
     const existing = analysisResult?.tokens.find((t) => t.token === tokenText);
-    if (existing?.description) return; // 이미 설명 있음
+    if (existing?.description) {
+      return { label: existing.label, description: existing.description, example: existing.example };
+    }
+    if (explainingTokens.includes(tokenText)) return null; // 이미 로딩 중
     const input = code.trim();
-    if (!input) return;
+    if (!input) return null;
     setExplainingTokens((prev) => [...prev, tokenText]);
-    (async () => {
-      try {
-        const res = await fetch("/api/agent/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+    try {
+      const res = await fetch("/api/agent/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId,
+          request: {
+            code: input,
+            locale: getAnalysisLocale(),
             providerId,
-            request: {
-              code: input,
-              locale: getAnalysisLocale(),
-              providerId,
-              mode: "explain-token",
-              targetToken: tokenText,
-              providerSettings,
-            },
-          }),
-        });
-        if (!res.ok || !res.body) return;
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let fetched: CodeToken | undefined;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const l of lines) {
-            if (!l.trim()) continue;
-            try {
-              const event = JSON.parse(l) as AnalyzeStreamEvent;
-              if (event.type === "result") fetched = event.response.tokens?.[0];
-            } catch { /* skip */ }
-          }
+            mode: "explain-token",
+            targetToken: tokenText,
+            providerSettings,
+          },
+        }),
+      });
+      if (!res.ok || !res.body) return null;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fetched: CodeToken | undefined;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const l of lines) {
+          if (!l.trim()) continue;
+          try {
+            const event = JSON.parse(l) as AnalyzeStreamEvent;
+            if (event.type === "result") fetched = event.response.tokens?.[0];
+          } catch { /* skip */ }
         }
-        if (fetched) {
-          // 받아온 뜻만 기존 토큰 카드에 병합(lines/id/category 유지). 카드는 사전에 이미 있는
-          // 토큰을 클릭한 것이므로, 그 사이 결과가 바뀌어 해당 토큰이 없어졌으면 그냥 무시한다
-          // (없던 토큰을 lines=[]로 새로 추가하지 않음 — 빈 줄 토큰 불변식·stale 오염 방지).
-          setAnalysisResult((prev) => {
-            if (!prev || !prev.tokens.some((t) => t.token === tokenText)) return prev;
-            return {
-              ...prev,
-              tokens: prev.tokens.map((t) =>
-                t.token === tokenText
-                  ? { ...t, label: fetched!.label, description: fetched!.description, example: fetched!.example }
-                  : t,
-              ),
-            };
-          });
-        }
-      } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
-        setExplainingTokens((prev) => prev.filter((t) => t !== tokenText));
       }
-    })();
+      if (!fetched) return null;
+      // 받아온 뜻만 기존 토큰 카드에 병합(lines/id/category 유지). 카드는 사전에 이미 있는
+      // 토큰을 클릭한 것이므로, 그 사이 결과가 바뀌어 해당 토큰이 없어졌으면 그냥 무시한다
+      // (없던 토큰을 lines=[]로 새로 추가하지 않음 — 빈 줄 토큰 불변식·stale 오염 방지).
+      setAnalysisResult((prev) => {
+        if (!prev || !prev.tokens.some((t) => t.token === tokenText)) return prev;
+        return {
+          ...prev,
+          tokens: prev.tokens.map((t) =>
+            t.token === tokenText
+              ? { ...t, label: fetched!.label, description: fetched!.description, example: fetched!.example }
+              : t,
+          ),
+        };
+      });
+      return { label: fetched.label, description: fetched.description, example: fetched.example };
+    } catch {
+      return null; // on-demand explain 실패는 비치명적
+    } finally {
+      setExplainingTokens((prev) => prev.filter((t) => t !== tokenText));
+    }
   }
 
   function handleDeleteToken(tokenText: string) {

@@ -101,7 +101,8 @@ interface LearningPanelProps {
   // 토큰 사전은 분석 시 범용 토큰(token/category/lines)으로 자동 채워지고, 뜻은 카드 클릭 시
   // on-demand로 받는다(#505). explainingTokens는 로딩 표시용(토큰 텍스트). 삭제는 카드 제거용.
   explainingTokens?: string[];
-  onTokenExplain?: (text: string) => void;
+  // 반환: 받아온 뜻(label/description/example). 북마크 시 설명 붙여 저장하는 데 쓴다(#509).
+  onTokenExplain?: (text: string) => void | Promise<{ label: string; description: string; example?: string } | null>;
   onDeleteToken?: (text: string) => void;
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
@@ -384,12 +385,18 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, currentHistoryTitle, currentHistoryId]);
 
-  function handleBookmarkToggle(token: CodeToken) {
+  async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
     // Compute isAdding synchronously before queueing updater
     const isAdding = !bookmarkedTokenTexts.includes(tokenText);
+    // 설명 없는 토큰을 북마크하면 "설명 없음"으로 저장되던 문제(#509) — 먼저 뜻을 받아 붙인다.
+    let toSave = token;
+    if (isAdding && !token.description && onTokenExplain) {
+      const meaning = await onTokenExplain(tokenText);
+      if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
+    }
     // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
-    if (isAdding) saveTokenDetail(token, bookmarkSourceTitle(), bookmarkSourceId());
+    if (isAdding) saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTokenDetail(tokenText);
     // Update details state immediately after localStorage is mutated
     setBookmarkedTokenDetails(loadTokenDetails());
