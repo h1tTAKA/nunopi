@@ -35,6 +35,8 @@ import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import TokenSection from "./TokenSection";
 import ItTermSection from "./ItTermSection";
@@ -101,7 +103,8 @@ interface LearningPanelProps {
   // 토큰 사전은 분석 시 범용 토큰(token/category/lines)으로 자동 채워지고, 뜻은 카드 클릭 시
   // on-demand로 받는다(#505). explainingTokens는 로딩 표시용(토큰 텍스트). 삭제는 카드 제거용.
   explainingTokens?: string[];
-  onTokenExplain?: (text: string) => void;
+  // 반환: 받아온 뜻(label/description/example). 북마크 시 설명 붙여 저장하는 데 쓴다(#509).
+  onTokenExplain?: (text: string) => void | Promise<{ label: string; description: string; example?: string } | null>;
   onDeleteToken?: (text: string) => void;
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
@@ -170,6 +173,7 @@ export default function LearningPanel({
   onToggleEntryCollection,
 }: LearningPanelProps) {
   const confirm = useConfirm();
+  const toast = useToast();
   const t = useT();
   const { locale } = useLocale();
   const dateLocale = locale === "ja" ? "ja-JP" : locale === "en" ? "en-US" : "ko-KR";
@@ -319,6 +323,24 @@ export default function LearningPanel({
     setBookmarkedConceptDetails(loadConceptDetails());
   }, []);
 
+  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 카드(detail) 표시를 갱신하고,
+  // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
+  // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
+  useEffect(() => {
+    const refresh = () => {
+      const details = loadTokenDetails();
+      setBookmarkedTokenDetails(details);
+      setBookmarkedTokenTexts((prev) => {
+        const next = prev.filter((tokenText) => details[tokenText]); // 카드 없어진 별 제거
+        if (next.length === prev.length) return prev;
+        try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
+    };
+    window.addEventListener(CARDS_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveTokenIds([]);
@@ -384,24 +406,42 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, currentHistoryTitle, currentHistoryId]);
 
-  function handleBookmarkToggle(token: CodeToken) {
+  // 별(즐겨찾기) 토글. 별과 카드는 분리한다(#509): 별을 켜면 카드가 없을 때만 새로 만들고,
+  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별 ⊆ 카드.
+  async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
-    // Compute isAdding synchronously before queueing updater
-    const isAdding = !bookmarkedTokenTexts.includes(tokenText);
-    // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
-    if (isAdding) saveTokenDetail(token, bookmarkSourceTitle(), bookmarkSourceId());
-    else removeTokenDetail(tokenText);
-    // Update details state immediately after localStorage is mutated
-    setBookmarkedTokenDetails(loadTokenDetails());
-    // Queue texts updater (runs later, but localStorage already updated)
-    setBookmarkedTokenTexts((prev) => {
-      const next = isAdding
-        ? [...prev, tokenText]
-        : prev.filter((t) => t !== tokenText);
-      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-      if (next.length === 0) setFilterBookmarked(false);
-      return next;
-    });
+    const isStarred = bookmarkedTokenTexts.includes(tokenText);
+    const setStar = (on: boolean) =>
+      setBookmarkedTokenTexts((prev) => {
+        const next = on
+          ? (prev.includes(tokenText) ? prev : [...prev, tokenText])
+          : prev.filter((tk) => tk !== tokenText);
+        try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        if (next.length === 0) setFilterBookmarked(false);
+        return next;
+      });
+
+    if (isStarred) {
+      // 별 끄기 — 카드는 유지, 별 flag만 제거.
+      setStar(false);
+      return;
+    }
+
+    // 별 켜기 — 카드가 없으면 새로 만든다(설명 없으면 먼저 받아 붙임). 이미 있으면 별만.
+    const hasCard = !!loadTokenDetails()[tokenText];
+    if (!hasCard) {
+      let toSave = token;
+      if (!token.description && onTokenExplain) {
+        const meaning = await onTokenExplain(tokenText);
+        if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
+      }
+      saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
+      setBookmarkedTokenDetails(loadTokenDetails());
+      // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+      toast(t("card.added", { term: tokenText }));
+    }
+    setStar(true);
   }
 
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
@@ -704,7 +744,7 @@ export default function LearningPanel({
           <TokenDictionary
             details={bookmarkedTokenDetails}
             onUnbookmark={(tokenText) => {
-              // localStorage ops first, then state
+              // 사전의 X = 카드 삭제(갤러리와 동일). detail 제거 + 별 제거 + 갤러리/배지 갱신 이벤트.
               removeTokenDetail(tokenText);
               setBookmarkedTokenDetails(loadTokenDetails());
               setBookmarkedTokenTexts((prev) => {
@@ -713,6 +753,7 @@ export default function LearningPanel({
                 if (next.length === 0) setFilterBookmarked(false);
                 return next;
               });
+              if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
             }}
           />
         )}
