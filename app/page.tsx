@@ -139,6 +139,7 @@ export default function Home() {
   type AnalysisSnapshot = {
     analysisResult: AgentAnalyzeResponse | null;
     currentHistoryId: string | null;
+    explainingTokens: string[];
     explainingConcepts: string[];
     chatSessions: ChatSession[];
     activeSessionId: string | null;
@@ -405,7 +406,7 @@ export default function Home() {
     // 떠나는 모드의 분석 상태를 스냅샷에 저장. (mode는 code/text만 — 분석 모드.)
     const fromMode: "code" | "text" = mode === "text" ? "text" : "code";
     analysisSnapshotRef.current[fromMode] = {
-      analysisResult, currentHistoryId, explainingConcepts,
+      analysisResult, currentHistoryId, explainingTokens, explainingConcepts,
       chatSessions, activeSessionId, chatStreaming, activeCollectionId,
       errorMessage, resumable, lastElapsedMs, chunkProgress,
     };
@@ -415,6 +416,7 @@ export default function Home() {
       // 이전에 하던 그 모드의 분석 상태 복원.
       setAnalysisResult(snap.analysisResult);
       setCurrentHistoryId(snap.currentHistoryId);
+      setExplainingTokens(snap.explainingTokens);
       setExplainingConcepts(snap.explainingConcepts);
       setChatSessions(snap.chatSessions);
       setActiveSessionId(snap.activeSessionId);
@@ -705,18 +707,19 @@ export default function Home() {
           }
         }
         if (fetched) {
-          // 받아온 뜻만 기존 토큰에 병합(lines/id/category 유지). 사전에 없던 토큰이면 추가.
+          // 받아온 뜻만 기존 토큰 카드에 병합(lines/id/category 유지). 카드는 사전에 이미 있는
+          // 토큰을 클릭한 것이므로, 그 사이 결과가 바뀌어 해당 토큰이 없어졌으면 그냥 무시한다
+          // (없던 토큰을 lines=[]로 새로 추가하지 않음 — 빈 줄 토큰 불변식·stale 오염 방지).
           setAnalysisResult((prev) => {
-            if (!prev) return prev;
-            const has = prev.tokens.some((t) => t.token === tokenText);
-            const merged = has
-              ? prev.tokens.map((t) =>
-                  t.token === tokenText
-                    ? { ...t, label: fetched!.label, description: fetched!.description, example: fetched!.example }
-                    : t,
-                )
-              : [...prev.tokens, { ...fetched, id: tokenText, token: tokenText, lines: [] }];
-            return { ...prev, tokens: merged };
+            if (!prev || !prev.tokens.some((t) => t.token === tokenText)) return prev;
+            return {
+              ...prev,
+              tokens: prev.tokens.map((t) =>
+                t.token === tokenText
+                  ? { ...t, label: fetched!.label, description: fetched!.description, example: fetched!.example }
+                  : t,
+              ),
+            };
           });
         }
       } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
