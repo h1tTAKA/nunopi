@@ -323,16 +323,19 @@ export default function LearningPanel({
     setBookmarkedConceptDetails(loadConceptDetails());
   }, []);
 
-  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 북마크 상태를 detail
-  // store 기준으로 다시 맞춘다(#509). 안 그러면 삭제됐는데 별이 켜진 채 남아 재북마크가
-  // "제거"로 오판된다. detail store가 진실의 원천 — bookmarkedTokenTexts는 그 키의 캐시.
+  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 카드(detail) 표시를 갱신하고,
+  // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
+  // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
   useEffect(() => {
     const refresh = () => {
       const details = loadTokenDetails();
       setBookmarkedTokenDetails(details);
-      const keys = Object.keys(details);
-      setBookmarkedTokenTexts(keys);
-      try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
+      setBookmarkedTokenTexts((prev) => {
+        const next = prev.filter((tokenText) => details[tokenText]); // 카드 없어진 별 제거
+        if (next.length === prev.length) return prev;
+        try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        return next;
+      });
     };
     window.addEventListener(CARDS_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
@@ -403,32 +406,42 @@ export default function LearningPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, currentHistoryTitle, currentHistoryId]);
 
+  // 별(즐겨찾기) 토글. 별과 카드는 분리한다(#509): 별을 켜면 카드가 없을 때만 새로 만들고,
+  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별 ⊆ 카드.
   async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
-    // isAdding은 detail store(카드의 진실의 원천) 기준으로 판정한다(#509). bookmarkedTokenTexts는
-    // 갤러리 삭제(deleteCard) 후 stale일 수 있어, 그걸 기준으로 하면 삭제한 카드 재북마크가
-    // "제거"로 오판돼 재생성이 안 됐다.
-    const isAdding = !loadTokenDetails()[tokenText];
-    // 설명 없는 토큰을 북마크하면 "설명 없음"으로 저장되던 문제(#509) — 먼저 뜻을 받아 붙인다.
-    let toSave = token;
-    if (isAdding && !token.description && onTokenExplain) {
-      const meaning = await onTokenExplain(tokenText);
-      if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
+    const isStarred = bookmarkedTokenTexts.includes(tokenText);
+    const setStar = (on: boolean) =>
+      setBookmarkedTokenTexts((prev) => {
+        const next = on
+          ? (prev.includes(tokenText) ? prev : [...prev, tokenText])
+          : prev.filter((tk) => tk !== tokenText);
+        try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        if (next.length === 0) setFilterBookmarked(false);
+        return next;
+      });
+
+    if (isStarred) {
+      // 별 끄기 — 카드는 유지, 별 flag만 제거.
+      setStar(false);
+      return;
     }
-    // Run localStorage ops synchronously NOW so loadTokenDetails() gets fresh data
-    if (isAdding) saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
-    else removeTokenDetail(tokenText);
-    // detail store 기준으로 texts/details 상태를 다시 맞춘다(캐시).
-    const details = loadTokenDetails();
-    setBookmarkedTokenDetails(details);
-    const keys = Object.keys(details);
-    setBookmarkedTokenTexts(keys);
-    try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(keys)); } catch { /* ignore */ }
-    if (keys.length === 0) setFilterBookmarked(false);
-    // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
-    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-    // 추가(카드 생성) 시 안내 토스트 — 갤러리 확인 유도(#509).
-    if (isAdding) toast(t("card.added", { term: tokenText }));
+
+    // 별 켜기 — 카드가 없으면 새로 만든다(설명 없으면 먼저 받아 붙임). 이미 있으면 별만.
+    const hasCard = !!loadTokenDetails()[tokenText];
+    if (!hasCard) {
+      let toSave = token;
+      if (!token.description && onTokenExplain) {
+        const meaning = await onTokenExplain(tokenText);
+        if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
+      }
+      saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
+      setBookmarkedTokenDetails(loadTokenDetails());
+      // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
+      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+      toast(t("card.added", { term: tokenText }));
+    }
+    setStar(true);
   }
 
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
@@ -731,7 +744,7 @@ export default function LearningPanel({
           <TokenDictionary
             details={bookmarkedTokenDetails}
             onUnbookmark={(tokenText) => {
-              // localStorage ops first, then state
+              // 사전의 X = 카드 삭제(갤러리와 동일). detail 제거 + 별 제거 + 갤러리/배지 갱신 이벤트.
               removeTokenDetail(tokenText);
               setBookmarkedTokenDetails(loadTokenDetails());
               setBookmarkedTokenTexts((prev) => {
@@ -740,6 +753,7 @@ export default function LearningPanel({
                 if (next.length === 0) setFilterBookmarked(false);
                 return next;
               });
+              if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
             }}
           />
         )}
