@@ -411,7 +411,7 @@ function buildOpenAICompatibleMessages(
         '    { "conceptId": "string", "title": "string (Korean)" }',
         "  ],",
         '  "tokens": [',
-        '    { "token": "string", "category": "string", "label": "string", "description": "string", "example": "string (optional)", "lines": number[] }',
+        '    { "token": "string", "category": "string", "lines": number[] }',
         "  ],",
         '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
         "}",

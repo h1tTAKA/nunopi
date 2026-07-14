@@ -96,7 +96,10 @@ interface LearningPanelProps {
   // 제외(차단) 목록 — 표시에서 숨길 토큰/용어 텍스트. page에서 관리.
   excludedTerms?: string[];
   onExclude?: (mode: AnalyzeMode, text: string) => void;
-  // 토큰 사전은 분석 시 범용 토큰으로 자동 채워진다(#505). 삭제는 카드 제거용.
+  // 토큰 사전은 분석 시 범용 토큰(token/category/lines)으로 자동 채워지고, 뜻은 카드 클릭 시
+  // on-demand로 받는다(#505). explainingTokens는 로딩 표시용(토큰 텍스트). 삭제는 카드 제거용.
+  explainingTokens?: string[];
+  onTokenExplain?: (text: string) => void;
   onDeleteToken?: (text: string) => void;
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
@@ -140,6 +143,8 @@ export default function LearningPanel({
   onMarkLines,
   excludedTerms = [],
   onExclude,
+  explainingTokens = [],
+  onTokenExplain,
   onDeleteToken,
   explainingConcepts = [],
   onConceptExplain,
@@ -1038,6 +1043,8 @@ export default function LearningPanel({
                       tokens={displayTokens}
                       activeTokenIds={activeTokenIds}
                       onTokenClick={handleTokenClick}
+                      explainingTokenTexts={explainingTokens}
+                      onTokenExplain={(token) => onTokenExplain?.(token.token)}
                       bookmarkedTokenTexts={bookmarkedTokenTexts}
                       onBookmarkToggle={handleBookmarkToggle}
                       onTokenHover={setHoverLines}

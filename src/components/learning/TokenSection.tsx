@@ -10,6 +10,10 @@ interface TokenSectionProps {
   tokens: CodeToken[];
   activeTokenIds?: string[];
   onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
+  // 카드 클릭 시 그 토큰의 뜻을 on-demand로 요청(#505). 이미 설명이 있으면 무시된다.
+  onTokenExplain?: (token: CodeToken) => void;
+  // 설명을 불러오는 중인 토큰 텍스트들 — 스피너 표시용.
+  explainingTokenTexts?: string[];
   bookmarkedTokenTexts?: string[];
   onBookmarkToggle?: (token: CodeToken) => void;
   // 토큰 호버 시 강조할 코드 줄들(떼면 null). 에디터 하이라이트 연동.
@@ -20,7 +24,7 @@ interface TokenSectionProps {
   emptyHint?: string;
 }
 
-export default function TokenSection({ tokens, activeTokenIds, onTokenClick, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onDelete, emptyHint }: TokenSectionProps) {
+export default function TokenSection({ tokens, activeTokenIds, onTokenClick, onTokenExplain, explainingTokenTexts, bookmarkedTokenTexts, onBookmarkToggle, onTokenHover, onDelete, emptyHint }: TokenSectionProps) {
   const t = useT();
   // bounded 스크롤 박스 안에서 전체를 렌더(더보기 없이 스크롤).
   const visibleTokens = tokens;
@@ -49,6 +53,7 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
       {visibleTokens.map((token) => {
         const isActive = activeTokenIds?.includes(token.id) ?? false;
         const isBookmarked = bookmarkedTokenTexts?.includes(token.token) ?? false;
+        const isExplaining = explainingTokenTexts?.includes(token.token) ?? false;
         return (
           <div
             key={token.id}
@@ -91,12 +96,16 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                 </button>
               )}
             </div>
-            {/* 헤더(토큰칩+카테고리)만 클릭 영역. 설명/예시는 버튼 밖 → 드래그 복사 가능. */}
+            {/* 헤더(토큰칩+카테고리)만 클릭 영역 — 클릭 시 뜻을 on-demand로 채운다(#505).
+                설명/예시는 버튼 밖 → 드래그 복사 가능. */}
             <button
               type="button"
-              onClick={() => onTokenClick?.(token.id, token.conceptId)}
+              onClick={() => {
+                onTokenExplain?.(token);
+                onTokenClick?.(token.id, token.conceptId);
+              }}
               className={`w-full px-4 pt-4 text-left ${token.bookmarkable || onDelete ? "pr-12" : ""}`}
-              aria-label={`${token.token} 토큰 선택`}
+              aria-label={token.description ? `${token.token} 토큰 선택` : `${token.token} 설명 보기`}
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <code className="max-w-full break-all rounded bg-zinc-200 px-1.5 py-0.5 text-xs font-mono font-semibold text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100">
@@ -106,15 +115,28 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, boo
                   {t("cat." + token.category)}
                 </span>
               </div>
-              <p className="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-200">
-                {token.label}
-              </p>
+              {token.label && (
+                <p className="mt-2 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                  {token.label}
+                </p>
+              )}
             </button>
             <div className="px-4 pb-4">
-              <p className="mt-1 select-text text-xs text-zinc-600 dark:text-zinc-300">
-                {token.description}
-              </p>
-              {token.example && (
+              {isExplaining ? (
+                <p className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600 dark:border-zinc-600 dark:border-t-zinc-200" />
+                  {t("panel.tokenExplaining")}
+                </p>
+              ) : token.description ? (
+                <p className="mt-1 select-text text-xs text-zinc-600 dark:text-zinc-300">
+                  {token.description}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                  {t("panel.tokenClickToExplain")}
+                </p>
+              )}
+              {!isExplaining && token.example && (
                 <div className="mt-2 select-text">
                   <CodeBlock code={token.example} />
                 </div>

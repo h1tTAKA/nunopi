@@ -11,9 +11,9 @@ const TOKEN_CATEGORIES: ReadonlySet<string> = new Set<TokenCategory>([
   "tailwind_spacing", "tailwind_color", "tailwind_responsive", "tailwind_state",
 ]);
 
-// 모델이 낸 토큰 객체(id·bookmarkable 없음)를 CodeToken으로 보정한다(#505). 모델엔
-// token/category/label/description/lines만 요구하고, id(=token 텍스트)·bookmarkable(true)은
-// 여기서 백필한다. 필수 필드가 없거나 형이 틀리면 그 항목만 버린다.
+// 모델이 낸 토큰 객체를 CodeToken으로 보정한다(#505). 초기 분석에선 token/category/lines만
+// 받고(label/description은 클릭 시 on-demand로 채움), id(=token 텍스트)·bookmarkable(true)·
+// 빈 label/description을 여기서 백필한다. token이 없으면 그 항목만 버린다.
 export function coerceModelTokens(raw: unknown): CodeToken[] {
   if (!Array.isArray(raw)) return [];
   const out: CodeToken[] = [];
@@ -22,7 +22,6 @@ export function coerceModelTokens(raw: unknown): CodeToken[] {
     const r = v as Record<string, unknown>;
     const token = typeof r.token === "string" ? r.token.trim() : "";
     if (!token) continue;
-    if (typeof r.label !== "string" || typeof r.description !== "string") continue;
     const lines = Array.isArray(r.lines)
       ? r.lines.filter((n): n is number => typeof n === "number")
       : [];
@@ -33,8 +32,8 @@ export function coerceModelTokens(raw: unknown): CodeToken[] {
       id: token,
       token,
       category,
-      label: r.label,
-      description: r.description,
+      label: typeof r.label === "string" ? r.label : "",
+      description: typeof r.description === "string" ? r.description : "",
       example: typeof r.example === "string" ? r.example : undefined,
       lines,
       conceptId: typeof r.conceptId === "string" ? r.conceptId : undefined,
