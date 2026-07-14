@@ -6,6 +6,8 @@ import {
   createAgentRegistry,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
+  scanUniversalTokens,
+  mergeUniversalTokens,
   type AgentAnalyzeRequest,
   type AgentAnalyzeResponse,
   type AgentProvider,
@@ -120,6 +122,14 @@ export async function POST(
         const response = shouldChunkCodeAnalysis(providerRequest, provider.provider)
           ? await analyzeCodeChunked(provider.provider, providerRequest, callOptions)
           : await provider.provider.analyze(providerRequest, callOptions);
+        // 코드 모드: 고정 어휘(키워드+연산자)를 결정적으로 스캔해 모델 토큰과 병합한다(#505).
+        // LLM이 목록에 있어도 흘리는 키워드/연산자 누락을 100% 막는다.
+        if ((providerRequest.mode ?? "code") === "code") {
+          response.tokens = mergeUniversalTokens(
+            scanUniversalTokens(providerRequest.code),
+            response.tokens ?? [],
+          );
+        }
         send({ type: "result", providerId, response });
       } catch (error) {
         const message = request.signal.aborted
