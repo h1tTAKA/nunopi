@@ -25,6 +25,9 @@ export function coerceModelTokens(raw: unknown): CodeToken[] {
     const lines = Array.isArray(r.lines)
       ? r.lines.filter((n): n is number => typeof n === "number")
       : [];
+    // 등장 줄이 없는 토큰은 실제로 코드에 없으면서 모델이 헛 추가한 것(예: 안 쓰인 `??`) →
+    // 버린다. 진짜 쓰인 토큰은 모델이 줄 번호를 준다(#505).
+    if (lines.length === 0) continue;
     const category = (typeof r.category === "string" && TOKEN_CATEGORIES.has(r.category)
       ? r.category
       : "keyword") as TokenCategory;
