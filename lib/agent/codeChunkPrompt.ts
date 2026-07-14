@@ -12,6 +12,7 @@ const EXPLANATION_FORMAT: string[] = [
   "Each `explanation` is for a NON-DEVELOPER reader (a beginner / vibe-coder / junior). Do NOT gloss the whole line with a single terse sentence. Write it as MARKDOWN with two parts:",
   "(1) A plain-language summary (1-2 sentences) of WHAT this line does and WHY, in everyday words. Avoid unexplained jargon — if a technical term is unavoidable, immediately explain it in plain words a non-programmer understands.",
   "(2) Then a markdown bullet list (each line starting with '- ') that breaks down EVERY meaningful part of the line: put the exact code piece in `backticks`, then ' — ', then its meaning in plain language. Cover keywords, identifiers, types, AND symbols/operators too (e.g. `=`, `{ }`, `=>`, `?`, `:`). Assume the reader knows nothing about programming.",
+  "For a ternary / conditional expression `A ? B : C`, do NOT label `?` and `:` as separate meaningless symbols — explain the whole expression together in plain words, e.g. 'if A is true, use B; otherwise use C', and say what A, B, C are here. Do the same for other multi-part operators (`&&`, `||`, `??`, `?.`): explain what the combination actually does, not just the symbol.",
   "Be concrete and genuinely helpful, not padded with filler. Write the whole explanation in the analysis output language.",
 ];
 
