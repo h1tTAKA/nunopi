@@ -16,12 +16,28 @@ const EXPLANATION_FORMAT: string[] = [
   "Be concrete and genuinely helpful, not padded with filler. Write the whole explanation in the analysis output language.",
 ];
 
+// 범용 토큰 추출 지시. 코드 전체에서 "어디서나 통용되는" 기초 토큰만 뽑아 tokens[]에 담는다
+// (#505). 유저가 지어낸 이름(커스텀 함수/변수/타입/prop)은 재사용성이 없어 학습에 방해 →
+// 제외. outlineOnly(청크 1차, 전체 코드)와 full(비청크)에서만 추출한다.
+const TOKEN_EXTRACT: string[] = [
+  "Also fill a `tokens` array with the UNIVERSAL, reusable tokens that ACTUALLY APPEAR in this code and are worth a beginner learning once. IMPORTANT: plain language keywords (const, if, interface, return, …) and standalone operator symbols (`=`, `===`, `|`, `||`, `=>`, `?`, `:`, …) are added AUTOMATICALLY by a separate deterministic scanner — do NOT list those yourself. Focus ONLY on the CONTEXTUAL universal tokens below, which the scanner can't infer:",
+  "Built-in types & TS utility types (identifiers): `Record`, `Array`, `Map`, `Set`, `Promise`, `Partial`, `Pick`, `Omit`, `Readonly`, `ReturnType`, `Date`, etc.",
+  "Built-in globals & runtime/DOM APIs actually called: e.g. `console.log`, `JSON.parse`/`stringify`, `Object.keys`/`values`/`entries`/`assign`, `Array.isArray`, `Math.*`, `new Date`, `setTimeout`/`setInterval`/`clearTimeout`, `Promise.all`, `fetch`, `localStorage`, `addEventListener`/`removeEventListener`, `matchMedia`, `querySelector`, `preventDefault`, `stopPropagation` (include the object form actually used, e.g. `window.matchMedia`, `e.preventDefault`).",
+  "Common array/object/string methods called: `map`, `filter`, `reduce`, `forEach`, `find`, `some`, `every`, `includes`, `push`, `slice`, `splice`, `concat`, `join`, `split`, `sort`, `keys`, `values`, `entries`, `replace`, `trim`, `toLowerCase`, `toUpperCase`, `startsWith`, `endsWith`, etc.",
+  "React hooks: `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `useContext`, `useReducer`, and any other `useXxx` hook that is a well-known library hook (not the author's own custom hook).",
+  "JSX element tags (`<div>`, `<button>`, `<span>`, `<input>`, `<img>`, `<a>`, `<ul>`, `<li>`, `<Fragment>`) and standard JSX attributes/handlers (`className`, `style`, `key`, `ref`, `type`, `value`, `disabled`, `onClick`, `onChange`, `onSubmit`, `children`).",
+  "Event parameters and their DOM types: `e` / `event` / `evt`, `err`, `KeyboardEvent`, `MouseEvent`, `ChangeEvent`, `FormEvent`.",
+  "Do NOT include names the author made up for THIS project — custom function/variable/type/prop names (e.g. `CardSession`, `CardSessionProps`, `sources`, `setClick`, `TONES`, `commitGrade`). They are not reused elsewhere, so listing them only distracts a learner. When unsure, ask: 'would this exact token appear, meaning the same thing, in a totally different project?' — if no, skip it.",
+  "Each token object has ONLY: { token (the exact text), category (one of: react_hook, state_variable, state_setter, prop, function, event_handler, jsx_element, operator, keyword, punctuation, api_call, dependency_array, initial_value), lines (the 1-based line numbers where it appears) }. Do NOT write label, description, example, id, or bookmarkable — the meaning is fetched on demand when the user clicks a token, which keeps this output small and fast. Just list every distinct universal token ONCE with all its line numbers; do not duplicate.",
+];
+
 export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
   if (request.outlineOnly) {
     return [
       "OUTLINE MODE: set lineExplanations to an empty array []. Do NOT explain individual lines.",
-      "Produce ONLY title, summary (2-3 sentences), language, and concepts. Each concept conceptId must be UNIQUE.",
+      "Produce title, summary (2-3 sentences), language, concepts, and tokens (no lineExplanations). Each concept conceptId must be UNIQUE.",
       "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size), but skip trivial or duplicate ones — each concept should be worth a beginner actually learning. Do NOT add general concepts unrelated to this code.",
+      ...TOKEN_EXTRACT,
     ];
   }
   if (request.lineRange) {
@@ -34,7 +50,7 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
       `Number each lineExplanation with its ABSOLUTE line number in the larger file: this snippet's FIRST line is line ${start}, so count up from ${start}.`,
       "Skip comment-only lines and blank lines — do NOT create a lineExplanation for them. Only explain lines that contain actual code.",
       ...EXPLANATION_FORMAT,
-      'Set concepts to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
+      'Set concepts to [] and tokens to [] and leave title and summary as empty strings "" — they are produced in a separate pass.',
       known
         ? `lineExplanations.conceptIds must reference ONLY these existing concept ids: ${known}. Do NOT invent new concept ids.`
         : "lineExplanations.conceptIds may be an empty array.",
@@ -45,5 +61,6 @@ export function codeChunkDirectives(request: AgentAnalyzeRequest): string[] {
     "concepts: extract ALL key concepts a beginner might not know that actually appear in this code — language syntax/operator patterns, built-in types & generics, async (Promise/async-await), array/object methods, APIs/DOM, library & runtime concepts, etc. Be comprehensive and don't under-produce (scale the count to the code size), but skip trivial or duplicate ones — each concept should be worth a beginner actually learning. Do NOT add general concepts unrelated to this code. Each conceptId UNIQUE.",
     "Give one lineExplanations entry for EVERY meaningful CODE line — but SKIP comment-only lines and blank lines (do NOT create entries for them). The top-level summary is 2-3 sentences.",
     ...EXPLANATION_FORMAT,
+    ...TOKEN_EXTRACT,
   ];
 }

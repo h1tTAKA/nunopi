@@ -1,8 +1,8 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
-import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 import { outputLanguageDirective } from "./outputLanguage";
-import { dedupeConcepts, dedupeTokens } from "./dedupe";
+import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
@@ -156,9 +156,7 @@ function normalizeOpenAICompatibleResponse(
     lineExplanations: Array.isArray(parsed.lineExplanations)
       ? parsed.lineExplanations.filter(isLineExplanation)
       : [],
-    tokens: dedupeTokens(
-      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
-    ),
+    tokens: dedupeTokens(coerceModelTokens(parsed.tokens)),
     concepts: dedupeConcepts(
       Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
     ),
@@ -412,9 +410,12 @@ function buildOpenAICompatibleMessages(
         '  "concepts": [',
         '    { "conceptId": "string", "title": "string (Korean)" }',
         "  ],",
+        '  "tokens": [',
+        '    { "token": "string", "category": "string", "lines": number[] }',
+        "  ],",
         '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
         "}",
-        "Do NOT include a per-line tokens array — the client derives token chips from each line's code. Output only line/code/explanation/conceptIds per entry. Keeps output small/fast.",
+        "Per lineExplanations entry output only line/code/explanation/conceptIds (no per-line tokens array). The top-level `tokens` array holds universal reusable tokens for the whole code, per the token instructions below.",
         ...codeChunkDirectives(request),
       ].join("\n"),
     },
@@ -539,24 +540,6 @@ function isOpenAICompatibleNormalizedPayload(
   return true;
 }
 
-function isCodeToken(value: unknown): value is CodeToken {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value.id === "string" &&
-    typeof value.token === "string" &&
-    typeof value.category === "string" &&
-    typeof value.label === "string" &&
-    typeof value.description === "string" &&
-    (value.example === undefined || typeof value.example === "string") &&
-    Array.isArray(value.lines) &&
-    value.lines.every((line) => typeof line === "number") &&
-    (value.conceptId === undefined || typeof value.conceptId === "string") &&
-    typeof value.bookmarkable === "boolean"
-  );
-}
 
 function isConceptOccurrence(value: unknown): value is ConceptOccurrence {
   if (!isRecord(value)) {

@@ -1,9 +1,9 @@
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentProviderKind } from "./types";
 import { outputLanguageDirective } from "./outputLanguage";
-import { dedupeConcepts, dedupeTokens } from "./dedupe";
+import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { codeChunkDirectives } from "./codeChunkPrompt";
-import type { CodeToken, ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
 
 // 코드 모드 프롬프트 빌더 + LLM 출력 정규화. 런타임(spawn) 무관한 순수 도메인 로직이라
 // 임베드 런타임 provider(snaAgentProvider)가 그대로 재사용한다.
@@ -49,10 +49,13 @@ export function buildClaudePrompt(request: AgentAnalyzeRequest): string {
     '  "concepts": [',
     '    { "conceptId": "string", "title": "string (Korean)" }',
     "  ],",
+    '  "tokens": [',
+    '    { "token": "string", "category": "string", "lines": number[] }',
+    "  ],",
     '  "warnings": [{ "code": "PARTIAL_PARSE | UNKNOWN_LANGUAGE | PARSE_FAILED | TOO_LONG", "message": "string" }]',
     "}",
     "",
-    "Do NOT include a per-line tokens array — the client derives token chips from each line's code. Output only line/code/explanation/conceptIds per entry. This keeps output small and fast.",
+    "Per lineExplanations entry output only line/code/explanation/conceptIds (no per-line tokens array). The top-level `tokens` array holds universal reusable tokens for the whole code, per the token instructions below.",
     ...codeChunkDirectives(request),
     "Only include a PARTIAL_PARSE warning if input was truncated; otherwise empty warnings.",
     "",
@@ -110,9 +113,7 @@ export function normalizeClaudeOutput(
     lineExplanations: Array.isArray(parsed.lineExplanations)
       ? parsed.lineExplanations.filter(isLineExplanation)
       : [],
-    tokens: dedupeTokens(
-      Array.isArray(parsed.tokens) ? parsed.tokens.filter(isCodeToken) : [],
-    ),
+    tokens: dedupeTokens(coerceModelTokens(parsed.tokens)),
     concepts: dedupeConcepts(
       Array.isArray(parsed.concepts) ? parsed.concepts.filter(isConceptOccurrence) : [],
     ),
@@ -154,22 +155,6 @@ function isClaudeNormalizedPayload(value: unknown): value is ClaudeNormalizedPay
   if (value.concepts !== undefined && !Array.isArray(value.concepts)) return false;
   if (value.warnings !== undefined && !Array.isArray(value.warnings)) return false;
   return true;
-}
-
-function isCodeToken(value: unknown): value is CodeToken {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.id === "string" &&
-    typeof value.token === "string" &&
-    typeof value.category === "string" &&
-    typeof value.label === "string" &&
-    typeof value.description === "string" &&
-    (value.example === undefined || typeof value.example === "string") &&
-    Array.isArray(value.lines) &&
-    value.lines.every((line) => typeof line === "number") &&
-    (value.conceptId === undefined || typeof value.conceptId === "string") &&
-    typeof value.bookmarkable === "boolean"
-  );
 }
 
 function isConceptOccurrence(value: unknown): value is ConceptOccurrence {

@@ -19,7 +19,7 @@ import AskView from "@/components/ask/AskView";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
-import type { CodeToken, SupportedLanguage } from "@/lib/translator/types";
+import type { CodeToken } from "@/lib/translator/types";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "@/lib/agent";
 import {
   type HistoryEntry,
@@ -166,8 +166,8 @@ export default function Home() {
   const [markedLines, setMarkedLines] = useState<number[]>([]);
   // 제외(차단) 목록 — 글(IT 용어) 모드 전용. 코드 토큰은 X 삭제로 대체(제외 없음).
   const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
-  // lazy 토큰 사전 — 줄별 태그 클릭 시 on-demand로 받은 토큰은 analysisResult.tokens에
-  // 직접 합쳐 유지/HTML 포함/삭제를 한 소스로 다룬다. explainingTokens는 로딩 표시용.
+  // 토큰 사전은 분석 시 token/category/lines만 채워지고, 뜻(label/description)은 카드 클릭 시
+  // on-demand로 받아 병합한다(#505). explainingTokens는 로딩 표시용(토큰 텍스트).
   const [explainingTokens, setExplainingTokens] = useState<string[]>([]);
   const [explainingConcepts, setExplainingConcepts] = useState<string[]>([]);
   // 학습 챗 — 분석(히스토리 항목)마다 세션 목록(#312). chatStreaming은 타이핑 중 답변.
@@ -388,7 +388,7 @@ export default function Home() {
     }
     if (analysisResult) {
       setAnalysisResult(null);
-      setExplainingTokens([]);
+    setExplainingTokens([]);
     setExplainingConcepts([]);
     setChatSessions(freshChatSessions());
     setActiveSessionId(null);
@@ -661,13 +661,12 @@ export default function Home() {
     abortRef.current?.abort();
   }
 
-  function handleTokenExplain(tokenText: string, line: number) {
-    if (
-      explainingTokens.includes(tokenText) ||
-      analysisResult?.tokens.some((t) => t.token === tokenText)
-    ) {
-      return;
-    }
+  // 토큰 카드 클릭 → 그 토큰의 뜻(label/description/example)을 on-demand로 받아 병합(#505).
+  // 이미 설명이 있거나 로딩 중이면 무시. 등장 줄(lines)/category/id는 기존 것 유지.
+  function handleTokenExplain(tokenText: string) {
+    if (explainingTokens.includes(tokenText)) return;
+    const existing = analysisResult?.tokens.find((t) => t.token === tokenText);
+    if (existing?.description) return; // 이미 설명 있음
     const input = code.trim();
     if (!input) return;
     setExplainingTokens((prev) => [...prev, tokenText]);
@@ -692,7 +691,7 @@ export default function Home() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        let token: CodeToken | undefined;
+        let fetched: CodeToken | undefined;
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -703,18 +702,25 @@ export default function Home() {
             if (!l.trim()) continue;
             try {
               const event = JSON.parse(l) as AnalyzeStreamEvent;
-              if (event.type === "result") token = event.response.tokens?.[0];
+              if (event.type === "result") fetched = event.response.tokens?.[0];
             } catch { /* skip */ }
           }
         }
-        if (token) {
-          const resolved: CodeToken = { ...token, id: tokenText, token: tokenText, lines: [line] };
-          // 받아온 토큰을 결과에 합쳐 유지(HTML 저장에도 포함, 삭제는 result에서 제거).
-          setAnalysisResult((prev) =>
-            prev && !prev.tokens.some((t) => t.token === tokenText)
-              ? { ...prev, tokens: [...prev.tokens, resolved] }
-              : prev,
-          );
+        if (fetched) {
+          // 받아온 뜻만 기존 토큰 카드에 병합(lines/id/category 유지). 카드는 사전에 이미 있는
+          // 토큰을 클릭한 것이므로, 그 사이 결과가 바뀌어 해당 토큰이 없어졌으면 그냥 무시한다
+          // (없던 토큰을 lines=[]로 새로 추가하지 않음 — 빈 줄 토큰 불변식·stale 오염 방지).
+          setAnalysisResult((prev) => {
+            if (!prev || !prev.tokens.some((t) => t.token === tokenText)) return prev;
+            return {
+              ...prev,
+              tokens: prev.tokens.map((t) =>
+                t.token === tokenText
+                  ? { ...t, label: fetched!.label, description: fetched!.description, example: fetched!.example }
+                  : t,
+              ),
+            };
+          });
         }
       } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
         setExplainingTokens((prev) => prev.filter((t) => t !== tokenText));
@@ -1062,11 +1068,11 @@ export default function Home() {
           excludedTerms={excludedTerms}
           onExclude={handleExclude}
           onDeleteToken={handleDeleteToken}
+          explainingTokens={explainingTokens}
+          onTokenExplain={handleTokenExplain}
           onConceptExplain={handleConceptExplain}
           onDeleteConcept={handleDeleteConcept}
-          explainingTokens={explainingTokens}
           explainingConcepts={explainingConcepts}
-          onTokenExplain={handleTokenExplain}
           historyEntries={historyEntries}
           onRestoreHistory={handleRestoreHistory}
           onDeleteHistory={handleDeleteHistory}

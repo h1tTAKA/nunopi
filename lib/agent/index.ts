@@ -24,3 +24,4 @@ export { snaAgentProvider, snaClaudeProvider, snaCodexProvider, snaOpenCodeProvi
 export { createAgentRegistry } from "./registry";
 export type { CreateAgentRegistryOptions } from "./registry";
 export { analyzeCodeChunked, shouldChunkCodeAnalysis } from "./chunkedCodeAnalyze";
+export { scanUniversalTokens, mergeUniversalTokens } from "./scanUniversalTokens";
