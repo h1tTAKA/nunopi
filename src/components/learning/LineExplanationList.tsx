@@ -2,18 +2,13 @@
 
 import { useEffect, useRef } from "react";
 import type { AgentLineExplanation } from "@/lib/agent";
-import type { CodeToken, ConceptOccurrence } from "@/lib/translator/types";
-import { tokenizeCodeLine } from "@/lib/tokenizeCodeLine";
+import type { ConceptOccurrence } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
 import Markdown from "./Markdown";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface LineExplanationListProps {
   lineExplanations: AgentLineExplanation[];
-  tokens?: CodeToken[];
-  onTokenClick?: (tokenId: string, conceptId: string | undefined) => void;
-  // lazy 모드: 줄별 태그(텍스트) 클릭 시 on-demand 설명 요청.
-  onTokenExplain?: (text: string, line: number) => void;
   concepts?: ConceptOccurrence[];
   onConceptClick?: (conceptId: string) => void;
   language?: string;
@@ -29,9 +24,6 @@ interface LineExplanationListProps {
 
 export default function LineExplanationList({
   lineExplanations,
-  tokens = [],
-  onTokenClick,
-  onTokenExplain,
   language,
   concepts = [],
   onConceptClick,
@@ -113,16 +105,9 @@ export default function LineExplanationList({
   return (
     <div ref={containerRef} className="space-y-3">
       {visibleItems.map((item, i) => {
-        // 칩은 모델 출력이 아니라 그 줄 코드를 클라에서 토큰화해 만든다(누락 0, 공백 뺀 전부).
-        // 클릭 시 explain-token으로 on-demand 설명(#86).
-        // 레거시(local-rules 등): item.tokenIds로 사전 토큰을 찾아 칩 표시(폴백).
-        const tagTexts = tokenizeCodeLine(item.code);
-        // item.tokenIds/conceptIds에 같은 id가 중복될 수 있어 먼저 유일화한다
-        // (중복 시 같은 토큰/개념 버튼이 동일 key로 두 번 렌더돼 콘솔 에러).
-        const lineTokens = Array.from(new Set(item.tokenIds ?? []))
-          .map((id) => tokens.find((t) => t.id === id))
-          .filter((t): t is CodeToken => t !== undefined);
-
+        // 줄별 토큰 칩(클릭 후 설명)은 제거됨(#505) — 줄 설명 자체가 각 조각을 풀어 설명하고,
+        // 범용 토큰은 분석 시 토큰 사전에 자동으로 채워진다. 여기선 개념 칩만 유지한다.
+        // conceptIds 중복은 유일화(동일 key 중복 렌더 방지).
         const lineConcepts = Array.from(new Set(item.conceptIds))
           .map((id) => concepts.find((c) => c.conceptId === id))
           .filter((c): c is ConceptOccurrence => c !== undefined);
@@ -153,35 +138,6 @@ export default function LineExplanationList({
             <Markdown className="mt-3 text-sm text-zinc-700 dark:text-zinc-200">
               {item.explanation}
             </Markdown>
-            {tagTexts.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {tagTexts.map((text) => (
-                  <button
-                    key={text}
-                    type="button"
-                    onClick={() => onTokenExplain?.(text, item.line)}
-                    className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-mono font-medium text-zinc-700 transition hover:bg-blue-100 hover:text-blue-700 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
-                    aria-label={`${text} 설명 보기`}
-                  >
-                    {text}
-                  </button>
-                ))}
-              </div>
-            ) : lineTokens.length > 0 ? (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {lineTokens.map((token) => (
-                  <button
-                    key={token.id}
-                    type="button"
-                    onClick={() => onTokenClick?.(token.id, token.conceptId)}
-                    className="inline-flex items-center rounded-lg bg-zinc-200 px-2 py-0.5 text-xs font-mono font-medium text-zinc-700 transition hover:bg-blue-100 hover:text-blue-700 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-blue-900/40 dark:hover:text-blue-300"
-                    aria-label={`${token.token} 토큰으로 이동`}
-                  >
-                    {token.token}
-                  </button>
-                ))}
-              </div>
-            ) : null}
             {lineConcepts.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {lineConcepts.map((concept) => (

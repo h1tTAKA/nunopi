@@ -96,9 +96,7 @@ interface LearningPanelProps {
   // 제외(차단) 목록 — 표시에서 숨길 토큰/용어 텍스트. page에서 관리.
   excludedTerms?: string[];
   onExclude?: (mode: AnalyzeMode, text: string) => void;
-  // lazy 토큰 사전 — 클릭해 받아온 토큰은 result.tokens에 합쳐져 사전에 표시된다.
-  explainingTokens?: string[];
-  onTokenExplain?: (text: string, line: number) => void;
+  // 토큰 사전은 분석 시 범용 토큰으로 자동 채워진다(#505). 삭제는 카드 제거용.
   onDeleteToken?: (text: string) => void;
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
   explainingConcepts?: string[];
@@ -142,8 +140,6 @@ export default function LearningPanel({
   onMarkLines,
   excludedTerms = [],
   onExclude,
-  explainingTokens = [],
-  onTokenExplain,
   onDeleteToken,
   explainingConcepts = [],
   onConceptExplain,
@@ -463,12 +459,6 @@ export default function LearningPanel({
     if (concept && !concept.description && !CONCEPT_DESCRIPTIONS[conceptId]) {
       onConceptExplain?.(conceptId, concept.title);
     }
-  }
-
-  // 코드 모드 lazy: 줄별 태그 클릭 → 그 토큰 활성화(스크롤/하이라이트) + on-demand 설명 요청.
-  function handleTokenTagExplain(text: string, line: number) {
-    setActiveTokenIds([text]);
-    onTokenExplain?.(text, line);
   }
 
   // 글 모드: 용어 클릭 → 관련 개념 전부 강조 + 첫 개로 스크롤. 같은 세트 재클릭이면 해제(토글).
@@ -987,9 +977,6 @@ export default function LearningPanel({
               <LineExplanationList
                 key={result.createdAt}
                 lineExplanations={anchoredLineExplanations}
-                tokens={safeTokens}
-                onTokenClick={handleTokenClick}
-                onTokenExplain={handleTokenTagExplain}
                 concepts={safeConcepts}
                 onConceptClick={handleConceptClick}
                 language={result.language}
@@ -1045,11 +1032,6 @@ export default function LearningPanel({
                       </>
                     )}
                   </div>
-                  {explainingTokens.length > 0 && (
-                    <p className="mb-2 px-1 text-xs text-zinc-400 dark:text-zinc-500">
-                      {t("panel.tokenLoading", { list: explainingTokens.join(", ") })}
-                    </p>
-                  )}
                   <ResizableBody id="tokens" defaultHeight={360}>
                     <TokenSection
                       key={result.createdAt}
