@@ -14,6 +14,7 @@ import AllCardsModal from "./AllCardsModal";
 import { DECK_SOURCES, type Card, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 import { collectCards, collectCardsByKeys } from "@/lib/srs/collect";
 import { loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { type CardCategory } from "@/lib/srs/due";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
@@ -81,12 +82,21 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     try { localStorage.setItem("nunopi:mem-code-sources", JSON.stringify([...s])); } catch { /* ignore */ }
   }
   const now = useMemo(() => new Date(), []);
+  // 카드가 바뀌면(북마크 추가/삭제 → CARDS_CHANGED) 부채꼴 카드도 다시 모은다(#509).
+  const [cardsNonce, setCardsNonce] = useState(0);
+  useEffect(() => {
+    const bump = () => setCardsNonce((n) => n + 1);
+    window.addEventListener(CARDS_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, bump);
+  }, []);
   // 부채꼴에 쓸 실제 카드 — 선택 덱 출처(코드덱은 세부 토글 반영). 클릭 시 이 중 랜덤 1장이 날아온다.
   const fanCards = useMemo(() => {
     const deckSources = DECK_SOURCES[deck];
     const effective = deck === "code" ? deckSources.filter((s) => codeSources.has(s)) : deckSources;
     return collectCards(effective, now);
-  }, [deck, codeSources, now]);
+    // cardsNonce: CARDS_CHANGED 시 재수집 강제(콜백은 localStorage를 읽어 직접 참조 안 함).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deck, codeSources, now, cardsNonce]);
   // 선택된 커스텀 덱(없으면 null). 삭제되면 선택 해제.
   const activeCustom = customId ? customDecks.find((d) => d.id === customId) ?? null : null;
   useEffect(() => {

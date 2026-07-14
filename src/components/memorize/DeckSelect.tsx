@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { deckStats, categoryCounts, sessionCount, dueCards, type CardCategory } from "@/lib/srs/due";
 import { collectCardsByKeys } from "@/lib/srs/collect";
 import { loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
+import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { findMemSession, clearMemSession } from "@/lib/memSession";
 import { DECK_SOURCES, type CardOrder, type Deck, type SrsSource } from "@/lib/srs/types";
 
@@ -112,13 +113,23 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
 
   // 각 덱 통계 — now는 마운트 시 1회 고정(진입 시점 기준).
   const now = useMemo(() => new Date(), []);
+  // 카드가 바뀌면(북마크 추가/삭제 → CARDS_CHANGED) 카운트를 다시 계산한다. deckStats 등은
+  // localStorage를 읽으므로 nonce를 deps에 넣어 재계산만 유도하면 새 카운트가 반영된다(#509).
+  const [cardsNonce, setCardsNonce] = useState(0);
+  useEffect(() => {
+    const bump = () => setCardsNonce((n) => n + 1);
+    window.addEventListener(CARDS_CHANGED_EVENT, bump);
+    return () => window.removeEventListener(CARDS_CHANGED_EVENT, bump);
+  }, []);
   const stats = useMemo(
     () => ({
       code: deckStats("code", now, [...codeSources]),
       text: deckStats("text", now),
       all: deckStats("all", now),
     }),
-    [now, codeSources],
+    // cardsNonce: CARDS_CHANGED 시 재계산 강제(deckStats는 localStorage 읽어 직접 참조 안 함).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [now, codeSources, cardsNonce],
   );
   // 선택된 커스텀 덱(있으면 옵션/시작/이어하기가 그 덱 cardKeys 기준).
   const activeCustom = selectedCustomId ? customDecks.find((d) => d.id === selectedCustomId) ?? null : null;
@@ -126,7 +137,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
   // 선택 덱의 분류별 카드 수(체크박스 배지) — 범위(mode) 반영. 커스텀이면 cardKeys 기준.
   const catCounts = useMemo(
     () => categoryCounts(selected, now, selected === "code" ? [...codeSources] : undefined, mode, activeKeys),
-    [selected, now, codeSources, mode, activeKeys],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected, now, codeSources, mode, activeKeys, cardsNonce],
   );
   // 전체 칩/분류 합 = 범위 반영 총수(오늘=due, 전체=total).
   const scopedTotal = catCounts.again + catCounts.hard + catCounts.good + catCounts.none;
@@ -141,7 +153,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
   // 실제 세션에 들어갈 카드 수(범위 + 분류 필터 반영) — 시작 버튼 라벨/활성 기준. 커스텀이면 cardKeys.
   const startCount = useMemo(
     () => sessionCount(selected, now, mode, [...cats], selected === "code" ? [...codeSources] : undefined, activeKeys),
-    [selected, now, mode, cats, codeSources, activeKeys],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected, now, mode, cats, codeSources, activeKeys, cardsNonce],
   );
   const canStart = startCount > 0;
   // 진행 중 세션(이어하기) — 고정=덱, 커스텀=custom:<id>. 저장 세션 그대로 복원.
@@ -153,7 +166,8 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
       const cards = collectCardsByKeys(d.cardKeys, now);
       return [d.id, { total: cards.length, due: dueCards(cards, now).length }];
     })),
-    [customDecks, now],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customDecks, now, cardsNonce],
   );
   async function deleteCustomDeck(d: CustomDeck) {
     const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
