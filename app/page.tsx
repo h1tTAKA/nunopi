@@ -1053,6 +1053,7 @@ export default function Home() {
           providerId={providerId}
           mode={mode}
           isLoading={isLoading}
+          onResumePartial={handleResume}
           progressLine={progressLine}
           analysisStartedAt={analysisStartedAt}
           elapsedMs={lastElapsedMs}

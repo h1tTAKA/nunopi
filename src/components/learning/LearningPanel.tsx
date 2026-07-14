@@ -80,6 +80,8 @@ interface LearningPanelProps {
   providerId: AgentProviderKind;
   mode?: AnalyzeMode;
   isLoading: boolean;
+  // PARTIAL_PARSE 경고에서 "빠진 구간만 다시 분석"(resume) 트리거. 없으면 버튼 미표시.
+  onResumePartial?: () => void;
   progressLine?: string;
   analysisStartedAt?: number | null; // 진행 중 실시간 경과 타이머용 시작 시각(ms).
   elapsedMs?: number | null; // 직전 분석 총 소요시간(ms) — 완료 메타 표시용.
@@ -129,6 +131,7 @@ export default function LearningPanel({
   providerId,
   mode = "code",
   isLoading,
+  onResumePartial,
   progressLine = "",
   analysisStartedAt = null,
   elapsedMs = null,
@@ -883,6 +886,10 @@ export default function LearningPanel({
                     : warning.code === "TOO_LONG"
                       ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-950 dark:bg-blue-950/30 dark:text-blue-300"
                       : "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-950 dark:bg-amber-950/30 dark:text-amber-300";
+                // PARTIAL_PARSE는 빠진 구간만 다시 채울 수 있다(resume) — 전체 재분석 대신
+                // 그 구간만. 메시지에서 구간 수를 뽑아 버튼 라벨에 쓴다(숫자만 파싱 → 언어 무관).
+                const isPartial = warning.code === "PARTIAL_PARSE";
+                const missingCount = isPartial ? Number(warning.message.match(/\d+/)?.[0] ?? 0) : 0;
                 return (
                   <div
                     key={i}
@@ -890,6 +897,16 @@ export default function LearningPanel({
                   >
                     <span className="font-medium">[{warning.code}]</span>{" "}
                     {warning.message}
+                    {isPartial && onResumePartial && (
+                      <button
+                        type="button"
+                        onClick={onResumePartial}
+                        disabled={isLoading}
+                        className="ml-2 inline-flex items-center rounded-lg border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-200 dark:hover:bg-amber-900/60"
+                      >
+                        {t("panel.partialRefill", { n: missingCount })}
+                      </button>
+                    )}
                   </div>
                 );
               })}
