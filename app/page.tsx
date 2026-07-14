@@ -594,6 +594,15 @@ export default function Home() {
         setLastElapsedMs(Date.now() - startedAt);
         setResumable(false);
         setAnalysisResult(saved);
+        // 이어서/구간 채우기(resumeFrom)였다면, 이번에 새로 채워진 첫 줄로 스크롤+강조해
+        // "어디가 채워졌는지" 보여준다(#507). source:"editor" → 패널이 그 카드로 스크롤.
+        if (resumeFrom) {
+          const priorLines = new Set((resumeFrom.lineExplanations ?? []).map((l) => l.line));
+          const filled = (saved.lineExplanations ?? [])
+            .map((l) => l.line)
+            .filter((l) => !priorLines.has(l));
+          if (filled.length > 0) focusLineFromEditor(Math.min(...filled));
+        }
         if (historyId) {
           // 이어서/복원 항목 완성 → 같은 항목 업데이트(incomplete 해제, 제목 보존).
           const id = historyId;
