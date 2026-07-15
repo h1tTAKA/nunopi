@@ -105,6 +105,7 @@ export default function AgentAssignModal({
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [thinking, setThinking] = useState(""); // 모델 추론 스트림 — 작업 중임을 보이게
   const [groups, setGroups] = useState<AssignGroup[]>([]);
   const [reveal, setReveal] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -128,6 +129,7 @@ export default function AgentAssignModal({
     const ac = new AbortController();
     abortRef.current = ac;
     setLoading(true);
+    setThinking("");
     try {
       const res = await fetch("/api/agent/analyze", {
         method: "POST",
@@ -150,7 +152,8 @@ export default function AgentAssignModal({
             if (!l.trim()) continue;
             try {
               const ev = JSON.parse(l) as StreamEvent;
-              if (ev.type === "result") answer = ev.response.summary;
+              if (ev.type === "thinking") setThinking(ev.line);
+              else if (ev.type === "result") answer = ev.response.summary;
             } catch { /* skip */ }
           }
         }
@@ -158,8 +161,16 @@ export default function AgentAssignModal({
       }
       return ac.signal.aborted ? "" : answer;
     } finally {
-      if (!ac.signal.aborted) setLoading(false);
+      if (!ac.signal.aborted) { setLoading(false); setThinking(""); }
     }
+  }
+
+  // 중단 — 진행 중인 요청 취소하고 세팅 화면으로 복귀(다시 고를 수 있게).
+  function cancel() {
+    abortRef.current?.abort();
+    setLoading(false);
+    setThinking("");
+    setMessages([]);
   }
 
   // 응답을 배정 그룹으로 반영 + 대화 표시.
@@ -190,8 +201,9 @@ export default function AgentAssignModal({
     setMessages(thread);
     try {
       const answer = await runAgent(thread, context);
+      if (abortRef.current?.signal.aborted) return; // 중단됨 — 결과 반영 안 함
       applyReply(thread, answer || t("mem.agentDeckNone"));
-    } catch { applyReply(messages, t("mem.agentDeckNone")); }
+    } catch { if (!abortRef.current?.signal.aborted) applyReply(messages, t("mem.agentDeckNone")); }
   }
 
   // setup 조작
@@ -300,9 +312,9 @@ export default function AgentAssignModal({
       {/* 실행 버튼 — 상태별 전환. 하단 고정. */}
       <div className="flex shrink-0 justify-end gap-2">
         {loading ? (
-          <button type="button" disabled className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white opacity-60">
-            <IconSparkles size={15} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
-            {t("mem.assignSorting")}
+          <button type="button" onClick={cancel} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800">
+            <IconX size={15} stroke={2.5} aria-hidden />
+            {t("mem.assignStop")}
           </button>
         ) : groups.length > 0 ? (
           <>
@@ -369,6 +381,14 @@ export default function AgentAssignModal({
               <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
                 <span className="bg-lime-500" />
               </div>
+              {thinking && (
+                <p className="max-h-28 max-w-md overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">
+                  {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
+                </p>
+              )}
+              <button type="button" onClick={cancel} className="mt-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+                {t("mem.assignStop")}
+              </button>
             </div>
           ) : candidates.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
