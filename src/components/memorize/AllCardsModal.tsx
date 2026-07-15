@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus, IconFolderShare } from "@tabler/icons-react";
+import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus, IconFolderShare, IconCopyCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
@@ -16,6 +16,7 @@ import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import { useFlyCard } from "./FlyCard";
 import AgentDeckModal from "./AgentDeckModal";
 import AgentAssignModal from "./AgentAssignModal";
+import CardDedupModal from "./CardDedupModal";
 
 const SYMBOL = "/brand/nunopi-symbol-darkeye-transparent.png";
 
@@ -75,7 +76,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // 커스터마이징 — "choose"(수동/에이전트 선택) → "manual"(제목+카드선택). 에이전트는 이슈2.
-  const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent" | "assign">(null);
+  const [customize, setCustomize] = useState<null | "choose" | "manual" | "agent" | "assign" | "dedup">(null);
   const [deckName, setDeckName] = useState("");
   // 선택 모드에서 카드를 넣을 대상 덱(삭제/덱추가 액션을 한 선택에서 함께 제공).
   const [addTarget, setAddTarget] = useState<string | null>(null);
@@ -339,7 +340,6 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
             </button>
-            <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
             {/* 덱 만들기 */}
             <button
               type="button"
@@ -348,6 +348,15 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             >
               <IconSparkles size={15} stroke={2} aria-hidden />
               {t("mem.customize")}
+            </button>
+            {/* 중복 정리 — 의미 중복 카드 탐색(앰버) */}
+            <button
+              type="button"
+              onClick={() => setCustomize("dedup")}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+            >
+              <IconCopyCheck size={15} stroke={2} aria-hidden />
+              {t("mem.dedup")}
             </button>
             <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
             {/* 닫기 */}
@@ -525,6 +534,16 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
           providerSettings={providerSettings}
           onBack={() => setCustomize(null)}
           onApplied={() => { setCustomize(null); }}
+        />
+      )}
+
+      {/* 카드 중복 정리 — 의미 중복 탐색 후 유지/삭제. */}
+      {customize === "dedup" && (
+        <CardDedupModal
+          now={now}
+          providerId={providerId}
+          providerSettings={providerSettings}
+          onClose={() => setCustomize(null)}
         />
       )}
     </div>,

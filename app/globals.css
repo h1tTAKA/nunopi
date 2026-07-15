@@ -169,3 +169,15 @@ samp {
   from { opacity: 0; transform: scale(0.85) translateY(6px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+/* 부정형(indeterminate) 진행 막대 — 소요시간을 알 수 없는 단일 호출용(가짜 % 대신 정직한 애니메이션) */
+@keyframes nunopi-indeterminate {
+  0% { left: -40%; width: 40%; }
+  50% { left: 30%; width: 55%; }
+  100% { left: 100%; width: 40%; }
+}
+.nunopi-indeterminate { position: relative; overflow: hidden; }
+.nunopi-indeterminate > span { position: absolute; top: 0; bottom: 0; border-radius: 9999px; animation: nunopi-indeterminate 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .nunopi-indeterminate > span { animation: none; left: 0; width: 100%; opacity: 0.6; }
+}
