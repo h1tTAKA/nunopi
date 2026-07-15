@@ -33,13 +33,17 @@ interface ProposalDeck {
 // 에이전트 덱 커스터마이징 — 대화형. 상담도 하고, 덱을 만들자 하면 에이전트가 하나 또는 여러 덱을
 // 제안(chat 재사용) → 좌측에 덱 섹션으로 stagger 리빌 → 제목 편집/제외/체크 → 덱 추가하기.
 export default function AgentDeckModal({
-  now, providerId, providerSettings, onBack, onCreated,
+  now, providerId, providerSettings, onBack, onCreated, embedded = false, headerRight,
 }: {
   now: Date;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onBack: () => void;
   onCreated: () => void;
+  // embedded=허브 패널 안에 끼워질 때: 자체 백드롭/풀스크린 제거하고 부모 박스를 채운다.
+  embedded?: boolean;
+  // 우측 컬럼 헤더의 제목 자리에 끼울 요소(허브의 모드 토글).
+  headerRight?: React.ReactNode;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -200,7 +204,9 @@ export default function AgentDeckModal({
   let flatOffset = 0;
 
   return (
-    <div className="absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm">
+    <div className={embedded
+      ? "absolute inset-0 flex overflow-hidden bg-white dark:bg-[#0b0c10]"
+      : "absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm"}>
       {/* 좌: 제안 덱 프리뷰(덱 섹션 + stagger) */}
       <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
         <div className="flex h-14 shrink-0 items-center gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
@@ -324,11 +330,13 @@ export default function AgentDeckModal({
 
       {/* 우: 대화형 프롬프트 */}
       <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-            <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.agentDeckTitle")}
-          </span>
-          <button type="button" onClick={onBack} aria-label={t("mem.agentDeckReject")} className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800">
+        <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-zinc-200 px-4 dark:border-zinc-800">
+          {headerRight ?? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.agentDeckTitle")}
+            </span>
+          )}
+          <button type="button" onClick={onBack} aria-label={t("mem.agentDeckReject")} className="absolute right-3 rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800">
             <IconX size={16} stroke={2} aria-hidden />
           </button>
         </div>

@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconSparkles, IconX, IconSend2, IconCheck, IconEye } from "@tabler/icons-react";
+import { IconSparkles, IconX, IconCheck, IconEye } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import Markdown from "@/components/learning/Markdown";
 import { collectCards } from "@/lib/srs/collect";
 import { addCardsToDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
-import { buildDeckAssignContext, parseDeckAssign, stripDeckAssign, stripDeckAssignStreaming } from "@/lib/deckAssign";
+import { buildDeckAssignContext, parseDeckAssign } from "@/lib/deckAssign";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { cardFrame } from "@/lib/srs/cardFrame";
 import { useFlyCard } from "./FlyCard";
@@ -60,13 +59,17 @@ function MiniTile({ card, dimmed, check, onToggle, throwCard, t }: {
 // 에이전트 기존 덱 자동 분류 — UI 주도 2단계.
 // setup: 왼쪽에서 분류할 카드(미분류 기본)·대상 덱 고르기 → "맡기기". preview: 에이전트 배정 제안 → 제외/체크 → 추가.
 export default function AgentAssignModal({
-  now, providerId, providerSettings, onBack, onApplied,
+  now, providerId, providerSettings, onBack, onApplied, embedded = false, headerRight,
 }: {
   now: Date;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onBack: () => void;
   onApplied: () => void;
+  // embedded=허브 패널 안에 끼워질 때: 자체 백드롭/풀스크린 제거하고 부모 박스를 채운다.
+  embedded?: boolean;
+  // 우측 컬럼 헤더의 제목 자리에 끼울 요소(허브의 모드 토글).
+  headerRight?: React.ReactNode;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -100,21 +103,12 @@ export default function AgentAssignModal({
   useEffect(() => { setPickedDecks(new Set(existingDecks.map((d) => d.id))); }, [existingDecks]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [streaming, setStreaming] = useState<string | null>(null);
-  const [thinking, setThinking] = useState("");
+  const [thinking, setThinking] = useState(""); // 모델 추론 스트림 — 작업 중임을 보이게
   const [groups, setGroups] = useState<AssignGroup[]>([]);
   const [reveal, setReveal] = useState(0);
-  // 요청 시점의 선택 범위(컨텍스트 고정) — preview에서 자유 대화 시에도 이 범위 유지.
-  const ctxRef = useRef<string>("");
   const abortRef = useRef<AbortController | null>(null);
-  const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [messages, loading, streaming, thinking]);
 
   const totalCards = useMemo(() => groups.reduce((n, g) => n + g.cards.length, 0), [groups]);
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -134,7 +128,6 @@ export default function AgentAssignModal({
     const ac = new AbortController();
     abortRef.current = ac;
     setLoading(true);
-    setStreaming("");
     setThinking("");
     try {
       const res = await fetch("/api/agent/analyze", {
@@ -158,8 +151,7 @@ export default function AgentAssignModal({
             if (!l.trim()) continue;
             try {
               const ev = JSON.parse(l) as StreamEvent;
-              if (ev.type === "progress" && providerId !== "codex-agent") setStreaming(ev.line);
-              else if (ev.type === "thinking") setThinking(ev.line);
+              if (ev.type === "thinking") setThinking(ev.line);
               else if (ev.type === "result") answer = ev.response.summary;
             } catch { /* skip */ }
           }
@@ -168,12 +160,19 @@ export default function AgentAssignModal({
       }
       return ac.signal.aborted ? "" : answer;
     } finally {
-      if (!ac.signal.aborted) { setLoading(false); setStreaming(null); setThinking(""); }
+      if (!ac.signal.aborted) { setLoading(false); setThinking(""); }
     }
   }
 
-  // 응답을 배정 그룹으로 반영 + 대화 표시.
-  function applyReply(thread: ChatMessage[], reply: string) {
+  // 중단 — 진행 중인 요청 취소하고 세팅 화면으로 복귀(다시 고를 수 있게).
+  function cancel() {
+    abortRef.current?.abort();
+    setLoading(false);
+    setThinking("");
+  }
+
+  // 응답을 배정 그룹으로 반영.
+  function applyReply(reply: string) {
     if (!reply) return;
     const assigns = parseDeckAssign(reply);
     const built: AssignGroup[] = [];
@@ -185,7 +184,6 @@ export default function AgentAssignModal({
       if (cards.length > 0) built.push({ deckId: deck.id, deckName: deck.name, cards, checked: true, excluded: new Set() });
     }
     if (built.length > 0) setGroups(built);
-    setMessages([...thread, { role: "assistant", content: stripDeckAssign(reply) || t("mem.agentDeckNone") }]);
   }
 
   // "맡기기" — 선택 카드·덱으로 컨텍스트 구성 + 자동 요청 → preview.
@@ -195,27 +193,13 @@ export default function AgentAssignModal({
     const decks = existingDecks.filter((d) => pickedDecks.has(d.id));
     if (cards.length === 0 || decks.length === 0) return;
     const context = buildDeckAssignContext(cards, decks.map((d) => ({ name: d.name, cardKeys: d.cardKeys })));
-    ctxRef.current = context;
     const prompt = t("mem.assignAutoPrompt").replace("{n}", String(cards.length)).replace("{decks}", decks.map((d) => d.name).join(", "));
     const thread: ChatMessage[] = [{ role: "user", content: prompt }];
-    setMessages(thread);
     try {
       const answer = await runAgent(thread, context);
-      applyReply(thread, answer || t("mem.agentDeckNone"));
-    } catch { applyReply(messages, t("mem.agentDeckNone")); }
-  }
-
-  // preview에서 자유 대화(미세조정) — 같은 컨텍스트 유지.
-  async function send() {
-    const text = input.trim();
-    if (!text || loading) return;
-    const thread: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(thread);
-    setInput("");
-    try {
-      const answer = await runAgent(thread, ctxRef.current);
-      applyReply(thread, answer || t("mem.agentDeckNone"));
-    } catch { /* 무시(응답 없음) */ }
+      if (abortRef.current?.signal.aborted) return; // 중단됨 — 결과 반영 안 함
+      applyReply(answer || t("mem.agentDeckNone"));
+    } catch { if (!abortRef.current?.signal.aborted) applyReply(t("mem.agentDeckNone")); }
   }
 
   // setup 조작
@@ -276,78 +260,89 @@ export default function AgentAssignModal({
     return o;
   }, [groups]);
 
-  return (
-    <div className="absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm">
-      {/* 좌: 옵션 패널(항상) + 본문(후보 그리드 ↔ 배정 결과) */}
-      <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
-        {/* 상단 옵션 패널 — 범위 토글·카드 선택·대상 덱·실행 버튼. 배정 결과와 무관하게 항상 유지. */}
-        <div className="shrink-0 space-y-3 border-b border-zinc-200 bg-white/60 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-900/40">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignPickCards")}</span>
-            <span className="text-xs text-zinc-400 dark:text-zinc-500">{pickedCount}/{candidates.length}</span>
-            <div className="ml-auto flex items-center gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800">
-              {(["unassigned", "all"] as const).map((s) => (
-                <button key={s} type="button" onClick={() => setScope(s)} disabled={loading}
-                  className={`rounded-md px-2 py-1 font-medium transition disabled:opacity-50 ${scope === s ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
-                  {t(s === "unassigned" ? "mem.assignScopeUnassigned" : "mem.assignScopeAll")}
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={toggleAllCards} disabled={loading} className="rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
-              {allCardsPicked ? t("mem.selectNone") : t("mem.selectAll")}
-            </button>
-          </div>
-          <div className="flex items-start gap-2">
-            <span className="mt-1.5 shrink-0 text-xs font-semibold text-zinc-600 dark:text-zinc-300">{t("mem.assignPickDecks")}</span>
-            <div className="nunopi-scroll flex max-h-16 flex-1 flex-wrap gap-1.5 overflow-y-auto">
-              {existingDecks.map((d) => {
-                const on = pickedDecks.has(d.id);
-                return (
-                  <button key={d.id} type="button" onClick={() => toggleDeck(d.id)} disabled={loading}
-                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700"}`}>
-                    <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-[4px] border ${on ? "border-white/70 bg-white/20" : "border-zinc-300 dark:border-zinc-600"}`}>
-                      {on && <IconCheck size={10} stroke={3} aria-hidden />}
-                    </span>
-                    {d.name}
-                  </button>
-                );
-              })}
-            </div>
-            <button type="button" onClick={toggleAllDecks} disabled={loading} className="mt-1.5 shrink-0 text-[11px] font-medium text-zinc-400 transition hover:text-zinc-600 disabled:opacity-50 dark:text-zinc-500 dark:hover:text-zinc-300">
-              {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
-            </button>
-          </div>
-          {/* 실행 버튼 — 상태별 전환. 생각 중엔 비활성. 결과 있으면 [다시 고르기] + [선택 덱에 추가]. */}
-          <div className="flex justify-end gap-2">
-            {loading ? (
-              <button type="button" disabled className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white opacity-60">
-                <IconSparkles size={15} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
-                {t("mem.assignSorting")}
-              </button>
-            ) : groups.length > 0 ? (
-              <>
-                <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
-                  <IconSparkles size={14} stroke={2} aria-hidden />
-                  {t("mem.assignReclassify")}
-                </button>
-                <button type="button" onClick={() => { void applyChecked(); }} disabled={!canApply}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40">
-                  <IconCheck size={15} stroke={2.5} aria-hidden />
-                  {t("mem.assignApply")}
-                </button>
-              </>
-            ) : (
-              <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
-                <IconSparkles size={15} stroke={2} aria-hidden />
-                {t("mem.assignDelegate")}
-                <span className="font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
-              </button>
-            )}
-          </div>
+  // 옵션 패널(범위·카드선택·대상 덱·실행) — 채팅 자리 없앤 만큼 세로 전체를 채운다(대상 덱 목록이 확장).
+  const optionsPanel = (
+    <div className="flex min-h-0 flex-1 flex-col gap-3 bg-white/60 px-5 py-4 dark:bg-zinc-900/40">
+      {/* 분류할 카드 — 범위 토글 + 전체선택 */}
+      <div className="shrink-0 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.assignPickCards")}</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">{pickedCount}/{candidates.length}</span>
+          <button type="button" onClick={toggleAllCards} disabled={loading} className="ml-auto rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">
+            {allCardsPicked ? t("mem.selectNone") : t("mem.selectAll")}
+          </button>
         </div>
+        <div className="flex w-full items-center gap-1 rounded-lg bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800">
+          {(["unassigned", "all"] as const).map((s) => (
+            <button key={s} type="button" onClick={() => setScope(s)} disabled={loading}
+              className={`flex-1 rounded-md px-2 py-1 font-medium transition disabled:opacity-50 ${scope === s ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400"}`}>
+              {t(s === "unassigned" ? "mem.assignScopeUnassigned" : "mem.assignScopeAll")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* 대상 덱 — 남은 세로 공간을 다 채우는 목록 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-zinc-600 dark:text-zinc-300">{t("mem.assignPickDecks")}</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">{pickedDecks.size}/{existingDecks.length}</span>
+          <button type="button" onClick={toggleAllDecks} disabled={loading} className="ml-auto text-[11px] font-medium text-zinc-400 transition hover:text-zinc-600 disabled:opacity-50 dark:text-zinc-500 dark:hover:text-zinc-300">
+            {allDecksPicked ? t("mem.selectNone") : t("mem.selectAll")}
+          </button>
+        </div>
+        <div className="nunopi-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-0.5">
+          {existingDecks.map((d) => {
+            const on = pickedDecks.has(d.id);
+            return (
+              <button key={d.id} type="button" onClick={() => toggleDeck(d.id)} disabled={loading}
+                className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition disabled:opacity-50 ${on ? "bg-[#3B34E2] text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"}`}>
+                <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border ${on ? "border-white/70 bg-white/20" : "border-zinc-300 dark:border-zinc-600"}`}>
+                  {on && <IconCheck size={11} stroke={3} aria-hidden />}
+                </span>
+                <span className="truncate">{d.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {/* 실행 버튼 — 상태별 전환. 하단 고정. */}
+      <div className="flex shrink-0 justify-end gap-2">
+        {loading ? (
+          <button type="button" onClick={cancel} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600">
+            <IconX size={15} stroke={2.5} aria-hidden />
+            {t("mem.assignStop")}
+          </button>
+        ) : groups.length > 0 ? (
+          <>
+            <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
+              <IconSparkles size={14} stroke={2} aria-hidden />
+              {t("mem.assignReclassify")}
+            </button>
+            <button type="button" onClick={() => { void applyChecked(); }} disabled={!canApply}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40">
+              <IconCheck size={15} stroke={2.5} aria-hidden />
+              {t("mem.assignApply")}
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => { void delegate(); }} disabled={pickedCount === 0 || pickedDecks.size === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-lime-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-lime-600 disabled:cursor-not-allowed disabled:opacity-40">
+            <IconSparkles size={15} stroke={2} aria-hidden />
+            {t("mem.assignDelegate")}
+            <span className="font-normal text-white/70">{pickedCount}·{pickedDecks.size}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
+  return (
+    <div className={embedded
+      ? "absolute inset-0 flex overflow-hidden bg-white dark:bg-[#0b0c10]"
+      : "absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm"}>
+      {/* 좌: 본문(후보 그리드 ↔ 배정 결과). 옵션은 우측 컬럼. */}
+      <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
         {/* 본문 — 결과 있으면 덱별 배정, 생각 중(첫 제안)엔 안내, 아니면 후보 카드 그리드 */}
         <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
           {groups.length > 0 ? (
@@ -376,9 +371,17 @@ export default function AgentAssignModal({
               })}
             </div>
           ) : loading ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-              <IconSparkles size={22} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
-              {t("mem.assignSorting")}
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+              <IconSparkles size={28} stroke={1.6} className={`text-lime-500 ${reduced ? "" : "animate-pulse"}`} aria-hidden />
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{t("mem.assignSorting")}</p>
+              <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <span className="bg-lime-500" />
+              </div>
+              {thinking && (
+                <p className="max-h-28 max-w-md overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">
+                  {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
+                </p>
+              )}
             </div>
           ) : candidates.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
@@ -392,57 +395,19 @@ export default function AgentAssignModal({
         </div>
       </div>
 
-      {/* 우: 대화(보조) */}
+      {/* 우: (임베드) 옵션 패널 + 대화(보조) */}
       <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-            <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.assignTitle")}
-          </span>
-          <button type="button" onClick={onBack} aria-label={t("mem.agentDeckReject")} className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800">
+        <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-zinc-200 px-4 dark:border-zinc-800">
+          {headerRight ?? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.assignTitle")}
+            </span>
+          )}
+          <button type="button" onClick={onBack} aria-label={t("mem.agentDeckReject")} className="absolute right-3 rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800">
             <IconX size={16} stroke={2} aria-hidden />
           </button>
         </div>
-        <div ref={logRef} className="nunopi-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3 text-xs">
-          <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-            {t("mem.assignGreet")}
-          </div>
-          {messages.map((m, i) =>
-            m.role === "user" ? (
-              <div key={i} className="max-w-[90%] self-end whitespace-pre-wrap rounded-2xl bg-blue-500 px-3 py-2 text-white">{m.content}</div>
-            ) : (
-              <div key={i} className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"><Markdown>{m.content}</Markdown></div>
-            ),
-          )}
-          {streaming != null && (
-            streaming ? (
-              <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"><Markdown>{stripDeckAssignStreaming(streaming)}</Markdown></div>
-            ) : thinking ? (
-              <div className="max-w-[90%] self-start rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700/60 dark:bg-zinc-800/50">
-                <span className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#3B34E2] dark:text-[#8b86f5]">
-                  <IconSparkles size={13} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden /> {t("mem.agentThinking")}
-                </span>
-                <p className="max-h-24 overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">{thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}</p>
-              </div>
-            ) : (
-              <div className="max-w-[90%] self-start rounded-2xl bg-zinc-100 px-3 py-2 dark:bg-zinc-800"><span className="text-zinc-400 dark:text-zinc-500">{t("chat.replying")}</span></div>
-            )
-          )}
-        </div>
-        <div className="flex items-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }}
-            disabled={loading || messages.length === 0}
-            rows={1}
-            placeholder={messages.length === 0 ? t("mem.assignChatDisabled") : t("mem.assignPlaceholder")}
-            className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none focus:border-[#3B34E2] disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-          />
-          <button type="button" onClick={() => { void send(); }} disabled={loading || messages.length === 0 || !input.trim()}
-            className="shrink-0 rounded-xl bg-[#3B34E2] p-2.5 text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40" aria-label={t("chat.send")}>
-            <IconSend2 size={16} stroke={2} aria-hidden />
-          </button>
-        </div>
+        {optionsPanel}
       </div>
 
       {/* 추가 완료 팝업 — 덱별 합계. 닫으면 모달 종료. */}
