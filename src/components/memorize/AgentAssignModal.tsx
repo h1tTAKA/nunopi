@@ -60,13 +60,17 @@ function MiniTile({ card, dimmed, check, onToggle, throwCard, t }: {
 // 에이전트 기존 덱 자동 분류 — UI 주도 2단계.
 // setup: 왼쪽에서 분류할 카드(미분류 기본)·대상 덱 고르기 → "맡기기". preview: 에이전트 배정 제안 → 제외/체크 → 추가.
 export default function AgentAssignModal({
-  now, providerId, providerSettings, onBack, onApplied,
+  now, providerId, providerSettings, onBack, onApplied, embedded = false, headerRight,
 }: {
   now: Date;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onBack: () => void;
   onApplied: () => void;
+  // embedded=허브 패널 안에 끼워질 때: 자체 백드롭/풀스크린 제거하고 부모 박스를 채운다.
+  embedded?: boolean;
+  // 우측 컬럼 헤더의 제목 자리에 끼울 요소(허브의 모드 토글).
+  headerRight?: React.ReactNode;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -277,7 +281,9 @@ export default function AgentAssignModal({
   }, [groups]);
 
   return (
-    <div className="absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm">
+    <div className={embedded
+      ? "absolute inset-0 flex overflow-hidden bg-white dark:bg-[#0b0c10]"
+      : "absolute inset-0 z-10 flex bg-black/50 backdrop-blur-sm"}>
       {/* 좌: 옵션 패널(항상) + 본문(후보 그리드 ↔ 배정 결과) */}
       <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
         {/* 상단 옵션 패널 — 범위 토글·카드 선택·대상 덱·실행 버튼. 배정 결과와 무관하게 항상 유지. */}
@@ -395,9 +401,11 @@ export default function AgentAssignModal({
       {/* 우: 대화(보조) */}
       <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800">
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-            <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.assignTitle")}
-          </span>
+          {headerRight ?? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.assignTitle")}
+            </span>
+          )}
           <button type="button" onClick={onBack} aria-label={t("mem.agentDeckReject")} className="rounded-lg p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800">
             <IconX size={16} stroke={2} aria-hidden />
           </button>
