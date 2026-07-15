@@ -9,6 +9,7 @@ import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type Custom
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { cardFrame } from "@/lib/srs/cardFrame";
+import { useToast } from "@/components/ui/Toast";
 import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -48,6 +49,7 @@ export default function AgentDeckModal({
   const t = useT();
   const { locale } = useLocale();
   const { throwCard } = useFlyCard();
+  const toast = useToast();
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
@@ -191,12 +193,16 @@ export default function AgentDeckModal({
   function addChecked() {
     if (!canAdd) return;
     const goal = messages.find((m) => m.role === "user")?.content;
+    const added: string[] = [];
     for (const d of decks) {
       if (!d.checked) continue;
       const keys = d.cards.filter((c) => !d.excluded.has(c.key)).map((c) => c.key);
       if (keys.length === 0) continue;
-      addCustomDeck(d.name || t("mem.agentDeckTitle"), keys, goal);
+      const name = d.name || t("mem.agentDeckTitle");
+      addCustomDeck(name, keys, goal);
+      added.push(name);
     }
+    if (added.length > 0) toast(t("mem.deckAddedToast").replace("{decks}", added.join(", ")));
     onCreated();
   }
 
