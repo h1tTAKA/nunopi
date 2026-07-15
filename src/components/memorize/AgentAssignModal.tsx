@@ -312,7 +312,7 @@ export default function AgentAssignModal({
       {/* 실행 버튼 — 상태별 전환. 하단 고정. */}
       <div className="flex shrink-0 justify-end gap-2">
         {loading ? (
-          <button type="button" onClick={cancel} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800">
+          <button type="button" onClick={cancel} className="inline-flex items-center gap-1.5 rounded-lg bg-rose-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-600">
             <IconX size={15} stroke={2.5} aria-hidden />
             {t("mem.assignStop")}
           </button>
@@ -386,9 +386,6 @@ export default function AgentAssignModal({
                   {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
                 </p>
               )}
-              <button type="button" onClick={cancel} className="mt-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-                {t("mem.assignStop")}
-              </button>
             </div>
           ) : candidates.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
