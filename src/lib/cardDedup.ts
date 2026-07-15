@@ -63,7 +63,8 @@ const FENCE_G = /```card-dedup\s*([\s\S]*?)```/g;
 
 // 모델이 가끔 '다르다고 판단한' 카드쌍을 배제 설명(reason)과 함께 그룹에 넣는 자기모순을 방어한다.
 // reason이 "안 묶음/다른(별개) 개념/제거" 류면 그 그룹은 버린다(ko/ja/en).
-const NEGATION_RE = /묶지\s*않|안\s*묶|다른\s*개념|별개(의)?\s*개념|별도의?\s*개념|제거|different\s+concept|not\s+(a\s+)?duplicate|should\s+not|do\s+not\s+(group|merge)|別(の)?概念|重複ではない|まとめ(ない|ません)/i;
+// "다른 방식" 같은 정상 표현은 오탐 안 되게 표적 패턴만("다른 X" X=개념/용어/의미/대상/것, 서로/의미 다르-).
+const NEGATION_RE = /묶지\s*않|안\s*묶|다른\s*(개념|용어|의미|대상|것)|서로\s*다르|의미(가|는)?\s*다르|별개(의)?\s*개념|별도의?\s*개념|제거|different\s+concept|not\s+(a\s+)?duplicate|should\s+not|do\s+not\s+(group|merge)|別(の)?概念|重複ではない|まとめ(ない|ません)/i;
 
 // 응답 텍스트에서 중복 그룹 배열 추출(없거나 깨지면 빈 배열).
 // 관대한 파싱: 블록 여럿 수용, 각 블록은 그룹 객체 배열. keys 2개 미만 그룹은 버린다.
