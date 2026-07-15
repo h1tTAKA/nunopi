@@ -9,14 +9,33 @@ export interface DedupGroup {
   reason: string;
 }
 
+// 탐색 기준 — 제목(앞면)/내용(뒷면) 중 무엇을 비교해 같음을 판단할지.
+export interface DedupScope {
+  matchTitle: boolean;
+  matchContent: boolean;
+}
+
 // 보유 카드 목록 + 규칙 → chat의 code(맥락) 슬롯 문자열.
-export function buildDedupContext(cards: Card[]): string {
+// scope에 따라 목록에 내용(뒷면)을 포함할지, 무엇을 비교 기준으로 삼을지 지시가 바뀐다.
+export function buildDedupContext(cards: Card[], scope: DedupScope = { matchTitle: true, matchContent: true }): string {
+  const withContent = scope.matchContent;
   const list = cards
-    .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 80)}`)
+    .map((c) =>
+      withContent
+        ? `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 80)}`
+        : `${c.key} | ${c.front}`,
+    )
     .join("\n");
+  const basis = scope.matchTitle && scope.matchContent
+    ? "제목(용어)과 설명 내용을 함께 보고"
+    : scope.matchTitle
+      ? "제목(용어)을 기준으로"
+      : "설명 내용을 기준으로";
+  const header = withContent ? "key | 앞면(용어) | 뒷면(설명)" : "key | 앞면(용어)";
   return [
     "너는 사용자의 플래시카드 중에서 '의미가 같은(near-duplicate)' 카드를 찾아 묶는 조수다.",
-    "아래는 사용자가 보유한 카드 전체 목록이다(key | 앞면(용어) | 뒷면(설명)).",
+    `아래는 사용자가 보유한 카드 목록이다(${header}).`,
+    `무엇이 같은지는 ${basis} 판단하라.`,
     "같은 개념을 이름만 다르게 적은 카드들을 한 그룹으로 묶어라. 예:",
     "  - '함수 컴포넌트' vs 'React 함수형 컴포넌트'",
     "  - 영어/한글 병기가 갈린 같은 용어('surrogate' vs '서러게이트')",
@@ -31,7 +50,7 @@ export function buildDedupContext(cards: Card[]): string {
     "```",
     "key는 아래 목록의 key를 그대로 사용. 목록에 없는 key는 만들지 마라.",
     "",
-    "보유 카드 (key | 용어 | 설명):",
+    `보유 카드 (${header}):`,
     list,
   ].join("\n");
 }

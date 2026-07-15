@@ -217,15 +217,6 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
     all.filter((c) => selected.has(c.key)).forEach(deleteCard); // CARDS_CHANGED_EVENT → nonce 재수집
     exitAll();
   }
-  // 중복 정리 — 확인 후 탐색 모달 오픈(탐색은 모달 마운트 시 시작).
-  async function startDedup() {
-    const ok = await confirm({
-      title: t("mem.dedupConfirmTitle"),
-      message: t("mem.dedupConfirmMsg"),
-      confirmText: t("mem.dedupConfirmYes"),
-    });
-    if (ok) setCustomize("dedup");
-  }
 
   return createPortal(
     <div className={`fixed inset-x-0 bottom-0 top-14 z-[60] flex-col bg-zinc-50/95 backdrop-blur-sm dark:bg-[#0b0c10]/95 ${active ? "flex" : "hidden"}`}>
@@ -361,7 +352,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             {/* 중복 정리 — 의미 중복 카드 탐색(앰버) */}
             <button
               type="button"
-              onClick={() => { void startDedup(); }}
+              onClick={() => setCustomize("dedup")}
               className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
             >
               <IconCopyCheck size={15} stroke={2} aria-hidden />
