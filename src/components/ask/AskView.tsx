@@ -23,6 +23,7 @@ import {
 } from "@/lib/askStore";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
+import { stripLoneSurrogates } from "@/lib/safeText";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 type StreamEvent =
@@ -631,7 +632,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
     }
     if (parts.length === 0) return "";
     let ctx = `(참고: 같은 세션/폴더의 다른 질문에서 오간 내용입니다. 필요하면 참고해 일관되게 답하세요.)\n\n${parts.join("\n\n")}`;
-    if (ctx.length > CAP) ctx = `${ctx.slice(0, CAP)}\n…(이하 생략)`;
+    // slice가 이모지(surrogate pair) 중간을 자를 수 있어, 잘린 뒤 외톨이 surrogate를 제거한다
+    // (안 그러면 JSON.stringify가 깨진 JSON을 만들어 API 400 — #517).
+    if (ctx.length > CAP) ctx = `${stripLoneSurrogates(ctx.slice(0, CAP))}\n…(이하 생략)`;
     return ctx;
   }
 
