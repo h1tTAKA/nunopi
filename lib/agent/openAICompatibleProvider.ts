@@ -6,7 +6,7 @@ import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
-import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse, deckAgentSystemPrompt, buildDeckAgentPrompt } from "./chatMode";
 import { codeChunkDirectives } from "./codeChunkPrompt";
 
 interface OpenAICompatibleConfig {
@@ -102,8 +102,8 @@ function normalizeOpenAICompatibleResponse(
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
   // 챗은 자유 텍스트, 글 모드는 텍스트 정규화, explain-token/concept는 각 1개.
-  // 중복묶기(dedup-cards)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
-  if (request.mode === "chat" || request.mode === "dedup-cards") {
+  // 중복묶기(dedup-cards)·덱에이전트(deck-agent)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
+  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
     return normalizeChatOutput(content, "openai-compatible");
   }
   if (request.mode === "explain-concept") {
@@ -363,6 +363,13 @@ function buildOpenAICompatibleMessages(
     return [
       { role: "system", content: "You group duplicate flashcards. Output ONLY the requested ```card-dedup fenced block and nothing else." },
       { role: "user", content: request.code },
+    ];
+  }
+  // 덱 에이전트: 대화형 + 필요 시 컨텍스트가 지정한 블록. nunopi-cards 없음.
+  if (request.mode === "deck-agent") {
+    return [
+      { role: "system", content: deckAgentSystemPrompt(request.locale) },
+      { role: "user", content: buildDeckAgentPrompt(request) },
     ];
   }
   // explain-concept: 개념 1개 설명 프롬프트.

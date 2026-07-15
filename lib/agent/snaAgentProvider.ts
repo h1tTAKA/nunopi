@@ -11,7 +11,7 @@ import {
 } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
-import { buildChatPrompt, chatSystemPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { buildChatPrompt, chatSystemPrompt, normalizeChatOutput, chatModeResponse, buildDeckAgentPrompt, deckAgentSystemPrompt } from "./chatMode";
 import { buildCardExplainPrompt } from "./cardExplainMode";
 import {
   buildClaudePrompt,
@@ -137,7 +137,7 @@ function unavailableResponse(
   providerId: AgentProviderKind,
 ): AgentAnalyzeResponse {
   const warn = [{ code: "PARTIAL_PARSE" as const, message }];
-  if (request.mode === "chat" || request.mode === "dedup-cards") return chatModeResponse(providerId, message, warn);
+  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") return chatModeResponse(providerId, message, warn);
   if (request.mode === "explain-concept") return conceptModeResponse(providerId, [], warn);
   if (request.mode === "explain-token") return tokenModeResponse(providerId, [], warn);
   if (request.mode === "text") return textModeResponse(providerId, message, warn);
@@ -192,7 +192,11 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       const isCardExplain = request.mode === "explain-card";
       // 카드 중복 묶기 — 경량. 프롬프트는 요청 code 그대로, 저추론(low)·thinking/타이핑 스트림 없음.
       const isDedup = request.mode === "dedup-cards";
+      // 덱 생성/분류 — 대화형 경량(저추론 + nunopi-cards 없음). 스트리밍·thinking은 활동 표시 위해 켠다.
+      const isDeckAgent = request.mode === "deck-agent";
       const isChatLike = isChat || isCardExplain;
+      // 답변을 자유텍스트로 흘리고(summary) 스트리밍/추론을 보여주는 그룹(챗류 + 덱에이전트).
+      const isChatStream = isChatLike || isDeckAgent;
 
       // 런타임 서버 도달 가능성 확인.
       try {
@@ -204,6 +208,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
 
       const prompt = isDedup
         ? request.code // 클라가 규칙+카드목록을 이미 완성해 보냄(cardDedup.buildDedupContext).
+        : isDeckAgent
+        ? buildDeckAgentPrompt(request)
         : isCardExplain
         ? buildCardExplainPrompt(request)
         : isChat
@@ -225,7 +231,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       };
 
       if (mockText) {
-        return isChatLike || isDedup
+        return isChatStream || isDedup
           ? normalizeChatOutput(mockText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(mockText, providerId, request)
@@ -238,8 +244,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
 
       try {
         let streamOnProgress = options?.onProgress;
-        // 챗/카드설명은 답변을 누적 전체로 흘려 타이핑처럼 보이게 한다.
-        let fullProgress = isChatLike;
+        // 챗/카드설명/덱에이전트는 답변을 누적 전체로 흘려 타이핑처럼 보이게 한다.
+        let fullProgress = isChatStream;
         const prior = isText ? request.resumeFrom : undefined;
         if (isText && options?.onPartial) {
           const onPartial = options.onPartial;
@@ -268,16 +274,17 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           runtime: cfg.runtime,
           // 챗은 언어별 튜터 시스템프롬프트 + thinking 살림(effort 미강제). 분석은 JSON 지시 + low.
           // 중복묶기는 블록만 내라는 경량 시스템프롬프트 + low(아래 effort).
-          systemPrompt: isDedup ? DEDUP_SYSTEM_PROMPT : isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
+          systemPrompt: isDedup ? DEDUP_SYSTEM_PROMPT : isDeckAgent ? deckAgentSystemPrompt(request.locale) : isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
           signal: options?.signal,
           onProgress: streamOnProgress,
-          // 추론 표시는 챗류(덱 모달 등)에서만 — 분석/청크는 partial 파싱 경로라 미전달.
-          onThinking: isChatLike ? options?.onThinking : undefined,
+          // 추론 표시는 챗류·덱에이전트에서만 — 분석/청크는 partial 파싱 경로라 미전달.
+          onThinking: isChatStream ? options?.onThinking : undefined,
           fullProgress,
+          // 덱에이전트는 저추론(그룹핑이라 깊은 추론 불필요) — 챗/카드설명만 고추론 허용.
           effort: !isChatLike,
         });
 
-        return isChatLike || isDedup
+        return isChatStream || isDedup
           ? normalizeChatOutput(rawText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(rawText, providerId, request)
@@ -293,7 +300,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
         const message = err instanceof Error ? err.message : "runtime run failed";
         const warn = [{ code: "PARSE_FAILED" as const, message }];
-        if (isChatLike || isDedup) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
+        if (isChatStream || isDedup) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
         if (isExplainConcept) return conceptModeResponse(providerId, [], warn);
         if (isExplainToken) return tokenModeResponse(providerId, [], warn);
         if (isText) return textModeResponse(providerId, `런타임 실패: ${message}`, warn);

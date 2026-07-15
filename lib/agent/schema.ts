@@ -11,8 +11,9 @@ import type { AgentProviderKind } from "./types";
 
 // 분석 모드 — "code"(기본, 코드 분석) | "text"(IT 용어 글 분석)
 // | "explain-token"(토큰 1개) | "explain-concept"(개념 1개) | "chat"(코드에 대한 자유 질문)
-// | "explain-card"(카드 기본 설명) | "dedup-cards"(카드 의미 중복 묶기 — 경량, 블록만 출력).
-export type AnalyzeMode = "code" | "text" | "explain-token" | "explain-concept" | "chat" | "explain-card" | "dedup-cards";
+// | "explain-card"(카드 기본 설명) | "dedup-cards"(카드 의미 중복 묶기 — 경량, 블록만 출력)
+// | "deck-agent"(덱 생성/분류 — 대화형 경량: 저추론·nunopi-cards 없음).
+export type AnalyzeMode = "code" | "text" | "explain-token" | "explain-concept" | "chat" | "explain-card" | "dedup-cards" | "deck-agent";
 
 // 학습 챗 한 메시지.
 export interface ChatMessage {
