@@ -363,9 +363,12 @@ export default function AgentAssignModal({
               })}
             </div>
           ) : loading ? (
-            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
-              <IconSparkles size={22} stroke={2} className={reduced ? undefined : "animate-pulse"} aria-hidden />
-              {t("mem.assignSorting")}
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+              <IconSparkles size={28} stroke={1.6} className={`text-lime-500 ${reduced ? "" : "animate-pulse"}`} aria-hidden />
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{t("mem.assignSorting")}</p>
+              <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <span className="bg-lime-500" />
+              </div>
             </div>
           ) : candidates.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">{t("mem.assignNoCards")}</div>
