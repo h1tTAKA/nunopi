@@ -26,6 +26,10 @@ import {
 type SnaRuntime = "claude-code" | "codex" | "opencode";
 
 const CODE_SYSTEM_PROMPT = "You are a code analysis assistant. Return JSON only.";
+// 카드 중복 묶기 — 경량. 프롬프트(요청 code)에 규칙·목록이 다 들어 있어 시스템은 출력형식만 강제.
+// 산문·플래시카드 제안 없이 요청한 ```card-dedup 블록만 내게 해 토큰·지연을 최소화한다.
+const DEDUP_SYSTEM_PROMPT =
+  "You group duplicate flashcards. Output ONLY the requested ```card-dedup fenced block and nothing else — no prose, no explanation, no other code blocks.";
 
 interface RunResult {
   text: string;
@@ -133,7 +137,7 @@ function unavailableResponse(
   providerId: AgentProviderKind,
 ): AgentAnalyzeResponse {
   const warn = [{ code: "PARTIAL_PARSE" as const, message }];
-  if (request.mode === "chat") return chatModeResponse(providerId, message, warn);
+  if (request.mode === "chat" || request.mode === "dedup-cards") return chatModeResponse(providerId, message, warn);
   if (request.mode === "explain-concept") return conceptModeResponse(providerId, [], warn);
   if (request.mode === "explain-token") return tokenModeResponse(providerId, [], warn);
   if (request.mode === "text") return textModeResponse(providerId, message, warn);
@@ -186,6 +190,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       const isExplainConcept = request.mode === "explain-concept";
       // 카드 디폴트 설명 — 챗처럼 자연어 마크다운을 fullProgress로 스트리밍(타이핑).
       const isCardExplain = request.mode === "explain-card";
+      // 카드 중복 묶기 — 경량. 프롬프트는 요청 code 그대로, 저추론(low)·thinking/타이핑 스트림 없음.
+      const isDedup = request.mode === "dedup-cards";
       const isChatLike = isChat || isCardExplain;
 
       // 런타임 서버 도달 가능성 확인.
@@ -196,7 +202,9 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         return unavailableResponse(request, message, providerId);
       }
 
-      const prompt = isCardExplain
+      const prompt = isDedup
+        ? request.code // 클라가 규칙+카드목록을 이미 완성해 보냄(cardDedup.buildDedupContext).
+        : isCardExplain
         ? buildCardExplainPrompt(request)
         : isChat
         ? buildChatPrompt(request)
@@ -217,7 +225,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       };
 
       if (mockText) {
-        return isChatLike
+        return isChatLike || isDedup
           ? normalizeChatOutput(mockText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(mockText, providerId, request)
@@ -259,7 +267,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         const { text: rawText, usage } = await runViaSna(prompt, {
           runtime: cfg.runtime,
           // 챗은 언어별 튜터 시스템프롬프트 + thinking 살림(effort 미강제). 분석은 JSON 지시 + low.
-          systemPrompt: isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
+          // 중복묶기는 블록만 내라는 경량 시스템프롬프트 + low(아래 effort).
+          systemPrompt: isDedup ? DEDUP_SYSTEM_PROMPT : isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
           signal: options?.signal,
           onProgress: streamOnProgress,
           // 추론 표시는 챗류(덱 모달 등)에서만 — 분석/청크는 partial 파싱 경로라 미전달.
@@ -268,7 +277,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           effort: !isChatLike,
         });
 
-        return isChatLike
+        return isChatLike || isDedup
           ? normalizeChatOutput(rawText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(rawText, providerId, request)
@@ -284,7 +293,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
         const message = err instanceof Error ? err.message : "runtime run failed";
         const warn = [{ code: "PARSE_FAILED" as const, message }];
-        if (isChatLike) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
+        if (isChatLike || isDedup) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
         if (isExplainConcept) return conceptModeResponse(providerId, [], warn);
         if (isExplainToken) return tokenModeResponse(providerId, [], warn);
         if (isText) return textModeResponse(providerId, `런타임 실패: ${message}`, warn);

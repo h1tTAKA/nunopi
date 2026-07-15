@@ -12,7 +12,7 @@ export interface DedupGroup {
 // 보유 카드 목록 + 규칙 → chat의 code(맥락) 슬롯 문자열.
 export function buildDedupContext(cards: Card[]): string {
   const list = cards
-    .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 120)}`)
+    .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 80)}`)
     .join("\n");
   return [
     "너는 사용자의 플래시카드 중에서 '의미가 같은(near-duplicate)' 카드를 찾아 묶는 조수다.",

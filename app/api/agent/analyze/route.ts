@@ -242,7 +242,8 @@ function isValidAnalyzeRequestPayload(
     value.mode !== "explain-token" &&
     value.mode !== "explain-concept" &&
     value.mode !== "chat" &&
-    value.mode !== "explain-card"
+    value.mode !== "explain-card" &&
+    value.mode !== "dedup-cards"
   ) {
     return false;
   }

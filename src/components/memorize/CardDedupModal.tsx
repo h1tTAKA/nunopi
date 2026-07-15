@@ -62,8 +62,6 @@ export default function CardDedupModal({
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const [loading, setLoading] = useState(true);
-  const [pct, setPct] = useState(0); // 탐색 진행률(추정) — 단일 LLM 호출이라 실제 %가 없어 시간 기반으로 부드럽게 채운다.
-  const [thinking, setThinking] = useState("");
   const [groups, setGroups] = useState<ResolvedGroup[]>([]);
   // 지울 카드 key 집합(전 그룹 통합). 기본은 전부 유지(빈 집합).
   const [toDelete, setToDelete] = useState<Set<string>>(new Set());
@@ -72,16 +70,6 @@ export default function CardDedupModal({
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // 진행률(추정) — 탐색 중 92%까지 점근적으로 차오르고, 완료 시 아래 스캔 effect가 100%로 마무리.
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!loading) return;
-    setPct(6);
-    const id = window.setInterval(() => setPct((p) => (p >= 92 ? p : p + (92 - p) * 0.07)), 220);
-    return () => window.clearInterval(id);
-  }, [loading, scanNonce]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
   // 탐색 실행 — 마운트 시 1회, "다시 탐색" 시 재실행.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -89,7 +77,6 @@ export default function CardDedupModal({
     const all = collectCards(DECK_SOURCES.all, now);
     const byKey = new Map(all.map((c) => [c.key, c]));
     setLoading(true);
-    setThinking("");
     setGroups([]);
     setToDelete(new Set());
     abortRef.current?.abort();
@@ -109,7 +96,7 @@ export default function CardDedupModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             providerId,
-            request: { code: buildDedupContext(all), locale, providerId, mode: "chat", messages: thread, providerSettings },
+            request: { code: buildDedupContext(all), locale, providerId, mode: "dedup-cards", messages: thread, providerSettings },
           }),
           signal: ac.signal,
         });
@@ -128,8 +115,7 @@ export default function CardDedupModal({
               if (!l.trim()) continue;
               try {
                 const ev = JSON.parse(l) as StreamEvent;
-                if (ev.type === "thinking") { if (!cancelled) setThinking(ev.line); }
-                else if (ev.type === "result") answer = ev.response.summary;
+                if (ev.type === "result") answer = ev.response.summary;
               } catch { /* skip */ }
             }
           }
@@ -146,12 +132,11 @@ export default function CardDedupModal({
           .filter((g) => g.cards.length >= 2);
         // 이름(표기) 중복을 최상단으로 — 정규화 앞면이 겹치는 확실한 중복 먼저 처리하게(안정 정렬).
         built.sort((a, b) => Number(isNameDup(b)) - Number(isNameDup(a)));
-        setPct(100);
         setGroups(built);
       } catch {
         // abort는 조용히, 그 외엔 빈 결과(없음 메시지).
       } finally {
-        if (!cancelled && !ac.signal.aborted) { setLoading(false); setThinking(""); }
+        if (!cancelled && !ac.signal.aborted) setLoading(false);
       }
     })();
 
@@ -161,10 +146,18 @@ export default function CardDedupModal({
   }, [scanNonce]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  function toggleDelete(key: string) {
+  // 삭제 토글 — 한 묶음에서 최소 한 장은 남겨야 하므로, 그 그룹의 모든 카드를
+  // 삭제 선택하려 하면(마지막 한 장까지) 막고 안내한다. 해제는 항상 허용.
+  function toggleDelete(key: string, group: ResolvedGroup) {
     setToDelete((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) { next.delete(key); return next; }
+      const selectedInGroup = group.cards.filter((c) => prev.has(c.key)).length;
+      if (selectedInGroup >= group.cards.length - 1) {
+        toast(t("mem.dedupKeepOne"), "error");
+        return prev; // 마지막 한 장은 남긴다.
+      }
+      next.add(key);
       return next;
     });
   }
@@ -228,21 +221,13 @@ export default function CardDedupModal({
       </div>
 
       {loading ? (
-        // 중앙 로딩 — 진행률(추정) 막대 + 안내 + 실시간 추론(있으면).
+        // 중앙 로딩 — 소요시간을 알 수 없는 단일 호출이라 가짜 %(기만) 대신 부정형 애니메이션 막대.
         <div className="flex flex-col items-center justify-center gap-4 px-8 py-16 text-center">
           <IconSparkles size={30} stroke={1.6} className={`text-amber-500 ${reduced ? "" : "animate-pulse"}`} aria-hidden />
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t("mem.dedupScanning")}</p>
-          <div className="w-full max-w-xs">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-              <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300 ease-out" style={{ width: `${Math.round(pct)}%` }} />
-            </div>
-            <p className="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">{Math.round(pct)}%</p>
+          <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
+            <span className="bg-amber-500" />
           </div>
-          {thinking && (
-            <p className="max-h-24 max-w-md overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">
-              {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
-            </p>
-          )}
         </div>
       ) : groups.length === 0 ? (
         // 중복 없음.
@@ -278,22 +263,28 @@ export default function CardDedupModal({
                             <img src={SYMBOL} alt="" className="h-5 w-5 object-contain" />
                             <span className="line-clamp-3 text-[11px] font-bold leading-tight text-zinc-900">{c.front}</span>
                           </div>
-                          {/* 카드 클릭 = 삭제 대상 토글 */}
+                          {/* 카드 아무데나 클릭 = 삭제 대상 토글 */}
                           <button
                             type="button"
                             aria-label={c.front}
                             aria-pressed={del}
-                            onClick={() => toggleDelete(c.key)}
+                            onClick={() => toggleDelete(c.key, g)}
                             className="absolute inset-0 z-10 cursor-pointer rounded-2xl"
                           />
                           {/* 삭제 대상이면 붉은 뮤트 */}
                           {del && <span className="pointer-events-none absolute inset-0 z-20 rounded-2xl bg-rose-900/40" />}
-                          {/* 우상단 상태 배지 — 유지/삭제 */}
-                          <span className={`pointer-events-none absolute right-1.5 top-1.5 z-30 rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
-                            del ? "bg-rose-500 text-white" : "bg-white/85 text-zinc-500"
-                          }`}>
-                            {del ? t("mem.dedupDeleteBadge") : t("mem.dedupKeepBadge")}
-                          </span>
+                          {/* 우상단 삭제 선택 동그라미(명시적 어포던스) — 누르면 삭제 대상 토글 */}
+                          <button
+                            type="button"
+                            aria-label={del ? t("mem.dedupDeleteBadge") : t("mem.dedupKeepBadge")}
+                            aria-pressed={del}
+                            onClick={() => toggleDelete(c.key, g)}
+                            className={`absolute right-1.5 top-1.5 z-30 flex h-6 w-6 items-center justify-center rounded-full border-2 shadow-sm transition ${
+                              del ? "border-rose-500 bg-rose-500 text-white" : "border-zinc-300 bg-white/90 text-transparent hover:border-rose-400"
+                            }`}
+                          >
+                            <IconTrash size={12} stroke={2.5} aria-hidden />
+                          </button>
                           {/* 호버 시 상세 보기(카드 날리기) */}
                           <button
                             type="button"

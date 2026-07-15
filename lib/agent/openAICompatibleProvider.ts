@@ -102,7 +102,8 @@ function normalizeOpenAICompatibleResponse(
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
   // 챗은 자유 텍스트, 글 모드는 텍스트 정규화, explain-token/concept는 각 1개.
-  if (request.mode === "chat") {
+  // 중복묶기(dedup-cards)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
+  if (request.mode === "chat" || request.mode === "dedup-cards") {
     return normalizeChatOutput(content, "openai-compatible");
   }
   if (request.mode === "explain-concept") {
@@ -355,6 +356,13 @@ function buildOpenAICompatibleMessages(
     return [
       { role: "system", content: chatSystemPrompt(request.locale) },
       { role: "user", content: buildChatPrompt(request) },
+    ];
+  }
+  // 중복묶기: 요청 code에 규칙+카드목록이 완성돼 있음. 블록만 내라는 경량 시스템.
+  if (request.mode === "dedup-cards") {
+    return [
+      { role: "system", content: "You group duplicate flashcards. Output ONLY the requested ```card-dedup fenced block and nothing else." },
+      { role: "user", content: request.code },
     ];
   }
   // explain-concept: 개념 1개 설명 프롬프트.
