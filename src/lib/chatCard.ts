@@ -2,7 +2,7 @@
 // kind: token(토큰 사전) | concept(개념 사전) | term(IT용어 사전) — 저장하면 사전·암기 덱·갤러리에 자동 노출.
 import {
   saveTokenDetail, saveConceptDetail, saveTermDetail,
-  loadTokenDetails, loadConceptDetails, loadTermDetails,
+  tokenExistsNormalized, conceptExistsNormalized, termExistsNormalized,
   type SourceExtra,
 } from "./bookmarkDetails";
 import type { SuggestKind } from "./cardSuggestion";
@@ -24,21 +24,22 @@ export function createChatCard(
 ): boolean {
   const t = term.trim();
   if (!t) return false;
+  // 중복 검사는 정규화 매칭(#511) — 표기/공백/대소문자 변형이면 같은 소스에 이미 있는 걸로 보고 스킵.
   if (kind === "token") {
-    if (loadTokenDetails()[t]) return false;
+    if (tokenExistsNormalized(t)) return false;
     // 챗 생성 토큰 — 최소 필드(category는 기본 keyword). collectCards는 token/description만 사용.
     saveTokenDetail({ id: `chat:${t}`, token: t, category: "keyword", label: t, description: definition, lines: [], bookmarkable: true }, sourceTitle, sourceId, extra);
     notifyCardsChanged();
     return true;
   }
   if (kind === "term") {
-    if (loadTermDetails()[t]) return false;
+    if (termExistsNormalized(t)) return false;
     saveTermDetail({ id: `chat:${t}`, term: t, explanation: definition, conceptIds: [], bookmarkable: true }, sourceTitle, sourceId, extra);
     notifyCardsChanged();
     return true;
   }
   // concept — 키 = title.
-  if (loadConceptDetails()[t]) return false;
+  if (conceptExistsNormalized(t)) return false;
   saveConceptDetail({ conceptId: `chat:${t}`, title: t, description: definition }, sourceTitle, sourceId, extra);
   notifyCardsChanged();
   return true;
