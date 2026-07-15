@@ -39,21 +39,20 @@ function candidatesOf(t: ItTerm): string[] {
 
 export function highlightTerms(code: string, terms: ItTerm[]): TextSegment[] {
   // (후보텍스트, termId) 목록. 긴 후보 우선(짧은 게 긴 걸 가로채지 않게).
-  const cands: { text: string; id: string; ascii: boolean }[] = [];
+  const cands: { text: string; lower: string; id: string; ascii: boolean }[] = [];
   const seen = new Set<string>();
   for (const t of terms) {
     for (const c of candidatesOf(t)) {
       const key = c.toLowerCase();
       if (seen.has(key)) continue; // 같은 후보 텍스트는 한 번만(첫 용어에 귀속)
       seen.add(key);
-      cands.push({ text: c, id: t.id, ascii: isAsciiTerm(c) });
+      cands.push({ text: c, lower: key, id: t.id, ascii: isAsciiTerm(c) });
     }
   }
   cands.sort((a, b) => b.text.length - a.text.length);
 
   if (cands.length === 0) return code ? [{ text: code }] : [];
 
-  const lower = code.toLowerCase(); // 대소문자 무시 매칭용(표시는 원본 code).
   const segments: TextSegment[] = [];
   let plainStart = 0;
   let i = 0;
@@ -66,7 +65,9 @@ export function highlightTerms(code: string, terms: ItTerm[]): TextSegment[] {
     let matched: { id: string; len: number } | null = null;
     for (const c of cands) {
       const len = c.text.length;
-      if (lower.startsWith(c.text.toLowerCase(), i)) {
+      // 대소문자 무시 비교는 원본 code의 조각만 소문자화해서 한다(전체 code.toLowerCase()는
+      // 일부 유니코드에서 길이가 바뀌어 인덱스가 어긋날 수 있음 — 인덱스는 항상 code 기준).
+      if (code.slice(i, i + len).toLowerCase() === c.lower) {
         if (c.ascii) {
           // ASCII 후보는 양옆이 영숫자가 아니어야 한다(단어 경계). 한글 조사 등은 경계로 인정.
           const before = i > 0 ? code[i - 1] : undefined;
