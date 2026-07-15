@@ -210,7 +210,7 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
-      if (request.mode === "chat") {
+      if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
         return chatModeResponse("openai-compatible", `엔드포인트 오류(HTTP ${res.status}).`, [{ code: "PARSE_FAILED", message: httpMsg }]);
       }
       if (request.mode === "explain-concept") {
@@ -272,8 +272,8 @@ async function fetchOpenAICompatibleResponse(
           const delta = chunk.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta) {
             content += delta;
-            // 챗은 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
-            onProgress?.(request.mode === "chat" ? content : content.slice(-200));
+            // 챗·덱에이전트는 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
+            onProgress?.(request.mode === "chat" || request.mode === "deck-agent" ? content : content.slice(-200));
           }
           const rdelta = chunk.choices?.[0]?.delta?.reasoning_content;
           if (typeof rdelta === "string" && rdelta) {
@@ -305,7 +305,7 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
-    if (request.mode === "chat") {
+    if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
       return chatModeResponse("openai-compatible", "엔드포인트에 연결하지 못했다.", [{ code: "PARSE_FAILED", message: netMsg }]);
     }
     if (request.mode === "explain-concept") {
