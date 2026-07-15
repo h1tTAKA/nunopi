@@ -24,6 +24,7 @@ import {
   backfillTokenSource,
   backfillTermSource,
   backfillConceptSource,
+  bookmarkedTermExists,
 } from "@/lib/bookmarkDetails";
 import type { CodeToken, ConceptOccurrence, ItConcept, ItTerm } from "@/lib/translator/types";
 import AnalysisHistory from "@/components/translator/AnalysisHistory";
@@ -429,6 +430,11 @@ export default function LearningPanel({
 
     // 별 켜기 — 카드가 없으면 새로 만든다(설명 없으면 먼저 받아 붙임). 이미 있으면 별만.
     const hasCard = !!loadTokenDetails()[tokenText];
+    // 이미 카드로 있으면(표기 변형·다른 소스 포함, 크로스소스 #511) 새로 안 만들고 안내만.
+    if (!hasCard && bookmarkedTermExists(tokenText)) {
+      toast(t("card.exists"));
+      return;
+    }
     if (!hasCard) {
       let toSave = token;
       if (!token.description && onTokenExplain) {
@@ -447,6 +453,7 @@ export default function LearningPanel({
   // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
   function handleTermBookmarkToggle(term: ItTerm) {
     const isAdding = !bookmarkedTermDetails[term.term];
+    if (isAdding && bookmarkedTermExists(term.term)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
     if (isAdding) saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTermDetail(term.term);
     const next = loadTermDetails();
@@ -464,6 +471,7 @@ export default function LearningPanel({
       bookmarkable: true,
     };
     const isAdding = !bookmarkedTermDetails[concept.title];
+    if (isAdding && bookmarkedTermExists(concept.title)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
     if (isAdding) saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
     else removeTermDetail(concept.title);
     const next = loadTermDetails();
@@ -484,6 +492,7 @@ export default function LearningPanel({
   // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
   function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
     const isAdding = !bookmarkedConceptDetails[concept.title];
+    if (isAdding && bookmarkedTermExists(concept.title)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
     if (isAdding) saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
     else removeConceptDetail(concept.title);
     setBookmarkedConceptDetails(loadConceptDetails());

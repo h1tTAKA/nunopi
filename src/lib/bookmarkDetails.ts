@@ -144,12 +144,33 @@ export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
 }
 
-// 이미 북마크(카드)로 존재하는 용어인지 — store 3종 아무 데나 있으면 true.
-// 챗 카드 제안 칩에서 "이미 있는 카드"는 다시 제안 안 하도록 필터링용.
+// 카드 중복 검사용 정규화(#511): 소문자 + 괄호 `(...)` 안 내용 제거 + 공백 전부 제거.
+// 표기/공백/대소문자 + 괄호 영문표기 차이를 흡수한다. 예: "컴파일 (Compile)"·"컴파일(Compile)"
+// ·"컴파일" → 모두 "컴파일"(중복). "컴파일러(Compiler)" → "컴파일러"(다른 단어라 별개).
+export function normalizeCardFront(s: string): string {
+  return s.trim().toLowerCase().replace(/\([^)]*\)/g, "").replace(/\s+/g, "");
+}
+
+// 주어진 store에 front와 정규화상 같은 카드가 이미 있는지(소스별 중복 검사).
+function existsNormalized(load: () => Record<string, unknown>, front: string): boolean {
+  const n = normalizeCardFront(front);
+  if (!n) return false;
+  return Object.keys(load()).some((k) => normalizeCardFront(k) === n);
+}
+export function tokenExistsNormalized(front: string): boolean {
+  return existsNormalized(loadTokenDetails, front);
+}
+export function conceptExistsNormalized(front: string): boolean {
+  return existsNormalized(loadConceptDetails, front);
+}
+export function termExistsNormalized(front: string): boolean {
+  return existsNormalized(loadTermDetails, front);
+}
+
+// 이미 북마크(카드)로 존재하는 용어인지 — store 3종 아무 데나 있으면 true(정규화 매칭).
+// 챗 카드 제안 칩에서 "이미 있는 카드"(표기 변형 포함)는 다시 제안 안 하도록 필터링용.
 export function bookmarkedTermExists(term: string): boolean {
-  const t = term.trim();
-  if (!t) return false;
-  return !!(loadTokenDetails()[t] || loadConceptDetails()[t] || loadTermDetails()[t]);
+  return tokenExistsNormalized(term) || conceptExistsNormalized(term) || termExistsNormalized(term);
 }
 
 // --- 출처 소급 채움 ---

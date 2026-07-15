@@ -831,15 +831,17 @@ export default function Home() {
   }
 
   // 챗 카드 제안 칩 — 추가(위치 기준 store 저장) / 거절. 둘 다 그 메시지에서 블록 제거(칩 사라짐).
-  function handleChatCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
+  // 반환: 카드를 실제로 새로 만들었으면 true, 중복이라 스킵했으면 false(칩 토스트 분기용 #511).
+  function handleChatCardAction(messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }): boolean {
     const sid = activeSessionIdResolved;
-    if (!sid) return;
+    if (!sid) return false;
+    let created = false;
     if (action.add) {
       // 분류는 에이전트가 판단한 kind 우선(용어 자체 성격) — 없으면 위치 기본값(코드=개념/글=IT용어).
       const kind = action.add.kind ?? (mode === "text" ? "term" : "concept");
       const title = historyEntries.find((e) => e.id === currentHistoryId)?.title
         ?? (analysisResult ? generateAutoTitle(analysisResult, code) : undefined);
-      createChatCard(kind, action.add.term, action.add.definition, title, currentHistoryId ?? undefined, { kind: "analysis", sessionId: sid });
+      created = createChatCard(kind, action.add.term, action.add.definition, title, currentHistoryId ?? undefined, { kind: "analysis", sessionId: sid });
       setMemorizeDue(deckStats("all", new Date()).due); // 암기 배지 갱신
     }
     const addedTerm = action.add?.term;
@@ -854,6 +856,7 @@ export default function Home() {
         ),
       };
     }));
+    return created;
   }
 
   // 새 세션 추가 → 그 세션을 활성으로.

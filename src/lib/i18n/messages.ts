@@ -59,6 +59,7 @@ const ko: Dict = {
   "ask.toggleCards": "카드 목록",
   "ask.sourceDeleted": "출처가 삭제되어 이동할 수 없어요.",
   "card.added": "'{term}' 카드가 추가되었어요. 갤러리에서 확인할 수 있어요.",
+  "card.exists": "이미 있는 카드예요.",
   "card.deleted": "'{term}' 카드를 삭제했어요.",
   "chat.mdCopied": "마크다운으로 복사됐어요.",
   "mem.comingSoon": "암기 카드 곧 제공됩니다.",
@@ -310,6 +311,7 @@ const ko: Dict = {
   "chat.copyMd": "MD 복사",
   "chat.clear": "초기화",
   "chat.saveAsCard": "카드로 추가",
+  "chat.cardExists": "이미 있음",
   "chat.noThanks": "아니오",
 
   "confirm.cancel": "취소",
@@ -494,6 +496,7 @@ const ja: Dict = {
   "ask.toggleCards": "カード一覧",
   "ask.sourceDeleted": "出典が削除されて移動できません。",
   "card.added": "「{term}」カードを追加しました。ギャラリーで確認できます。",
+  "card.exists": "すでに存在するカードです。",
   "card.deleted": "「{term}」カードを削除しました。",
   "chat.mdCopied": "マークダウンでコピーしました。",
   "mem.comingSoon": "暗記カードは近日公開。",
@@ -745,6 +748,7 @@ const ja: Dict = {
   "chat.copyMd": "MDコピー",
   "chat.clear": "リセット",
   "chat.saveAsCard": "カードに追加",
+  "chat.cardExists": "既にあり",
   "chat.noThanks": "いいえ",
 
   "confirm.cancel": "キャンセル",
@@ -929,6 +933,7 @@ const en: Dict = {
   "ask.toggleCards": "Cards",
   "ask.sourceDeleted": "The source was deleted — can't navigate.",
   "card.added": "Added '{term}' to your cards. Find it in the gallery.",
+  "card.exists": "This card already exists.",
   "card.deleted": "Deleted the '{term}' card.",
   "chat.mdCopied": "Copied as Markdown.",
   "mem.comingSoon": "Flashcards coming soon.",
@@ -1180,6 +1185,7 @@ const en: Dict = {
   "chat.copyMd": "Copy MD",
   "chat.clear": "Reset",
   "chat.saveAsCard": "Save as card",
+  "chat.cardExists": "Already saved",
   "chat.noThanks": "No",
 
   "confirm.cancel": "Cancel",
