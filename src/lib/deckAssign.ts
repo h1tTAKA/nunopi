@@ -12,7 +12,7 @@ export interface DeckAssign {
 // 보유 카드 + 기존 덱 목록 + 규칙 → chat의 code(맥락) 슬롯.
 export function buildDeckAssignContext(cards: Card[], existingDecks: ExistingDeck[]): string {
   const list = cards
-    .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 120)}`)
+    .map((c) => `${c.key} | ${c.front} | ${(c.back ?? "").replace(/\s+/g, " ").slice(0, 40)}`)
     .join("\n");
   const deckLines = existingDecks.length > 0
     ? existingDecks.map((d) => `- ${d.name} (${d.cardKeys.length}장): ${d.cardKeys.join(", ")}`).join("\n")

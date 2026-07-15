@@ -6,7 +6,7 @@ import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";
 import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse } from "./tokenMode";
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
-import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse } from "./chatMode";
+import { chatSystemPrompt, buildChatPrompt, normalizeChatOutput, chatModeResponse, deckAgentSystemPrompt, buildDeckAgentPrompt } from "./chatMode";
 import { codeChunkDirectives } from "./codeChunkPrompt";
 
 interface OpenAICompatibleConfig {
@@ -102,8 +102,8 @@ function normalizeOpenAICompatibleResponse(
   const content = extractOpenAICompatibleContent(rawResponse) ?? rawResponse;
 
   // 챗은 자유 텍스트, 글 모드는 텍스트 정규화, explain-token/concept는 각 1개.
-  // 중복묶기(dedup-cards)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
-  if (request.mode === "chat" || request.mode === "dedup-cards") {
+  // 중복묶기(dedup-cards)·덱에이전트(deck-agent)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
+  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
     return normalizeChatOutput(content, "openai-compatible");
   }
   if (request.mode === "explain-concept") {
@@ -210,7 +210,7 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
-      if (request.mode === "chat") {
+      if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
         return chatModeResponse("openai-compatible", `엔드포인트 오류(HTTP ${res.status}).`, [{ code: "PARSE_FAILED", message: httpMsg }]);
       }
       if (request.mode === "explain-concept") {
@@ -272,8 +272,8 @@ async function fetchOpenAICompatibleResponse(
           const delta = chunk.choices?.[0]?.delta?.content;
           if (typeof delta === "string" && delta) {
             content += delta;
-            // 챗은 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
-            onProgress?.(request.mode === "chat" ? content : content.slice(-200));
+            // 챗·덱에이전트는 전체 누적(실시간 타이핑), 그 외는 진행 라벨용 끝 200자.
+            onProgress?.(request.mode === "chat" || request.mode === "deck-agent" ? content : content.slice(-200));
           }
           const rdelta = chunk.choices?.[0]?.delta?.reasoning_content;
           if (typeof rdelta === "string" && rdelta) {
@@ -305,7 +305,7 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
-    if (request.mode === "chat") {
+    if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
       return chatModeResponse("openai-compatible", "엔드포인트에 연결하지 못했다.", [{ code: "PARSE_FAILED", message: netMsg }]);
     }
     if (request.mode === "explain-concept") {
@@ -363,6 +363,13 @@ function buildOpenAICompatibleMessages(
     return [
       { role: "system", content: "You group duplicate flashcards. Output ONLY the requested ```card-dedup fenced block and nothing else." },
       { role: "user", content: request.code },
+    ];
+  }
+  // 덱 에이전트: 대화형 + 필요 시 컨텍스트가 지정한 블록. nunopi-cards 없음.
+  if (request.mode === "deck-agent") {
+    return [
+      { role: "system", content: deckAgentSystemPrompt(request.locale) },
+      { role: "user", content: buildDeckAgentPrompt(request) },
     ];
   }
   // explain-concept: 개념 1개 설명 프롬프트.

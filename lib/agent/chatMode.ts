@@ -52,6 +52,33 @@ export function buildChatPrompt(request: AgentAnalyzeRequest): string {
   ].join("\n");
 }
 
+// 덱 정리(생성/분류) 전용 시스템 프롬프트 — 챗과 달리 카드 제안(nunopi-cards) 없이,
+// 간결한 대화 + 필요 시 컨텍스트가 지정한 펜스 블록만 낸다. 저추론(effort low)과 함께 씀.
+export function deckAgentSystemPrompt(locale: AgentAnalyzeRequest["locale"]): string {
+  const name = LANG_NAME[locale] ?? "Korean";
+  return `You are Nunopi, a helper that organizes a learner's flashcards into decks. Reply briefly in ${name} (plain text / light markdown). When the user actually wants to build or sort decks, output the fenced block EXACTLY as the context specifies — nothing else extra. Do not propose flashcards or add unrelated content.`;
+}
+
+// 덱 에이전트 프롬프트 — code 슬롯엔 이미 카드 목록 + 블록 형식 규칙(deckSelect/deckAssign 컨텍스트)이 들어 있다.
+// buildChatPrompt와 달리 nunopi-cards 블록 지시를 붙이지 않는다(불필요 출력·지연 제거).
+export function buildDeckAgentPrompt(request: AgentAnalyzeRequest): string {
+  const name = LANG_NAME[request.locale] ?? "Korean";
+  const transcript = (request.messages ?? [])
+    .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+    .join("\n");
+  return [
+    deckAgentSystemPrompt(request.locale),
+    "",
+    request.code, // 카드 목록 + 블록 형식 규칙(컨텍스트)
+    "",
+    "Conversation:",
+    transcript,
+    "",
+    `Reply to the user's last message in ${name}. Be concise. Output the fenced block ONLY when actually building/sorting decks (exactly as the context above specifies).`,
+    "Assistant:",
+  ].join("\n");
+}
+
 // 자유 텍스트 답을 summary에 담은 응답으로 정규화.
 export function normalizeChatOutput(
   rawText: string,

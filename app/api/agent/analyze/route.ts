@@ -243,7 +243,8 @@ function isValidAnalyzeRequestPayload(
     value.mode !== "explain-concept" &&
     value.mode !== "chat" &&
     value.mode !== "explain-card" &&
-    value.mode !== "dedup-cards"
+    value.mode !== "dedup-cards" &&
+    value.mode !== "deck-agent"
   ) {
     return false;
   }

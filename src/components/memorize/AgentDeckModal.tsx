@@ -9,6 +9,7 @@ import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type Custom
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { cardFrame } from "@/lib/srs/cardFrame";
+import { useToast } from "@/components/ui/Toast";
 import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -48,6 +49,7 @@ export default function AgentDeckModal({
   const t = useT();
   const { locale } = useLocale();
   const { throwCard } = useFlyCard();
+  const toast = useToast();
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now]);
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
@@ -115,7 +117,7 @@ export default function AgentDeckModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           providerId,
-          request: { code: context, locale, providerId, mode: "chat", messages: thread, providerSettings },
+          request: { code: context, locale, providerId, mode: "deck-agent", messages: thread, providerSettings },
         }),
         signal: ac.signal,
       });
@@ -191,12 +193,16 @@ export default function AgentDeckModal({
   function addChecked() {
     if (!canAdd) return;
     const goal = messages.find((m) => m.role === "user")?.content;
+    const added: string[] = [];
     for (const d of decks) {
       if (!d.checked) continue;
       const keys = d.cards.filter((c) => !d.excluded.has(c.key)).map((c) => c.key);
       if (keys.length === 0) continue;
-      addCustomDeck(d.name || t("mem.agentDeckTitle"), keys, goal);
+      const name = d.name || t("mem.agentDeckTitle");
+      addCustomDeck(name, keys, goal);
+      added.push(name);
     }
+    if (added.length > 0) toast(t("mem.deckAddedToast").replace("{decks}", added.join(", ")));
     onCreated();
   }
 
@@ -215,7 +221,16 @@ export default function AgentDeckModal({
           {totalCards > 0 && <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</span>}
         </div>
         <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
-          {decks.length === 0 ? (
+          {loading && decks.length === 0 ? (
+            // 제안 생성 중 — 답변 뒤 덱 파싱까지 빈 화면 안 뜨게 진행 표시(부정형 막대 + 안내).
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+              <IconSparkles size={28} stroke={1.6} className={`text-[#3B34E2] dark:text-[#8b86f5] ${reduced ? "" : "animate-pulse"}`} aria-hidden />
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{t("mem.deckBuilding")}</p>
+              <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <span className="bg-[#3B34E2]" />
+              </div>
+            </div>
+          ) : decks.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">
               {t("mem.agentDeckEmpty")}
             </div>

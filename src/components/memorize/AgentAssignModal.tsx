@@ -133,7 +133,7 @@ export default function AgentAssignModal({
       const res = await fetch("/api/agent/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId, request: { code: context, locale, providerId, mode: "chat", messages: thread, providerSettings } }),
+        body: JSON.stringify({ providerId, request: { code: context, locale, providerId, mode: "deck-agent", messages: thread, providerSettings } }),
         signal: ac.signal,
       });
       let answer = "";
