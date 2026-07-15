@@ -28,7 +28,8 @@ interface ChatRoomProps {
   onDeleteSession?: (id: string) => void;
   // 카드 제안 칩 액션 — 어시스턴트 답변의 nunopi-cards 블록에서 파생. 없으면 칩 미노출.
   // messageIndex는 messages 배열 인덱스. add=그 카드 생성, dismiss=블록 거절.
-  onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
+  // 반환: add 시 새로 만들었으면 true, 중복 스킵이면 false(칩 토스트 분기 #511). dismiss/미지정은 무관.
+  onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void | boolean;
   large?: boolean; // 확대 컨텍스트(카드 설명 크게 보기) — 메시지 글씨 확대.
 }
 
@@ -218,7 +219,7 @@ export default function ChatRoom({ messages, streaming, isLoading, disabled, mod
                     <button
                       key={c.term}
                       type="button"
-                      onClick={() => { onCardAction(i, { add: c }); toast(t("card.added", { term: c.term })); }}
+                      onClick={() => { const ok = onCardAction(i, { add: c }); toast(ok === false ? t("card.exists") : t("card.added", { term: c.term })); }}
                       className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
                     >
                       <IconPlus size={12} stroke={2.5} aria-hidden />

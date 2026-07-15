@@ -18,7 +18,8 @@ interface AskChatProps {
   streaming?: string | null;
   isLoading: boolean;
   onSend: (text: string) => void;
-  onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void;
+  // 반환: add 시 새로 만들었으면 true, 중복 스킵이면 false(칩 토스트 분기 #511).
+  onCardAction?: (messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) => void | boolean;
   // 분할 타일 모드(이슈4) — 여러 질문을 나란히 표시.
   tiled?: boolean; // 타일 테두리 표시.
   focused?: boolean; // 포커스 타일 강조.
@@ -225,7 +226,7 @@ export default function AskChat({
                         <button
                           key={c.term}
                           type="button"
-                          onClick={() => { onCardAction(i, { add: c }); toast(t("card.added", { term: c.term })); }}
+                          onClick={() => { const ok = onCardAction(i, { add: c }); toast(ok === false ? t("card.exists") : t("card.added", { term: c.term })); }}
                           className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
                         >
                           <IconPlus size={12} stroke={2.5} aria-hidden />

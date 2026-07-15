@@ -581,14 +581,16 @@ export default function AskView({ active = true, providerId, providerSettings, g
   // ── 챗 조작(질문 subId 지목 — 타일별 독립) ─────────────
 
   // 카드 제안 칩 — 답에서 나온 용어를 카드로 저장(출처=세션명). 저장 후 해당 블록 제거.
-  function handleCardActionSub(subId: string, messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }) {
+  // 반환: 새로 만들었으면 true, 중복 스킵이면 false(칩 토스트 분기 #511).
+  function handleCardActionSub(subId: string, messageIndex: number, action: { add?: SuggestedCard; dismiss?: boolean }): boolean {
     const prev = storeRef.current;
     const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
-    if (!session) return;
+    if (!session) return false;
+    let created = false;
     if (action.add) {
       // 출처 = 폴더/세션/질문 브레드크럼(표시용) + kind/sessionId/subId(출처 이동용).
       const source = cardSourceLabel(session, subId);
-      createChatCard(action.add.kind ?? "term", action.add.term, action.add.definition, source, undefined, {
+      created = createChatCard(action.add.kind ?? "term", action.add.term, action.add.definition, source, undefined, {
         kind: "ask",
         sessionId: session.id,
         subId,
@@ -603,6 +605,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
           : m,
       ),
     );
+    return created;
   }
 
   // 같은 세션(+폴더 서브트리) 다른 질문 대화를 에이전트 참조용 다이제스트로 조립.
