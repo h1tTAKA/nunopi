@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { useT } from "@/lib/i18n/I18nProvider";
@@ -213,26 +213,38 @@ export default function AskChat({
                 );
               }
               // 어시스턴트 — 버블 없이 폭 전체. nunopi-cards 블록은 칩으로.
+              // 이미 카드인 용어도 칩은 띄우되 "이미 담김" 상태로 표시(#511).
               const { text, cards } = parseCardSuggestions(m.content);
-              const freshCards = cards.filter((c) => !bookmarkedTermExists(c.term));
               return (
                 <div key={i} className="flex flex-col items-start gap-2">
                   <div className="w-full select-text text-zinc-800 dark:text-zinc-100">
                     <Markdown className="nunopi-md-lg">{text}</Markdown>
                   </div>
-                  {onCardAction && freshCards.length > 0 && (
+                  {onCardAction && cards.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {freshCards.map((c) => (
-                        <button
-                          key={c.term}
-                          type="button"
-                          onClick={() => { const ok = onCardAction(i, { add: c }); toast(ok === false ? t("card.exists") : t("card.added", { term: c.term })); }}
-                          className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
-                        >
-                          <IconPlus size={12} stroke={2.5} aria-hidden />
-                          {c.term} {t("chat.saveAsCard")}
-                        </button>
-                      ))}
+                      {cards.map((c) =>
+                        bookmarkedTermExists(c.term) ? (
+                          <button
+                            key={c.term}
+                            type="button"
+                            onClick={() => toast(t("card.exists"))}
+                            className="inline-flex items-center gap-1 rounded-full bg-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-500 transition hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-600"
+                          >
+                            <IconCheck size={12} stroke={2.5} aria-hidden />
+                            {c.term} {t("chat.cardExists")}
+                          </button>
+                        ) : (
+                          <button
+                            key={c.term}
+                            type="button"
+                            onClick={() => { const ok = onCardAction(i, { add: c }); toast(ok === false ? t("card.exists") : t("card.added", { term: c.term })); }}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#3B34E2] px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-[#322bc9]"
+                          >
+                            <IconPlus size={12} stroke={2.5} aria-hidden />
+                            {c.term} {t("chat.saveAsCard")}
+                          </button>
+                        ),
+                      )}
                       <button
                         type="button"
                         onClick={() => onCardAction(i, { dismiss: true })}

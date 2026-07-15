@@ -311,6 +311,7 @@ const ko: Dict = {
   "chat.copyMd": "MD 복사",
   "chat.clear": "초기화",
   "chat.saveAsCard": "카드로 추가",
+  "chat.cardExists": "이미 있음",
   "chat.noThanks": "아니오",
 
   "confirm.cancel": "취소",
@@ -747,6 +748,7 @@ const ja: Dict = {
   "chat.copyMd": "MDコピー",
   "chat.clear": "リセット",
   "chat.saveAsCard": "カードに追加",
+  "chat.cardExists": "既にあり",
   "chat.noThanks": "いいえ",
 
   "confirm.cancel": "キャンセル",
@@ -1183,6 +1185,7 @@ const en: Dict = {
   "chat.copyMd": "Copy MD",
   "chat.clear": "Reset",
   "chat.saveAsCard": "Save as card",
+  "chat.cardExists": "Already saved",
   "chat.noThanks": "No",
 
   "confirm.cancel": "Cancel",
