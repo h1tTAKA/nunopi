@@ -48,6 +48,8 @@ import { reanchorLineNumbers, remapLines } from "@/lib/reanchorLines";
 import { formatDuration } from "@/lib/formatDuration";
 
 const BOOKMARKS_KEY = "nunopi:bookmark-tokens";
+const TERM_BOOKMARKS_KEY = "nunopi:bookmark-terms";
+const CONCEPT_BOOKMARKS_KEY = "nunopi:bookmark-concepts";
 
 type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -237,12 +239,13 @@ export default function LearningPanel({
   const [expandedConceptIds, setExpandedConceptIds] = useState<string[]>([]);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
-  // 글 모드 IT 용어 북마크 — details만 보관하고 texts는 키에서 파생한다.
+  // 글 모드 IT 용어 북마크 — detail(카드)과 별(즐겨찾기 flag)을 분리(#519, 토큰과 동일).
+  // texts = 별 flag(localStorage TERM_BOOKMARKS_KEY). 별 꺼도 detail(카드)은 유지.
   const [bookmarkedTermDetails, setBookmarkedTermDetails] = useState<Record<string, BookmarkedTermDetail>>({});
-  const bookmarkedTermTexts = useMemo(() => Object.keys(bookmarkedTermDetails), [bookmarkedTermDetails]);
-  // 개념 북마크 — 키 = 개념 title.
+  const [bookmarkedTermTexts, setBookmarkedTermTexts] = useState<string[]>([]);
+  // 개념 북마크 — 키 = 개념 title. detail/별 분리.
   const [bookmarkedConceptDetails, setBookmarkedConceptDetails] = useState<Record<string, BookmarkedConceptDetail>>({});
-  const bookmarkedConceptTitles = useMemo(() => Object.keys(bookmarkedConceptDetails), [bookmarkedConceptDetails]);
+  const [bookmarkedConceptTitles, setBookmarkedConceptTitles] = useState<string[]>([]);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [copied, setCopied] = useState(false);
   const [headerEditing, setHeaderEditing] = useState(false);
@@ -311,32 +314,42 @@ export default function LearningPanel({
   }
 
   useEffect(() => {
+    // 별 flag 로드. term/concept은 flag store가 없던 시절 카드가 있을 수 있어(마이그레이션),
+    // 저장된 flag가 없으면(null) 기존 detail 키로 시드한다(기존 카드는 별 켜진 채 시작).
+    const loadFlags = (key: string, detailKeys: string[]): string[] => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) return JSON.parse(raw) as string[];
+      } catch { /* ignore */ }
+      return detailKeys;
+    };
     try {
       const raw = localStorage.getItem(BOOKMARKS_KEY);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setBookmarkedTokenTexts(JSON.parse(raw) as string[]);
     } catch { /* ignore */ }
+    const td = loadTokenDetails();
+    const rd = loadTermDetails();
+    const cd = loadConceptDetails();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBookmarkedTokenDetails(loadTokenDetails());
+    setBookmarkedTokenDetails(td);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBookmarkedTermDetails(loadTermDetails());
+    setBookmarkedTermDetails(rd);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBookmarkedConceptDetails(loadConceptDetails());
+    setBookmarkedConceptDetails(cd);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedTermTexts(loadFlags(TERM_BOOKMARKS_KEY, Object.keys(rd)));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBookmarkedConceptTitles(loadFlags(CONCEPT_BOOKMARKS_KEY, Object.keys(cd)));
   }, []);
 
-  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 카드(detail) 표시를 갱신하고,
-  // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
-  // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
   useEffect(() => {
+    // 카드가 밖에서 바뀌면 detail(카드) 표시만 갱신한다. 별(북마크)은 건드리지 않는다 — 별과
+    // 카드는 양방향으로 완전 분리(#519): 별을 꺼도 카드 유지, 카드를 지워도 별 유지.
     const refresh = () => {
-      const details = loadTokenDetails();
-      setBookmarkedTokenDetails(details);
-      setBookmarkedTokenTexts((prev) => {
-        const next = prev.filter((tokenText) => details[tokenText]); // 카드 없어진 별 제거
-        if (next.length === prev.length) return prev;
-        try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
-        return next;
-      });
+      setBookmarkedTokenDetails(loadTokenDetails());
+      setBookmarkedTermDetails(loadTermDetails());
+      setBookmarkedConceptDetails(loadConceptDetails());
     };
     window.addEventListener(CARDS_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
@@ -408,7 +421,7 @@ export default function LearningPanel({
   }, [result, currentHistoryTitle, currentHistoryId]);
 
   // 별(즐겨찾기) 토글. 별과 카드는 분리한다(#509): 별을 켜면 카드가 없을 때만 새로 만들고,
-  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별 ⊆ 카드.
+  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별↔카드 완전 분리(#519).
   async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
     const isStarred = bookmarkedTokenTexts.includes(tokenText);
@@ -427,56 +440,58 @@ export default function LearningPanel({
       setStar(false);
       return;
     }
-
-    // 별 켜기 — 카드가 없으면 새로 만든다(설명 없으면 먼저 받아 붙임). 이미 있으면 별만.
-    const hasCard = !!loadTokenDetails()[tokenText];
-    // 이미 카드로 있으면(표기 변형·다른 소스 포함, 크로스소스 #511) 새로 안 만들고 안내만.
-    if (!hasCard && bookmarkedTermExists(tokenText)) {
-      toast(t("card.exists"));
+    // 별 켜기 — 카드가 이미 있으면(자기/크로스소스 #511) 생성은 안 하되 북마크(별)는 켜고 안내(#519).
+    if (bookmarkedTermExists(tokenText)) {
+      setStar(true);
+      toast(t("card.existsBookmarked"));
       return;
     }
-    if (!hasCard) {
-      let toSave = token;
-      if (!token.description && onTokenExplain) {
-        const meaning = await onTokenExplain(tokenText);
-        if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
-      }
-      saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
-      setBookmarkedTokenDetails(loadTokenDetails());
-      // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
-      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-      toast(t("card.added", { term: tokenText }));
+    // 카드 없음 → 새로 만든다(설명 없으면 먼저 받아 붙임) + 별.
+    let toSave = token;
+    if (!token.description && onTokenExplain) {
+      const meaning = await onTokenExplain(tokenText);
+      if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
     }
+    saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTokenDetails(loadTokenDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: tokenText }));
     setStar(true);
   }
 
-  // 글 모드 IT 용어 북마크 토글 — details(키=term)만 갱신, texts는 파생.
+  // 용어 별 flag 토글. 별 OFF는 flag만, 카드(detail) 유지(별↔카드 분리). term/it-concept 공유.
+  const setTermStar = (key: string, on: boolean) =>
+    setBookmarkedTermTexts((prev) => {
+      const next = on ? (prev.includes(key) ? prev : [...prev, key]) : prev.filter((k) => k !== key);
+      try { localStorage.setItem(TERM_BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      if (next.length === 0) setFilterBookmarked(false);
+      return next;
+    });
+
+  // 글 모드 IT 용어 북마크 토글 — 토큰과 동일 디커플링(#519): 별 켜면 카드 없을 때만 생성(토스트),
+  // 별 끄면 카드 유지·flag만 제거. 크로스소스 중복이면 스킵(#511).
   function handleTermBookmarkToggle(term: ItTerm) {
-    const isAdding = !bookmarkedTermDetails[term.term];
-    if (isAdding && bookmarkedTermExists(term.term)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
-    if (isAdding) saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
-    else removeTermDetail(term.term);
-    const next = loadTermDetails();
-    setBookmarkedTermDetails(next);
-    if (Object.keys(next).length === 0) setFilterBookmarked(false);
+    const key = term.term;
+    if (bookmarkedTermTexts.includes(key)) { setTermStar(key, false); return; }
+    if (bookmarkedTermExists(key)) { setTermStar(key, true); toast(t("card.existsBookmarked")); return; }
+    saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTermDetails(loadTermDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
+    setTermStar(key, true);
   }
 
-  // 글 모드 관련 개념 북마크 — 개념을 용어로 변환해 IT 용어 사전에 같이 저장(title 기준).
+  // 글 모드 관련 개념 북마크 — 개념을 용어로 변환해 IT 용어 사전에 같이 저장(title 기준). term store 공유.
   function handleItConceptBookmarkToggle(concept: ItConcept) {
-    const asTerm: ItTerm = {
-      id: concept.conceptId,
-      term: concept.title,
-      explanation: concept.explanation,
-      conceptIds: [],
-      bookmarkable: true,
-    };
-    const isAdding = !bookmarkedTermDetails[concept.title];
-    if (isAdding && bookmarkedTermExists(concept.title)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
-    if (isAdding) saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
-    else removeTermDetail(concept.title);
-    const next = loadTermDetails();
-    setBookmarkedTermDetails(next);
-    if (Object.keys(next).length === 0) setFilterBookmarked(false);
+    const key = concept.title;
+    if (bookmarkedTermTexts.includes(key)) { setTermStar(key, false); return; }
+    if (bookmarkedTermExists(key)) { setTermStar(key, true); toast(t("card.existsBookmarked")); return; }
+    const asTerm: ItTerm = { id: concept.conceptId, term: concept.title, explanation: concept.explanation, conceptIds: [], bookmarkable: true };
+    saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTermDetails(loadTermDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
+    setTermStar(key, true);
   }
 
   function handleTokenClick(tokenId: string, conceptId: string | undefined) {
@@ -489,13 +504,23 @@ export default function LearningPanel({
     }
   }
 
-  // 개념 북마크 토글 — 키=title. 현재 상태(설명 포함 가능) 스냅샷 저장.
+  // 개념 북마크 토글(코드 모드) — 토큰과 동일 디커플링(#519). 키=title.
   function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
-    const isAdding = !bookmarkedConceptDetails[concept.title];
-    if (isAdding && bookmarkedTermExists(concept.title)) { toast(t("card.exists")); return; } // 정규화 중복(#511)
-    if (isAdding) saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
-    else removeConceptDetail(concept.title);
+    const key = concept.title;
+    const setStar = (on: boolean) =>
+      setBookmarkedConceptTitles((prev) => {
+        const next = on ? (prev.includes(key) ? prev : [...prev, key]) : prev.filter((k) => k !== key);
+        try { localStorage.setItem(CONCEPT_BOOKMARKS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+        if (next.length === 0) setFilterBookmarked(false);
+        return next;
+      });
+    if (bookmarkedConceptTitles.includes(key)) { setStar(false); return; } // 별 끄기 — 카드 유지
+    if (bookmarkedTermExists(key)) { setStar(true); toast(t("card.existsBookmarked")); return; } // 카드 이미 존재 → 별만
+    saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
     setBookmarkedConceptDetails(loadConceptDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
+    setStar(true);
   }
 
   function handleConceptClick(conceptId: string) {
@@ -726,8 +751,10 @@ export default function LearningPanel({
         <ConceptDictionary
           details={bookmarkedConceptDetails}
           onUnbookmark={(title) => {
+            // 사전 X = 카드 삭제. 별은 유지(별↔카드 분리). detail 제거 + 이벤트(갤러리/배지 갱신).
             removeConceptDetail(title);
             setBookmarkedConceptDetails(loadConceptDetails());
+            if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
           }}
         />
       </div>
@@ -743,25 +770,19 @@ export default function LearningPanel({
           <ItTermDictionary
             details={bookmarkedTermDetails}
             onUnbookmark={(termText) => {
+              // 사전 X = 카드 삭제. 별은 유지(별↔카드 분리). detail 제거 + 이벤트(갤러리/배지 갱신).
               removeTermDetail(termText);
-              const next = loadTermDetails();
-              setBookmarkedTermDetails(next);
-              if (Object.keys(next).length === 0) setFilterBookmarked(false);
+              setBookmarkedTermDetails(loadTermDetails());
+              if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
             }}
           />
         ) : (
           <TokenDictionary
             details={bookmarkedTokenDetails}
             onUnbookmark={(tokenText) => {
-              // 사전의 X = 카드 삭제(갤러리와 동일). detail 제거 + 별 제거 + 갤러리/배지 갱신 이벤트.
+              // 사전의 X = 카드 삭제. 별(북마크)은 유지(카드⊥별 완전 분리 #519). detail 제거 + 이벤트.
               removeTokenDetail(tokenText);
               setBookmarkedTokenDetails(loadTokenDetails());
-              setBookmarkedTokenTexts((prev) => {
-                const next = prev.filter((t) => t !== tokenText);
-                try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
-                if (next.length === 0) setFilterBookmarked(false);
-                return next;
-              });
               if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
             }}
           />
