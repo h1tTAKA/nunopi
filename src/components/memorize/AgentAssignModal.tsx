@@ -203,7 +203,7 @@ export default function AgentAssignModal({
       const answer = await runAgent(thread, context);
       if (abortRef.current?.signal.aborted) return; // 중단됨 — 결과 반영 안 함
       applyReply(thread, answer || t("mem.agentDeckNone"));
-    } catch { if (!abortRef.current?.signal.aborted) applyReply(messages, t("mem.agentDeckNone")); }
+    } catch { if (!abortRef.current?.signal.aborted) applyReply(thread, t("mem.agentDeckNone")); }
   }
 
   // setup 조작
