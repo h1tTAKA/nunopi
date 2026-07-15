@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { IconCards } from "@tabler/icons-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconCards, IconSortDescending, IconSortAscending } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { useFlyCard } from "@/components/memorize/FlyCard";
 import { collectCards } from "@/lib/srs/collect";
@@ -22,6 +22,15 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
   const { locale } = useLocale();
   const { throwCard } = useFlyCard();
   const [cards, setCards] = useState<Card[]>([]);
+  // 정렬 = 등록 시각(bookmarkedAt) 기준. 기본 recent(최신이 위), 토글로 oldest(과거가 위).
+  const [order, setOrder] = useState<"recent" | "oldest">("recent");
+  const sortedCards = useMemo(() => {
+    // ISO 문자열은 사전식 비교 = 시간순. bookmarkedAt 없는 건 맨 뒤(빈 문자열).
+    return [...cards].sort((a, b) => {
+      const cmp = (a.bookmarkedAt ?? "").localeCompare(b.bookmarkedAt ?? "");
+      return order === "recent" ? -cmp : cmp;
+    });
+  }, [cards, order]);
 
   const reload = useCallback(() => {
     if (!sessionId) { setCards([]); return; }
@@ -38,16 +47,29 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
 
   return (
     <aside className="flex w-72 shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
-      <div className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        <IconCards size={15} stroke={2} aria-hidden />
-        {t("ask.sessionCards")}
-        {cards.length > 0 && <span className="text-zinc-400 dark:text-zinc-500">· {cards.length}</span>}
+      <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <IconCards size={15} stroke={2} aria-hidden />
+          <span className="truncate">{t("ask.sessionCards")}</span>
+          {cards.length > 0 && <span className="shrink-0 text-zinc-400 dark:text-zinc-500">· {cards.length}</span>}
+        </div>
+        {cards.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setOrder((o) => (o === "recent" ? "oldest" : "recent"))}
+            className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            title={t(order === "recent" ? "mem.sortRecent" : "mem.sortOldest")}
+          >
+            {order === "recent" ? <IconSortDescending size={14} stroke={2} aria-hidden /> : <IconSortAscending size={14} stroke={2} aria-hidden />}
+            {t(order === "recent" ? "mem.sortRecent" : "mem.sortOldest")}
+          </button>
+        )}
       </div>
       <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {cards.length === 0 ? (
           <p className="px-2 py-6 text-center text-[13px] text-zinc-400 dark:text-zinc-500">{t("ask.noSessionCards")}</p>
         ) : (
-          cards.map((card) => (
+          sortedCards.map((card) => (
             <button
               key={card.key}
               type="button"
