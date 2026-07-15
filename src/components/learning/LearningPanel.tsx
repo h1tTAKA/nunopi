@@ -343,9 +343,6 @@ export default function LearningPanel({
     setBookmarkedConceptTitles(loadFlags(CONCEPT_BOOKMARKS_KEY, Object.keys(cd)));
   }, []);
 
-  // 카드가 밖에서 바뀌면(갤러리 삭제 등 deleteCard→CARDS_CHANGED) 카드(detail) 표시를 갱신하고,
-  // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
-  // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
   useEffect(() => {
     // 카드가 밖에서 바뀌면 detail(카드) 표시만 갱신한다. 별(북마크)은 건드리지 않는다 — 별과
     // 카드는 양방향으로 완전 분리(#519): 별을 꺼도 카드 유지, 카드를 지워도 별 유지.
@@ -424,7 +421,7 @@ export default function LearningPanel({
   }, [result, currentHistoryTitle, currentHistoryId]);
 
   // 별(즐겨찾기) 토글. 별과 카드는 분리한다(#509): 별을 켜면 카드가 없을 때만 새로 만들고,
-  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별 ⊆ 카드.
+  // 별을 끄면 카드는 그대로 두고 별 flag만 뗀다(카드 삭제는 갤러리에서만). 별↔카드 완전 분리(#519).
   async function handleBookmarkToggle(token: CodeToken) {
     const tokenText = token.token;
     const isStarred = bookmarkedTokenTexts.includes(tokenText);
@@ -462,7 +459,7 @@ export default function LearningPanel({
     setStar(true);
   }
 
-  // 용어 별 flag 토글(별⊆카드). 별 OFF는 flag만, 카드(detail) 유지. term/it-concept 공유.
+  // 용어 별 flag 토글. 별 OFF는 flag만, 카드(detail) 유지(별↔카드 분리). term/it-concept 공유.
   const setTermStar = (key: string, on: boolean) =>
     setBookmarkedTermTexts((prev) => {
       const next = on ? (prev.includes(key) ? prev : [...prev, key]) : prev.filter((k) => k !== key);
@@ -754,7 +751,7 @@ export default function LearningPanel({
         <ConceptDictionary
           details={bookmarkedConceptDetails}
           onUnbookmark={(title) => {
-            // 사전 X = 카드 삭제. detail 제거 + 이벤트(리스너가 별 prune·갤러리/배지 갱신).
+            // 사전 X = 카드 삭제. 별은 유지(별↔카드 분리). detail 제거 + 이벤트(갤러리/배지 갱신).
             removeConceptDetail(title);
             setBookmarkedConceptDetails(loadConceptDetails());
             if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
@@ -773,7 +770,7 @@ export default function LearningPanel({
           <ItTermDictionary
             details={bookmarkedTermDetails}
             onUnbookmark={(termText) => {
-              // 사전 X = 카드 삭제. detail 제거 + 이벤트(리스너가 별 prune·갤러리/배지 갱신).
+              // 사전 X = 카드 삭제. 별은 유지(별↔카드 분리). detail 제거 + 이벤트(갤러리/배지 갱신).
               removeTermDetail(termText);
               setBookmarkedTermDetails(loadTermDetails());
               if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
