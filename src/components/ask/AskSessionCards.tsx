@@ -58,10 +58,10 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
             type="button"
             onClick={() => setOrder((o) => (o === "recent" ? "oldest" : "recent"))}
             className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-            title={t(order === "recent" ? "mem.sortRecent" : "mem.sortOldest")}
+            title={t(order === "recent" ? "ask.sortNewest" : "ask.sortOldest")}
           >
             {order === "recent" ? <IconSortDescending size={14} stroke={2} aria-hidden /> : <IconSortAscending size={14} stroke={2} aria-hidden />}
-            {t(order === "recent" ? "mem.sortRecent" : "mem.sortOldest")}
+            {t(order === "recent" ? "ask.sortNewest" : "ask.sortOldest")}
           </button>
         )}
       </div>
