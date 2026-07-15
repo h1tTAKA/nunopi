@@ -347,21 +347,24 @@ export default function LearningPanel({
   // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
   // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
   useEffect(() => {
-    // detail 갱신 후, 별 flag를 "detail 남은 것"으로 prune(별⊆카드) + 변경 시 persist.
+    // detail 갱신 후, 별 flag를 "카드가 어디든(크로스소스) 남아있는 것"으로 prune(별⊆카드) +
+    // 변경 시 persist. 크로스소스: 같은 이름 카드가 다른 소스에 있으면 별 유지(#511/#519).
     const prune = (
-      details: Record<string, unknown>,
       setFlags: Dispatch<SetStateAction<string[]>>,
       key: string,
     ) => setFlags((prev) => {
-      const next = prev.filter((k) => details[k]);
+      const next = prev.filter((k) => bookmarkedTermExists(k));
       if (next.length === prev.length) return prev;
       try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
     const refresh = () => {
-      const td = loadTokenDetails(); setBookmarkedTokenDetails(td); prune(td, setBookmarkedTokenTexts, BOOKMARKS_KEY);
-      const rd = loadTermDetails(); setBookmarkedTermDetails(rd); prune(rd, setBookmarkedTermTexts, TERM_BOOKMARKS_KEY);
-      const cd = loadConceptDetails(); setBookmarkedConceptDetails(cd); prune(cd, setBookmarkedConceptTitles, CONCEPT_BOOKMARKS_KEY);
+      setBookmarkedTokenDetails(loadTokenDetails());
+      setBookmarkedTermDetails(loadTermDetails());
+      setBookmarkedConceptDetails(loadConceptDetails());
+      prune(setBookmarkedTokenTexts, BOOKMARKS_KEY);
+      prune(setBookmarkedTermTexts, TERM_BOOKMARKS_KEY);
+      prune(setBookmarkedConceptTitles, CONCEPT_BOOKMARKS_KEY);
     };
     window.addEventListener(CARDS_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
@@ -452,26 +455,22 @@ export default function LearningPanel({
       setStar(false);
       return;
     }
-
-    // 별 켜기 — 카드가 없으면 새로 만든다(설명 없으면 먼저 받아 붙임). 이미 있으면 별만.
-    const hasCard = !!loadTokenDetails()[tokenText];
-    // 이미 카드로 있으면(표기 변형·다른 소스 포함, 크로스소스 #511) 새로 안 만들고 안내만.
-    if (!hasCard && bookmarkedTermExists(tokenText)) {
-      toast(t("card.exists"));
+    // 별 켜기 — 카드가 이미 있으면(자기/크로스소스 #511) 생성은 안 하되 북마크(별)는 켜고 안내(#519).
+    if (bookmarkedTermExists(tokenText)) {
+      setStar(true);
+      toast(t("card.existsBookmarked"));
       return;
     }
-    if (!hasCard) {
-      let toSave = token;
-      if (!token.description && onTokenExplain) {
-        const meaning = await onTokenExplain(tokenText);
-        if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
-      }
-      saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
-      setBookmarkedTokenDetails(loadTokenDetails());
-      // 카드 집합이 바뀌었으니 갤러리·배지 등 다른 화면도 갱신되게 이벤트 발행.
-      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-      toast(t("card.added", { term: tokenText }));
+    // 카드 없음 → 새로 만든다(설명 없으면 먼저 받아 붙임) + 별.
+    let toSave = token;
+    if (!token.description && onTokenExplain) {
+      const meaning = await onTokenExplain(tokenText);
+      if (meaning) toSave = { ...token, label: meaning.label, description: meaning.description, example: meaning.example };
     }
+    saveTokenDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTokenDetails(loadTokenDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: tokenText }));
     setStar(true);
   }
 
@@ -489,14 +488,11 @@ export default function LearningPanel({
   function handleTermBookmarkToggle(term: ItTerm) {
     const key = term.term;
     if (bookmarkedTermTexts.includes(key)) { setTermStar(key, false); return; }
-    const hasCard = !!loadTermDetails()[key];
-    if (!hasCard && bookmarkedTermExists(key)) { toast(t("card.exists")); return; }
-    if (!hasCard) {
-      saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
-      setBookmarkedTermDetails(loadTermDetails());
-      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-      toast(t("card.added", { term: key }));
-    }
+    if (bookmarkedTermExists(key)) { setTermStar(key, true); toast(t("card.existsBookmarked")); return; }
+    saveTermDetail(term, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTermDetails(loadTermDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
     setTermStar(key, true);
   }
 
@@ -504,15 +500,12 @@ export default function LearningPanel({
   function handleItConceptBookmarkToggle(concept: ItConcept) {
     const key = concept.title;
     if (bookmarkedTermTexts.includes(key)) { setTermStar(key, false); return; }
-    const hasCard = !!loadTermDetails()[key];
-    if (!hasCard && bookmarkedTermExists(key)) { toast(t("card.exists")); return; }
-    if (!hasCard) {
-      const asTerm: ItTerm = { id: concept.conceptId, term: concept.title, explanation: concept.explanation, conceptIds: [], bookmarkable: true };
-      saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
-      setBookmarkedTermDetails(loadTermDetails());
-      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-      toast(t("card.added", { term: key }));
-    }
+    if (bookmarkedTermExists(key)) { setTermStar(key, true); toast(t("card.existsBookmarked")); return; }
+    const asTerm: ItTerm = { id: concept.conceptId, term: concept.title, explanation: concept.explanation, conceptIds: [], bookmarkable: true };
+    saveTermDetail(asTerm, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedTermDetails(loadTermDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
     setTermStar(key, true);
   }
 
@@ -537,14 +530,11 @@ export default function LearningPanel({
         return next;
       });
     if (bookmarkedConceptTitles.includes(key)) { setStar(false); return; } // 별 끄기 — 카드 유지
-    const hasCard = !!loadConceptDetails()[key];
-    if (!hasCard && bookmarkedTermExists(key)) { toast(t("card.exists")); return; }
-    if (!hasCard) {
-      saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
-      setBookmarkedConceptDetails(loadConceptDetails());
-      if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
-      toast(t("card.added", { term: key }));
-    }
+    if (bookmarkedTermExists(key)) { setStar(true); toast(t("card.existsBookmarked")); return; } // 카드 이미 존재 → 별만
+    saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
+    setBookmarkedConceptDetails(loadConceptDetails());
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
+    toast(t("card.added", { term: key }));
     setStar(true);
   }
 
