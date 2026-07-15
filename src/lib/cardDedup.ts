@@ -42,6 +42,9 @@ export function buildDedupContext(cards: Card[], scope: DedupScope = { matchTitl
     "  - 표기·축약만 다른 동일 개념('useState 훅' vs 'useState')",
     "★ 보수적으로 판단하라. 표기가 비슷해도 의미가 다르면 묶지 마라(과묶음 금지).",
     "  헷갈리면 묶지 않는 쪽을 택한다. 확실히 같은 것만 묶어라.",
+    "★★ 블록에는 '실제로 같은' 묶음만 넣어라. 다르다고 판단한 카드쌍은 블록에서 완전히 빼라",
+    "   (설명·주석용으로도 절대 넣지 마라). reason에는 '왜 같은지'만 적고,",
+    "   '~는 다르다', '묶지 않음', '별개 개념', '제거' 같은 배제 설명을 넣지 마라.",
     "각 그룹은 반드시 카드 2장 이상이어야 하고, 왜 같은지 한 줄 이유(reason)를 붙여라.",
     "중복이 하나도 없으면 빈 배열을 출력하라.",
     "답변 맨 끝에 아래 형식 블록 **하나**로 모든 그룹을 배열로 담아라:",
@@ -57,6 +60,10 @@ export function buildDedupContext(cards: Card[], scope: DedupScope = { matchTitl
 
 // 전역 — 응답에 블록이 여럿일 수 있어 모두 매칭.
 const FENCE_G = /```card-dedup\s*([\s\S]*?)```/g;
+
+// 모델이 가끔 '다르다고 판단한' 카드쌍을 배제 설명(reason)과 함께 그룹에 넣는 자기모순을 방어한다.
+// reason이 "안 묶음/다른(별개) 개념/제거" 류면 그 그룹은 버린다(ko/ja/en).
+const NEGATION_RE = /묶지\s*않|안\s*묶|다른\s*개념|별개(의)?\s*개념|별도의?\s*개념|제거|different\s+concept|not\s+(a\s+)?duplicate|should\s+not|do\s+not\s+(group|merge)|別(の)?概念|重複ではない|まとめ(ない|ません)/i;
 
 // 응답 텍스트에서 중복 그룹 배열 추출(없거나 깨지면 빈 배열).
 // 관대한 파싱: 블록 여럿 수용, 각 블록은 그룹 객체 배열. keys 2개 미만 그룹은 버린다.
@@ -77,7 +84,9 @@ export function parseDedupGroups(text: string): DedupGroup[] {
         ? [...new Set(obj.keys.filter((k): k is string => typeof k === "string" && k.length > 0))]
         : [];
       if (keys.length < 2) continue; // 중복 묶음은 2장 이상
-      groups.push({ keys, reason: typeof obj.reason === "string" ? obj.reason : "" });
+      const reason = typeof obj.reason === "string" ? obj.reason : "";
+      if (NEGATION_RE.test(reason)) continue; // 배제 설명이 붙은 자기모순 그룹은 버린다
+      groups.push({ keys, reason });
     }
   }
   return groups;
