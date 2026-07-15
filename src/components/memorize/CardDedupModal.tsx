@@ -349,7 +349,7 @@ function CheckRow({ on, onToggle, label }: { on: boolean; onToggle: () => void; 
       onClick={onToggle}
       className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
-      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${on ? "border-amber-500 bg-amber-500 text-white" : "border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"}`}>
+      <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${on ? "border-[#3B34E2] bg-[#3B34E2] text-white" : "border-zinc-300 bg-white dark:border-zinc-600 dark:bg-zinc-800"}`}>
         {on && <IconCheck size={12} stroke={3} aria-hidden />}
       </span>
       {label}
