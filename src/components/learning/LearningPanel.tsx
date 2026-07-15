@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IconFolder, IconTrash } from "@tabler/icons-react";
 import { StarIcon } from "./icons";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode } from "@/lib/agent";
@@ -347,24 +347,12 @@ export default function LearningPanel({
   // 별(즐겨찾기)은 카드가 남아있는 것만 유지한다(#509). 별과 카드는 분리 — 별을 꺼도 카드는
   // 남지만(bookmark off), 카드가 삭제되면 그 별은 의미 없으니 정리한다(별 ⊆ 카드).
   useEffect(() => {
-    // detail 갱신 후, 별 flag를 "카드가 어디든(크로스소스) 남아있는 것"으로 prune(별⊆카드) +
-    // 변경 시 persist. 크로스소스: 같은 이름 카드가 다른 소스에 있으면 별 유지(#511/#519).
-    const prune = (
-      setFlags: Dispatch<SetStateAction<string[]>>,
-      key: string,
-    ) => setFlags((prev) => {
-      const next = prev.filter((k) => bookmarkedTermExists(k));
-      if (next.length === prev.length) return prev;
-      try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* ignore */ }
-      return next;
-    });
+    // 카드가 밖에서 바뀌면 detail(카드) 표시만 갱신한다. 별(북마크)은 건드리지 않는다 — 별과
+    // 카드는 양방향으로 완전 분리(#519): 별을 꺼도 카드 유지, 카드를 지워도 별 유지.
     const refresh = () => {
       setBookmarkedTokenDetails(loadTokenDetails());
       setBookmarkedTermDetails(loadTermDetails());
       setBookmarkedConceptDetails(loadConceptDetails());
-      prune(setBookmarkedTokenTexts, BOOKMARKS_KEY);
-      prune(setBookmarkedTermTexts, TERM_BOOKMARKS_KEY);
-      prune(setBookmarkedConceptTitles, CONCEPT_BOOKMARKS_KEY);
     };
     window.addEventListener(CARDS_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(CARDS_CHANGED_EVENT, refresh);
@@ -795,15 +783,9 @@ export default function LearningPanel({
           <TokenDictionary
             details={bookmarkedTokenDetails}
             onUnbookmark={(tokenText) => {
-              // 사전의 X = 카드 삭제(갤러리와 동일). detail 제거 + 별 제거 + 갤러리/배지 갱신 이벤트.
+              // 사전의 X = 카드 삭제. 별(북마크)은 유지(카드⊥별 완전 분리 #519). detail 제거 + 이벤트.
               removeTokenDetail(tokenText);
               setBookmarkedTokenDetails(loadTokenDetails());
-              setBookmarkedTokenTexts((prev) => {
-                const next = prev.filter((t) => t !== tokenText);
-                try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(next)); } catch {}
-                if (next.length === 0) setFilterBookmarked(false);
-                return next;
-              });
               if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
             }}
           />
