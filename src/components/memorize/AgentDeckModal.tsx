@@ -215,7 +215,16 @@ export default function AgentDeckModal({
           {totalCards > 0 && <span className="ml-auto text-xs text-zinc-400 dark:text-zinc-500">{t("mem.agentDeckExcludeHint")}</span>}
         </div>
         <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
-          {decks.length === 0 ? (
+          {loading && decks.length === 0 ? (
+            // 제안 생성 중 — 답변 뒤 덱 파싱까지 빈 화면 안 뜨게 진행 표시(부정형 막대 + 안내).
+            <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+              <IconSparkles size={28} stroke={1.6} className={`text-[#3B34E2] dark:text-[#8b86f5] ${reduced ? "" : "animate-pulse"}`} aria-hidden />
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{t("mem.deckBuilding")}</p>
+              <div className="nunopi-indeterminate h-1.5 w-full max-w-xs rounded-full bg-zinc-200 dark:bg-zinc-800">
+                <span className="bg-[#3B34E2]" />
+              </div>
+            </div>
+          ) : decks.length === 0 ? (
             <div className="flex h-full items-center justify-center px-6 text-center text-sm text-zinc-400 dark:text-zinc-600">
               {t("mem.agentDeckEmpty")}
             </div>
