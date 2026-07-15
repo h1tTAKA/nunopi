@@ -155,18 +155,18 @@ export default function CardDedupModal({
 
   // 삭제 토글 — 한 묶음에서 최소 한 장은 남겨야 하므로, 그 그룹의 모든 카드를
   // 삭제 선택하려 하면(마지막 한 장까지) 막고 안내한다. 해제는 항상 허용.
+  // 부수효과(toast)는 setState 업데이터 밖에서 — 업데이터는 순수해야 함(StrictMode 중복 실행 방지).
   function toggleDelete(key: string, group: ResolvedGroup) {
-    setToDelete((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) { next.delete(key); return next; }
-      const selectedInGroup = group.cards.filter((c) => prev.has(c.key)).length;
-      if (selectedInGroup >= group.cards.length - 1) {
-        toast(t("mem.dedupKeepOne"), "error");
-        return prev;
-      }
-      next.add(key);
-      return next;
-    });
+    if (toDelete.has(key)) {
+      setToDelete((prev) => { const next = new Set(prev); next.delete(key); return next; });
+      return;
+    }
+    const selectedInGroup = group.cards.filter((c) => toDelete.has(c.key)).length;
+    if (selectedInGroup >= group.cards.length - 1) {
+      toast(t("mem.dedupKeepOne"), "error"); // 마지막 한 장은 남긴다.
+      return;
+    }
+    setToDelete((prev) => { const next = new Set(prev); next.add(key); return next; });
   }
 
   function deleteSelected() {
