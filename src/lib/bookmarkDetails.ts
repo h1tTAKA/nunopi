@@ -144,10 +144,11 @@ export function clearConceptDetails(): void {
   try { localStorage.removeItem(CONCEPT_DETAILS_KEY); } catch { /* ignore */ }
 }
 
-// 카드 중복 검사용 정규화(#511): 소문자 + 공백 전부 제거 + 끝 `()` 제거. 괄호 안 내용은 유지.
-// 표기/공백/대소문자·빈 호출괄호 차이만 흡수한다(과도 병합 방지 — "컴파일"과 "컴파일(Compile)"은 별개).
+// 카드 중복 검사용 정규화(#511): 소문자 + 괄호 `(...)` 안 내용 제거 + 공백 전부 제거.
+// 표기/공백/대소문자 + 괄호 영문표기 차이를 흡수한다. 예: "컴파일 (Compile)"·"컴파일(Compile)"
+// ·"컴파일" → 모두 "컴파일"(중복). "컴파일러(Compiler)" → "컴파일러"(다른 단어라 별개).
 export function normalizeCardFront(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, "").replace(/\(\)$/, "");
+  return s.trim().toLowerCase().replace(/\([^)]*\)/g, "").replace(/\s+/g, "");
 }
 
 // 주어진 store에 front와 정규화상 같은 카드가 이미 있는지(소스별 중복 검사).
