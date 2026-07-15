@@ -323,12 +323,12 @@ export default function CardDedupModal({
               <CheckRow on={matchContent} onToggle={() => setMatchContent((v) => !v)} label={t("mem.dedupFieldContent")} />
             </div>
           </div>
-          <div className="shrink-0 border-t border-zinc-200 p-4 dark:border-zinc-800">
+          <div className="shrink-0 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
             <button
               type="button"
               onClick={() => { void scan(); }}
               disabled={!canScan}
-              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <IconSearch size={15} stroke={2} aria-hidden />
               {phase === "done" ? t("mem.dedupRescan") : t("mem.dedupScan")}
