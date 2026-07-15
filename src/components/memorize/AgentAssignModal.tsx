@@ -400,7 +400,7 @@ export default function AgentAssignModal({
       </div>
 
       {/* 우: (임베드) 옵션 패널 + 대화(보조) */}
-      <div className={`flex shrink-0 flex-col bg-white dark:bg-[#15161d] ${embedded ? "w-96" : "w-80"}`}>
+      <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
         <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-zinc-200 px-4 dark:border-zinc-800">
           {headerRight ?? (
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
