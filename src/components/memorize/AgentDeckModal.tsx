@@ -115,7 +115,7 @@ export default function AgentDeckModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           providerId,
-          request: { code: context, locale, providerId, mode: "chat", messages: thread, providerSettings },
+          request: { code: context, locale, providerId, mode: "deck-agent", messages: thread, providerSettings },
         }),
         signal: ac.signal,
       });
