@@ -6,7 +6,7 @@ import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { collectCards } from "@/lib/srs/collect";
 import { addCardsToDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
-import { buildDeckAssignContext, parseDeckAssign, stripDeckAssign } from "@/lib/deckAssign";
+import { buildDeckAssignContext, parseDeckAssign } from "@/lib/deckAssign";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { cardFrame } from "@/lib/srs/cardFrame";
 import { useFlyCard } from "./FlyCard";
@@ -103,7 +103,6 @@ export default function AgentAssignModal({
   useEffect(() => { setPickedDecks(new Set(existingDecks.map((d) => d.id))); }, [existingDecks]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState(""); // 모델 추론 스트림 — 작업 중임을 보이게
   const [groups, setGroups] = useState<AssignGroup[]>([]);
@@ -170,11 +169,10 @@ export default function AgentAssignModal({
     abortRef.current?.abort();
     setLoading(false);
     setThinking("");
-    setMessages([]);
   }
 
-  // 응답을 배정 그룹으로 반영 + 대화 표시.
-  function applyReply(thread: ChatMessage[], reply: string) {
+  // 응답을 배정 그룹으로 반영.
+  function applyReply(reply: string) {
     if (!reply) return;
     const assigns = parseDeckAssign(reply);
     const built: AssignGroup[] = [];
@@ -186,7 +184,6 @@ export default function AgentAssignModal({
       if (cards.length > 0) built.push({ deckId: deck.id, deckName: deck.name, cards, checked: true, excluded: new Set() });
     }
     if (built.length > 0) setGroups(built);
-    setMessages([...thread, { role: "assistant", content: stripDeckAssign(reply) || t("mem.agentDeckNone") }]);
   }
 
   // "맡기기" — 선택 카드·덱으로 컨텍스트 구성 + 자동 요청 → preview.
@@ -198,12 +195,11 @@ export default function AgentAssignModal({
     const context = buildDeckAssignContext(cards, decks.map((d) => ({ name: d.name, cardKeys: d.cardKeys })));
     const prompt = t("mem.assignAutoPrompt").replace("{n}", String(cards.length)).replace("{decks}", decks.map((d) => d.name).join(", "));
     const thread: ChatMessage[] = [{ role: "user", content: prompt }];
-    setMessages(thread);
     try {
       const answer = await runAgent(thread, context);
       if (abortRef.current?.signal.aborted) return; // 중단됨 — 결과 반영 안 함
-      applyReply(thread, answer || t("mem.agentDeckNone"));
-    } catch { if (!abortRef.current?.signal.aborted) applyReply(thread, t("mem.agentDeckNone")); }
+      applyReply(answer || t("mem.agentDeckNone"));
+    } catch { if (!abortRef.current?.signal.aborted) applyReply(t("mem.agentDeckNone")); }
   }
 
   // setup 조작
