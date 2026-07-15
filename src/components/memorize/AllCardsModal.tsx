@@ -349,16 +349,6 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
               <IconSquareCheck size={15} stroke={2} aria-hidden />
               {t("mem.select")}
             </button>
-            {/* 중복 정리 — 의미 중복 카드 탐색 */}
-            <button
-              type="button"
-              onClick={() => { void startDedup(); }}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-200 hover:text-zinc-800 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            >
-              <IconCopyCheck size={15} stroke={2} aria-hidden />
-              {t("mem.dedup")}
-            </button>
-            <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
             {/* 덱 만들기 */}
             <button
               type="button"
@@ -367,6 +357,15 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
             >
               <IconSparkles size={15} stroke={2} aria-hidden />
               {t("mem.customize")}
+            </button>
+            {/* 중복 정리 — 의미 중복 카드 탐색(앰버) */}
+            <button
+              type="button"
+              onClick={() => { void startDedup(); }}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+            >
+              <IconCopyCheck size={15} stroke={2} aria-hidden />
+              {t("mem.dedup")}
             </button>
             <span className="h-5 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" />
             {/* 닫기 */}

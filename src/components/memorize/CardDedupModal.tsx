@@ -10,6 +10,7 @@ import { deleteCard } from "@/lib/srs/deleteCard";
 import { DECK_SOURCES, type Card } from "@/lib/srs/types";
 import { cardFrame } from "@/lib/srs/cardFrame";
 import { buildDedupContext, parseDedupGroups } from "@/lib/cardDedup";
+import { normalizeCardFront } from "@/lib/bookmarkDetails";
 import { useFlyCard } from "./FlyCard";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -32,6 +33,17 @@ function newGroupId(): string {
   try { return crypto.randomUUID(); } catch { groupIdSeq += 1; return `dg-${groupIdSeq}`; }
 }
 
+// 이름(앞면) 정규화가 겹치는 카드가 있으면 '이름 중복' 묶음 — 표기만 다른 확실한 중복이라 최우선.
+function isNameDup(g: ResolvedGroup): boolean {
+  const seen = new Set<string>();
+  for (const c of g.cards) {
+    const n = normalizeCardFront(c.front);
+    if (seen.has(n)) return true;
+    seen.add(n);
+  }
+  return false;
+}
+
 // 갤러리 카드 중복 정리 — 마운트 즉시 에이전트가 의미 중복을 탐색(chat 재사용),
 // 결과 묶음을 보여주고 유저가 지울 카드를 골라 삭제. 둘 다 유지도 가능.
 export default function CardDedupModal({
@@ -50,6 +62,7 @@ export default function CardDedupModal({
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const [loading, setLoading] = useState(true);
+  const [pct, setPct] = useState(0); // 탐색 진행률(추정) — 단일 LLM 호출이라 실제 %가 없어 시간 기반으로 부드럽게 채운다.
   const [thinking, setThinking] = useState("");
   const [groups, setGroups] = useState<ResolvedGroup[]>([]);
   // 지울 카드 key 집합(전 그룹 통합). 기본은 전부 유지(빈 집합).
@@ -58,6 +71,16 @@ export default function CardDedupModal({
   const [scanNonce, setScanNonce] = useState(0);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // 진행률(추정) — 탐색 중 92%까지 점근적으로 차오르고, 완료 시 아래 스캔 effect가 100%로 마무리.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!loading) return;
+    setPct(6);
+    const id = window.setInterval(() => setPct((p) => (p >= 92 ? p : p + (92 - p) * 0.07)), 220);
+    return () => window.clearInterval(id);
+  }, [loading, scanNonce]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 탐색 실행 — 마운트 시 1회, "다시 탐색" 시 재실행.
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -121,6 +144,9 @@ export default function CardDedupModal({
             cards: [...new Set(g.keys)].map((k) => byKey.get(k)).filter((c): c is Card => !!c),
           }))
           .filter((g) => g.cards.length >= 2);
+        // 이름(표기) 중복을 최상단으로 — 정규화 앞면이 겹치는 확실한 중복 먼저 처리하게(안정 정렬).
+        built.sort((a, b) => Number(isNameDup(b)) - Number(isNameDup(a)));
+        setPct(100);
         setGroups(built);
       } catch {
         // abort는 조용히, 그 외엔 빈 결과(없음 메시지).
@@ -168,11 +194,16 @@ export default function CardDedupModal({
   const totalDupCards = useMemo(() => groups.reduce((n, g) => n + g.cards.length, 0), [groups]);
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[#0b0c10]">
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm" onClick={onClose}>
+      {/* 중앙 모달 패널 — 적당한 크기(뷰포트에 맞춤). 바깥 클릭 시 닫기, 안쪽은 전파 차단. */}
+      <div
+        className="flex max-h-[82vh] w-[min(92vw,760px)] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-[#0b0c10]"
+        onClick={(e) => e.stopPropagation()}
+      >
       {/* 헤더 */}
       <div className="flex h-14 shrink-0 items-center gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-          <IconSparkles size={15} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden /> {t("mem.dedupTitle")}
+          <IconSparkles size={15} stroke={2} className="text-amber-500" aria-hidden /> {t("mem.dedupTitle")}
         </span>
         {!loading && groups.length > 0 && (
           <span className="text-xs text-zinc-400 dark:text-zinc-500">{groups.length}</span>
@@ -197,10 +228,16 @@ export default function CardDedupModal({
       </div>
 
       {loading ? (
-        // 중앙 로딩 — 탐색 중 안내 + 실시간 추론(있으면).
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-          <IconSparkles size={30} stroke={1.6} className={`text-[#3B34E2] dark:text-[#8b86f5] ${reduced ? "" : "animate-pulse"}`} aria-hidden />
+        // 중앙 로딩 — 진행률(추정) 막대 + 안내 + 실시간 추론(있으면).
+        <div className="flex flex-col items-center justify-center gap-4 px-8 py-16 text-center">
+          <IconSparkles size={30} stroke={1.6} className={`text-amber-500 ${reduced ? "" : "animate-pulse"}`} aria-hidden />
           <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{t("mem.dedupScanning")}</p>
+          <div className="w-full max-w-xs">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div className="h-full rounded-full bg-amber-500 transition-[width] duration-300 ease-out" style={{ width: `${Math.round(pct)}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">{Math.round(pct)}%</p>
+          </div>
           {thinking && (
             <p className="max-h-24 max-w-md overflow-hidden whitespace-pre-wrap text-[11px] italic leading-snug text-zinc-400 dark:text-zinc-500">
               {thinking.length > 400 ? `…${thinking.slice(-400)}` : thinking}
@@ -209,7 +246,7 @@ export default function CardDedupModal({
         </div>
       ) : groups.length === 0 ? (
         // 중복 없음.
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 px-8 py-16 text-center">
           <IconCircleCheck size={30} stroke={1.6} className="text-emerald-500" aria-hidden />
           <p className="text-sm text-zinc-500 dark:text-zinc-400">{t("mem.dedupNone")}</p>
         </div>
@@ -289,6 +326,7 @@ export default function CardDedupModal({
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }
