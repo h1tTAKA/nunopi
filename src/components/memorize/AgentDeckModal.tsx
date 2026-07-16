@@ -107,11 +107,12 @@ export default function AgentDeckModal({
 
   // raw 인자 없으면 입력창 값 사용. 매크로 칩은 문구를 직접 넘겨 즉시 전송.
   async function send(raw: string = input) {
+    const fromInput = raw === input; // 입력창에서 온 전송만 입력창을 비운다(매크로 칩은 반쯤 친 글 보존).
     const text = raw.trim();
     if (!text || loading) return;
     const thread: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(thread);
-    setInput("");
+    if (fromInput) setInput("");
     setLoading(true);
     setStreaming("");
     setThinking("");
