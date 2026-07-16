@@ -76,6 +76,12 @@ export default function AgentDeckModal({
   const abortRef = useRef<AbortController | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // 매크로 칩: 짧은 라벨(label) 보여주고, 클릭 시 긴 프롬프트(prompt)를 즉시 전송. 대화 시작 전에만 노출.
+  const MACROS = [
+    { label: "mem.deckMacro1Label", prompt: "mem.deckMacro1" },
+    { label: "mem.deckMacro2Label", prompt: "mem.deckMacro2" },
+  ] as const;
   // 대화/로딩 갱신 시 맨 아래로.
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -99,12 +105,14 @@ export default function AgentDeckModal({
   }, [totalCards, reduced]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  async function send() {
-    const text = input.trim();
+  // raw 인자 없으면 입력창 값 사용. 매크로 칩은 문구를 직접 넘겨 즉시 전송.
+  async function send(raw: string = input) {
+    const fromInput = raw === input; // 입력창에서 온 전송만 입력창을 비운다(매크로 칩은 반쯤 친 글 보존).
+    const text = raw.trim();
     if (!text || loading) return;
     const thread: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages(thread);
-    setInput("");
+    if (fromInput) setInput("");
     setLoading(true);
     setStreaming("");
     setThinking("");
@@ -162,6 +170,14 @@ export default function AgentDeckModal({
     } finally {
       if (!ac.signal.aborted) { setLoading(false); setStreaming(null); setThinking(""); }
     }
+  }
+
+  // 중단 — 진행 중인 제안 요청 취소. finally가 abort 시 loading을 안 내리므로 여기서 직접 정리.
+  function cancel() {
+    abortRef.current?.abort();
+    setLoading(false);
+    setStreaming(null);
+    setThinking("");
   }
 
   function toggleExclude(deckId: string, key: string) {
@@ -395,8 +411,24 @@ export default function AgentDeckModal({
             )
           )}
         </div>
+        {/* 매크로 프롬프트 칩 — 항상 노출. 짧은 라벨, 클릭 시 긴 프롬프트 즉시 전송(로딩 중엔 send가 무시). */}
+        <div className="flex flex-wrap gap-1.5 border-t border-zinc-200 px-3 pt-3 dark:border-zinc-800">
+          {MACROS.map((m) => (
+            <button
+              key={m.label}
+              type="button"
+              onClick={() => { void send(t(m.prompt)); }}
+              disabled={loading}
+              title={t(m.prompt)}
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 transition hover:border-[#3B34E2]/50 hover:bg-[#3B34E2]/5 hover:text-[#3B34E2] disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-[#8b86f5]/50 dark:hover:text-[#8b86f5]"
+            >
+              <IconSparkles size={12} stroke={2} aria-hidden />
+              {t(m.label)}
+            </button>
+          ))}
+        </div>
         {/* 입력 */}
-        <div className="flex items-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
+        <div className="flex items-end gap-2 p-3">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -406,15 +438,26 @@ export default function AgentDeckModal({
             placeholder={t("mem.agentDeckPlaceholder")}
             className="max-h-24 min-h-[2.25rem] flex-1 resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 outline-none focus:border-[#3B34E2] disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
           />
-          <button
-            type="button"
-            onClick={() => { void send(); }}
-            disabled={loading || !input.trim()}
-            className="shrink-0 rounded-xl bg-[#3B34E2] p-2.5 text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={t("chat.send")}
-          >
-            <IconSend2 size={16} stroke={2} aria-hidden />
-          </button>
+          {loading ? (
+            <button
+              type="button"
+              onClick={cancel}
+              className="shrink-0 rounded-xl bg-rose-500 p-2.5 text-white transition hover:bg-rose-600"
+              aria-label={t("mem.assignStop")}
+            >
+              <IconX size={16} stroke={2.5} aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => { void send(); }}
+              disabled={!input.trim()}
+              className="shrink-0 rounded-xl bg-[#3B34E2] p-2.5 text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={t("chat.send")}
+            >
+              <IconSend2 size={16} stroke={2} aria-hidden />
+            </button>
+          )}
         </div>
       </div>
     </div>
