@@ -57,8 +57,9 @@ export default function AgentDeckModal({
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
   // 기존 커스텀 덱 — 에이전트가 겹치지 않게 제안하도록 컨텍스트에 주입. 모달 중 변경 시 갱신.
   const [existingDecks, setExistingDecks] = useState<CustomDeck[]>([]);
+  const [decksLoaded, setDecksLoaded] = useState(false); // 기존 덱 1차 로드 완료 여부(seed 자동전송을 그 뒤로 미루기)
   useEffect(() => {
-    const load = () => setExistingDecks(loadCustomDecks());
+    const load = () => { setExistingDecks(loadCustomDecks()); setDecksLoaded(true); };
     load();
     window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
     return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
@@ -80,14 +81,15 @@ export default function AgentDeckModal({
   const seededRef = useRef(false); // seedPrompt 자동 전송을 딱 1회만 하도록 하는 가드
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // 씨앗 프롬프트가 있으면(기존 덱 추가에서 "새 덱 만들기"로 넘어옴) 마운트 시 1회 자동 전송.
+  // 씨앗 프롬프트가 있으면(기존 덱 추가에서 "새 덱 만들기"로 넘어옴) 1회 자동 전송.
+  // 단, 기존 덱 로드(decksLoaded) 후에 — context에 기존 덱이 실려야 중복 회피가 됨.
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
-    if (seedPrompt && !seededRef.current) {
+    if (decksLoaded && seedPrompt && !seededRef.current) {
       seededRef.current = true;
       void send(seedPrompt);
     }
-  }, []); // 마운트 시 1회 (send/seedPrompt는 마운트 시점 값으로 충분)
+  }, [decksLoaded]); // 로드 완료 시점의 send 클로저(기존 덱 포함 context)로 전송
   /* eslint-enable react-hooks/exhaustive-deps */
 
   // 매크로 칩: 짧은 라벨(label) 보여주고, 클릭 시 긴 프롬프트(prompt)를 즉시 전송. 대화 시작 전에만 노출.

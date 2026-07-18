@@ -34,6 +34,11 @@ export default function AgentDeckHubModal({
     window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
     return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
   }, []);
+  // create를 벗어나면 씨앗 프롬프트 소거 — 다시 create로 토글해도 옛 seed가 재전송되지 않게.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (mode !== "create" && seedPrompt !== undefined) setSeedPrompt(undefined);
+  }, [mode, seedPrompt]);
   // 덱이 사라지면 create로 되돌린다(assign 화면에 남지 않게).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
