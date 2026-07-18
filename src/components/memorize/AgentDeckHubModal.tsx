@@ -24,6 +24,8 @@ export default function AgentDeckHubModal({
 }) {
   const t = useT();
   const [mode, setMode] = useState<HubMode>("create");
+  // 기존 덱 추가에서 "새 덱 만들기" 눌렀을 때 덱 생성 대화에 자동으로 심을 씨앗 프롬프트.
+  const [seedPrompt, setSeedPrompt] = useState<string | undefined>(undefined);
   // 커스텀 덱이 하나도 없으면 '기존 덱 추가'는 불가 → 토글 비활성.
   const [hasDecks, setHasDecks] = useState(false);
   useEffect(() => {
@@ -72,6 +74,7 @@ export default function AgentDeckHubModal({
             providerSettings={providerSettings}
             onBack={onClose}
             onCreated={onCreated}
+            seedPrompt={seedPrompt}
             embedded
             headerRight={toggle}
           />
@@ -82,6 +85,7 @@ export default function AgentDeckHubModal({
             providerSettings={providerSettings}
             onBack={onClose}
             onApplied={onClose}
+            onSwitchToCreate={(seed) => { setSeedPrompt(seed); setMode("create"); }}
             embedded
             headerRight={toggle}
           />
