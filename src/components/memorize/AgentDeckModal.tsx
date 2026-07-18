@@ -34,7 +34,7 @@ interface ProposalDeck {
 // 에이전트 덱 커스터마이징 — 대화형. 상담도 하고, 덱을 만들자 하면 에이전트가 하나 또는 여러 덱을
 // 제안(chat 재사용) → 좌측에 덱 섹션으로 stagger 리빌 → 제목 편집/제외/체크 → 덱 추가하기.
 export default function AgentDeckModal({
-  now, providerId, providerSettings, onBack, onCreated, embedded = false, headerRight,
+  now, providerId, providerSettings, onBack, onCreated, embedded = false, headerRight, seedPrompt,
 }: {
   now: Date;
   providerId: AgentProviderKind;
@@ -45,6 +45,8 @@ export default function AgentDeckModal({
   embedded?: boolean;
   // 우측 컬럼 헤더의 제목 자리에 끼울 요소(허브의 모드 토글).
   headerRight?: React.ReactNode;
+  // 마운트 시 이 프롬프트가 있으면 1회 자동 전송(기존 덱 추가의 "새 덱 만들기"에서 넘어온 씨앗).
+  seedPrompt?: string;
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -55,8 +57,9 @@ export default function AgentDeckModal({
   const byKey = useMemo(() => new Map(all.map((c) => [c.key, c])), [all]);
   // 기존 커스텀 덱 — 에이전트가 겹치지 않게 제안하도록 컨텍스트에 주입. 모달 중 변경 시 갱신.
   const [existingDecks, setExistingDecks] = useState<CustomDeck[]>([]);
+  const [decksLoaded, setDecksLoaded] = useState(false); // 기존 덱 1차 로드 완료 여부(seed 자동전송을 그 뒤로 미루기)
   useEffect(() => {
-    const load = () => setExistingDecks(loadCustomDecks());
+    const load = () => { setExistingDecks(loadCustomDecks()); setDecksLoaded(true); };
     load();
     window.addEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
     return () => window.removeEventListener(CUSTOM_DECKS_CHANGED_EVENT, load);
@@ -75,7 +78,19 @@ export default function AgentDeckModal({
   const [reveal, setReveal] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const seededRef = useRef(false); // seedPrompt 자동 전송을 딱 1회만 하도록 하는 가드
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  // 씨앗 프롬프트가 있으면(기존 덱 추가에서 "새 덱 만들기"로 넘어옴) 1회 자동 전송.
+  // 단, 기존 덱 로드(decksLoaded) 후에 — context에 기존 덱이 실려야 중복 회피가 됨.
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    if (decksLoaded && seedPrompt && !seededRef.current) {
+      seededRef.current = true;
+      void send(seedPrompt);
+    }
+  }, [decksLoaded]); // 로드 완료 시점의 send 클로저(기존 덱 포함 context)로 전송
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   // 매크로 칩: 짧은 라벨(label) 보여주고, 클릭 시 긴 프롬프트(prompt)를 즉시 전송. 대화 시작 전에만 노출.
   const MACROS = [

@@ -59,13 +59,15 @@ function MiniTile({ card, dimmed, check, onToggle, throwCard, t }: {
 // 에이전트 기존 덱 자동 분류 — UI 주도 2단계.
 // setup: 왼쪽에서 분류할 카드(미분류 기본)·대상 덱 고르기 → "맡기기". preview: 에이전트 배정 제안 → 제외/체크 → 추가.
 export default function AgentAssignModal({
-  now, providerId, providerSettings, onBack, onApplied, embedded = false, headerRight,
+  now, providerId, providerSettings, onBack, onApplied, onSwitchToCreate, embedded = false, headerRight,
 }: {
   now: Date;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   onBack: () => void;
   onApplied: () => void;
+  // 배정 안 된 카드를 "새 덱으로" 만들려 할 때 — hub에게 덱 생성 모드 전환 + 씨앗 프롬프트를 실어 올림(자식→부모 콜백).
+  onSwitchToCreate?: (seedPrompt?: string) => void;
   // embedded=허브 패널 안에 끼워질 때: 자체 백드롭/풀스크린 제거하고 부모 박스를 채운다.
   embedded?: boolean;
   // 우측 컬럼 헤더의 제목 자리에 끼울 요소(허브의 모드 토글).
@@ -106,6 +108,7 @@ export default function AgentAssignModal({
   const [loading, setLoading] = useState(false);
   const [thinking, setThinking] = useState(""); // 모델 추론 스트림 — 작업 중임을 보이게
   const [groups, setGroups] = useState<AssignGroup[]>([]);
+  const [sentCards, setSentCards] = useState<Card[]>([]); // 직전 위임에서 에이전트에 보낸 카드(leftover 계산용)
   const [reveal, setReveal] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -198,6 +201,7 @@ export default function AgentAssignModal({
     try {
       const answer = await runAgent(thread, context);
       if (abortRef.current?.signal.aborted) return; // 중단됨 — 결과 반영 안 함
+      setSentCards(cards); // 이번에 보낸 카드 기록(중단 안 됐을 때만) → leftover 계산 기준
       applyReply(answer || t("mem.agentDeckNone"));
     } catch { if (!abortRef.current?.signal.aborted) applyReply(t("mem.agentDeckNone")); }
   }
@@ -252,6 +256,16 @@ export default function AgentAssignModal({
   }
 
   const pickedCount = candidates.filter((c) => pickedCards.has(c.key)).length;
+  // leftover = 보낸 카드 − 어느 덱에도 배정된 카드(집합 차이). 에이전트가 어울리는 덱 없어 뺀 것들.
+  const leftover = useMemo(() => {
+    const assigned = new Set(groups.flatMap((g) => g.cards.map((c) => c.key)));
+    return sentCards.filter((c) => !assigned.has(c.key));
+  }, [sentCards, groups]);
+  // leftover 카드 이름들로 "새 덱 만들어줘" 프롬프트 작성 → 덱 생성 모드에 씨앗(seed)으로 넘김.
+  function buildNewDeckPrompt(cards: Card[]): string {
+    const names = cards.map((c) => c.front).join(", ");
+    return t("mem.assignLeftoverPrompt").replace("{cards}", names);
+  }
   // 그룹별 전역 stagger 시작 인덱스(이전 그룹들 카드 수 누적) — 렌더 밖에서 미리 계산.
   const groupOffsets = useMemo(() => {
     const o: number[] = [];
@@ -345,6 +359,24 @@ export default function AgentAssignModal({
       <div className="flex min-w-0 flex-1 flex-col border-r border-zinc-200 bg-zinc-50/95 dark:border-zinc-800 dark:bg-[#0b0c10]/95">
         {/* 본문 — 결과 있으면 덱별 배정, 생각 중(첫 제안)엔 안내, 아니면 후보 카드 그리드 */}
         <div className="nunopi-scroll flex-1 overflow-y-auto p-5">
+          {/* 배정 안 된 카드 안내 — 어울리는 덱 없던 카드들은 새 덱으로 유도 */}
+          {sentCards.length > 0 && leftover.length > 0 && !loading && (
+            <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+              <IconSparkles size={16} stroke={2} className="shrink-0 text-amber-500" aria-hidden />
+              <span className="min-w-0 flex-1 text-xs leading-snug text-amber-800 dark:text-amber-200">
+                {t("mem.assignLeftoverMsg").replace("{n}", String(leftover.length))}
+              </span>
+              {onSwitchToCreate && (
+                <button
+                  type="button"
+                  onClick={() => onSwitchToCreate(buildNewDeckPrompt(leftover))}
+                  className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+                >
+                  {t("mem.assignLeftoverToCreate")}
+                </button>
+              )}
+            </div>
+          )}
           {groups.length > 0 ? (
             <div className={`flex flex-col gap-5 ${loading ? "opacity-50" : ""}`}>
               {groups.map((g, gi) => {
