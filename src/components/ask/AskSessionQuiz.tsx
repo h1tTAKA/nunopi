@@ -4,25 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { IconListCheck, IconRefresh, IconCheck, IconX, IconLoader2 } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
+// 퀴즈 저장 스키마의 주인은 store — 타입을 여기서 가져온다(#542 영속).
+import type { QuizQuestion as QuizQ, QuizGraded as Graded, AskQuiz } from "@/lib/askStore";
 
 // Ask 아웃풋 퀴즈 패널 — 현재 서브(탭)의 Q&A를 재료로 능동 회상 퀴즈 생성→풀기→채점.
 // 에이전트 mode:"quiz" 1개로 생성(GENERATE)·채점(GRADE) 겸용. 출력은 ```json 블록, 클라가 파싱.
+// 상태는 store(AskSub.quiz)에 저장돼 탭 전환/재진입에도 유지(#542).
 
-type QuizType = "mc" | "short" | "reverse";
-
-interface QuizQ {
-  type: QuizType;
-  q: string;
-  options?: string[]; // mc만
-  answer: number | string; // mc=정답 옵션 인덱스(0-based), short/reverse=모범답안
-  why?: string;
-}
-
-interface Graded {
-  correct: boolean;
-  feedback?: string; // short/reverse는 에이전트 피드백
-}
-
+// 화면 단계 — 진행 중(loading/grading)·error 포함. 저장은 안정 단계(idle/solving/done)만.
 type Phase = "idle" | "loading" | "solving" | "grading" | "done" | "error";
 
 const LANG_NAME: Record<string, string> = { ko: "한국어", ja: "日本語", en: "English" };
@@ -133,19 +122,34 @@ async function runQuiz(
   return out;
 }
 
-export default function AskSessionQuiz({ messages, providerId, providerSettings }: {
+export default function AskSessionQuiz({ messages, providerId, providerSettings, quiz, onQuizChange }: {
   messages: ChatMessage[];
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  quiz?: AskQuiz; // 저장된 퀴즈(있으면 이걸로 초기화 — 탭 재진입 복원).
+  onQuizChange: (next: AskQuiz | undefined) => void; // 상태 바뀔 때 store에 저장.
 }) {
   const t = useT();
   const { locale } = useLocale();
-  const [phase, setPhase] = useState<Phase>("idle");
+  // 초기값을 저장된 quiz에서 복원(useState 초기화 함수 — 최초 마운트 1회만 읽음).
+  const [phase, setPhase] = useState<Phase>(() => quiz?.phase ?? "idle");
   const [error, setError] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<QuizQ[]>([]);
+  const [questions, setQuestions] = useState<QuizQ[]>(() => quiz?.questions ?? []);
   // 답: mc=옵션 인덱스(number), short/reverse=문자열.
-  const [answers, setAnswers] = useState<Record<number, number | string>>({});
-  const [graded, setGraded] = useState<Record<number, Graded>>({});
+  const [answers, setAnswers] = useState<Record<number, number | string>>(() => quiz?.answers ?? {});
+  const [graded, setGraded] = useState<Record<number, Graded>>(() => quiz?.graded ?? {});
+
+  // 최신 저장 콜백을 ref로 — 부모가 매 렌더 새 함수를 줘도 저장 effect가 재실행되지 않게(deps 제외).
+  // 렌더 중이 아니라 커밋 후(effect)에 갱신(react-hooks/refs).
+  const onQuizChangeRef = useRef(onQuizChange);
+  useEffect(() => { onQuizChangeRef.current = onQuizChange; });
+
+  // 상태가 바뀌면 store에 저장(탭 전환/재진입 유지). 진행 중(loading/grading)·error는 안정 단계로 눕혀 저장.
+  useEffect(() => {
+    if (questions.length === 0) { onQuizChangeRef.current(undefined); return; }
+    const savedPhase: AskQuiz["phase"] = phase === "done" ? "done" : "solving";
+    onQuizChangeRef.current({ phase: savedPhase, questions, answers, graded });
+  }, [phase, questions, answers, graded]);
 
   // 패널 폭 리사이즈 — 우측 패널이라 왼쪽 모서리 핸들을 잡고 왼쪽으로 끌면 넓어진다.
   const [width, setWidth] = useState(QUIZ_DEFAULT);
