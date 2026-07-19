@@ -125,20 +125,22 @@ samp {
 /* 퀴즈 문제수 범위(dual-thumb) 슬라이더 — range input 2개를 겹쳐 놓고 thumb만 잡히게 한다. */
 /* 트랙은 pointer-events 없음(겹친 아래 input도 잡히게), thumb만 pointer-events 살림. */
 .nunopi-range { -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; }
+/* 기본 트랙 투명 — 겹친 그라데이션 바가 보이게. */
+.nunopi-range::-webkit-slider-runnable-track { background: transparent; border: none; }
+.nunopi-range::-moz-range-track { background: transparent; border: none; }
+/* thumb는 솔리드 브랜드색(그라데이션 바와 경쟁 안 하게). thumb만 pointer-events 살림. */
 .nunopi-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; pointer-events: auto;
   width: 16px; height: 16px; border-radius: 9999px;
-  background-image: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%);
-  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer;
 }
 .nunopi-range::-moz-range-thumb {
   pointer-events: auto;
   width: 16px; height: 16px; border-radius: 9999px;
-  background-image: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%);
-  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer;
 }
-.dark .nunopi-range::-webkit-slider-thumb { border-color: #13141b; }
-.dark .nunopi-range::-moz-range-thumb { border-color: #13141b; }
+.dark .nunopi-range::-webkit-slider-thumb { background: #8b86f5; border-color: #13141b; }
+.dark .nunopi-range::-moz-range-thumb { background: #8b86f5; border-color: #13141b; }
 
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
 .nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
