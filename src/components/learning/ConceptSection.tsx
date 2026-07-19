@@ -9,8 +9,6 @@ import { useT } from "@/lib/i18n/I18nProvider";
 interface ConceptSectionProps {
   concepts: ConceptOccurrence[];
   activeConceptId?: string | null;
-  // 설명을 펼친 conceptId들 — active(테두리 하이라이트)와 독립.
-  expandedConceptIds?: string[];
   onConceptClick?: (conceptId: string) => void;
   // on-demand 설명을 불러오는 중인 conceptId들(lazy 개념 설명).
   explainingConcepts?: string[];
@@ -19,7 +17,7 @@ interface ConceptSectionProps {
   onDelete?: (conceptId: string) => void;
 }
 
-export default function ConceptSection({ concepts, activeConceptId, expandedConceptIds, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
+export default function ConceptSection({ concepts, activeConceptId, onConceptClick, explainingConcepts, bookmarkedConceptTitles, onBookmarkToggle, onDelete }: ConceptSectionProps) {
   const t = useT();
   useEffect(() => {
     if (!activeConceptId) return;
@@ -123,7 +121,8 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
               )}
             </button>
             <div className="px-4 pb-4 pt-2">
-              {(expandedConceptIds?.includes(concept.conceptId) ?? false) && (() => {
+              {/* 설명은 토큰처럼 상시 노출(#535). 있으면 설명, 로딩중이면 스피너 문구, 없으면 클릭 유도. */}
+              {(() => {
                 const desc = concept.description ?? CONCEPT_DESCRIPTIONS[concept.conceptId]?.short;
                 if (desc) {
                   return (
@@ -139,7 +138,14 @@ export default function ConceptSection({ concepts, activeConceptId, expandedConc
                     </p>
                   );
                 }
-                return null;
+                return (
+                  <p className="border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
+                    {(() => {
+                      const [a, b] = t("panel.tokenClickToExplain").split("{star}");
+                      return <>{a}<StarIcon className="inline-block h-3.5 w-3.5 align-text-bottom" />{b}</>;
+                    })()}
+                  </p>
+                );
               })()}
             </div>
           </div>

@@ -236,8 +236,6 @@ export default function LearningPanel({
   }, [markedKey]);
   // 활성(강조) 개념 id들 — 코드 모드는 1개([conceptId]), 글 모드는 용어의 관련 개념 전부.
   const [activeConceptIds, setActiveConceptIds] = useState<string[]>([]);
-  // 설명 펼침은 active 하이라이트와 분리 — 카드 첫 클릭에 항상 열리게(active는 토큰 클릭으로도 설정되므로).
-  const [expandedConceptIds, setExpandedConceptIds] = useState<string[]>([]);
   const [bookmarkedTokenTexts, setBookmarkedTokenTexts] = useState<string[]>([]);
   const [bookmarkedTokenDetails, setBookmarkedTokenDetails] = useState<Record<string, BookmarkedTokenDetail>>({});
   // 글 모드 IT 용어 북마크 — detail(카드)과 별(즐겨찾기 flag)을 분리(#519, 토큰과 동일).
@@ -361,8 +359,6 @@ export default function LearningPanel({
     setActiveTokenIds([]);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveConceptIds([]);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setExpandedConceptIds([]);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterBookmarked(false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -531,14 +527,7 @@ export default function LearningPanel({
   }
 
   function handleConceptClick(conceptId: string) {
-    // 펼침 토글은 active(토큰 클릭으로도 설정됨)와 독립 → 첫 클릭에 항상 열림.
-    const isOpen = expandedConceptIds.includes(conceptId);
-    if (isOpen) {
-      setExpandedConceptIds((prev) => prev.filter((id) => id !== conceptId));
-      return;
-    }
-    setExpandedConceptIds((prev) => [...prev, conceptId]);
-    // 열 때 관련 토큰 하이라이트 + 설명 없으면(정적 사전에도 없음) on-demand 요청.
+    // 설명은 상시 노출(#535)이라 열닫 토글 없음. 클릭 = 관련 토큰 하이라이트 + 설명 없으면 on-demand 요청.
     const relatedTokenIds = (result?.tokens ?? [])
       .filter((t) => t.conceptId === conceptId)
       .map((t) => t.id);
@@ -546,7 +535,7 @@ export default function LearningPanel({
     setActiveTokenIds(relatedTokenIds);
     const concept = safeConcepts.find((c) => c.conceptId === conceptId);
     if (concept && !concept.description && !CONCEPT_DESCRIPTIONS[conceptId]) {
-      void onConceptExplain?.(conceptId, concept.title); // 반환 Promise 의도적 무시(클릭 = 화면 갱신만)
+      void onConceptExplain?.(conceptId, concept.title); // 반환 Promise 의도적 무시(클릭 = 설명 로드만)
     }
   }
 
@@ -1159,7 +1148,6 @@ export default function LearningPanel({
             <ConceptSection
               concepts={safeConcepts}
               activeConceptId={activeConceptIds[0] ?? null}
-              expandedConceptIds={expandedConceptIds}
               onConceptClick={handleConceptClick}
               explainingConcepts={explainingConcepts}
               bookmarkedConceptTitles={bookmarkedConceptTitles}

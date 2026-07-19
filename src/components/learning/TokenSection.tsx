@@ -133,7 +133,10 @@ export default function TokenSection({ tokens, activeTokenIds, onTokenClick, onT
                 </p>
               ) : (
                 <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                  {t("panel.tokenClickToExplain")}
+                  {(() => {
+                    const [a, b] = t("panel.tokenClickToExplain").split("{star}");
+                    return <>{a}<StarIcon className="inline-block h-3.5 w-3.5 align-text-bottom" />{b}</>;
+                  })()}
                 </p>
               )}
               {!isExplaining && token.example && (
