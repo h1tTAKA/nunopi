@@ -546,7 +546,7 @@ export default function LearningPanel({
     setActiveTokenIds(relatedTokenIds);
     const concept = safeConcepts.find((c) => c.conceptId === conceptId);
     if (concept && !concept.description && !CONCEPT_DESCRIPTIONS[conceptId]) {
-      onConceptExplain?.(conceptId, concept.title);
+      void onConceptExplain?.(conceptId, concept.title); // 반환 Promise 의도적 무시(클릭 = 화면 갱신만)
     }
   }
 
