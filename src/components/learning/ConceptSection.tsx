@@ -142,7 +142,7 @@ export default function ConceptSection({ concepts, activeConceptId, onConceptCli
                   <p className="border-t border-zinc-200 pt-2 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
                     {(() => {
                       const [a, b] = t("panel.tokenClickToExplain").split("{star}");
-                      return <>{a}<StarIcon className="inline-block h-3.5 w-3.5 align-text-bottom text-lime-600 dark:text-lime-400" />{b}</>;
+                      return <>{a}<StarIcon className="inline-block h-3.5 w-3.5 align-text-bottom" />{b}</>;
                     })()}
                   </p>
                 );
