@@ -4,25 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { IconListCheck, IconRefresh, IconCheck, IconX, IconLoader2 } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
+// 퀴즈 저장 스키마의 주인은 store — 타입을 여기서 가져온다(#542 영속).
+import type { QuizQuestion as QuizQ, QuizGraded as Graded, AskQuiz } from "@/lib/askStore";
 
 // Ask 아웃풋 퀴즈 패널 — 현재 서브(탭)의 Q&A를 재료로 능동 회상 퀴즈 생성→풀기→채점.
 // 에이전트 mode:"quiz" 1개로 생성(GENERATE)·채점(GRADE) 겸용. 출력은 ```json 블록, 클라가 파싱.
+// 상태는 store(AskSub.quiz)에 저장돼 탭 전환/재진입에도 유지(#542).
 
-type QuizType = "mc" | "short" | "reverse";
-
-interface QuizQ {
-  type: QuizType;
-  q: string;
-  options?: string[]; // mc만
-  answer: number | string; // mc=정답 옵션 인덱스(0-based), short/reverse=모범답안
-  why?: string;
-}
-
-interface Graded {
-  correct: boolean;
-  feedback?: string; // short/reverse는 에이전트 피드백
-}
-
+// 화면 단계 — 진행 중(loading/grading)·error 포함. 저장은 안정 단계(idle/solving/done)만.
 type Phase = "idle" | "loading" | "solving" | "grading" | "done" | "error";
 
 const LANG_NAME: Record<string, string> = { ko: "한국어", ja: "日本語", en: "English" };
@@ -47,6 +36,8 @@ function buildGenerateContext(messages: ChatMessage[], langName: string): string
     "규칙:",
     "- 문제 3~6개. 유형을 섞는다: mc(4지선다) / short(주관식 한두 문장) / reverse(역질문 — \"왜 이렇게 했게?\" 같이 이유·원리를 묻기).",
     "- 학습자가 실제로 물어본 내용에서만 출제(모르는 걸 새로 묻지 않기).",
+    '- type은 반드시 "mc" | "short" | "reverse" 중 하나 그대로(다른 표기 금지: "multiple_choice" X).',
+    '- mc의 answer는 정답 옵션의 0-based 인덱스 숫자(0,1,2,3). 글자("A")나 정답 텍스트가 아니라 숫자.',
     "- 오직 ```json 펜스 블록 하나만 출력. 배열의 각 원소:",
     '  { "type": "mc", "q": "...", "options": ["A","B","C","D"], "answer": 정답인덱스(0-3), "why": "정답 이유 한 줄" }',
     '  { "type": "short", "q": "...", "answer": "모범답안", "why": "채점 포인트 한 줄" }',
@@ -96,6 +87,52 @@ function parseJsonBlock<T>(text: string): T | null {
   }
 }
 
+// 모델이 흘리는 type 표기 흔들림 흡수 — "multiple_choice"·"subjective" 등도 우리 3종으로.
+const TYPE_ALIASES: Record<string, QuizQ["type"]> = {
+  mc: "mc", multiple_choice: "mc", "multiple-choice": "mc", multiplechoice: "mc", choice: "mc", objective: "mc",
+  short: "short", short_answer: "short", shortanswer: "short", subjective: "short", written: "short",
+  reverse: "reverse", reverse_question: "reverse", reversequestion: "reverse",
+};
+
+// mc 정답을 0-based 숫자 인덱스로 강제 — 숫자·글자("A")·정답텍스트 뭐가 와도 흡수.
+// 옵션 범위 밖(예: 옵션 3개인데 "D"→3)이면 -1(오답 처리되되 렌더는 됨).
+function coerceMcAnswer(a: unknown, options: string[]): number {
+  let idx = -1;
+  if (typeof a === "number" && Number.isInteger(a)) idx = a;
+  else if (typeof a === "string") {
+    const s = a.trim();
+    if (/^[A-Za-z]$/.test(s)) idx = s.toUpperCase().charCodeAt(0) - 65; // "A"→0
+    else if (/^\d+$/.test(s)) idx = parseInt(s, 10);
+    else idx = options.findIndex((o) => o === s);
+  }
+  return idx >= 0 && idx < options.length ? idx : -1; // 범위 밖은 무효 처리
+}
+
+// LLM 원소 하나를 우리 QuizQ 모양으로 정규화(키·타입 흔들림 흡수). 못 살리면 null.
+function normalizeQuestion(raw: unknown): QuizQ | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const q = typeof r.q === "string" ? r.q : typeof r.question === "string" ? r.question : "";
+  if (!q.trim()) return null;
+  const opts = Array.isArray(r.options) ? r.options.map((o) => String(o)) : [];
+  const type = TYPE_ALIASES[String(r.type ?? "").toLowerCase()] ?? (opts.length ? "mc" : "short");
+  const why = typeof r.why === "string" ? r.why : undefined;
+  if (type === "mc") return { type, q, options: opts, answer: coerceMcAnswer(r.answer, opts), why };
+  return { type, q, answer: typeof r.answer === "string" ? r.answer : String(r.answer ?? ""), why };
+}
+
+// 채점 결과 한 항목 정규화 — correct(불리언/"true"/1)·feedback(feedback/comment) 흔들림 흡수. 못 살리면 null.
+function coerceVerdict(raw: unknown): Graded | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const c = r.correct;
+  const correct = c === true || c === "true" || c === 1 || c === "1" || c === "correct" || c === "O";
+  const wrong = c === false || c === "false" || c === 0 || c === "0" || c === "X";
+  if (!correct && !wrong && typeof c !== "boolean") return null; // 판정 필드 못 찾음
+  const feedback = typeof r.feedback === "string" ? r.feedback : typeof r.comment === "string" ? r.comment : undefined;
+  return { correct, feedback };
+}
+
 // mode:"quiz" 호출 — 스트리밍 result 이벤트의 summary(블록)를 모아 반환.
 async function runQuiz(
   context: string,
@@ -133,19 +170,34 @@ async function runQuiz(
   return out;
 }
 
-export default function AskSessionQuiz({ messages, providerId, providerSettings }: {
+export default function AskSessionQuiz({ messages, providerId, providerSettings, quiz, onQuizChange }: {
   messages: ChatMessage[];
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
+  quiz?: AskQuiz; // 저장된 퀴즈(있으면 이걸로 초기화 — 탭 재진입 복원).
+  onQuizChange: (next: AskQuiz | undefined) => void; // 상태 바뀔 때 store에 저장.
 }) {
   const t = useT();
   const { locale } = useLocale();
-  const [phase, setPhase] = useState<Phase>("idle");
+  // 초기값을 저장된 quiz에서 복원(useState 초기화 함수 — 최초 마운트 1회만 읽음).
+  const [phase, setPhase] = useState<Phase>(() => quiz?.phase ?? "idle");
   const [error, setError] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<QuizQ[]>([]);
+  const [questions, setQuestions] = useState<QuizQ[]>(() => quiz?.questions ?? []);
   // 답: mc=옵션 인덱스(number), short/reverse=문자열.
-  const [answers, setAnswers] = useState<Record<number, number | string>>({});
-  const [graded, setGraded] = useState<Record<number, Graded>>({});
+  const [answers, setAnswers] = useState<Record<number, number | string>>(() => quiz?.answers ?? {});
+  const [graded, setGraded] = useState<Record<number, Graded>>(() => quiz?.graded ?? {});
+
+  // 최신 저장 콜백을 ref로 — 부모가 매 렌더 새 함수를 줘도 저장 effect가 재실행되지 않게(deps 제외).
+  // 렌더 중이 아니라 커밋 후(effect)에 갱신(react-hooks/refs).
+  const onQuizChangeRef = useRef(onQuizChange);
+  useEffect(() => { onQuizChangeRef.current = onQuizChange; });
+
+  // 상태가 바뀌면 store에 저장(탭 전환/재진입 유지). 진행 중(loading/grading)·error는 안정 단계로 눕혀 저장.
+  useEffect(() => {
+    if (questions.length === 0) { onQuizChangeRef.current(undefined); return; }
+    const savedPhase: AskQuiz["phase"] = phase === "done" ? "done" : "solving";
+    onQuizChangeRef.current({ phase: savedPhase, questions, answers, graded });
+  }, [phase, questions, answers, graded]);
 
   // 패널 폭 리사이즈 — 우측 패널이라 왼쪽 모서리 핸들을 잡고 왼쪽으로 끌면 넓어진다.
   const [width, setWidth] = useState(QUIZ_DEFAULT);
@@ -203,8 +255,8 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
     try {
       const text = await runQuiz(buildGenerateContext(messages, langName), { providerId, providerSettings, locale, signal: ac.signal });
       if (ac.signal.aborted) return; // 취소됐으면(언마운트/재생성) 아무것도 안 씀
-      const parsed = parseJsonBlock<QuizQ[]>(text);
-      const clean = (parsed ?? []).filter((q) => q && (q.type === "mc" || q.type === "short" || q.type === "reverse") && typeof q.q === "string");
+      const parsed = parseJsonBlock<unknown[]>(text);
+      const clean = (Array.isArray(parsed) ? parsed : []).map(normalizeQuestion).filter((q): q is QuizQ => q !== null);
       if (clean.length === 0) { setPhase("error"); setError(t("quiz.genFailed")); return; }
       setQuestions(clean);
       setPhase("solving");
@@ -238,10 +290,9 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
         { providerId, providerSettings, locale, signal: ac.signal },
       );
       if (ac.signal.aborted) return;
-      const verdicts = parseJsonBlock<Graded[]>(text) ?? [];
+      const verdicts = parseJsonBlock<Record<string, unknown>[]>(text) ?? [];
       toGrade.forEach((x, j) => {
-        const v = verdicts[j];
-        next[x.idx] = v && typeof v.correct === "boolean" ? { correct: v.correct, feedback: v.feedback } : { correct: false, feedback: t("quiz.gradeFailed") };
+        next[x.idx] = coerceVerdict(verdicts[j]) ?? { correct: false, feedback: t("quiz.gradeFailed") };
       });
       setGraded(next);
       setPhase("done");
