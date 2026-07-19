@@ -36,6 +36,8 @@ function buildGenerateContext(messages: ChatMessage[], langName: string): string
     "규칙:",
     "- 문제 3~6개. 유형을 섞는다: mc(4지선다) / short(주관식 한두 문장) / reverse(역질문 — \"왜 이렇게 했게?\" 같이 이유·원리를 묻기).",
     "- 학습자가 실제로 물어본 내용에서만 출제(모르는 걸 새로 묻지 않기).",
+    '- type은 반드시 "mc" | "short" | "reverse" 중 하나 그대로(다른 표기 금지: "multiple_choice" X).',
+    '- mc의 answer는 정답 옵션의 0-based 인덱스 숫자(0,1,2,3). 글자("A")나 정답 텍스트가 아니라 숫자.',
     "- 오직 ```json 펜스 블록 하나만 출력. 배열의 각 원소:",
     '  { "type": "mc", "q": "...", "options": ["A","B","C","D"], "answer": 정답인덱스(0-3), "why": "정답 이유 한 줄" }',
     '  { "type": "short", "q": "...", "answer": "모범답안", "why": "채점 포인트 한 줄" }',
@@ -83,6 +85,51 @@ function parseJsonBlock<T>(text: string): T | null {
   } catch {
     return null;
   }
+}
+
+// 모델이 흘리는 type 표기 흔들림 흡수 — "multiple_choice"·"subjective" 등도 우리 3종으로.
+const TYPE_ALIASES: Record<string, QuizQ["type"]> = {
+  mc: "mc", multiple_choice: "mc", "multiple-choice": "mc", multiplechoice: "mc", choice: "mc", objective: "mc",
+  short: "short", short_answer: "short", shortanswer: "short", subjective: "short", written: "short",
+  reverse: "reverse", reverse_question: "reverse", reversequestion: "reverse",
+};
+
+// mc 정답을 0-based 숫자 인덱스로 강제 — 숫자·글자("A")·정답텍스트 뭐가 와도 흡수. 못 맞추면 -1(오답 처리되되 렌더는 됨).
+function coerceMcAnswer(a: unknown, options: string[]): number {
+  if (typeof a === "number" && Number.isInteger(a)) return a;
+  if (typeof a === "string") {
+    const s = a.trim();
+    if (/^[A-Za-z]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65; // "A"→0
+    if (/^\d+$/.test(s)) return parseInt(s, 10);
+    const idx = options.findIndex((o) => o === s);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+// LLM 원소 하나를 우리 QuizQ 모양으로 정규화(키·타입 흔들림 흡수). 못 살리면 null.
+function normalizeQuestion(raw: unknown): QuizQ | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const q = typeof r.q === "string" ? r.q : typeof r.question === "string" ? r.question : "";
+  if (!q.trim()) return null;
+  const opts = Array.isArray(r.options) ? r.options.map((o) => String(o)) : [];
+  const type = TYPE_ALIASES[String(r.type ?? "").toLowerCase()] ?? (opts.length ? "mc" : "short");
+  const why = typeof r.why === "string" ? r.why : undefined;
+  if (type === "mc") return { type, q, options: opts, answer: coerceMcAnswer(r.answer, opts), why };
+  return { type, q, answer: typeof r.answer === "string" ? r.answer : String(r.answer ?? ""), why };
+}
+
+// 채점 결과 한 항목 정규화 — correct(불리언/"true"/1)·feedback(feedback/comment) 흔들림 흡수. 못 살리면 null.
+function coerceVerdict(raw: unknown): Graded | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const c = r.correct;
+  const correct = c === true || c === "true" || c === 1 || c === "1" || c === "correct" || c === "O";
+  const wrong = c === false || c === "false" || c === 0 || c === "0" || c === "X";
+  if (!correct && !wrong && typeof c !== "boolean") return null; // 판정 필드 못 찾음
+  const feedback = typeof r.feedback === "string" ? r.feedback : typeof r.comment === "string" ? r.comment : undefined;
+  return { correct, feedback };
 }
 
 // mode:"quiz" 호출 — 스트리밍 result 이벤트의 summary(블록)를 모아 반환.
@@ -207,8 +254,8 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
     try {
       const text = await runQuiz(buildGenerateContext(messages, langName), { providerId, providerSettings, locale, signal: ac.signal });
       if (ac.signal.aborted) return; // 취소됐으면(언마운트/재생성) 아무것도 안 씀
-      const parsed = parseJsonBlock<QuizQ[]>(text);
-      const clean = (parsed ?? []).filter((q) => q && (q.type === "mc" || q.type === "short" || q.type === "reverse") && typeof q.q === "string");
+      const parsed = parseJsonBlock<unknown[]>(text);
+      const clean = (Array.isArray(parsed) ? parsed : []).map(normalizeQuestion).filter((q): q is QuizQ => q !== null);
       if (clean.length === 0) { setPhase("error"); setError(t("quiz.genFailed")); return; }
       setQuestions(clean);
       setPhase("solving");
@@ -242,10 +289,9 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
         { providerId, providerSettings, locale, signal: ac.signal },
       );
       if (ac.signal.aborted) return;
-      const verdicts = parseJsonBlock<Graded[]>(text) ?? [];
+      const verdicts = parseJsonBlock<Record<string, unknown>[]>(text) ?? [];
       toGrade.forEach((x, j) => {
-        const v = verdicts[j];
-        next[x.idx] = v && typeof v.correct === "boolean" ? { correct: v.correct, feedback: v.feedback } : { correct: false, feedback: t("quiz.gradeFailed") };
+        next[x.idx] = coerceVerdict(verdicts[j]) ?? { correct: false, feedback: t("quiz.gradeFailed") };
       });
       setGraded(next);
       setPhase("done");
