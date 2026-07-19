@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconListCheck, IconRefresh, IconCheck, IconX, IconLoader2 } from "@tabler/icons-react";
+import { IconListCheck, IconRefresh, IconCheck, IconX, IconLoader2, IconInfinity } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 // 퀴즈 저장 스키마의 주인은 store — 타입을 여기서 가져온다(#542 영속).
@@ -27,20 +27,21 @@ const clampQuiz = (w: number) => Math.min(QUIZ_MAX, Math.max(QUIZ_MIN, w));
 
 // 문제 수 범위 허용치 + 옵션 영속.
 const COUNT_MIN = 2;
-// 슬라이더 최상단(=COUNT_MAX)은 "무제한(∞)"을 뜻한다 — 재료가 많으면 상한 없이 낸다.
-const COUNT_MAX = 20;
+const COUNT_MAX = 20; // 실제 지정 가능한 최대 문제 수.
+// 슬라이더 최상단 = COUNT_MAX(20) "다음" 한 칸 = 무제한(∞). 20은 진짜 값, 21 위치가 ∞.
+const UNLIMITED = COUNT_MAX + 1;
 const QUIZ_OPTS_KEY = "nunopi.ask.quizOpts";
-// 기본은 "3개 이상, 상한 없음" — 재료가 풍부하면 많이, 적으면 그보다 적게.
-const DEFAULT_OPTS: QuizOpts = { min: 3, max: COUNT_MAX, types: { mc: true, short: true, reverse: true } };
+// 기본은 "3개 이상, 상한 없음(∞)" — 재료가 풍부하면 많이, 적으면 그보다 적게.
+const DEFAULT_OPTS: QuizOpts = { min: 3, max: UNLIMITED, types: { mc: true, short: true, reverse: true } };
 
 // 저장된 옵션 방어 로드 — 이상하면 기본값. 범위·유형 클램프.
 function loadOpts(): QuizOpts {
   try {
     const raw = JSON.parse(localStorage.getItem(QUIZ_OPTS_KEY) ?? "");
     if (!raw || typeof raw !== "object") return DEFAULT_OPTS;
-    const clamp = (n: unknown, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(COUNT_MAX, Math.max(COUNT_MIN, Math.round(n))) : d);
-    let min = clamp(raw.min, DEFAULT_OPTS.min);
-    let max = clamp(raw.max, DEFAULT_OPTS.max);
+    const clamp = (n: unknown, lo: number, hi: number, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d);
+    let min = clamp(raw.min, COUNT_MIN, COUNT_MAX, DEFAULT_OPTS.min); // min은 실제값 상한(20)까지
+    let max = clamp(raw.max, COUNT_MIN, UNLIMITED, DEFAULT_OPTS.max); // max는 ∞(21)까지
     if (min > max) [min, max] = [max, min];
     const tr = raw.types && typeof raw.types === "object" ? raw.types : {};
     const types = {
@@ -81,7 +82,7 @@ function buildGenerateContext(messages: ChatMessage[], langName: string, opts: Q
     "",
     "아래는 학습자가 실제로 물어본 질문과 받은 답이다. 이걸 바탕으로 능동 회상용 퀴즈를 만든다.",
     "규칙:",
-    opts.max >= COUNT_MAX
+    opts.max >= UNLIMITED
       ? `- 문제 ${opts.min}개 이상. 상한은 없다 — 재료(대화)가 풍부하면 그만큼 많이 내라. 재료가 적으면 ${opts.min}개보다 적게 내도 된다(억지로 채우지 말 것).`
       : `- 문제 ${opts.min}~${opts.max}개(목표 범위). 재료가 부족하면 그보다 적게 내도 된다(억지로 채우지 말 것).`,
     `- 다음 유형만 사용: ${allowed.map((k) => TYPE_DESC[k]).join(" / ")}. 지정 안 된 유형은 내지 말 것.`,
@@ -408,28 +409,31 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
               <>
                 {/* 문제 수 범위 — dual-thumb 슬라이더(range input 2개 오버레이). */}
                 <div className="w-full px-1 text-left">
-                  <div className="mb-1.5 flex justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                     <span>{t("quiz.optCount")}</span>
-                    <span className="text-[#3B34E2] dark:text-[#8b86f5]">{opts.min} ~ {opts.max >= COUNT_MAX ? "∞" : opts.max}</span>
+                    <span className="flex items-center gap-0.5 text-[13px] font-semibold text-[#3B34E2] dark:text-[#8b86f5]">
+                      {opts.min} ~ {opts.max >= UNLIMITED ? <IconInfinity size={20} stroke={2.2} aria-label={t("quiz.unlimited")} /> : opts.max}
+                    </span>
                   </div>
                   <div className="relative h-5">
                     <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded bg-zinc-200 dark:bg-zinc-700" />
                     <div
                       className="absolute top-1/2 h-1 -translate-y-1/2 rounded"
                       style={{
-                        left: `${((opts.min - COUNT_MIN) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
-                        right: `${((COUNT_MAX - opts.max) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
+                        left: `${((opts.min - COUNT_MIN) / (UNLIMITED - COUNT_MIN)) * 100}%`,
+                        right: `${((UNLIMITED - opts.max) / (UNLIMITED - COUNT_MIN)) * 100}%`,
                         backgroundImage: BRAND_GRADIENT,
                       }}
                     />
+                    {/* 두 슬라이더는 같은 스케일(2~UNLIMITED)로 오버레이 — thumb 정렬 유지. min은 실제값(20)까지만. */}
                     <input
-                      type="range" min={COUNT_MIN} max={COUNT_MAX} value={opts.min}
+                      type="range" min={COUNT_MIN} max={UNLIMITED} value={opts.min}
                       aria-label={t("quiz.optCountMin")}
-                      onChange={(e) => updateOpts({ ...opts, min: Math.min(Number(e.target.value), opts.max) })}
+                      onChange={(e) => updateOpts({ ...opts, min: Math.min(Number(e.target.value), opts.max, COUNT_MAX) })}
                       className="nunopi-range absolute inset-x-0 top-0 h-5 w-full"
                     />
                     <input
-                      type="range" min={COUNT_MIN} max={COUNT_MAX} value={opts.max}
+                      type="range" min={COUNT_MIN} max={UNLIMITED} value={opts.max}
                       aria-label={t("quiz.optCountMax")}
                       onChange={(e) => updateOpts({ ...opts, max: Math.max(Number(e.target.value), opts.min) })}
                       className="nunopi-range absolute inset-x-0 top-0 h-5 w-full"
