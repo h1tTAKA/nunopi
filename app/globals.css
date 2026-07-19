@@ -122,6 +122,22 @@ samp {
 
 .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
+/* 퀴즈 문제수 범위(dual-thumb) 슬라이더 — range input 2개를 겹쳐 놓고 thumb만 잡히게 한다. */
+/* 트랙은 pointer-events 없음(겹친 아래 input도 잡히게), thumb만 pointer-events 살림. */
+.nunopi-range { -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; }
+.nunopi-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 9999px;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+}
+.nunopi-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 9999px;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+}
+.dark .nunopi-range::-webkit-slider-thumb { background: #8b86f5; border-color: #13141b; }
+.dark .nunopi-range::-moz-range-thumb { background: #8b86f5; border-color: #13141b; }
+
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
 .nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
 /* 크게 보기(확대) — 루트 폰트 키우고 헤딩도 em으로 함께 확대(추가설명 모달). */

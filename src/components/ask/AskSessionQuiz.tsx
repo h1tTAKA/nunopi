@@ -23,18 +23,62 @@ const QUIZ_DEFAULT = 320;
 const QUIZ_WIDTH_KEY = "nunopi.ask.quizWidth";
 const clampQuiz = (w: number) => Math.min(QUIZ_MAX, Math.max(QUIZ_MIN, w));
 
+// 문제 수 범위 허용치 + 옵션 영속.
+const COUNT_MIN = 2;
+const COUNT_MAX = 10;
+const QUIZ_OPTS_KEY = "nunopi.ask.quizOpts";
+const DEFAULT_OPTS: QuizOpts = { min: 3, max: 6, types: { mc: true, short: true, reverse: true } };
+
+// 저장된 옵션 방어 로드 — 이상하면 기본값. 범위·유형 클램프.
+function loadOpts(): QuizOpts {
+  try {
+    const raw = JSON.parse(localStorage.getItem(QUIZ_OPTS_KEY) ?? "");
+    if (!raw || typeof raw !== "object") return DEFAULT_OPTS;
+    const clamp = (n: unknown, d: number) => (typeof n === "number" && Number.isFinite(n) ? Math.min(COUNT_MAX, Math.max(COUNT_MIN, Math.round(n))) : d);
+    let min = clamp(raw.min, DEFAULT_OPTS.min);
+    let max = clamp(raw.max, DEFAULT_OPTS.max);
+    if (min > max) [min, max] = [max, min];
+    const tr = raw.types && typeof raw.types === "object" ? raw.types : {};
+    const types = {
+      mc: tr.mc !== false,
+      short: tr.short !== false,
+      reverse: tr.reverse !== false,
+    };
+    // 최소 1개는 켜져 있어야 함(전부 꺼진 저장값이면 기본으로).
+    if (!types.mc && !types.short && !types.reverse) return { min, max, types: DEFAULT_OPTS.types };
+    return { min, max, types };
+  } catch {
+    return DEFAULT_OPTS;
+  }
+}
+
+// 생성 옵션 — 문제 수 범위 + 허용 유형. idle 화면에서 유저가 정한다.
+interface QuizOpts {
+  min: number;
+  max: number;
+  types: { mc: boolean; short: boolean; reverse: boolean };
+}
+
+const TYPE_DESC: Record<keyof QuizOpts["types"], string> = {
+  mc: "mc(4지선다)",
+  short: "short(주관식 한두 문장)",
+  reverse: 'reverse(역질문 — "왜 이렇게 했게?" 같이 이유·원리를 묻기)',
+};
+
 // 서브 대화(Q&A)를 퀴즈 생성 컨텍스트로 — 첫 줄 MODE로 프롬프트가 분기한다.
-function buildGenerateContext(messages: ChatMessage[], langName: string): string {
+function buildGenerateContext(messages: ChatMessage[], langName: string, opts: QuizOpts): string {
   const qa = messages
     .map((m) => `${m.role === "user" ? "Q" : "A"}: ${m.content}`)
     .join("\n\n");
+  const allowed = (Object.keys(opts.types) as (keyof QuizOpts["types"])[]).filter((k) => opts.types[k]);
   return [
     "MODE: GENERATE",
     `LANGUAGE: ${langName} (모든 문제·선택지·해설은 이 언어로)`,
     "",
     "아래는 학습자가 실제로 물어본 질문과 받은 답이다. 이걸 바탕으로 능동 회상용 퀴즈를 만든다.",
     "규칙:",
-    "- 문제 3~6개. 유형을 섞는다: mc(4지선다) / short(주관식 한두 문장) / reverse(역질문 — \"왜 이렇게 했게?\" 같이 이유·원리를 묻기).",
+    `- 문제 ${opts.min}~${opts.max}개. 재료(대화)가 부족하면 그보다 적게 내도 된다(억지로 채우지 말 것).`,
+    `- 다음 유형만 사용: ${allowed.map((k) => TYPE_DESC[k]).join(" / ")}. 지정 안 된 유형은 내지 말 것.`,
     "- 학습자가 실제로 물어본 내용에서만 출제(모르는 걸 새로 묻지 않기).",
     '- type은 반드시 "mc" | "short" | "reverse" 중 하나 그대로(다른 표기 금지: "multiple_choice" X).',
     '- mc의 answer는 정답 옵션의 0-based 인덱스 숫자(0,1,2,3). 글자("A")나 정답 텍스트가 아니라 숫자.',
@@ -186,6 +230,15 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
   // 답: mc=옵션 인덱스(number), short/reverse=문자열.
   const [answers, setAnswers] = useState<Record<number, number | string>>(() => quiz?.answers ?? {});
   const [graded, setGraded] = useState<Record<number, Graded>>(() => quiz?.graded ?? {});
+  // 생성 옵션(문제 수 범위·유형) — SSR 안전 위해 기본값으로 시작, 마운트 후 저장값 복원.
+  const [opts, setOpts] = useState<QuizOpts>(DEFAULT_OPTS);
+  useEffect(() => { setOpts(loadOpts()); }, []); // eslint-disable-line react-hooks/set-state-in-effect
+  // 옵션 변경 = 화면 갱신 + localStorage 저장을 한 번에(마운트 시 기본값이 저장값을 덮지 않게 setter에서만 저장).
+  function updateOpts(next: QuizOpts) {
+    setOpts(next);
+    try { localStorage.setItem(QUIZ_OPTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  }
+  const anyType = opts.types.mc || opts.types.short || opts.types.reverse;
 
   // 최신 저장 콜백을 ref로 — 부모가 매 렌더 새 함수를 줘도 저장 effect가 재실행되지 않게(deps 제외).
   // 렌더 중이 아니라 커밋 후(effect)에 갱신(react-hooks/refs).
@@ -253,7 +306,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
     const ac = new AbortController();
     acRef.current = ac;
     try {
-      const text = await runQuiz(buildGenerateContext(messages, langName), { providerId, providerSettings, locale, signal: ac.signal });
+      const text = await runQuiz(buildGenerateContext(messages, langName, opts), { providerId, providerSettings, locale, signal: ac.signal });
       if (ac.signal.aborted) return; // 취소됐으면(언마운트/재생성) 아무것도 안 씀
       const parsed = parseJsonBlock<unknown[]>(text);
       const clean = (Array.isArray(parsed) ? parsed : []).map(normalizeQuestion).filter((q): q is QuizQ => q !== null);
@@ -343,11 +396,69 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
       <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4">
         {/* 시작 전 / 로딩 / 에러 */}
         {phase === "idle" && (
-          <div className="flex flex-col items-center gap-3 px-2 py-8 text-center">
+          <div className="flex flex-col items-center gap-4 px-2 py-6 text-center">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{hasMaterial ? t("quiz.intro") : t("quiz.needMaterial")}</p>
+            {hasMaterial && (
+              <>
+                {/* 문제 수 범위 — dual-thumb 슬라이더(range input 2개 오버레이). */}
+                <div className="w-full px-1 text-left">
+                  <div className="mb-1.5 flex justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    <span>{t("quiz.optCount")}</span>
+                    <span className="text-[#3B34E2] dark:text-[#8b86f5]">{opts.min} ~ {opts.max}</span>
+                  </div>
+                  <div className="relative h-5">
+                    <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded bg-zinc-200 dark:bg-zinc-700" />
+                    <div
+                      className="absolute top-1/2 h-1 -translate-y-1/2 rounded bg-[#3B34E2] dark:bg-[#8b86f5]"
+                      style={{
+                        left: `${((opts.min - COUNT_MIN) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
+                        right: `${((COUNT_MAX - opts.max) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
+                      }}
+                    />
+                    <input
+                      type="range" min={COUNT_MIN} max={COUNT_MAX} value={opts.min}
+                      aria-label={t("quiz.optCountMin")}
+                      onChange={(e) => updateOpts({ ...opts, min: Math.min(Number(e.target.value), opts.max) })}
+                      className="nunopi-range absolute inset-x-0 top-0 h-5 w-full"
+                    />
+                    <input
+                      type="range" min={COUNT_MIN} max={COUNT_MAX} value={opts.max}
+                      aria-label={t("quiz.optCountMax")}
+                      onChange={(e) => updateOpts({ ...opts, max: Math.max(Number(e.target.value), opts.min) })}
+                      className="nunopi-range absolute inset-x-0 top-0 h-5 w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* 유형 토글 — 최소 1개 필수. */}
+                <div className="w-full px-1 text-left">
+                  <div className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("quiz.optTypes")}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["mc", "short", "reverse"] as const).map((k) => (
+                      <label
+                        key={k}
+                        className={`cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition ${
+                          opts.types[k]
+                            ? "border-[#3B34E2] bg-[#3B34E2]/10 text-[#3B34E2] dark:border-[#8b86f5] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                            : "border-zinc-200 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox" checked={opts.types[k]}
+                          onChange={(e) => updateOpts({ ...opts, types: { ...opts.types, [k]: e.target.checked } })}
+                          className="sr-only"
+                        />
+                        {t(`quiz.type.${k}`)}
+                      </label>
+                    ))}
+                  </div>
+                  {!anyType && <p className="mt-1.5 text-[11px] text-rose-500">{t("quiz.needType")}</p>}
+                </div>
+              </>
+            )}
             <button
               type="button"
-              disabled={!hasMaterial}
+              disabled={!hasMaterial || !anyType}
               onClick={() => { void generate(); }}
               className="rounded-lg bg-[#3B34E2] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#2f28c4] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#8b86f5] dark:hover:bg-[#7a74e8]"
             >
