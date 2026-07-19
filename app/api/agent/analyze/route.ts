@@ -244,7 +244,8 @@ function isValidAnalyzeRequestPayload(
     value.mode !== "chat" &&
     value.mode !== "explain-card" &&
     value.mode !== "dedup-cards" &&
-    value.mode !== "deck-agent"
+    value.mode !== "deck-agent" &&
+    value.mode !== "quiz"
   ) {
     return false;
   }
