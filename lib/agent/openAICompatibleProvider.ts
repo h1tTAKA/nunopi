@@ -103,7 +103,7 @@ function normalizeOpenAICompatibleResponse(
 
   // 챗은 자유 텍스트, 글 모드는 텍스트 정규화, explain-token/concept는 각 1개.
   // 중복묶기(dedup-cards)·덱에이전트(deck-agent)도 자유 텍스트(블록 포함)를 그대로 담아 클라가 파싱.
-  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
+  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent" || request.mode === "quiz") {
     return normalizeChatOutput(content, "openai-compatible");
   }
   if (request.mode === "explain-concept") {
@@ -210,7 +210,7 @@ async function fetchOpenAICompatibleResponse(
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       const httpMsg = `HTTP ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`;
-      if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
+      if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent" || request.mode === "quiz") {
         return chatModeResponse("openai-compatible", `엔드포인트 오류(HTTP ${res.status}).`, [{ code: "PARSE_FAILED", message: httpMsg }]);
       }
       if (request.mode === "explain-concept") {
@@ -305,7 +305,7 @@ async function fetchOpenAICompatibleResponse(
     // 사용자 취소는 route로 전파(499 처리).
     if (signal?.aborted) throw err;
     const netMsg = err instanceof Error ? err.message : "Network error.";
-    if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") {
+    if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent" || request.mode === "quiz") {
       return chatModeResponse("openai-compatible", "엔드포인트에 연결하지 못했다.", [{ code: "PARSE_FAILED", message: netMsg }]);
     }
     if (request.mode === "explain-concept") {
@@ -370,6 +370,13 @@ function buildOpenAICompatibleMessages(
     return [
       { role: "system", content: deckAgentSystemPrompt(request.locale) },
       { role: "user", content: buildDeckAgentPrompt(request) },
+    ];
+  }
+  // 퀴즈: 요청 code에 MODE(GENERATE/GRADE)·재료·규칙·출력언어가 완성돼 있음. 블록만 내라는 경량 시스템.
+  if (request.mode === "quiz") {
+    return [
+      { role: "system", content: "You create and grade active-recall quizzes. Follow the MODE and output language in the user message. Output ONLY the requested ```json fenced block and nothing else." },
+      { role: "user", content: request.code },
     ];
   }
   // explain-concept: 개념 1개 설명 프롬프트.
