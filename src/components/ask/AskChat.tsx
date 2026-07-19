@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText, IconListCheck } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { useT } from "@/lib/i18n/I18nProvider";
@@ -37,6 +37,9 @@ interface AskChatProps {
   // 우측 카드 목록 패널 토글.
   cardsOpen?: boolean;
   onToggleCards?: () => void;
+  // 우측 퀴즈 패널 토글(카드와 자리 공유·배타).
+  quizOpen?: boolean;
+  onToggleQuiz?: () => void;
 }
 
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
@@ -47,6 +50,7 @@ export default function AskChat({
   canSplit = false, splitOptions = [], onOpenQuestion, onSplitNew,
   draggable = false, onHeaderDragStart, onHeaderDragEnd,
   cardsOpen = false, onToggleCards,
+  quizOpen = false, onToggleQuiz,
 }: AskChatProps) {
   const t = useT();
   const toast = useToast();
@@ -132,6 +136,22 @@ export default function AskChat({
               }`}
             >
               <IconCards size={15} stroke={2} aria-hidden />
+            </button>
+          )}
+          {onToggleQuiz && (
+            <button
+              type="button"
+              onClick={onToggleQuiz}
+              title={t("quiz.toggle")}
+              aria-label={t("quiz.toggle")}
+              aria-pressed={quizOpen}
+              className={`inline-flex items-center rounded-full p-1.5 transition ${
+                quizOpen
+                  ? "bg-[#3B34E2]/10 text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                  : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              }`}
+            >
+              <IconListCheck size={15} stroke={2} aria-hidden />
             </button>
           )}
           {canSplit && onSplitNew && (
