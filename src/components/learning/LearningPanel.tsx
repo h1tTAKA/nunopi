@@ -110,8 +110,9 @@ interface LearningPanelProps {
   onTokenExplain?: (text: string) => void | Promise<{ label: string; description: string; example?: string } | null>;
   onDeleteToken?: (text: string) => void;
   // lazy 개념 설명 — 설명 없는 개념 클릭 시 on-demand 설명 요청.
+  // 반환: 받아온 설명 문자열. 북마크 시 설명 붙여 저장하는 데 쓴다(#533, 토큰과 동일).
   explainingConcepts?: string[];
-  onConceptExplain?: (conceptId: string, title: string) => void;
+  onConceptExplain?: (conceptId: string, title: string) => void | Promise<string | null>;
   onDeleteConcept?: (conceptId: string) => void;
   code: string;
   historyEntries?: HistoryEntry[];
@@ -505,7 +506,7 @@ export default function LearningPanel({
   }
 
   // 개념 북마크 토글(코드 모드) — 토큰과 동일 디커플링(#519). 키=title.
-  function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
+  async function handleConceptBookmarkToggle(concept: ConceptOccurrence) {
     const key = concept.title;
     const setStar = (on: boolean) =>
       setBookmarkedConceptTitles((prev) => {
@@ -516,7 +517,13 @@ export default function LearningPanel({
       });
     if (bookmarkedConceptTitles.includes(key)) { setStar(false); return; } // 별 끄기 — 카드 유지
     if (bookmarkedTermExists(key)) { setStar(true); toast(t("card.existsBookmarked")); return; } // 카드 이미 존재 → 별만
-    saveConceptDetail(concept, bookmarkSourceTitle(), bookmarkSourceId());
+    // 카드 없음 → 새로 만든다. 설명 없으면 정적 사전/에이전트에서 받아 붙여 "설명없음" 방지(#533, 토큰과 동일).
+    let toSave = concept;
+    if (!concept.description) {
+      const desc = CONCEPT_DESCRIPTIONS[concept.conceptId]?.short ?? (onConceptExplain ? await onConceptExplain(concept.conceptId, concept.title) : null);
+      if (desc) toSave = { ...concept, description: desc };
+    }
+    saveConceptDetail(toSave, bookmarkSourceTitle(), bookmarkSourceId());
     setBookmarkedConceptDetails(loadConceptDetails());
     if (typeof window !== "undefined") window.dispatchEvent(new Event(CARDS_CHANGED_EVENT));
     toast(t("card.added", { term: key }));
