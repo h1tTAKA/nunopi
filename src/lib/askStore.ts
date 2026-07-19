@@ -101,8 +101,22 @@ function sanitizeQuiz(raw: unknown): AskQuiz | undefined {
       ((x as QuizQuestion).type === "mc" || (x as QuizQuestion).type === "short" || (x as QuizQuestion).type === "reverse"),
   );
   if (questions.length === 0) return undefined;
-  const answers = q.answers && typeof q.answers === "object" ? (q.answers as AskQuiz["answers"]) : {};
-  const graded = q.graded && typeof q.graded === "object" ? (q.graded as AskQuiz["graded"]) : {};
+  // 답·채점도 항목별 타입 검증(변조/구버전 대비). 키는 JSON 왕복으로 문자열이지만 조회 시 숫자→문자 강제라 무해.
+  const answers: AskQuiz["answers"] = {};
+  if (q.answers && typeof q.answers === "object") {
+    for (const [k, v] of Object.entries(q.answers)) {
+      if (typeof v === "number" || typeof v === "string") answers[Number(k)] = v;
+    }
+  }
+  const graded: AskQuiz["graded"] = {};
+  if (q.graded && typeof q.graded === "object") {
+    for (const [k, v] of Object.entries(q.graded)) {
+      if (v && typeof v === "object" && typeof (v as QuizGraded).correct === "boolean") {
+        const g = v as QuizGraded;
+        graded[Number(k)] = { correct: g.correct, feedback: typeof g.feedback === "string" ? g.feedback : undefined };
+      }
+    }
+  }
   return { phase, questions, answers, graded };
 }
 

@@ -94,17 +94,18 @@ const TYPE_ALIASES: Record<string, QuizQ["type"]> = {
   reverse: "reverse", reverse_question: "reverse", reversequestion: "reverse",
 };
 
-// mc 정답을 0-based 숫자 인덱스로 강제 — 숫자·글자("A")·정답텍스트 뭐가 와도 흡수. 못 맞추면 -1(오답 처리되되 렌더는 됨).
+// mc 정답을 0-based 숫자 인덱스로 강제 — 숫자·글자("A")·정답텍스트 뭐가 와도 흡수.
+// 옵션 범위 밖(예: 옵션 3개인데 "D"→3)이면 -1(오답 처리되되 렌더는 됨).
 function coerceMcAnswer(a: unknown, options: string[]): number {
-  if (typeof a === "number" && Number.isInteger(a)) return a;
-  if (typeof a === "string") {
+  let idx = -1;
+  if (typeof a === "number" && Number.isInteger(a)) idx = a;
+  else if (typeof a === "string") {
     const s = a.trim();
-    if (/^[A-Za-z]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65; // "A"→0
-    if (/^\d+$/.test(s)) return parseInt(s, 10);
-    const idx = options.findIndex((o) => o === s);
-    if (idx >= 0) return idx;
+    if (/^[A-Za-z]$/.test(s)) idx = s.toUpperCase().charCodeAt(0) - 65; // "A"→0
+    else if (/^\d+$/.test(s)) idx = parseInt(s, 10);
+    else idx = options.findIndex((o) => o === s);
   }
-  return -1;
+  return idx >= 0 && idx < options.length ? idx : -1; // 범위 밖은 무효 처리
 }
 
 // LLM 원소 하나를 우리 QuizQ 모양으로 정규화(키·타입 흔들림 흡수). 못 살리면 null.
