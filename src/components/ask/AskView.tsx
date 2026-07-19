@@ -21,6 +21,7 @@ import {
   type AskStore,
   type AskSession,
   type AskFolder,
+  type AskQuiz,
 } from "@/lib/askStore";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -236,6 +237,20 @@ export default function AskView({ active = true, providerId, providerSettings, g
         s.id !== sessionId
           ? s
           : { ...s, subs: s.subs.map((sub) => (sub.id !== subId ? sub : { ...sub, messages: mapper(sub.messages) })) },
+      ),
+    };
+    commit(next);
+  }
+
+  // 특정 세션·서브의 퀴즈 상태를 갱신하고 커밋(패널이 변경 시 호출 — 탭 전환/재진입 유지).
+  function updateSubQuiz(sessionId: string, subId: string, quiz: AskQuiz | undefined) {
+    const prev = storeRef.current;
+    const next: AskStore = {
+      ...prev,
+      sessions: prev.sessions.map((s) =>
+        s.id !== sessionId
+          ? s
+          : { ...s, subs: s.subs.map((sub) => (sub.id !== subId ? sub : { ...sub, quiz })) },
       ),
     };
     commit(next);
@@ -1163,7 +1178,16 @@ export default function AskView({ active = true, providerId, providerSettings, g
       {/* 우측 퀴즈 패널(토글, 카드와 배타) — 현재 활성 서브의 Q&A로 능동 회상. key로 서브 전환 시 리셋. */}
       {quizOpen && activeSession && (() => {
         const activeSub = activeSession.subs.find((x) => x.id === activeSession.activeSubId) ?? activeSession.subs[0];
-        return <AskSessionQuiz key={activeSub.id} messages={activeSub.messages} providerId={providerId} providerSettings={providerSettings} />;
+        return (
+          <AskSessionQuiz
+            key={activeSub.id}
+            messages={activeSub.messages}
+            providerId={providerId}
+            providerSettings={providerSettings}
+            quiz={activeSub.quiz}
+            onQuizChange={(next) => updateSubQuiz(activeSession.id, activeSub.id, next)}
+          />
+        );
       })()}
     </div>
     </FlyCardProvider>
