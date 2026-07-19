@@ -7,10 +7,31 @@ import type { ChatMessage } from "@/lib/agent";
 const KEY = "nunopi:ask-sessions";
 const LEGACY_THREAD_KEY = "nunopi:ask-thread"; // 이슈1 단일 스레드 — 최초 로드 시 흡수.
 
+// 아웃풋 퀴즈(#540/#542) — 서브별로 생성된 퀴즈·답·채점을 store에 얹어 탭 전환/재진입에도 유지.
+export type QuizQType = "mc" | "short" | "reverse";
+export interface QuizQuestion {
+  type: QuizQType;
+  q: string;
+  options?: string[]; // mc만
+  answer: number | string; // mc=정답 옵션 인덱스(0-based), short/reverse=모범답안
+  why?: string;
+}
+export interface QuizGraded {
+  correct: boolean;
+  feedback?: string; // short/reverse는 에이전트 피드백
+}
+export interface AskQuiz {
+  phase: "idle" | "solving" | "done"; // 진행 중(loading/grading)은 저장 안 함 — 복원 시 멈춤 방지
+  questions: QuizQuestion[];
+  answers: Record<number, number | string>; // mc=번호, short/reverse=문자열
+  graded: Record<number, QuizGraded>;
+}
+
 export interface AskSub {
   id: string;
   title?: string; // 유저 지정 이름. 없으면 "질문 N"으로 표시.
   messages: ChatMessage[];
+  quiz?: AskQuiz; // 이 서브에서 만든 아웃풋 퀴즈 상태(있을 때만).
 }
 
 export interface AskSession {
@@ -67,6 +88,24 @@ export function createFolder(name: string, parentId: string | null = null): AskF
   return { id: newAskId(), name, collapsed: false, parentId };
 }
 
+// 저장된 퀴즈 상태 방어 정규화 — 모양이 어긋나면 undefined(퀴즈 없음으로 취급).
+function sanitizeQuiz(raw: unknown): AskQuiz | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const q = raw as Partial<AskQuiz>;
+  if (!Array.isArray(q.questions)) return undefined;
+  // 진행 중 단계는 저장 안 되지만, 혹시 섞여 들어와도 안정 단계로 눕힌다.
+  const phase: AskQuiz["phase"] = q.phase === "done" ? "done" : q.phase === "solving" ? "solving" : "idle";
+  const questions = q.questions.filter(
+    (x): x is QuizQuestion =>
+      !!x && typeof (x as QuizQuestion).q === "string" &&
+      ((x as QuizQuestion).type === "mc" || (x as QuizQuestion).type === "short" || (x as QuizQuestion).type === "reverse"),
+  );
+  if (questions.length === 0) return undefined;
+  const answers = q.answers && typeof q.answers === "object" ? (q.answers as AskQuiz["answers"]) : {};
+  const graded = q.graded && typeof q.graded === "object" ? (q.graded as AskQuiz["graded"]) : {};
+  return { phase, questions, answers, graded };
+}
+
 // 저장된 세션 배열이 스키마를 갖추도록 방어적으로 정규화.
 function normalizeSession(raw: unknown): AskSession | null {
   if (!raw || typeof raw !== "object") return null;
@@ -75,9 +114,9 @@ function normalizeSession(raw: unknown): AskSession | null {
   const subs = Array.isArray(s.subs)
     ? s.subs
         .filter((x): x is AskSub => !!x && typeof (x as AskSub).id === "string")
-        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, messages: Array.isArray(x.messages) ? x.messages : [] }))
+        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, messages: Array.isArray(x.messages) ? x.messages : [], quiz: sanitizeQuiz((x as AskSub).quiz) }))
     : [];
-  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, messages: [] });
+  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, messages: [], quiz: undefined });
   const activeSubId = subs.some((x) => x.id === s.activeSubId) ? s.activeSubId! : subs[0].id;
   const layout = Array.isArray(s.layout) && s.layout.some((id) => subs.some((x) => x.id === id))
     ? s.layout.filter((id) => subs.some((x) => x.id === id))
