@@ -27,9 +27,11 @@ const clampQuiz = (w: number) => Math.min(QUIZ_MAX, Math.max(QUIZ_MIN, w));
 
 // 문제 수 범위 허용치 + 옵션 영속.
 const COUNT_MIN = 2;
+// 슬라이더 최상단(=COUNT_MAX)은 "무제한(∞)"을 뜻한다 — 재료가 많으면 상한 없이 낸다.
 const COUNT_MAX = 20;
 const QUIZ_OPTS_KEY = "nunopi.ask.quizOpts";
-const DEFAULT_OPTS: QuizOpts = { min: 3, max: 6, types: { mc: true, short: true, reverse: true } };
+// 기본은 "3개 이상, 상한 없음" — 재료가 풍부하면 많이, 적으면 그보다 적게.
+const DEFAULT_OPTS: QuizOpts = { min: 3, max: COUNT_MAX, types: { mc: true, short: true, reverse: true } };
 
 // 저장된 옵션 방어 로드 — 이상하면 기본값. 범위·유형 클램프.
 function loadOpts(): QuizOpts {
@@ -79,7 +81,9 @@ function buildGenerateContext(messages: ChatMessage[], langName: string, opts: Q
     "",
     "아래는 학습자가 실제로 물어본 질문과 받은 답이다. 이걸 바탕으로 능동 회상용 퀴즈를 만든다.",
     "규칙:",
-    `- 문제 ${opts.min}~${opts.max}개. 재료(대화)가 부족하면 그보다 적게 내도 된다(억지로 채우지 말 것).`,
+    opts.max >= COUNT_MAX
+      ? `- 문제 ${opts.min}개 이상. 상한은 없다 — 재료(대화)가 풍부하면 그만큼 많이 내라. 재료가 적으면 ${opts.min}개보다 적게 내도 된다(억지로 채우지 말 것).`
+      : `- 문제 ${opts.min}~${opts.max}개(목표 범위). 재료가 부족하면 그보다 적게 내도 된다(억지로 채우지 말 것).`,
     `- 다음 유형만 사용: ${allowed.map((k) => TYPE_DESC[k]).join(" / ")}. 지정 안 된 유형은 내지 말 것.`,
     "- 학습자가 실제로 물어본 내용에서만 출제(모르는 걸 새로 묻지 않기).",
     '- type은 반드시 "mc" | "short" | "reverse" 중 하나 그대로(다른 표기 금지: "multiple_choice" X).',
@@ -406,7 +410,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                 <div className="w-full px-1 text-left">
                   <div className="mb-1.5 flex justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                     <span>{t("quiz.optCount")}</span>
-                    <span className="text-[#3B34E2] dark:text-[#8b86f5]">{opts.min} ~ {opts.max}</span>
+                    <span className="text-[#3B34E2] dark:text-[#8b86f5]">{opts.min} ~ {opts.max >= COUNT_MAX ? "∞" : opts.max}</span>
                   </div>
                   <div className="relative h-5">
                     <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded bg-zinc-200 dark:bg-zinc-700" />
@@ -431,6 +435,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                       className="nunopi-range absolute inset-x-0 top-0 h-5 w-full"
                     />
                   </div>
+                  <p className="mt-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">{t("quiz.optCountHint")}</p>
                 </div>
 
                 {/* 유형 토글 — 최소 1개 필수. */}
