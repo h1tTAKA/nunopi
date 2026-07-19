@@ -15,6 +15,8 @@ import type { QuizQuestion as QuizQ, QuizGraded as Graded, AskQuiz } from "@/lib
 type Phase = "idle" | "loading" | "solving" | "grading" | "done" | "error";
 
 const LANG_NAME: Record<string, string> = { ko: "한국어", ja: "日本語", en: "English" };
+// 누노피 브랜드 그라데이션(암기모드 막대와 동일) — 시안→블루→바이올렛.
+const BRAND_GRADIENT = "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)";
 
 // 패널 폭(px) — 드래그로 조절, localStorage 영속. 우측 패널이라 왼쪽 모서리를 잡아 늘린다.
 const QUIZ_MIN = 280;
@@ -25,7 +27,7 @@ const clampQuiz = (w: number) => Math.min(QUIZ_MAX, Math.max(QUIZ_MIN, w));
 
 // 문제 수 범위 허용치 + 옵션 영속.
 const COUNT_MIN = 2;
-const COUNT_MAX = 10;
+const COUNT_MAX = 20;
 const QUIZ_OPTS_KEY = "nunopi.ask.quizOpts";
 const DEFAULT_OPTS: QuizOpts = { min: 3, max: 6, types: { mc: true, short: true, reverse: true } };
 
@@ -409,10 +411,11 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                   <div className="relative h-5">
                     <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded bg-zinc-200 dark:bg-zinc-700" />
                     <div
-                      className="absolute top-1/2 h-1 -translate-y-1/2 rounded bg-[#3B34E2] dark:bg-[#8b86f5]"
+                      className="absolute top-1/2 h-1 -translate-y-1/2 rounded"
                       style={{
                         left: `${((opts.min - COUNT_MIN) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
                         right: `${((COUNT_MAX - opts.max) / (COUNT_MAX - COUNT_MIN)) * 100}%`,
+                        backgroundImage: BRAND_GRADIENT,
                       }}
                     />
                     <input
@@ -460,7 +463,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
               type="button"
               disabled={!hasMaterial || !anyType}
               onClick={() => { void generate(); }}
-              className="rounded-lg bg-[#3B34E2] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#2f28c4] disabled:cursor-not-allowed disabled:opacity-40 dark:bg-[#8b86f5] dark:hover:bg-[#7a74e8]"
+              className="rounded-lg bg-[#3B34E2] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t("quiz.make")}
             </button>

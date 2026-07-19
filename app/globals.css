@@ -128,15 +128,17 @@ samp {
 .nunopi-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; pointer-events: auto;
   width: 16px; height: 16px; border-radius: 9999px;
-  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+  background-image: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%);
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
 }
 .nunopi-range::-moz-range-thumb {
   pointer-events: auto;
   width: 16px; height: 16px; border-radius: 9999px;
-  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
+  background-image: linear-gradient(135deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%);
+  border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); cursor: pointer;
 }
-.dark .nunopi-range::-webkit-slider-thumb { background: #8b86f5; border-color: #13141b; }
-.dark .nunopi-range::-moz-range-thumb { background: #8b86f5; border-color: #13141b; }
+.dark .nunopi-range::-webkit-slider-thumb { border-color: #13141b; }
+.dark .nunopi-range::-moz-range-thumb { border-color: #13141b; }
 
 /* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
 .nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
