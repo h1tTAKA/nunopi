@@ -30,6 +30,10 @@ const CODE_SYSTEM_PROMPT = "You are a code analysis assistant. Return JSON only.
 // 산문·플래시카드 제안 없이 요청한 ```card-dedup 블록만 내게 해 토큰·지연을 최소화한다.
 const DEDUP_SYSTEM_PROMPT =
   "You group duplicate flashcards. Output ONLY the requested ```card-dedup fenced block and nothing else — no prose, no explanation, no other code blocks.";
+// Ask 아웃풋 퀴즈 — 생성+채점 겸용. 클라가 code에 MODE(GENERATE/GRADE)·재료·규칙·출력언어를 다 담아 보냄.
+// 시스템은 형식(오직 ```json 블록)만 강제. 산문·다른 블록 금지로 파싱 안정성 확보.
+const QUIZ_SYSTEM_PROMPT =
+  "You create and grade active-recall quizzes. Follow the MODE (GENERATE or GRADE) and output language stated in the user message. Output ONLY the requested ```json fenced block and nothing else — no prose, no explanation, no other code blocks.";
 
 interface RunResult {
   text: string;
@@ -137,7 +141,7 @@ function unavailableResponse(
   providerId: AgentProviderKind,
 ): AgentAnalyzeResponse {
   const warn = [{ code: "PARTIAL_PARSE" as const, message }];
-  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent") return chatModeResponse(providerId, message, warn);
+  if (request.mode === "chat" || request.mode === "dedup-cards" || request.mode === "deck-agent" || request.mode === "quiz") return chatModeResponse(providerId, message, warn);
   if (request.mode === "explain-concept") return conceptModeResponse(providerId, [], warn);
   if (request.mode === "explain-token") return tokenModeResponse(providerId, [], warn);
   if (request.mode === "text") return textModeResponse(providerId, message, warn);
@@ -194,6 +198,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       const isDedup = request.mode === "dedup-cards";
       // 덱 생성/분류 — 대화형 경량(저추론 + nunopi-cards 없음). 스트리밍·thinking은 활동 표시 위해 켠다.
       const isDeckAgent = request.mode === "deck-agent";
+      // Ask 아웃풋 퀴즈 — dedup과 동형(블록만 출력, 저추론, 스트림/thinking 없음). 클라가 code에 컨텍스트 완성.
+      const isQuiz = request.mode === "quiz";
       const isChatLike = isChat || isCardExplain;
       // 답변을 자유텍스트로 흘리고(summary) 스트리밍/추론을 보여주는 그룹(챗류 + 덱에이전트).
       const isChatStream = isChatLike || isDeckAgent;
@@ -206,8 +212,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         return unavailableResponse(request, message, providerId);
       }
 
-      const prompt = isDedup
-        ? request.code // 클라가 규칙+카드목록을 이미 완성해 보냄(cardDedup.buildDedupContext).
+      const prompt = isDedup || isQuiz
+        ? request.code // 클라가 규칙+목록(또는 퀴즈 컨텍스트)을 이미 완성해 보냄.
         : isDeckAgent
         ? buildDeckAgentPrompt(request)
         : isCardExplain
@@ -231,7 +237,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
       };
 
       if (mockText) {
-        return isChatStream || isDedup
+        return isChatStream || isDedup || isQuiz
           ? normalizeChatOutput(mockText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(mockText, providerId, request)
@@ -274,7 +280,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           runtime: cfg.runtime,
           // 챗은 언어별 튜터 시스템프롬프트 + thinking 살림(effort 미강제). 분석은 JSON 지시 + low.
           // 중복묶기는 블록만 내라는 경량 시스템프롬프트 + low(아래 effort).
-          systemPrompt: isDedup ? DEDUP_SYSTEM_PROMPT : isDeckAgent ? deckAgentSystemPrompt(request.locale) : isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
+          systemPrompt: isDedup ? DEDUP_SYSTEM_PROMPT : isQuiz ? QUIZ_SYSTEM_PROMPT : isDeckAgent ? deckAgentSystemPrompt(request.locale) : isChatLike ? chatSystemPrompt(request.locale) : CODE_SYSTEM_PROMPT,
           signal: options?.signal,
           onProgress: streamOnProgress,
           // 추론 표시는 챗류·덱에이전트에서만 — 분석/청크는 partial 파싱 경로라 미전달.
@@ -284,7 +290,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           effort: !isChatLike,
         });
 
-        return isChatStream || isDedup
+        return isChatStream || isDedup || isQuiz
           ? normalizeChatOutput(rawText, providerId)
           : isExplainConcept
             ? normalizeExplainConceptOutput(rawText, providerId, request)
@@ -300,7 +306,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
         if (options?.signal?.aborted) throw err; // 취소는 route로 전파(499)
         const message = err instanceof Error ? err.message : "runtime run failed";
         const warn = [{ code: "PARSE_FAILED" as const, message }];
-        if (isChatStream || isDedup) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
+        if (isChatStream || isDedup || isQuiz) return chatModeResponse(providerId, `런타임 실패: ${message}`, warn);
         if (isExplainConcept) return conceptModeResponse(providerId, [], warn);
         if (isExplainToken) return tokenModeResponse(providerId, [], warn);
         if (isText) return textModeResponse(providerId, `런타임 실패: ${message}`, warn);

@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";
 import AskChat from "@/components/ask/AskChat";
 import AskSessionCards from "@/components/ask/AskSessionCards";
+import AskSessionQuiz from "@/components/ask/AskSessionQuiz";
 import { FlyCardProvider } from "@/components/memorize/FlyCard";
 import { collectCards } from "@/lib/srs/collect";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
@@ -83,6 +84,8 @@ export default function AskView({ active = true, providerId, providerSettings, g
   const [dropFolder, setDropFolder] = useState<string | null>(null);
   // 우측 카드 목록 패널 열림.
   const [cardsOpen, setCardsOpen] = useState(false);
+  // 우측 퀴즈 패널 열림(카드와 자리 공유·배타).
+  const [quizOpen, setQuizOpen] = useState(false);
   // 세션별 ask 카드 수(좌측 배지). 전역 카드 store에서 파생.
   const [cardCounts, setCardCounts] = useState<Record<string, number>>({});
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
@@ -1102,7 +1105,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
                 onHeaderDragStart={tiled ? () => setDragId(sub.id) : undefined}
                 onHeaderDragEnd={tiled ? () => { setDragId(null); setOverId(null); setOverDir(null); } : undefined}
                 cardsOpen={cardsOpen}
-                onToggleCards={() => setCardsOpen((v) => !v)}
+                onToggleCards={() => { setCardsOpen((v) => !v); setQuizOpen(false); }}
+                quizOpen={quizOpen}
+                onToggleQuiz={() => { setQuizOpen((v) => !v); setCardsOpen(false); }}
               />
             );
           };
@@ -1154,6 +1159,12 @@ export default function AskView({ active = true, providerId, providerSettings, g
 
       {/* 우측 카드 목록 패널(토글) — 현재 세션에서 추가된 카드. */}
       {cardsOpen && activeSession && <AskSessionCards sessionId={activeSession.id} sourceLabel={cardSourceLabelById} />}
+
+      {/* 우측 퀴즈 패널(토글, 카드와 배타) — 현재 활성 서브의 Q&A로 능동 회상. key로 서브 전환 시 리셋. */}
+      {quizOpen && activeSession && (() => {
+        const activeSub = activeSession.subs.find((x) => x.id === activeSession.activeSubId) ?? activeSession.subs[0];
+        return <AskSessionQuiz key={activeSub.id} messages={activeSub.messages} providerId={providerId} providerSettings={providerSettings} />;
+      })()}
     </div>
     </FlyCardProvider>
   );
