@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconListCheck, IconRefresh, IconCheck, IconX, IconLoader2 } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
@@ -26,6 +26,13 @@ interface Graded {
 type Phase = "idle" | "loading" | "solving" | "grading" | "done" | "error";
 
 const LANG_NAME: Record<string, string> = { ko: "한국어", ja: "日本語", en: "English" };
+
+// 패널 폭(px) — 드래그로 조절, localStorage 영속. 우측 패널이라 왼쪽 모서리를 잡아 늘린다.
+const QUIZ_MIN = 280;
+const QUIZ_MAX = 560;
+const QUIZ_DEFAULT = 320;
+const QUIZ_WIDTH_KEY = "nunopi.ask.quizWidth";
+const clampQuiz = (w: number) => Math.min(QUIZ_MAX, Math.max(QUIZ_MIN, w));
 
 // 서브 대화(Q&A)를 퀴즈 생성 컨텍스트로 — 첫 줄 MODE로 프롬프트가 분기한다.
 function buildGenerateContext(messages: ChatMessage[], langName: string): string {
@@ -140,6 +147,44 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
   const [answers, setAnswers] = useState<Record<number, number | string>>({});
   const [graded, setGraded] = useState<Record<number, Graded>>({});
 
+  // 패널 폭 리사이즈 — 우측 패널이라 왼쪽 모서리 핸들을 잡고 왼쪽으로 끌면 넓어진다.
+  const [width, setWidth] = useState(QUIZ_DEFAULT);
+  const [resizing, setResizing] = useState(false);
+  const resizingRef = useRef(false);
+  const widthRef = useRef(QUIZ_DEFAULT);
+  const asideRef = useRef<HTMLElement>(null);
+  // 드래그 중 고정된 기준점 = 패널 오른쪽 모서리 x좌표. 폭 = 기준점 - 현재 커서 x.
+  const anchorRightRef = useRef(0);
+
+  useEffect(() => {
+    const stored = Number(localStorage.getItem(QUIZ_WIDTH_KEY));
+    if (Number.isFinite(stored) && stored > 0) {
+      const w = clampQuiz(stored);
+      widthRef.current = w;
+      setWidth(w); // eslint-disable-line react-hooks/set-state-in-effect
+    }
+  }, []);
+
+  function onResizeDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    anchorRightRef.current = asideRef.current?.getBoundingClientRect().right ?? e.clientX;
+    resizingRef.current = true;
+    setResizing(true);
+  }
+  function onResizeMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!resizingRef.current) return;
+    const w = clampQuiz(anchorRightRef.current - e.clientX);
+    widthRef.current = w;
+    setWidth(w);
+  }
+  function onResizeUp(e: React.PointerEvent<HTMLDivElement>) {
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* 이미 해제됨 */ }
+    if (!resizingRef.current) return;
+    resizingRef.current = false;
+    setResizing(false);
+    try { localStorage.setItem(QUIZ_WIDTH_KEY, String(Math.round(widthRef.current))); } catch { /* ignore */ }
+  }
+
   const langName = LANG_NAME[locale] ?? "English";
   const hasMaterial = messages.some((m) => m.role === "assistant");
 
@@ -201,7 +246,20 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
   const answeredAll = questions.every((q, i) => (q.type === "mc" ? typeof answers[i] === "number" : String(answers[i] ?? "").trim().length > 0));
 
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+    <aside ref={asideRef} style={{ width }} className="relative flex shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+      {/* 폭 조절 핸들 — 왼쪽 모서리. 잡고 왼쪽으로 끌면 패널이 넓어진다. */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={t("layout.splitHandle")}
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        onPointerCancel={onResizeUp}
+        className={`absolute inset-y-0 left-0 z-10 w-1.5 cursor-col-resize transition-colors ${
+          resizing ? "bg-blue-400/60" : "hover:bg-blue-400/40"
+        }`}
+      />
       <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         <div className="flex min-w-0 items-center gap-1.5">
           <IconListCheck size={15} stroke={2} aria-hidden />
