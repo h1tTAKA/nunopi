@@ -442,13 +442,14 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                   </div>
                   <div className="relative h-5">
                     {/* 그라데이션은 트랙 전체에 상시(암기모드 막대와 동일). 선택 범위 밖만 흐리게 덮는다. */}
-                    <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" style={{ backgroundImage: BRAND_GRADIENT }} />
+                    {/* 셋 다 시각용 — pointer-events-none로 아래 슬라이더 드래그를 막지 않게. */}
+                    <div className="pointer-events-none absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full" style={{ backgroundImage: BRAND_GRADIENT }} />
                     <div
-                      className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-l-full bg-zinc-200/85 dark:bg-zinc-800/85"
+                      className="pointer-events-none absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-l-full bg-zinc-200/85 dark:bg-zinc-800/85"
                       style={{ width: `${((opts.min - COUNT_MIN) / (UNLIMITED - COUNT_MIN)) * 100}%` }}
                     />
                     <div
-                      className="absolute right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-r-full bg-zinc-200/85 dark:bg-zinc-800/85"
+                      className="pointer-events-none absolute right-0 top-1/2 h-1.5 -translate-y-1/2 rounded-r-full bg-zinc-200/85 dark:bg-zinc-800/85"
                       style={{ width: `${((UNLIMITED - opts.max) / (UNLIMITED - COUNT_MIN)) * 100}%` }}
                     />
                     {/* 두 슬라이더는 같은 스케일(2~UNLIMITED)로 오버레이 — thumb 정렬 유지. min은 실제값(20)까지만. */}
