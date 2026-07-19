@@ -725,9 +725,11 @@ export default function Home() {
       // 받아온 뜻만 기존 토큰 카드에 병합(lines/id/category 유지). 카드는 사전에 이미 있는
       // 토큰을 클릭한 것이므로, 그 사이 결과가 바뀌어 해당 토큰이 없어졌으면 그냥 무시한다
       // (없던 토큰을 lines=[]로 새로 추가하지 않음 — 빈 줄 토큰 불변식·stale 오염 방지).
+      // 병합 결과를 잡아둔다(안전망 즉시저장에 재사용). 업데이터는 최신 prev 기준으로 안전하게 병합.
+      let merged: AgentAnalyzeResponse | null = null;
       setAnalysisResult((prev) => {
         if (!prev || !prev.tokens.some((t) => t.token === tokenText)) return prev;
-        return {
+        merged = {
           ...prev,
           tokens: prev.tokens.map((t) =>
             t.token === tokenText
@@ -735,7 +737,15 @@ export default function Home() {
               : t,
           ),
         };
+        return merged;
       });
+      // 안전망(#537): 설명 붙인 결과를 그 자리서 히스토리에 즉시 저장(동기화 effect와 이중화).
+      // id 없으면 기존 effect 자가치유에 맡긴다.
+      if (merged && currentHistoryId) {
+        const m = merged;
+        updateHistory(currentHistoryId, { result: m }).catch(() => {});
+        setHistoryEntries((prev) => prev.map((e) => (e.id === currentHistoryId ? { ...e, result: m } : e)));
+      }
       return { label: fetched.label, description: fetched.description, example: fetched.example };
     } catch {
       return null; // on-demand explain 실패는 비치명적
@@ -952,17 +962,24 @@ export default function Home() {
       }
       if (!description) return null;
       const desc = description;
-      // 받아온 설명을 화면 결과에도 병합(카드 패널 등에서 즉시 보이게).
-      setAnalysisResult((prev) =>
-        prev
-          ? {
-              ...prev,
-              concepts: prev.concepts.map((c) =>
-                c.conceptId === conceptId ? { ...c, description: desc } : c,
-              ),
-            }
-          : prev,
-      );
+      // 받아온 설명을 화면 결과에도 병합(카드 패널 등에서 즉시 보이게). 병합 결과는 즉시저장에 재사용.
+      let merged: AgentAnalyzeResponse | null = null;
+      setAnalysisResult((prev) => {
+        if (!prev) return prev;
+        merged = {
+          ...prev,
+          concepts: prev.concepts.map((c) =>
+            c.conceptId === conceptId ? { ...c, description: desc } : c,
+          ),
+        };
+        return merged;
+      });
+      // 안전망(#537): 설명 붙인 결과를 그 자리서 히스토리에 즉시 저장(동기화 effect와 이중화).
+      if (merged && currentHistoryId) {
+        const m = merged;
+        updateHistory(currentHistoryId, { result: m }).catch(() => {});
+        setHistoryEntries((prev) => prev.map((e) => (e.id === currentHistoryId ? { ...e, result: m } : e)));
+      }
       return desc; // ← 북마크가 이 반환값을 저장 전에 붙인다
     } catch {
       return null; // on-demand explain 실패는 비치명적
