@@ -155,6 +155,10 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
   const asideRef = useRef<HTMLElement>(null);
   // 드래그 중 고정된 기준점 = 패널 오른쪽 모서리 x좌표. 폭 = 기준점 - 현재 커서 x.
   const anchorRightRef = useRef(0);
+  // 진행 중 요청 — 재생성/언마운트 시 이전 요청을 끊어 언마운트 후 setState·낭비 요청을 막는다.
+  const acRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => acRef.current?.abort(), []);
 
   useEffect(() => {
     const stored = Number(localStorage.getItem(QUIZ_WIDTH_KEY));
@@ -193,15 +197,19 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
     setError(null);
     setAnswers({});
     setGraded({});
+    acRef.current?.abort(); // 이전 진행 요청 취소
     const ac = new AbortController();
+    acRef.current = ac;
     try {
       const text = await runQuiz(buildGenerateContext(messages, langName), { providerId, providerSettings, locale, signal: ac.signal });
+      if (ac.signal.aborted) return; // 취소됐으면(언마운트/재생성) 아무것도 안 씀
       const parsed = parseJsonBlock<QuizQ[]>(text);
       const clean = (parsed ?? []).filter((q) => q && (q.type === "mc" || q.type === "short" || q.type === "reverse") && typeof q.q === "string");
       if (clean.length === 0) { setPhase("error"); setError(t("quiz.genFailed")); return; }
       setQuestions(clean);
       setPhase("solving");
     } catch {
+      if (ac.signal.aborted) return;
       setPhase("error");
       setError(t("quiz.genFailed"));
     }
@@ -221,12 +229,15 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
     if (toGrade.length === 0) { setGraded(next); setPhase("done"); return; }
     // 주관식/역질문은 에이전트 채점(2차 라운드).
     setPhase("grading");
+    acRef.current?.abort();
     const ac = new AbortController();
+    acRef.current = ac;
     try {
       const text = await runQuiz(
         buildGradeContext(toGrade.map((x) => ({ q: x.q, model: x.model, user: x.user })), langName),
         { providerId, providerSettings, locale, signal: ac.signal },
       );
+      if (ac.signal.aborted) return;
       const verdicts = parseJsonBlock<Graded[]>(text) ?? [];
       toGrade.forEach((x, j) => {
         const v = verdicts[j];
@@ -235,6 +246,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings 
       setGraded(next);
       setPhase("done");
     } catch {
+      if (ac.signal.aborted) return;
       // 채점 실패해도 객관식 결과는 보여준다.
       toGrade.forEach((x) => { next[x.idx] = { correct: false, feedback: t("quiz.gradeFailed") }; });
       setGraded(next);
