@@ -407,6 +407,31 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{hasMaterial ? t("quiz.intro") : t("quiz.needMaterial")}</p>
             {hasMaterial && (
               <>
+                {/* 유형 토글 — 최소 1개 필수. (문제 수 바보다 위) */}
+                <div className="w-full px-1 text-left">
+                  <div className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("quiz.optTypes")}</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["mc", "short", "reverse"] as const).map((k) => (
+                      <label
+                        key={k}
+                        className={`cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition ${
+                          opts.types[k]
+                            ? "border-[#3B34E2] bg-[#3B34E2]/10 text-[#3B34E2] dark:border-[#8b86f5] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
+                            : "border-zinc-200 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+                        }`}
+                      >
+                        <input
+                          type="checkbox" checked={opts.types[k]}
+                          onChange={(e) => updateOpts({ ...opts, types: { ...opts.types, [k]: e.target.checked } })}
+                          className="sr-only"
+                        />
+                        {t(`quiz.type.${k}`)}
+                      </label>
+                    ))}
+                  </div>
+                  {!anyType && <p className="mt-1.5 text-[11px] text-rose-500">{t("quiz.needType")}</p>}
+                </div>
+
                 {/* 문제 수 범위 — dual-thumb 슬라이더(range input 2개 오버레이). */}
                 <div className="w-full px-1 text-left">
                   <div className="mb-1.5 flex items-center justify-between text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
@@ -440,31 +465,6 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                     />
                   </div>
                   <p className="mt-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">{t("quiz.optCountHint")}</p>
-                </div>
-
-                {/* 유형 토글 — 최소 1개 필수. */}
-                <div className="w-full px-1 text-left">
-                  <div className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("quiz.optTypes")}</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["mc", "short", "reverse"] as const).map((k) => (
-                      <label
-                        key={k}
-                        className={`cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition ${
-                          opts.types[k]
-                            ? "border-[#3B34E2] bg-[#3B34E2]/10 text-[#3B34E2] dark:border-[#8b86f5] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
-                            : "border-zinc-200 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
-                        }`}
-                      >
-                        <input
-                          type="checkbox" checked={opts.types[k]}
-                          onChange={(e) => updateOpts({ ...opts, types: { ...opts.types, [k]: e.target.checked } })}
-                          className="sr-only"
-                        />
-                        {t(`quiz.type.${k}`)}
-                      </label>
-                    ))}
-                  </div>
-                  {!anyType && <p className="mt-1.5 text-[11px] text-rose-500">{t("quiz.needType")}</p>}
                 </div>
               </>
             )}
