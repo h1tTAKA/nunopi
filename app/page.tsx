@@ -907,69 +907,68 @@ export default function Home() {
     );
   }
 
-  function handleConceptExplain(conceptId: string, title: string) {
-    if (
-      explainingConcepts.includes(conceptId) ||
-      analysisResult?.concepts.some((c) => c.conceptId === conceptId && c.description)
-    ) {
-      return;
-    }
+  // 개념 설명 on-demand 생성. 설명 문자열을 반환한다(북마크가 저장 전에 받아 붙이려고 — 토큰과 동일, #533).
+  async function handleConceptExplain(conceptId: string, title: string): Promise<string | null> {
+    if (explainingConcepts.includes(conceptId)) return null; // 이미 로딩 중
+    const existing = analysisResult?.concepts.find((c) => c.conceptId === conceptId);
+    if (existing?.description) return existing.description; // 이미 설명 있으면 재요청 없이 그거 반환
     const input = code.trim();
-    if (!input) return;
+    if (!input) return null;
     setExplainingConcepts((prev) => [...prev, conceptId]);
-    (async () => {
-      try {
-        const res = await fetch("/api/agent/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+    try {
+      const res = await fetch("/api/agent/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerId,
+          request: {
+            code: input,
+            locale: getAnalysisLocale(),
             providerId,
-            request: {
-              code: input,
-              locale: getAnalysisLocale(),
-              providerId,
-              mode: "explain-concept",
-              targetConcept: title,
-              providerSettings,
-            },
-          }),
-        });
-        if (!res.ok || !res.body) return;
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let description: string | undefined;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-          for (const l of lines) {
-            if (!l.trim()) continue;
-            try {
-              const event = JSON.parse(l) as AnalyzeStreamEvent;
-              if (event.type === "result") description = event.response.concepts?.[0]?.description;
-            } catch { /* skip */ }
-          }
+            mode: "explain-concept",
+            targetConcept: title,
+            providerSettings,
+          },
+        }),
+      });
+      if (!res.ok || !res.body) return null;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let description: string | undefined;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const l of lines) {
+          if (!l.trim()) continue;
+          try {
+            const event = JSON.parse(l) as AnalyzeStreamEvent;
+            if (event.type === "result") description = event.response.concepts?.[0]?.description;
+          } catch { /* skip */ }
         }
-        if (description) {
-          const desc = description;
-          setAnalysisResult((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  concepts: prev.concepts.map((c) =>
-                    c.conceptId === conceptId ? { ...c, description: desc } : c,
-                  ),
-                }
-              : prev,
-          );
-        }
-      } catch { /* ignore — on-demand explain failure is non-fatal */ } finally {
-        setExplainingConcepts((prev) => prev.filter((x) => x !== conceptId));
       }
-    })();
+      if (!description) return null;
+      const desc = description;
+      // 받아온 설명을 화면 결과에도 병합(카드 패널 등에서 즉시 보이게).
+      setAnalysisResult((prev) =>
+        prev
+          ? {
+              ...prev,
+              concepts: prev.concepts.map((c) =>
+                c.conceptId === conceptId ? { ...c, description: desc } : c,
+              ),
+            }
+          : prev,
+      );
+      return desc; // ← 북마크가 이 반환값을 저장 전에 붙인다
+    } catch {
+      return null; // on-demand explain 실패는 비치명적
+    } finally {
+      setExplainingConcepts((prev) => prev.filter((x) => x !== conceptId));
+    }
   }
 
   function handleRestoreHistory(entry: HistoryEntry) {
