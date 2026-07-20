@@ -16,6 +16,7 @@ import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
 import MemorizeView from "@/components/memorize/MemorizeView";
 import AskView from "@/components/ask/AskView";
+import HistoryView from "@/components/history/HistoryView";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
@@ -1079,6 +1080,8 @@ export default function Home() {
         memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} />}
         ask={viewMode === "ask"}
         askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
+        history={viewMode === "history"}
+        historyView={<HistoryView active={viewMode === "history"} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
