@@ -33,13 +33,19 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
   // 초안(composing) = 옵션 고르는 새 퀴즈 화면. 아직 세션 아님(생성돼야 칩에 등록). 퀴즈 0개면 항상 초안.
   const [composing, setComposing] = useState(false);
   const showDraft = composing || quizzes.length === 0;
+  // 초안 1회당 세션 1개만 만들도록 가드(생성 시 questions·phase 두 setState가 각각 콜백 부를 수 있음).
+  // 새 초안이 열릴 때(showDraft→true)마다 리셋.
+  const draftCommittedRef = useRef(false);
+  useEffect(() => { if (showDraft) draftCommittedRef.current = false; }, [showDraft]);
 
   // ── 세션 조작 ──────────────────────────────
   function newDraft() { setComposing(true); }          // + 새 퀴즈 = 초안 화면 열기(세션 생성은 생성 시점에)
   function selectQuiz(id: string) { setComposing(false); onQuizzesChange(quizzes, id); }
-  // 초안에서 생성 성공(문제 생김) 시에만 세션으로 등록. 빈 상태(undefined/문제 0)는 무시.
+  // 초안에서 생성 성공(문제 생김) 시에만 세션으로 등록. 빈 상태(undefined/문제 0)는 무시. 중복 등록 가드.
   function onDraftChange(next: AskQuiz | undefined) {
     if (!next || next.questions.length === 0) return;
+    if (draftCommittedRef.current) return;
+    draftCommittedRef.current = true;
     const session: QuizSession = { id: newAskId(), createdAt: new Date().toISOString(), quiz: next };
     onQuizzesChange([...quizzes, session], session.id);
     setComposing(false);
