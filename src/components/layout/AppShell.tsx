@@ -21,6 +21,9 @@ interface AppShellProps {
   // 에이전트 질문(ask) 모드 — true면 askView를 전폭 렌더(memorize와 배타).
   ask?: boolean;
   askView?: React.ReactNode;
+  // 전역 학습 히스토리(home) 모드 — true면 historyView 전폭 렌더(다른 뷰와 배타).
+  history?: boolean;
+  historyView?: React.ReactNode;
 }
 
 // 가로형 창(landscape — 정상/4분할): 좌(에디터)/우(학습패널) 스플릿 — leftPct.
@@ -37,7 +40,7 @@ function clampPct(value: number): number {
   return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
 }
 
-export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed, memorize = false, memorizeView, ask = false, askView }: AppShellProps) {
+export default function AppShell({ editor, learningPanel, modeToggle, onOpenSettings, editorCollapsed = false, chatOpen = false, onToggleEditorCollapsed, memorize = false, memorizeView, ask = false, askView, history = false, historyView }: AppShellProps) {
   const t = useT();
   const mainRef = useRef<HTMLDivElement>(null);
   const [leftPct, setLeftPct] = useState(DEFAULT_LEFT_PCT);
@@ -147,10 +150,15 @@ export default function AppShell({ editor, learningPanel, modeToggle, onOpenSett
         {askView}
       </main>
 
-      {/* 분석(코드/글) 스플릿 — 암기·질문 중엔 hidden. */}
+      {/* 전역 학습 히스토리(home) 뷰 — 항상 마운트, 비활성 시 hidden. */}
+      <main className={`w-full min-h-0 flex-1 flex-col overflow-hidden ${history ? "flex" : "hidden"}`}>
+        {historyView}
+      </main>
+
+      {/* 분석(코드/글) 스플릿 — 암기·질문·홈 중엔 hidden. */}
       <main
         ref={mainRef}
-        className={`w-full min-h-0 flex-1 flex-col landscape:flex-row ${memorize || ask ? "hidden" : "flex"}`}
+        className={`w-full min-h-0 flex-1 flex-col landscape:flex-row ${memorize || ask || history ? "hidden" : "flex"}`}
       >
         {/* 에디터 — 넓은 화면은 좌측 폭 %, 좁은 화면은 위쪽 높이 %. Monaco가 내부 스크롤 처리. */}
         <div
