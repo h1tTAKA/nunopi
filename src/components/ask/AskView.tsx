@@ -11,6 +11,7 @@ import AskSessionQuiz from "@/components/ask/AskSessionQuiz";
 import { FlyCardProvider } from "@/components/memorize/FlyCard";
 import { collectCards } from "@/lib/srs/collect";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
+import { reassignAskSubSession } from "@/lib/bookmarkDetails";
 import type { Card } from "@/lib/srs/types";
 import {
   loadAskStore,
@@ -83,6 +84,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
   // 세션→폴더 드래그 이동 상태. dropFolder: 폴더 id 또는 "root"(그룹 해제).
   const [sessDragId, setSessDragId] = useState<string | null>(null);
   const [dropFolder, setDropFolder] = useState<string | null>(null);
+  // 질문(서브) → 다른 세션 드래그 이동 상태(#556). dropSess: 드롭 대상 세션 id.
+  const [subDrag, setSubDrag] = useState<{ fromSessionId: string; subId: string } | null>(null);
+  const [dropSess, setDropSess] = useState<string | null>(null);
   // 우측 카드 목록 패널 열림.
   const [cardsOpen, setCardsOpen] = useState(false);
   // 우측 퀴즈 패널 열림(카드와 자리 공유·배타).
@@ -437,6 +441,36 @@ export default function AskView({ active = true, providerId, providerSettings, g
     commit({ ...prev, sessions: prev.sessions.map((s) => (s.id === sessionId ? { ...s, folderId } : s)) });
   }
 
+  // 질문(서브)을 다른 세션으로 이동 + 그 질문 카드도 대상 세션으로 재지정(#556).
+  function moveSubToSession(fromSessionId: string, subId: string, toSessionId: string) {
+    if (fromSessionId === toSessionId) return;
+    const prev = storeRef.current;
+    const from = prev.sessions.find((s) => s.id === fromSessionId);
+    const sub = from?.subs.find((x) => x.id === subId);
+    if (!from || !sub || !prev.sessions.some((s) => s.id === toSessionId)) return;
+    const remaining = from.subs.filter((x) => x.id !== subId);
+    let sessions = prev.sessions.map((s) => {
+      if (s.id === toSessionId) return { ...s, subs: [...s.subs, sub] };
+      if (s.id === fromSessionId && remaining.length > 0) {
+        const activeSubId = s.activeSubId === subId ? remaining[remaining.length - 1].id : s.activeSubId;
+        const layout = s.layout.filter((id) => id !== subId && remaining.some((x) => x.id === id));
+        return { ...s, subs: remaining, activeSubId, layout: layout.length ? layout : [activeSubId] };
+      }
+      return s;
+    });
+    let activeSessionId = prev.activeSessionId;
+    // 원본 세션이 비면 삭제(질문 완전 이전). 활성이었으면 대상 세션으로.
+    if (remaining.length === 0) {
+      sessions = sessions.filter((s) => s.id !== fromSessionId);
+      if (activeSessionId === fromSessionId) activeSessionId = toSessionId;
+    }
+    commit({ ...prev, sessions, activeSessionId });
+    expand(toSessionId);
+    // 그 질문에서 만든 카드의 sourceSessionId를 대상 세션으로 → 옮긴 세션 카드로 표시.
+    reassignAskSubSession(subId, toSessionId);
+    try { window.dispatchEvent(new Event(CARDS_CHANGED_EVENT)); } catch { /* ignore */ }
+  }
+
   // ── 서브세션(대화) 조작 — 좌측 트리에서 세션 지목 ──────
   function handleNewSub(sessionId: string) {
     resetStream();
@@ -757,9 +791,14 @@ export default function AskView({ active = true, providerId, providerSettings, g
         onDragStart={(e) => { setSessDragId(s.id); e.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={() => { setSessDragId(null); setDropFolder(null); }}
       >
-        {/* 세션(부모) 행 */}
+        {/* 세션(부모) 행 — 다른 세션 질문(sub) 드래그 시 드롭 타깃(#556). */}
         <div
+          onDragOver={(e) => { if (subDrag && subDrag.fromSessionId !== s.id) { e.preventDefault(); e.stopPropagation(); setDropSess(s.id); } }}
+          onDragLeave={() => { if (subDrag) setDropSess((d) => (d === s.id ? null : d)); }}
+          onDrop={(e) => { if (subDrag && subDrag.fromSessionId !== s.id) { e.preventDefault(); e.stopPropagation(); moveSubToSession(subDrag.fromSessionId, subDrag.subId, s.id); setSubDrag(null); setDropSess(null); } }}
           className={`group flex items-center gap-0.5 rounded-lg pr-1 text-sm transition-colors ${
+            subDrag && subDrag.fromSessionId !== s.id && dropSess === s.id ? "ring-2 ring-[#3B34E2] dark:ring-[#8b86f5]" : ""
+          } ${
             isActiveSession
               ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
               : "text-zinc-600 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
@@ -837,6 +876,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
               return (
                 <div
                   key={sub.id}
+                  draggable={!subRenaming}
+                  onDragStart={(e) => { e.stopPropagation(); setSubDrag({ fromSessionId: s.id, subId: sub.id }); e.dataTransfer.effectAllowed = "move"; }}
+                  onDragEnd={() => { setSubDrag(null); setDropSess(null); }}
                   className={`group/sub flex items-center gap-1 rounded-md px-2 py-1 text-[13px] transition-colors ${
                     isActiveSub
                       ? "bg-[#3B34E2]/10 font-medium text-[#3B34E2] dark:bg-[#8b86f5]/15 dark:text-[#8b86f5]"
