@@ -204,3 +204,20 @@ export function backfillTermSource(termText: string, title: string, id?: string)
 export function backfillConceptSource(title0: string, title: string, id?: string): boolean {
   return backfill(CONCEPT_DETAILS_KEY, loadConceptDetails(), title0, title, id);
 }
+
+// 질문(sub)이 다른 세션으로 이동할 때 — 그 질문에서 만든 카드들의 sourceSessionId를 새 세션으로 재지정(#556).
+// 카드는 sourceSubId(질문 id, 이동해도 불변)로 식별. token/term/concept 3맵 전부 훑는다.
+export function reassignAskSubSession(subId: string, toSessionId: string): void {
+  for (const key of [DETAILS_KEY, TERM_DETAILS_KEY, CONCEPT_DETAILS_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const map = JSON.parse(raw) as Record<string, SourceFields>;
+      let changed = false;
+      for (const v of Object.values(map)) {
+        if (v && v.sourceSubId === subId) { v.sourceSessionId = toSessionId; changed = true; }
+      }
+      if (changed) localStorage.setItem(key, JSON.stringify(map));
+    } catch { /* ignore */ }
+  }
+}
