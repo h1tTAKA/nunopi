@@ -57,7 +57,7 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
     abortRef.current?.abort();
     /* eslint-disable react-hooks/set-state-in-effect */
     const loaded = loadCardSessions(card.key);
-    const list = loaded.length > 0 ? loaded : [{ id: newSessionId(), messages: [] }];
+    const list = loaded.length > 0 ? loaded : [{ id: newSessionId(), createdAt: new Date().toISOString(), messages: [] }];
     setSessions(list);
     setActiveId(list[list.length - 1].id);
     setStreaming(null);
@@ -92,7 +92,7 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
   function handleNewSession() {
     if (loading) return;
     abortRef.current?.abort();
-    const s: CardChatSession = { id: newSessionId(), messages: [] };
+    const s: CardChatSession = { id: newSessionId(), createdAt: new Date().toISOString(), messages: [] };
     setSessions((prev) => { const next = [...prev, s]; saveCardSessions(card.key, next); return next; });
     setActiveId(s.id);
     setStreaming(null);
