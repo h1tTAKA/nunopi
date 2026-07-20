@@ -452,7 +452,8 @@ export default function AskView({ active = true, providerId, providerSettings, g
     let sessions = prev.sessions.map((s) => {
       if (s.id === toSessionId) return { ...s, subs: [...s.subs, sub] };
       if (s.id === fromSessionId && remaining.length > 0) {
-        const activeSubId = s.activeSubId === subId ? remaining[remaining.length - 1].id : s.activeSubId;
+        // 옮긴 게 활성이었거나 기존 활성이 remaining에 없으면 남은 마지막으로.
+        const activeSubId = remaining.some((x) => x.id === s.activeSubId) ? s.activeSubId : remaining[remaining.length - 1].id;
         const layout = s.layout.filter((id) => id !== subId && remaining.some((x) => x.id === id));
         return { ...s, subs: remaining, activeSubId, layout: layout.length ? layout : [activeSubId] };
       }
@@ -788,7 +789,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
         key={s.id}
         className="mb-0.5"
         draggable={!renaming}
-        onDragStart={(e) => { setSessDragId(s.id); e.dataTransfer.effectAllowed = "move"; }}
+        onDragStart={(e) => { if (subDrag) return; setSessDragId(s.id); e.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={() => { setSessDragId(null); setDropFolder(null); }}
       >
         {/* 세션(부모) 행 — 다른 세션 질문(sub) 드래그 시 드롭 타깃(#556). */}
