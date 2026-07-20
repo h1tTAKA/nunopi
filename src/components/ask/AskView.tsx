@@ -87,6 +87,8 @@ export default function AskView({ active = true, providerId, providerSettings, g
   const [cardsOpen, setCardsOpen] = useState(false);
   // 우측 퀴즈 패널 열림(카드와 자리 공유·배타).
   const [quizOpen, setQuizOpen] = useState(false);
+  // 퀴즈 푸는 중 왼쪽 질문 가리기(블러) ON 여부. 기본 ON, 유저 토글. 새/전환 퀴즈마다 재블러(아래 effect).
+  const [quizBlurOn, setQuizBlurOn] = useState(true);
   // 세션별 ask 카드 수(좌측 배지). 전역 카드 store에서 파생.
   const [cardCounts, setCardCounts] = useState<Record<string, number>>({});
   // storeRef — async 완료 시 stale 클로저 없이 최신 store를 읽고 커밋하기 위함.
@@ -160,6 +162,15 @@ export default function AskView({ active = true, providerId, providerSettings, g
   }
 
   const activeSession = store.sessions.find((s) => s.id === store.activeSessionId) ?? store.sessions[0] ?? null;
+
+  // 활성 서브의 활성 퀴즈 세션 id — 바뀌면(새 퀴즈/전환) 블러 다시 ON.
+  const activeSubForQuiz = activeSession?.subs.find((x) => x.id === activeSession.activeSubId);
+  const activeQuizId = activeSubForQuiz?.activeQuizId;
+  useEffect(() => { setQuizBlurOn(true); }, [activeQuizId]); // eslint-disable-line react-hooks/set-state-in-effect
+  // 퀴즈 풀이 중(활성 퀴즈 phase==="solving")이고 패널 열림 → 활성 서브 질문 블러 대상.
+  const activeQuizPhase = activeSubForQuiz?.quizzes?.find((q) => q.id === activeQuizId)?.quiz.phase;
+  const quizSolving = quizOpen && activeQuizPhase === "solving";
+  const quizBlurred = quizSolving && quizBlurOn;
 
   // 질문(서브세션) 표시 라벨 — 유저 지정 이름 우선, 없으면 "질문 N"(세션 내 순번).
   function subDisplayLabel(session: AskSession, subId: string): string {
@@ -1123,6 +1134,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
                 onToggleCards={() => { setCardsOpen((v) => !v); setQuizOpen(false); }}
                 quizOpen={quizOpen}
                 onToggleQuiz={() => { setQuizOpen((v) => !v); setCardsOpen(false); }}
+                blurActive={sub.id === activeSession.activeSubId && quizSolving}
+                blurred={sub.id === activeSession.activeSubId && quizBlurred}
+                onToggleBlur={() => setQuizBlurOn((v) => !v)}
               />
             );
           };
