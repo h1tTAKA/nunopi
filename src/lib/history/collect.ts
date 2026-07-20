@@ -3,6 +3,7 @@ import { loadAskStore } from "@/lib/askStore";
 import { loadAllCardSessions } from "@/lib/cardChat";
 import { loadTokenDetails, loadTermDetails, loadConceptDetails } from "@/lib/bookmarkDetails";
 import { loadActivity } from "@/lib/srs/activityLog";
+import { collectCards } from "@/lib/srs/collect";
 import type { UnifiedHistoryEvent } from "./types";
 
 // 첫 유저 메시지 요약(제목용). 없으면 폴백.
@@ -76,8 +77,12 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
     }
   } catch { /* ignore */ }
 
-  // 3) 카드 챗룸
+  // 3) 카드 챗룸. createdAt 없는 옛 세션은 그 카드의 북마크 시각으로 근사(now 금지 — 전부 '지금'처럼 보임).
   try {
+    const cardTime = new Map<string, string>();
+    for (const c of collectCards(["token", "concept", "term"], new Date())) {
+      if (c.bookmarkedAt) cardTime.set(c.key, c.bookmarkedAt);
+    }
     const all = loadAllCardSessions();
     for (const [cardKey, sessions] of Object.entries(all)) {
       for (const cs of sessions) {
@@ -85,7 +90,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
         out.push({
           type: "chat",
           id: cs.id,
-          createdAt: cs.createdAt ?? new Date().toISOString(),
+          createdAt: cs.createdAt ?? cardTime.get(cardKey) ?? new Date().toISOString(),
           title: firstQuestion(cs.messages, "카드 챗"),
           description: `암기 카드 '${cardKey}' 챗룸`,
           nav: { mode: "memorize", cardKey },
