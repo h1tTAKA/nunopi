@@ -22,11 +22,14 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
     const entries = await getAllHistory();
     for (const e of entries) {
       const mode = e.mode === "text" ? "text" : "code";
+      const modeLabel = mode === "text" ? "글 분석" : "코드 분석";
+      const aTitle = e.title || modeLabel;
       out.push({
         type: "analysis",
         id: e.id,
         createdAt: e.createdAt,
-        title: e.title || (mode === "text" ? "글 분석" : "코드 분석"),
+        title: aTitle,
+        description: modeLabel,
         nav: { mode, sourceId: e.id },
       });
       for (const cs of e.chatSessions ?? []) {
@@ -36,6 +39,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
           id: cs.id,
           createdAt: e.createdAt, // 챗 세션 개별 시각 없어 분석 항목 시각으로 근사
           title: firstQuestion(cs.messages, "분석 챗"),
+          description: `${modeLabel} '${aTitle}' 챗룸`,
           nav: { mode, sourceId: e.id, sessionId: cs.id },
         });
       }
@@ -46,6 +50,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
   try {
     const store = loadAskStore("");
     for (const s of store.sessions) {
+      const sessLabel = `질문모드 '${s.title || "세션"}'`;
       for (const sub of s.subs) {
         if (sub.messages.length > 0) {
           out.push({
@@ -53,6 +58,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
             id: sub.id,
             createdAt: sub.createdAt ?? s.createdAt,
             title: firstQuestion(sub.messages, "질문"),
+            description: sessLabel,
             nav: { mode: "ask", sessionId: s.id, subId: sub.id },
           });
         }
@@ -62,6 +68,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
             id: qs.id,
             createdAt: qs.createdAt,
             title: `퀴즈 ${qs.quiz.questions.length}문항`,
+            description: sessLabel,
             nav: { mode: "ask", sessionId: s.id, subId: sub.id },
           });
         }
@@ -80,6 +87,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
           id: cs.id,
           createdAt: cs.createdAt ?? new Date().toISOString(),
           title: firstQuestion(cs.messages, "카드 챗"),
+          description: `암기 카드 '${cardKey}' 챗룸`,
           nav: { mode: "memorize", cardKey },
         });
       }
@@ -92,11 +100,20 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
     for (const map of maps) {
       for (const [text, d] of Object.entries(map)) {
         if (!d?.bookmarkedAt) continue;
+        // 출처 경로: 어디서 이 카드를 저장했나.
+        const from = d.sourceTitle
+          ? `'${d.sourceTitle}'에서 저장`
+          : d.sourceKind === "ask"
+            ? "질문모드에서 저장"
+            : d.sourceKind === "card"
+              ? "암기 카드에서 저장"
+              : "분석에서 저장";
         out.push({
           type: "bookmark",
           id: `bm-${text}-${d.bookmarkedAt}`,
           createdAt: d.bookmarkedAt,
           title: `카드 생성: ${text}`,
+          description: from,
           nav: { mode: d.sourceKind === "ask" ? "ask" : "code", sourceId: d.sourceId, sessionId: d.sourceSessionId, subId: d.sourceSubId },
         });
       }

@@ -100,6 +100,7 @@ export default function HistoryTimeline() {
                       {e.type !== "review" && <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">{timeLabel(e.createdAt)}</span>}
                     </div>
                     <p className="truncate text-[13px] text-zinc-700 dark:text-zinc-200">{e.title}</p>
+                    {e.description && <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{e.description}</p>}
                   </div>
                 </div>
               );
