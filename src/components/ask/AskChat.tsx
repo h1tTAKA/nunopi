@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText, IconListCheck } from "@tabler/icons-react";
+import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText, IconListCheck, IconEye, IconEyeOff } from "@tabler/icons-react";
 import Markdown from "@/components/learning/Markdown";
 import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { useT } from "@/lib/i18n/I18nProvider";
@@ -40,6 +40,10 @@ interface AskChatProps {
   // 우측 퀴즈 패널 토글(카드와 자리 공유·배타).
   quizOpen?: boolean;
   onToggleQuiz?: () => void;
+  // 퀴즈 푸는 중 질문 가리기(블러) — 커닝 방지. blurActive=풀이중(토글 노출), blurred=현재 가려짐.
+  blurActive?: boolean;
+  blurred?: boolean;
+  onToggleBlur?: () => void;
 }
 
 // Ask 모드 전용 챗 — 질문이 메인인 모드라 ChatGPT식 중앙 정렬·프레임리스 레이아웃.
@@ -51,6 +55,7 @@ export default function AskChat({
   draggable = false, onHeaderDragStart, onHeaderDragEnd,
   cardsOpen = false, onToggleCards,
   quizOpen = false, onToggleQuiz,
+  blurActive = false, blurred = false, onToggleBlur,
 }: AskChatProps) {
   const t = useT();
   const toast = useToast();
@@ -212,8 +217,19 @@ export default function AskChat({
         </div>
       </div>
 
-      {/* 메시지 영역 */}
-      <div ref={scrollRef} className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
+      {/* 메시지 영역 — 퀴즈 푸는 중이면 블러(커닝 방지) + 보기/가리기 토글. */}
+      <div className="relative min-h-0 flex-1">
+      {blurActive && (
+        <button
+          type="button"
+          onClick={onToggleBlur}
+          className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-zinc-200 bg-white/90 px-3 py-1.5 text-[12px] font-medium text-zinc-600 shadow-sm backdrop-blur transition hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/90 dark:text-zinc-300 dark:hover:bg-zinc-900"
+        >
+          {blurred ? <IconEye size={14} stroke={2} aria-hidden /> : <IconEyeOff size={14} stroke={2} aria-hidden />}
+          {blurred ? t("quiz.reveal") : t("quiz.hide")}
+        </button>
+      )}
+      <div ref={scrollRef} className={`nunopi-scroll h-full overflow-y-auto transition ${blurred ? "pointer-events-none select-none blur-[5px]" : ""}`}>
         {isEmpty ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
             <IconSparkles size={34} stroke={1.5} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
@@ -285,11 +301,12 @@ export default function AskChat({
           </div>
         )}
       </div>
+      </div>
 
       {/* 입력창 — 하단 중앙 pill. */}
       <div className="shrink-0 pb-4 pt-1">
         <div className="mx-auto w-full max-w-3xl px-4">
-          <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-[#8b86f5]">
+          <div className={`flex items-center gap-2 rounded-full border border-zinc-200 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-[#8b86f5] ${blurred ? "pointer-events-none opacity-50" : ""}`}>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -299,15 +316,15 @@ export default function AskChat({
                   submit();
                 }
               }}
-              disabled={isLoading}
+              disabled={isLoading || blurred}
               rows={1}
-              placeholder={t("ask.placeholder")}
+              placeholder={blurred ? t("quiz.inputBlocked") : t("ask.placeholder")}
               className="max-h-32 min-h-[1.5rem] flex-1 resize-none bg-transparent py-1 text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
             />
             <button
               type="button"
               onClick={submit}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || blurred}
               aria-label={t("chat.send")}
               className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full bg-[#3B34E2] text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-30"
             >
