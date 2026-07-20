@@ -29,14 +29,22 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
 }) {
   const t = useT();
   const confirm = useConfirm();
-  const active = quizzes.find((q) => q.id === activeQuizId) ?? quizzes[0];
+  const active = quizzes.find((q) => q.id === activeQuizId) ?? quizzes[quizzes.length - 1];
+  // 초안(composing) = 옵션 고르는 새 퀴즈 화면. 아직 세션 아님(생성돼야 칩에 등록). 퀴즈 0개면 항상 초안.
+  const [composing, setComposing] = useState(false);
+  const showDraft = composing || quizzes.length === 0;
 
   // ── 세션 조작 ──────────────────────────────
-  function addQuiz() {
-    const session: QuizSession = { id: newAskId(), createdAt: new Date().toISOString(), quiz: EMPTY_QUIZ };
+  function newDraft() { setComposing(true); }          // + 새 퀴즈 = 초안 화면 열기(세션 생성은 생성 시점에)
+  function selectQuiz(id: string) { setComposing(false); onQuizzesChange(quizzes, id); }
+  // 초안에서 생성 성공(문제 생김) 시에만 세션으로 등록. 빈 상태(undefined/문제 0)는 무시.
+  function onDraftChange(next: AskQuiz | undefined) {
+    if (!next || next.questions.length === 0) return;
+    const session: QuizSession = { id: newAskId(), createdAt: new Date().toISOString(), quiz: next };
     onQuizzesChange([...quizzes, session], session.id);
+    setComposing(false);
   }
-  // 활성 세션의 quiz 갱신(QuizRunner가 상태 바뀔 때 호출). undefined면 빈 idle로(세션은 유지).
+  // 기존 활성 세션 갱신(QuizRunner가 풀이/채점 중 호출). undefined면 빈 idle로(세션 유지).
   function updateActiveQuiz(next: AskQuiz | undefined) {
     if (!active) return;
     const quiz = next ?? EMPTY_QUIZ;
@@ -103,11 +111,11 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
           <IconListCheck size={15} stroke={2} aria-hidden />
           <span className="truncate">{t("quiz.title")}</span>
         </div>
-        {/* 퀴즈가 하나라도 있을 때만 — 빈 상태엔 중앙에 이미 새 퀴즈 버튼이 있어 중복 방지. */}
-        {quizzes.length > 0 && (
+        {/* 퀴즈가 있고 초안 중이 아닐 때만 — 초안(생성 전)엔 이미 옵션 화면이라 중복 방지. */}
+        {quizzes.length > 0 && !showDraft && (
           <button
             type="button"
-            onClick={addQuiz}
+            onClick={newDraft}
             title={t("quiz.newQuiz")}
             className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
@@ -117,11 +125,11 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
         )}
       </div>
 
-      {/* 세션 칩바 — 여러 퀴즈 전환. 각 칩 삭제(X, 경고 모달). */}
+      {/* 세션 칩바 — 생성된 퀴즈만(초안 제외) 전환. 각 칩 삭제(X, 경고 모달). */}
       {quizzes.length > 0 && (
         <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
           {quizzes.map((s, i) => {
-            const on = s.id === active?.id;
+            const on = !showDraft && s.id === active?.id;
             return (
               <div
                 key={s.id}
@@ -131,7 +139,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
                     : "border-zinc-200 text-zinc-500 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-400"
                 }`}
               >
-                <button type="button" onClick={() => onQuizzesChange(quizzes, s.id)} className="cursor-pointer">
+                <button type="button" onClick={() => selectQuiz(s.id)} className="cursor-pointer">
                   {t("quiz.sessionN", { n: i + 1 })}
                 </button>
                 <button
@@ -150,7 +158,17 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
       )}
 
       <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
-        {active ? (
+        {showDraft ? (
+          // 초안: 빈 QuizRunner(옵션 화면). 생성 성공 시 onDraftChange가 세션으로 등록.
+          <QuizRunner
+            key="draft"
+            messages={messages}
+            providerId={providerId}
+            providerSettings={providerSettings}
+            quiz={undefined}
+            onQuizChange={onDraftChange}
+          />
+        ) : active ? (
           <QuizRunner
             key={active.id}
             messages={messages}
@@ -159,18 +177,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
             quiz={active.quiz}
             onQuizChange={updateActiveQuiz}
           />
-        ) : (
-          <div className="flex flex-col items-center gap-3 px-2 py-10 text-center">
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400">{t("quiz.noQuizYet")}</p>
-            <button
-              type="button"
-              onClick={addQuiz}
-              className="rounded-lg bg-[#3B34E2] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#322bc9]"
-            >
-              {t("quiz.newQuiz")}
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
     </aside>
   );
