@@ -21,7 +21,7 @@ import {
   type AskStore,
   type AskSession,
   type AskFolder,
-  type AskQuiz,
+  type QuizSession,
 } from "@/lib/askStore";
 import { createChatCard } from "@/lib/chatCard";
 import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/cardSuggestion";
@@ -242,15 +242,15 @@ export default function AskView({ active = true, providerId, providerSettings, g
     commit(next);
   }
 
-  // 특정 세션·서브의 퀴즈 상태를 갱신하고 커밋(패널이 변경 시 호출 — 탭 전환/재진입 유지).
-  function updateSubQuiz(sessionId: string, subId: string, quiz: AskQuiz | undefined) {
+  // 특정 세션·서브의 퀴즈 세션 목록·활성 id를 갱신하고 커밋(패널이 변경 시 호출 — 탭 전환/재진입 유지).
+  function updateSubQuizzes(sessionId: string, subId: string, quizzes: QuizSession[], activeQuizId: string | undefined) {
     const prev = storeRef.current;
     const next: AskStore = {
       ...prev,
       sessions: prev.sessions.map((s) =>
         s.id !== sessionId
           ? s
-          : { ...s, subs: s.subs.map((sub) => (sub.id !== subId ? sub : { ...sub, quiz })) },
+          : { ...s, subs: s.subs.map((sub) => (sub.id !== subId ? sub : { ...sub, quizzes, activeQuizId })) },
       ),
     };
     commit(next);
@@ -1184,8 +1184,9 @@ export default function AskView({ active = true, providerId, providerSettings, g
             messages={activeSub.messages}
             providerId={providerId}
             providerSettings={providerSettings}
-            quiz={activeSub.quiz}
-            onQuizChange={(next) => updateSubQuiz(activeSession.id, activeSub.id, next)}
+            quizzes={activeSub.quizzes ?? []}
+            activeQuizId={activeSub.activeQuizId}
+            onQuizzesChange={(qz, aid) => updateSubQuizzes(activeSession.id, activeSub.id, qz, aid)}
           />
         );
       })()}
