@@ -21,19 +21,19 @@ const COUNT_MIN = 2;
 const COUNT_MAX = 20; // 실제 지정 가능한 최대 문제 수.
 const UNLIMITED = COUNT_MAX + 1; // 슬라이더 최상단 = 무제한(∞). 20은 진짜 값, 21 위치가 ∞.
 const QUIZ_OPTS_KEY = "nunopi.ask.quizOpts";
-const DEFAULT_OPTS: QuizOpts = { min: 3, max: UNLIMITED, types: { mc: true, short: true, reverse: true } };
+const DEFAULT_OPTS: QuizOpts = { min: 3, max: UNLIMITED, types: { mc: true, short: true } };
 
 // 생성 옵션 — 문제 수 범위 + 허용 유형. idle 화면에서 유저가 정한다.
+// 유형은 2종: mc(객관식) / short(주관식). 역질문은 short에 스타일로 흡수(#549).
 interface QuizOpts {
   min: number;
   max: number;
-  types: { mc: boolean; short: boolean; reverse: boolean };
+  types: { mc: boolean; short: boolean };
 }
 
 const TYPE_DESC: Record<keyof QuizOpts["types"], string> = {
   mc: "mc(4지선다)",
-  short: "short(주관식 한두 문장)",
-  reverse: 'reverse(역질문 — "왜 이렇게 했게?" 같이 이유·원리를 묻기)',
+  short: 'short(주관식, 한두 문장 서술) — 사실 확인뿐 아니라 "왜/어떻게 이렇게 했나" 이유·원리를 묻는 역질문 스타일도 섞어서',
 };
 
 // 저장된 옵션 방어 로드 — 이상하면 기본값. 범위·유형 클램프.
@@ -46,8 +46,8 @@ function loadOpts(): QuizOpts {
     let max = clamp(raw.max, COUNT_MIN, UNLIMITED, DEFAULT_OPTS.max);
     if (min > max) [min, max] = [max, min];
     const tr = raw.types && typeof raw.types === "object" ? raw.types : {};
-    const types = { mc: tr.mc !== false, short: tr.short !== false, reverse: tr.reverse !== false };
-    if (!types.mc && !types.short && !types.reverse) return { min, max, types: DEFAULT_OPTS.types };
+    const types = { mc: tr.mc !== false, short: tr.short !== false };
+    if (!types.mc && !types.short) return { min, max, types: DEFAULT_OPTS.types };
     return { min, max, types };
   } catch {
     return DEFAULT_OPTS;
@@ -69,12 +69,11 @@ function buildGenerateContext(messages: ChatMessage[], langName: string, opts: Q
       : `- 문제 ${opts.min}~${opts.max}개(목표 범위). 재료가 부족하면 그보다 적게 내도 된다(억지로 채우지 말 것).`,
     `- 다음 유형만 사용: ${allowed.map((k) => TYPE_DESC[k]).join(" / ")}. 지정 안 된 유형은 내지 말 것.`,
     "- 학습자가 실제로 물어본 내용에서만 출제(모르는 걸 새로 묻지 않기).",
-    '- type은 반드시 "mc" | "short" | "reverse" 중 하나 그대로(다른 표기 금지: "multiple_choice" X).',
+    '- type은 반드시 "mc" | "short" 중 하나 그대로(다른 표기 금지: "multiple_choice"/"reverse" X). 역질문도 type은 "short".',
     '- mc의 answer는 정답 옵션의 0-based 인덱스 숫자(0,1,2,3). 글자("A")나 정답 텍스트가 아니라 숫자.',
     "- 오직 ```json 펜스 블록 하나만 출력. 배열의 각 원소:",
     '  { "type": "mc", "q": "...", "options": ["A","B","C","D"], "answer": 정답인덱스(0-3), "why": "정답 이유 한 줄" }',
     '  { "type": "short", "q": "...", "answer": "모범답안", "why": "채점 포인트 한 줄" }',
-    '  { "type": "reverse", "q": "...", "answer": "모범답안", "why": "채점 포인트 한 줄" }',
     "",
     "=== 학습자 Q&A ===",
     qa,
@@ -115,10 +114,11 @@ function parseJsonBlock<T>(text: string): T | null {
 }
 
 // 모델이 흘리는 type 표기 흔들림 흡수 — "multiple_choice"·"subjective" 등도 우리 3종으로.
+// 역질문(reverse*)은 이제 주관식(short)에 흡수 — 모델이 뱉거나 구버전 데이터도 short로(#549).
 const TYPE_ALIASES: Record<string, QuizQ["type"]> = {
   mc: "mc", multiple_choice: "mc", "multiple-choice": "mc", multiplechoice: "mc", choice: "mc", objective: "mc",
   short: "short", short_answer: "short", shortanswer: "short", subjective: "short", written: "short",
-  reverse: "reverse", reverse_question: "reverse", reversequestion: "reverse",
+  reverse: "short", reverse_question: "short", reversequestion: "short",
 };
 
 // mc 정답을 0-based 숫자 인덱스로 강제 — 숫자·글자("A")·정답텍스트 뭐가 와도 흡수. 범위 밖은 -1.
@@ -217,7 +217,7 @@ export default function QuizRunner({ messages, providerId, providerSettings, qui
     setOpts(next);
     try { localStorage.setItem(QUIZ_OPTS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
   }
-  const anyType = opts.types.mc || opts.types.short || opts.types.reverse;
+  const anyType = opts.types.mc || opts.types.short;
 
   // 최신 저장 콜백을 ref로 — 부모 재렌더로 새 함수 와도 저장 effect 재실행 안 되게(커밋 후 갱신).
   const onQuizChangeRef = useRef(onQuizChange);
@@ -305,7 +305,7 @@ export default function QuizRunner({ messages, providerId, providerSettings, qui
               <div className="w-full px-1 text-left">
                 <div className="mb-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("quiz.optTypes")}</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {(["mc", "short", "reverse"] as const).map((k) => (
+                  {(["mc", "short"] as const).map((k) => (
                     <label
                       key={k}
                       className={`cursor-pointer rounded-full border px-2.5 py-1 text-[12px] transition ${
