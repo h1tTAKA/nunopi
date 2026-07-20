@@ -397,13 +397,20 @@ export default function QuizRunner({ messages, providerId, providerSettings, qui
               <div className="flex flex-col gap-1">
                 {q.options.map((opt, oi) => {
                   const picked = answers[i] === oi;
-                  const isAnswer = showResult && oi === q.answer;
+                  const isAnswer = showResult && oi === q.answer;      // 정답 보기
+                  const wrongPick = showResult && picked && oi !== q.answer; // 내가 고른 오답
                   return (
-                    <label key={oi} className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-[12px] transition ${
+                    <label key={oi} className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-[12px] transition ${
                       isAnswer ? "border-emerald-400 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950/30"
+                      : wrongPick ? "border-rose-400 bg-rose-50 dark:border-rose-600 dark:bg-rose-950/30"
                       : picked ? "border-[#3B34E2] bg-[#3B34E2]/5 dark:border-[#8b86f5]"
-                      : "border-zinc-200 dark:border-zinc-800"} ${showResult ? "cursor-default" : ""}`}>
-                      <input type="radio" name={`q${i}`} checked={picked} disabled={showResult} onChange={() => setAnswers((a) => ({ ...a, [i]: oi }))} className="accent-[#3B34E2]" />
+                      : "border-zinc-200 dark:border-zinc-800"} ${showResult ? "cursor-default" : "cursor-pointer"}`}>
+                      {/* 채점 후엔 클릭 잠금(pointer-events-none)만 하고 disabled는 안 씀 — 고른 라디오 체크가 그대로 보이게. */}
+                      <input
+                        type="radio" name={`q${i}`} checked={picked}
+                        onChange={() => { if (!showResult) setAnswers((a) => ({ ...a, [i]: oi })); }}
+                        className={`${showResult ? "pointer-events-none" : ""} ${wrongPick ? "accent-rose-500" : isAnswer ? "accent-emerald-500" : "accent-[#3B34E2]"}`}
+                      />
                       <span className="text-zinc-700 dark:text-zinc-200">{opt}</span>
                     </label>
                   );
