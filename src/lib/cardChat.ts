@@ -45,6 +45,17 @@ export function loadCardSessions(cardKey: string): CardChatSession[] {
   return [{ id: newSessionId(), createdAt: new Date().toISOString(), messages: val as ChatMessage[] }];
 }
 
+// 전역 히스토리 수집용 — 모든 카드의 세션 목록(cardKey → 세션들). loadCardSessions와 같은 정규화.
+export function loadAllCardSessions(): Record<string, CardChatSession[]> {
+  const raw = loadRaw();
+  const out: Record<string, CardChatSession[]> = {};
+  for (const key of Object.keys(raw)) {
+    const list = loadCardSessions(key);
+    if (list.length > 0) out[key] = list;
+  }
+  return out;
+}
+
 // 세션 목록 저장. 메시지 있는 세션이 하나도 없으면 key 삭제(정리). 변경 이벤트 발행.
 export function saveCardSessions(cardKey: string, sessions: CardChatSession[]): void {
   try {
