@@ -26,12 +26,19 @@ export interface AskQuiz {
   answers: Record<number, number | string>; // mc=번호, short/reverse=문자열
   graded: Record<number, QuizGraded>;
 }
+// 퀴즈 세션 하나(#548) — 챗 세션처럼 여러 번 풀고 각 채점 결과를 따로 보존.
+export interface QuizSession {
+  id: string;
+  createdAt: string; // ISO
+  quiz: AskQuiz;
+}
 
 export interface AskSub {
   id: string;
   title?: string; // 유저 지정 이름. 없으면 "질문 N"으로 표시.
   messages: ChatMessage[];
-  quiz?: AskQuiz; // 이 서브에서 만든 아웃풋 퀴즈 상태(있을 때만).
+  quizzes?: QuizSession[]; // 이 서브에서 만든 퀴즈 세션들(있을 때만).
+  activeQuizId?: string; // 활성 퀴즈 세션 id.
 }
 
 export interface AskSession {
@@ -120,6 +127,23 @@ function sanitizeQuiz(raw: unknown): AskQuiz | undefined {
   return { phase, questions, answers, graded };
 }
 
+// 서브의 퀴즈 세션 목록 정규화 + 구버전 단일 quiz 마이그레이션(#548).
+function sanitizeSubQuizzes(x: AskSub & { quiz?: unknown }): { quizzes?: QuizSession[]; activeQuizId?: string } {
+  const raw = Array.isArray(x.quizzes) ? x.quizzes : [];
+  let sessions: QuizSession[] = raw
+    .filter((s): s is QuizSession => !!s && typeof (s as QuizSession).id === "string")
+    .map((s) => ({ id: s.id, createdAt: typeof s.createdAt === "string" ? s.createdAt : new Date().toISOString(), quiz: sanitizeQuiz(s.quiz) }))
+    .filter((s): s is QuizSession => s.quiz !== undefined);
+  // 구버전 단일 quiz(있으면) → 세션 하나로. quizzes가 이미 있으면 무시.
+  if (sessions.length === 0) {
+    const legacy = sanitizeQuiz(x.quiz);
+    if (legacy) sessions = [{ id: newAskId(), createdAt: new Date().toISOString(), quiz: legacy }];
+  }
+  if (sessions.length === 0) return {};
+  const activeQuizId = sessions.some((s) => s.id === x.activeQuizId) ? x.activeQuizId : sessions[0].id;
+  return { quizzes: sessions, activeQuizId };
+}
+
 // 저장된 세션 배열이 스키마를 갖추도록 방어적으로 정규화.
 function normalizeSession(raw: unknown): AskSession | null {
   if (!raw || typeof raw !== "object") return null;
@@ -128,9 +152,9 @@ function normalizeSession(raw: unknown): AskSession | null {
   const subs = Array.isArray(s.subs)
     ? s.subs
         .filter((x): x is AskSub => !!x && typeof (x as AskSub).id === "string")
-        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, messages: Array.isArray(x.messages) ? x.messages : [], quiz: sanitizeQuiz((x as AskSub).quiz) }))
+        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, messages: Array.isArray(x.messages) ? x.messages : [], ...sanitizeSubQuizzes(x as AskSub & { quiz?: unknown }) }))
     : [];
-  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, messages: [], quiz: undefined });
+  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, messages: [] });
   const activeSubId = subs.some((x) => x.id === s.activeSubId) ? s.activeSubId! : subs[0].id;
   const layout = Array.isArray(s.layout) && s.layout.some((id) => subs.some((x) => x.id === id))
     ? s.layout.filter((id) => subs.some((x) => x.id === id))
