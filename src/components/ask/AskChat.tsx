@@ -306,7 +306,7 @@ export default function AskChat({
       {/* 입력창 — 하단 중앙 pill. */}
       <div className="shrink-0 pb-4 pt-1">
         <div className="mx-auto w-full max-w-3xl px-4">
-          <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-[#8b86f5]">
+          <div className={`flex items-center gap-2 rounded-full border border-zinc-200 bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition focus-within:border-[#3B34E2] dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-[#8b86f5] ${blurred ? "pointer-events-none opacity-50" : ""}`}>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -316,15 +316,15 @@ export default function AskChat({
                   submit();
                 }
               }}
-              disabled={isLoading}
+              disabled={isLoading || blurred}
               rows={1}
-              placeholder={t("ask.placeholder")}
+              placeholder={blurred ? t("quiz.inputBlocked") : t("ask.placeholder")}
               className="max-h-32 min-h-[1.5rem] flex-1 resize-none bg-transparent py-1 text-[15px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
             />
             <button
               type="button"
               onClick={submit}
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || blurred}
               aria-label={t("chat.send")}
               className="flex h-8 w-8 shrink-0 items-center justify-center self-end rounded-full bg-[#3B34E2] text-white transition hover:bg-[#322bc9] disabled:cursor-not-allowed disabled:opacity-30"
             >
