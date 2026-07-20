@@ -453,7 +453,7 @@ export default function QuizRunner({ messages, providerId, providerSettings, qui
           <button
             type="button"
             onClick={() => { setAnswers({}); setGraded({}); setPhase("solving"); }}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-4 py-2 text-[13px] font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-500 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-amber-600"
           >
             <IconRefresh size={15} stroke={2} aria-hidden />
             {t("quiz.retrySame")}
