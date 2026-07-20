@@ -8,6 +8,7 @@ export const CARD_CHAT_CHANGED_EVENT = "nunopi:card-chat-changed";
 // 카드 챗 세션 하나 — 고유 id + 스레드.
 export interface CardChatSession {
   id: string;
+  createdAt?: string; // ISO — 세션 생성 시각(전역 히스토리 타임라인용, #559). 옵셔널=하위호환.
   messages: ChatMessage[];
 }
 
@@ -41,7 +42,7 @@ export function loadCardSessions(cardKey: string): CardChatSession[] {
     return (val as CardChatSession[]).filter((s) => s && typeof s.id === "string" && Array.isArray(s.messages));
   }
   // 옛 단일 스레드 → 세션 1개.
-  return [{ id: newSessionId(), messages: val as ChatMessage[] }];
+  return [{ id: newSessionId(), createdAt: new Date().toISOString(), messages: val as ChatMessage[] }];
 }
 
 // 세션 목록 저장. 메시지 있는 세션이 하나도 없으면 key 삭제(정리). 변경 이벤트 발행.

@@ -475,7 +475,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
   // ── 서브세션(대화) 조작 — 좌측 트리에서 세션 지목 ──────
   function handleNewSub(sessionId: string) {
     resetStream();
-    const sub = { id: newAskId(), messages: [] };
+    const sub = { id: newAskId(), createdAt: new Date().toISOString(), messages: [] };
     const prev = storeRef.current;
     commit({
       ...prev,
@@ -534,7 +534,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
     const prev = storeRef.current;
     const session = prev.sessions.find((s) => s.id === prev.activeSessionId);
     if (!session || session.layout.length >= 4) return; // 상한 4(그리드 안정)
-    const sub = { id: newAskId(), title: undefined, messages: [] };
+    const sub = { id: newAskId(), title: undefined, createdAt: new Date().toISOString(), messages: [] };
     commit({
       ...prev,
       sessions: prev.sessions.map((s) =>
