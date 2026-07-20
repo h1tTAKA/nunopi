@@ -103,15 +103,18 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
           <IconListCheck size={15} stroke={2} aria-hidden />
           <span className="truncate">{t("quiz.title")}</span>
         </div>
-        <button
-          type="button"
-          onClick={addQuiz}
-          title={t("quiz.newQuiz")}
-          className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-        >
-          <IconPlus size={13} stroke={2} aria-hidden />
-          {t("quiz.newQuiz")}
-        </button>
+        {/* 퀴즈가 하나라도 있을 때만 — 빈 상태엔 중앙에 이미 새 퀴즈 버튼이 있어 중복 방지. */}
+        {quizzes.length > 0 && (
+          <button
+            type="button"
+            onClick={addQuiz}
+            title={t("quiz.newQuiz")}
+            className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium normal-case tracking-normal text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          >
+            <IconPlus size={13} stroke={2} aria-hidden />
+            {t("quiz.newQuiz")}
+          </button>
+        )}
       </div>
 
       {/* 세션 칩바 — 여러 퀴즈 전환. 각 칩 삭제(X, 경고 모달). */}
