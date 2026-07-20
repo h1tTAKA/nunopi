@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconCheck, IconX, IconLoader2, IconInfinity } from "@tabler/icons-react";
+import { IconCheck, IconX, IconLoader2, IconInfinity, IconRefresh } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 import type { QuizQuestion as QuizQ, QuizGraded as Graded, AskQuiz } from "@/lib/askStore";
@@ -445,8 +445,19 @@ export default function QuizRunner({ messages, providerId, providerSettings, qui
       )}
 
       {phase === "done" && (
-        <div className="mt-1 rounded-lg bg-[#3B34E2]/5 px-3 py-2.5 text-center text-[13px] font-semibold text-[#3B34E2] dark:bg-[#8b86f5]/10 dark:text-[#8b86f5]">
-          {t("quiz.score")}: {score} / {questions.length}
+        <div className="mt-1 space-y-2">
+          <div className="rounded-lg bg-[#3B34E2]/5 px-3 py-2.5 text-center text-[13px] font-semibold text-[#3B34E2] dark:bg-[#8b86f5]/10 dark:text-[#8b86f5]">
+            {t("quiz.score")}: {score} / {questions.length}
+          </div>
+          {/* 같은 문제 다시 풀기 — 답·채점만 비우고 풀이로 복귀. */}
+          <button
+            type="button"
+            onClick={() => { setAnswers({}); setGraded({}); setPhase("solving"); }}
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-4 py-2 text-[13px] font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <IconRefresh size={15} stroke={2} aria-hidden />
+            {t("quiz.retrySame")}
+          </button>
         </div>
       )}
     </>
