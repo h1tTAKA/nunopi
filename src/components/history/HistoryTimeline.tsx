@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { IconCode, IconMessage2, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
@@ -29,21 +29,21 @@ export default function HistoryTimeline() {
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const [events, setEvents] = useState<UnifiedHistoryEvent[] | null>(null);
 
-  const reload = useCallback(() => {
-    void collectHistory().then(setEvents);
-  }, []);
-
   useEffect(() => {
+    // 언마운트 후 setState 방지 가드(collectHistory 비동기 완료가 언마운트 뒤일 수 있음).
+    let alive = true;
+    const reload = () => { void collectHistory().then((ev) => { if (alive) setEvents(ev); }); };
     reload();
     window.addEventListener(CARDS_CHANGED_EVENT, reload);
     window.addEventListener(CARD_CHAT_CHANGED_EVENT, reload);
     window.addEventListener("focus", reload);
     return () => {
+      alive = false;
       window.removeEventListener(CARDS_CHANGED_EVENT, reload);
       window.removeEventListener(CARD_CHAT_CHANGED_EVENT, reload);
       window.removeEventListener("focus", reload);
     };
-  }, [reload]);
+  }, []);
 
   if (events === null) {
     return (
