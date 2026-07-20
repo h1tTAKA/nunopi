@@ -36,6 +36,7 @@ export interface QuizSession {
 export interface AskSub {
   id: string;
   title?: string; // 유저 지정 이름. 없으면 "질문 N"으로 표시.
+  createdAt?: string; // ISO — 질문 생성 시각(전역 히스토리 타임라인용, #559). 옵셔널=하위호환.
   messages: ChatMessage[];
   quizzes?: QuizSession[]; // 이 서브에서 만든 퀴즈 세션들(있을 때만).
   activeQuizId?: string; // 활성 퀴즈 세션 id.
@@ -77,7 +78,7 @@ export function newAskId(): string {
 
 // 새 세션 하나 생성 — 서브세션 1개(빈 스레드), layout은 그 서브 단일.
 export function createSession(title: string, folderId: string | null = null): AskSession {
-  const sub: AskSub = { id: newAskId(), messages: [] };
+  const sub: AskSub = { id: newAskId(), createdAt: new Date().toISOString(), messages: [] };
   return {
     id: newAskId(),
     title,
@@ -152,9 +153,9 @@ function normalizeSession(raw: unknown): AskSession | null {
   const subs = Array.isArray(s.subs)
     ? s.subs
         .filter((x): x is AskSub => !!x && typeof (x as AskSub).id === "string")
-        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, messages: Array.isArray(x.messages) ? x.messages : [], ...sanitizeSubQuizzes(x as AskSub & { quiz?: unknown }) }))
+        .map((x) => ({ id: x.id, title: typeof x.title === "string" ? x.title : undefined, createdAt: typeof x.createdAt === "string" ? x.createdAt : (typeof s.createdAt === "string" ? s.createdAt : new Date().toISOString()), messages: Array.isArray(x.messages) ? x.messages : [], ...sanitizeSubQuizzes(x as AskSub & { quiz?: unknown }) }))
     : [];
-  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, messages: [] });
+  if (subs.length === 0) subs.push({ id: newAskId(), title: undefined, createdAt: new Date().toISOString(), messages: [] });
   const activeSubId = subs.some((x) => x.id === s.activeSubId) ? s.activeSubId! : subs[0].id;
   const layout = Array.isArray(s.layout) && s.layout.some((id) => subs.some((x) => x.id === id))
     ? s.layout.filter((id) => subs.some((x) => x.id === id))
