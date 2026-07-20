@@ -217,7 +217,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
     const storedView = localStorage.getItem(VIEW_MODE_KEY);
-    if (storedView === "text" || storedView === "memorize" || storedView === "ask") {
+    if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history") {
 
       setViewMode(storedView);
       if (storedView === "text") setMode("text");
