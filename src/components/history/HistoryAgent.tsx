@@ -9,7 +9,9 @@ import { buildHistoryContext } from "@/lib/history/context";
 import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";
 import { dayKey } from "@/lib/srs/activityLog";
 import { summary } from "@/lib/srs/stats";
-import { categoryCounts } from "@/lib/srs/due";
+import { categoryCounts, dueCards } from "@/lib/srs/due";
+import { collectCards } from "@/lib/srs/collect";
+import { DECK_SOURCES } from "@/lib/srs/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 interface HistoryAgentProps {
@@ -79,11 +81,14 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
         const events = await collectHistory();
         const s = summary("all", now);
         const cats = categoryCounts("all", now, undefined, "all");
+        // due 카드 제목 목록(캡 40) — 어떤 카드가 복습 대기인지 콕 집어 답하도록.
+        const dueTitles = dueCards(collectCards(DECK_SOURCES.all, now), now).slice(0, 40).map((c) => c.front);
         const context = buildHistoryContext(events, dayKey(now), {
           total: s.total,
           due: s.due,
           neverReviewed: cats.none,
           reviews: s.reviews,
+          dueTitles,
         });
         const res = await fetch("/api/agent/analyze", {
           method: "POST",
