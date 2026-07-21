@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
@@ -12,19 +12,22 @@ import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/hi
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
 // 타입별 아이콘·색(브랜드 계열 + 구분).
+// 유형별 뚜렷한 색(계열 겹침 방지) — 인디고/스카이/에메랄드/푸시아/앰버/로즈.
 const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>; cls: string }> = {
-  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]" },
-  chat: { Icon: IconMessage2, cls: "text-sky-500" },
-  ask: { Icon: IconMessage2, cls: "text-indigo-500" },
-  quiz: { Icon: IconListCheck, cls: "text-violet-500" },
-  bookmark: { Icon: IconCards, cls: "text-lime-500" },
-  review: { Icon: IconBrain, cls: "text-amber-500" },
+  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]" }, // 브랜드 인디고
+  chat: { Icon: IconMessage2, cls: "text-sky-500" },                       // 스카이
+  ask: { Icon: IconMessageQuestion, cls: "text-emerald-500" },             // 에메랄드(초록)
+  quiz: { Icon: IconListCheck, cls: "text-fuchsia-500" },                  // 푸시아(마젠타)
+  bookmark: { Icon: IconCards, cls: "text-amber-500" },                    // 앰버(주황)
+  review: { Icon: IconBrain, cls: "text-rose-500" },                       // 로즈(빨강)
 };
 
 // 전역 히스토리 좌 타임라인 — 모든 저장소 수집(collectHistory) → 날짜별 그룹 렌더.
 // 클릭 이동은 자식 #4에서. 지금은 표시 + 활동 변경 시 재수집.
 const ALL_TYPES: HistoryEventType[] = ["analysis", "chat", "ask", "quiz", "bookmark", "review"];
 const FILTER_KEY = "nunopi:history-filter";
+// 누노피 브랜드 그라데이션(암기모드 막대·퀴즈 슬라이더와 동일) — 활성 필터 칩 배경.
+const BRAND_GRADIENT = "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)";
 
 export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
@@ -111,7 +114,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
       {/* 타입 필터 칩 — 이력에 있는 유형만. 클릭 토글(영속). */}
       <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
         {present.map((ty) => {
-          const { Icon, cls } = TYPE_META[ty];
+          const { Icon } = TYPE_META[ty];
           const on = enabled.has(ty);
           return (
             <button
@@ -119,12 +122,14 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               type="button"
               onClick={() => toggleType(ty)}
               aria-pressed={on}
-              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
-                on ? `border-current ${cls}` : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
-              }`}
+              style={on ? { backgroundImage: BRAND_GRADIENT } : undefined}
+              className={`rounded-full p-px text-[11px] transition ${on ? "" : "border border-zinc-200 opacity-60 dark:border-zinc-700"}`}
             >
-              <Icon size={12} stroke={2} aria-hidden />
-              {t(`home.evt.${ty}`)}
+              {/* 활성: 바깥은 그라데이션(1px 링), 안쪽은 패널색 — 전체 채우지 않고 테두리만. */}
+              <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${on ? "bg-zinc-50 text-zinc-700 dark:bg-[#13141b] dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}>
+                <Icon size={12} stroke={2} aria-hidden />
+                {t(`home.evt.${ty}`)}
+              </span>
             </button>
           );
         })}
@@ -137,7 +142,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
         <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
           {groups.map((g) => (
         <div key={g.day} className="mb-3">
-          <div className="sticky top-0 z-10 bg-zinc-50/95 py-1.5 text-[11px] font-semibold text-zinc-500 backdrop-blur dark:bg-[#13141b]/95 dark:text-zinc-400">
+          <div className="sticky -top-3 z-10 -mx-3 bg-zinc-50 px-3 py-2 text-[11px] font-semibold text-zinc-500 dark:bg-[#13141b] dark:text-zinc-400">
             {dayLabel(g.day)}
           </div>
           <div className="flex flex-col gap-1">
