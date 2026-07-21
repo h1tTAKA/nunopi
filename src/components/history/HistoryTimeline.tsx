@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
@@ -154,8 +154,8 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
           <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
         </div>
       </div>
-      {/* 유형 재생목록 그리드 — 얇은 컬러 밴드(틴트+워터마크 아이콘) + 유형명 + 최근 항목. */}
-      <div className="nunopi-scroll grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto p-3">
+      {/* 유형 재생목록 — 1열 로우. 좌 컬러 밴드(틴트+워터마크 아이콘) + 유형명·개수 + 최근 항목 + chevron. */}
+      <div className="nunopi-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
         {present.map((ty) => {
           const { Icon, cls, tint } = TYPE_META[ty];
           const latest = latestByType(ty);
@@ -164,18 +164,22 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               key={ty}
               type="button"
               onClick={() => setOpenType(ty)}
-              className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#8b86f5]"
+              className="group flex items-stretch overflow-hidden rounded-xl border border-zinc-200 bg-white text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#8b86f5]"
             >
-              {/* 상단 컬러 밴드 — 얇게. 유형색 그라데이션 틴트 + 모서리서 잘린 큰 워터마크 아이콘 + 작은 실제 아이콘 + 개수 배지. */}
-              <div className={`relative h-14 overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
-                <Icon size={64} stroke={1.5} className={`pointer-events-none absolute -bottom-3 -right-2 opacity-20 transition group-hover:scale-110 ${cls}`} aria-hidden />
-                <Icon size={17} stroke={2} className={`absolute left-2.5 top-2.5 ${cls}`} aria-hidden />
-                <span className="absolute bottom-1.5 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">{counts[ty] ?? 0}</span>
+              {/* 좌 컬러 밴드 — 유형색 그라데이션 틴트 + 모서리서 잘린 워터마크 + 중앙 아이콘. */}
+              <div className={`relative flex w-16 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
+                <Icon size={44} stroke={1.5} className={`pointer-events-none absolute -bottom-2 -right-1 opacity-15 ${cls}`} aria-hidden />
+                <Icon size={22} stroke={2} className={`transition group-hover:scale-110 ${cls}`} aria-hidden />
               </div>
-              <div className="min-w-0 p-2.5">
-                <p className="truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t(`home.evt.${ty}`)}</p>
+              {/* 텍스트 — 유형명 + 개수 칩 / 최근 항목. */}
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 py-2.5 pl-3 pr-1">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t(`home.evt.${ty}`)}</span>
+                  <span className="shrink-0 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{counts[ty] ?? 0}</span>
+                </div>
                 <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{latest?.title ?? ""}</p>
               </div>
+              <IconChevronRight size={16} stroke={2} className="mr-2 shrink-0 self-center text-zinc-300 transition group-hover:text-[#3B34E2] dark:text-zinc-600 dark:group-hover:text-[#8b86f5]" aria-hidden />
             </button>
           );
         })}
