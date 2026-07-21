@@ -14,10 +14,21 @@ const TYPE_LABEL: Record<HistoryEventType, string> = {
 // 토큰 폭 관리 — 전 이력 주입 금지(마스터플랜 리스크, #527 교훈). 최근 이벤트만.
 const MAX_EVENTS = 200;
 
+// 누노피 기능 개요 — "사용법" 질문에 근거 있게 답하도록 컨텍스트에 항상 포함.
+const APP_OVERVIEW = `# 누노피(nunopi) 사용 안내
+누노피는 코드·글을 분석하며 학습하는 앱이다. 주요 기능:
+- 분석(코드/글): 상단 토글로 "코드 분석"/"글 분석" 선택 후 소스나 글을 붙여넣으면 줄별 설명·토큰·개념 해설을 준다.
+- 챗룸: 분석 결과 옆에서 튜터에게 추가 질문(항목별 여러 세션).
+- 개념 북마크 → 플래시카드: 분석 중 나온 용어·개념을 카드로 저장.
+- 암기 모드: 저장한 카드를 SRS(간격 반복)로 복습. 학습 통계·활동 히트맵 제공.
+- 에이전트 질문 모드: 주제에 대해 자유 질문 + 아웃풋 퀴즈(객관식/주관식).
+- 홈(학습 히스토리): 전 기능 활동을 유형별 재생목록으로 모아 보고, 이 에이전트가 그 이력을 참조해 답한다.`;
+
 // 학습 이력을 날짜별 다이제스트 텍스트로 만들어 에이전트 컨텍스트(code 필드)에 넣는다.
 // events는 최신순(desc) 가정. today는 "오늘"(YYYY-MM-DD) — LLM이 "어제/지난주" 상대 날짜를 스스로 해석.
 export function buildHistoryContext(events: UnifiedHistoryEvent[], today: string): string {
-  if (events.length === 0) return "사용자의 학습 이력이 아직 없다.";
+  const guide = `${APP_OVERVIEW}\n\n사용법·기능 질문이면 위 안내로, 학습 내용·기록 질문이면 아래 이력으로 답하라. 둘 다 없는 내용은 지어내지 말 것.`;
+  if (events.length === 0) return `${guide}\n\n오늘 날짜는 ${today}. 사용자의 학습 이력은 아직 없다.`;
   const capped = events.slice(0, MAX_EVENTS);
   const lines: string[] = [];
   let curDay = "";
@@ -33,5 +44,5 @@ export function buildHistoryContext(events: UnifiedHistoryEvent[], today: string
     lines.push(`- [${label}] ${e.title}${desc}`);
   }
   const note = events.length > MAX_EVENTS ? `\n\n(최근 ${MAX_EVENTS}개만 표시. 총 ${events.length}개.)` : "";
-  return `아래는 사용자의 학습 이력(최신순)이다. 오늘 날짜는 ${today}. 이 이력을 근거로 사용자의 질문에 답하라. 이력에 없는 내용은 지어내지 말 것.\n${lines.join("\n")}${note}`;
+  return `${guide}\n\n# 학습 이력(최신순). 오늘 날짜는 ${today}.\n${lines.join("\n")}${note}`;
 }
