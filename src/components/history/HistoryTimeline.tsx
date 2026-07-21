@@ -88,6 +88,11 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   // 이력에 존재하는 유형만 칩으로 노출. 필터 적용 후 날짜 그룹.
   const present = ALL_TYPES.filter((ty) => events.some((e) => e.type === ty));
   const filtered = events.filter((e) => enabled.has(e.type));
+  // 요약 스트립 — 총 기록 / 활동일(고유 날짜) / 이번 주(최근 7일).
+  const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
+  const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
   // 날짜별 그룹(이미 desc 정렬이라 최초 등장 순 = 최신 날짜부터).
   const groups: { day: string; items: UnifiedHistoryEvent[] }[] = [];
   for (const e of filtered) {
@@ -111,7 +116,23 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* 타입 필터 칩 — 이력에 있는 유형만. 클릭 토글(영속). */}
+      {/* 요약 스트립 — 총 기록(큰 숫자) + 활동일 + 이번 주. */}
+      <div className="flex items-center gap-4 px-3 pt-3 pb-2.5">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{events.length}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryTotal")}</span>
+        </div>
+        <span className="h-6 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{activeDays}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryDays")}</span>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{thisWeek}</span>
+          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
+        </div>
+      </div>
+      {/* 타입 필터 칩 — 이력에 있는 유형만 + 유형별 개수. 클릭 토글(영속). */}
       <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
         {present.map((ty) => {
           const { Icon } = TYPE_META[ty];
@@ -129,6 +150,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${on ? "bg-zinc-50 text-zinc-700 dark:bg-[#13141b] dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}>
                 <Icon size={12} stroke={2} aria-hidden />
                 {t(`home.evt.${ty}`)}
+                <span className="tabular-nums opacity-60">{counts[ty] ?? 0}</span>
               </span>
             </button>
           );
