@@ -26,6 +26,8 @@ const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>
 // 클릭 이동은 자식 #4에서. 지금은 표시 + 활동 변경 시 재수집.
 const ALL_TYPES: HistoryEventType[] = ["analysis", "chat", "ask", "quiz", "bookmark", "review"];
 const FILTER_KEY = "nunopi:history-filter";
+// 누노피 브랜드 그라데이션(암기모드 막대·퀴즈 슬라이더와 동일) — 활성 필터 칩 배경.
+const BRAND_GRADIENT = "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)";
 
 export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
@@ -120,9 +122,10 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               type="button"
               onClick={() => toggleType(ty)}
               aria-pressed={on}
+              style={on ? { backgroundImage: BRAND_GRADIENT } : undefined}
               className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
                 on
-                  ? "border-zinc-300 text-zinc-700 dark:border-zinc-500 dark:text-zinc-200"
+                  ? "border-transparent font-medium text-white"
                   : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
               }`}
             >
