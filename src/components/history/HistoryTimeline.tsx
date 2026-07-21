@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
@@ -11,50 +11,31 @@ import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/hi
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
-// 타입별 아이콘·색(브랜드 계열 + 구분).
-// 유형별 뚜렷한 색(계열 겹침 방지) — 인디고/스카이/에메랄드/푸시아/앰버/로즈.
-const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>; cls: string }> = {
-  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]" }, // 브랜드 인디고
-  chat: { Icon: IconMessage2, cls: "text-sky-500" },                       // 스카이
-  ask: { Icon: IconMessageQuestion, cls: "text-emerald-500" },             // 에메랄드(초록)
-  quiz: { Icon: IconListCheck, cls: "text-fuchsia-500" },                  // 푸시아(마젠타)
-  bookmark: { Icon: IconCards, cls: "text-amber-500" },                    // 앰버(주황)
-  review: { Icon: IconBrain, cls: "text-rose-500" },                       // 로즈(빨강)
+// 유형별 아이콘 · 색(cls) · 밴드 틴트(tint, 카드 상단 그라데이션 시작색).
+// 계열 겹침 방지 — 인디고/스카이/에메랄드/푸시아/앰버/로즈.
+const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>; cls: string; tint: string }> = {
+  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]", tint: "from-[#3B34E2]/15" },
+  chat: { Icon: IconMessage2, cls: "text-sky-500", tint: "from-sky-500/15" },
+  ask: { Icon: IconMessageQuestion, cls: "text-emerald-500", tint: "from-emerald-500/15" },
+  quiz: { Icon: IconListCheck, cls: "text-fuchsia-500", tint: "from-fuchsia-500/15" },
+  bookmark: { Icon: IconCards, cls: "text-amber-500", tint: "from-amber-500/15" },
+  review: { Icon: IconBrain, cls: "text-rose-500", tint: "from-rose-500/15" },
 };
 
-// 전역 히스토리 좌 타임라인 — 모든 저장소 수집(collectHistory) → 날짜별 그룹 렌더.
-// 클릭 이동은 자식 #4에서. 지금은 표시 + 활동 변경 시 재수집.
 const ALL_TYPES: HistoryEventType[] = ["analysis", "chat", "ask", "quiz", "bookmark", "review"];
-const FILTER_KEY = "nunopi:history-filter";
-// 누노피 브랜드 그라데이션(암기모드 막대·퀴즈 슬라이더와 동일) — 활성 필터 칩 배경.
-const BRAND_GRADIENT = "linear-gradient(90deg, #22d3ee 0%, #3b82f6 55%, #8b5cf6 100%)";
 
+// 전역 히스토리 좌 패널 — 유튜브 재생목록式 2단계:
+//  ① 그리드: 유형 = 재생목록 카드(컬러 밴드 + 워터마크 아이콘 + 개수 + 최근 항목). 클릭 → ②.
+//  ② 리스트: 그 유형만 날짜별로. 뒤로가기로 그리드 복귀.
 export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const [events, setEvents] = useState<UnifiedHistoryEvent[] | null>(null);
+  // 열린 재생목록(유형). null이면 그리드.
+  const [openType, setOpenType] = useState<HistoryEventType | null>(null);
   // "이번 주" 기준 시각 — 마운트 시 1회 고정(렌더 순수성; 지연 초기화라 Date.now 1회만).
   const [nowMs] = useState(() => Date.now());
-  // 타입 필터 — 기본 전부. SSR 안전 위해 전부로 시작, 마운트 후 저장값 복원.
-  const [enabled, setEnabled] = useState<Set<HistoryEventType>>(() => new Set(ALL_TYPES));
-  useEffect(() => {
-    try {
-      const raw = JSON.parse(localStorage.getItem(FILTER_KEY) ?? "");
-      if (Array.isArray(raw)) {
-        const s = new Set(raw.filter((x): x is HistoryEventType => ALL_TYPES.includes(x)));
-        if (s.size) setEnabled(s); // eslint-disable-line react-hooks/set-state-in-effect
-      }
-    } catch { /* ignore */ }
-  }, []);
-  function toggleType(ty: HistoryEventType) {
-    setEnabled((prev) => {
-      const n = new Set(prev);
-      if (n.has(ty)) n.delete(ty); else n.add(ty);
-      try { localStorage.setItem(FILTER_KEY, JSON.stringify([...n])); } catch { /* ignore */ }
-      return n;
-    });
-  }
 
   useEffect(() => {
     // 언마운트 후 setState 방지 가드(collectHistory 비동기 완료가 언마운트 뒤일 수 있음).
@@ -87,24 +68,6 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
     );
   }
 
-  // 이력에 존재하는 유형만 칩으로 노출. 필터 적용 후 날짜 그룹.
-  const present = ALL_TYPES.filter((ty) => events.some((e) => e.type === ty));
-  const filtered = events.filter((e) => enabled.has(e.type));
-  // 요약 스트립 — 총 기록 / 활동일(고유 날짜) / 이번 주(최근 7일).
-  const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
-  const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
-  const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
-  const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
-  // 날짜별 그룹(이미 desc 정렬이라 최초 등장 순 = 최신 날짜부터).
-  const groups: { day: string; items: UnifiedHistoryEvent[] }[] = [];
-  for (const e of filtered) {
-    const d = new Date(e.createdAt);
-    const k = Number.isNaN(d.getTime()) ? "?" : dayKey(d);
-    const last = groups[groups.length - 1];
-    if (last && last.day === k) last.items.push(e);
-    else groups.push({ day: k, items: [e] });
-  }
-
   const dayLabel = (k: string) => {
     if (k === "?") return "?";
     const d = new Date(k + "T00:00:00");
@@ -115,11 +78,68 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" });
   };
+  // 이벤트들을 날짜별 그룹으로(이미 desc 정렬 → 최신 날짜부터).
+  const groupByDay = (list: UnifiedHistoryEvent[]) => {
+    const groups: { day: string; items: UnifiedHistoryEvent[] }[] = [];
+    for (const e of list) {
+      const d = new Date(e.createdAt);
+      const k = Number.isNaN(d.getTime()) ? "?" : dayKey(d);
+      const last = groups[groups.length - 1];
+      if (last && last.day === k) last.items.push(e);
+      else groups.push({ day: k, items: [e] });
+    }
+    return groups;
+  };
+
+  // ── ② 유형 리스트(재생목록 열림) ──────────────────────────────
+  if (openType) {
+    const { Icon, cls } = TYPE_META[openType];
+    const items = events.filter((e) => e.type === openType);
+    const groups = groupByDay(items);
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* 재생목록 헤더 — 뒤로가기 + 유형 아이콘·이름·개수 */}
+        <button
+          type="button"
+          onClick={() => setOpenType(null)}
+          className="flex items-center gap-2 border-b border-zinc-200 px-3 py-2.5 text-left transition hover:bg-zinc-100/60 dark:border-zinc-800 dark:hover:bg-zinc-800/40"
+        >
+          <IconChevronLeft size={16} stroke={2} className="shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
+          <Icon size={16} stroke={2} className={`shrink-0 ${cls}`} aria-hidden />
+          <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t(`home.evt.${openType}`)}</span>
+          <span className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">{items.length}</span>
+        </button>
+        <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
+          {groups.map((g) => (
+            <div key={g.day} className="mb-3">
+              <div className="sticky -top-3 z-10 -mx-3 bg-zinc-50 px-3 py-2 text-[11px] font-semibold text-zinc-500 dark:bg-[#13141b] dark:text-zinc-400">
+                {dayLabel(g.day)}
+              </div>
+              <div className="flex flex-col gap-1">
+                {g.items.map((e) => (
+                  <EventRow key={e.id} e={e} cls={cls} Icon={Icon} timeLabel={timeLabel} onNavigate={onNavigate} t={t} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── ① 재생목록 그리드 ────────────────────────────────────────
+  const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
+  const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
+  const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
+  const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
+  // 이력에 있는 유형만 재생목록으로. 각 유형 최근 항목(desc라 첫 매치).
+  const present = ALL_TYPES.filter((ty) => (counts[ty] ?? 0) > 0);
+  const latestByType = (ty: HistoryEventType) => events.find((e) => e.type === ty);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* 요약 스트립 — 총 기록(큰 숫자) + 활동일 + 이번 주. */}
-      <div className="flex items-center gap-4 px-3 pt-3 pb-2.5">
+      <div className="flex items-center gap-4 border-b border-zinc-200 px-3 pb-2.5 pt-3 dark:border-zinc-800">
         <div className="flex items-baseline gap-1.5">
           <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{events.length}</span>
           <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryTotal")}</span>
@@ -134,70 +154,62 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
           <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
         </div>
       </div>
-      {/* 타입 필터 칩 — 이력에 있는 유형만 + 유형별 개수. 클릭 토글(영속). */}
-      <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
+      {/* 유형 재생목록 그리드 — 얇은 컬러 밴드(틴트+워터마크 아이콘) + 유형명 + 최근 항목. */}
+      <div className="nunopi-scroll grid min-h-0 flex-1 grid-cols-2 content-start gap-2.5 overflow-y-auto p-3">
         {present.map((ty) => {
-          const { Icon } = TYPE_META[ty];
-          const on = enabled.has(ty);
+          const { Icon, cls, tint } = TYPE_META[ty];
+          const latest = latestByType(ty);
           return (
             <button
               key={ty}
               type="button"
-              onClick={() => toggleType(ty)}
-              aria-pressed={on}
-              style={on ? { backgroundImage: BRAND_GRADIENT } : undefined}
-              className={`rounded-full p-px text-[11px] transition ${on ? "" : "border border-zinc-200 opacity-60 dark:border-zinc-700"}`}
+              onClick={() => setOpenType(ty)}
+              className="group flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#8b86f5]"
             >
-              {/* 활성: 바깥은 그라데이션(1px 링), 안쪽은 패널색 — 전체 채우지 않고 테두리만. */}
-              <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${on ? "bg-zinc-50 text-zinc-700 dark:bg-[#13141b] dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}>
-                <Icon size={12} stroke={2} aria-hidden />
-                {t(`home.evt.${ty}`)}
-                <span className="tabular-nums opacity-60">{counts[ty] ?? 0}</span>
-              </span>
+              {/* 상단 컬러 밴드 — 얇게. 유형색 그라데이션 틴트 + 모서리서 잘린 큰 워터마크 아이콘 + 작은 실제 아이콘 + 개수 배지. */}
+              <div className={`relative h-14 overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
+                <Icon size={64} stroke={1.5} className={`pointer-events-none absolute -bottom-3 -right-2 opacity-20 transition group-hover:scale-110 ${cls}`} aria-hidden />
+                <Icon size={17} stroke={2} className={`absolute left-2.5 top-2.5 ${cls}`} aria-hidden />
+                <span className="absolute bottom-1.5 right-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm">{counts[ty] ?? 0}</span>
+              </div>
+              <div className="min-w-0 p-2.5">
+                <p className="truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t(`home.evt.${ty}`)}</p>
+                <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{latest?.title ?? ""}</p>
+              </div>
             </button>
           );
         })}
       </div>
-      {groups.length === 0 ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
-          <p className="text-[13px] text-zinc-400 dark:text-zinc-500">{t("home.noFiltered")}</p>
-        </div>
-      ) : (
-        <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
-          {groups.map((g) => (
-        <div key={g.day} className="mb-3">
-          <div className="sticky -top-3 z-10 -mx-3 bg-zinc-50 px-3 py-2 text-[11px] font-semibold text-zinc-500 dark:bg-[#13141b] dark:text-zinc-400">
-            {dayLabel(g.day)}
-          </div>
-          <div className="flex flex-col gap-1">
-            {g.items.map((e) => {
-              const { Icon, cls } = TYPE_META[e.type];
-              const clickable = !!(e.nav && onNavigate);
-              return (
-                <button
-                  key={e.id}
-                  type="button"
-                  disabled={!clickable}
-                  onClick={() => { if (e.nav) onNavigate?.(e.nav); }}
-                  className={`flex w-full items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition dark:border-zinc-800 dark:bg-zinc-900 ${clickable ? "cursor-pointer hover:border-[#3B34E2] dark:hover:border-[#8b86f5]" : "cursor-default"}`}
-                >
-                  <Icon size={15} stroke={2} className={`mt-0.5 shrink-0 ${cls}`} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`shrink-0 text-[10px] font-semibold uppercase ${cls}`}>{t(`home.evt.${e.type}`)}</span>
-                      {e.type !== "review" && <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">{timeLabel(e.createdAt)}</span>}
-                    </div>
-                    <p className="truncate text-[13px] text-zinc-700 dark:text-zinc-200">{e.title}</p>
-                    {e.description && <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{e.description}</p>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-        </div>
-      )}
     </div>
+  );
+}
+
+// 이벤트 한 줄 — 유형 리스트(드릴다운)에서 사용. 클릭 시 그 지점으로 이동.
+function EventRow({ e, cls, Icon, timeLabel, onNavigate, t }: {
+  e: UnifiedHistoryEvent;
+  cls: string;
+  Icon: React.ComponentType<IconProps>;
+  timeLabel: (iso: string) => string;
+  onNavigate?: (nav: HistoryNav) => void;
+  t: (key: string) => string;
+}) {
+  const clickable = !!(e.nav && onNavigate);
+  return (
+    <button
+      type="button"
+      disabled={!clickable}
+      onClick={() => { if (e.nav) onNavigate?.(e.nav); }}
+      className={`flex w-full items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition dark:border-zinc-800 dark:bg-zinc-900 ${clickable ? "cursor-pointer hover:border-[#3B34E2] dark:hover:border-[#8b86f5]" : "cursor-default"}`}
+    >
+      <Icon size={15} stroke={2} className={`mt-0.5 shrink-0 ${cls}`} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className={`shrink-0 text-[10px] font-semibold uppercase ${cls}`}>{t(`home.evt.${e.type}`)}</span>
+          {e.type !== "review" && <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">{timeLabel(e.createdAt)}</span>}
+        </div>
+        <p className="truncate text-[13px] text-zinc-700 dark:text-zinc-200">{e.title}</p>
+        {e.description && <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{e.description}</p>}
+      </div>
+    </button>
   );
 }
