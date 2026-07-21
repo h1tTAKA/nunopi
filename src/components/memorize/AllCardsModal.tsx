@@ -115,13 +115,13 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const all = useMemo(() => collectCards(DECK_SOURCES.all, now), [now, nonce]);
 
-  // 출처로 이동(카드발) — 갤러리 열면서 생성처 카드를 바로 띄운다(peek). 마운트 시 1회.
-  const threw = useRef(false);
+  // 출처로 이동(카드발) — 갤러리 열면서 그 카드를 띄운다(peek=카드+챗룸 노출). autoThrowCardKey가
+  // 바뀔 때마다 재-throw(이미 갤러리 열린 채 다른 카드로 재이동해도 그 카드가 열리게).
+  const lastThrown = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (threw.current || !autoThrowCardKey) return;
-    threw.current = true;
+    if (!autoThrowCardKey || lastThrown.current === autoThrowCardKey) return;
     const origin = all.find((c) => c.key === autoThrowCardKey);
-    if (origin) throwCard(origin);
+    if (origin) { lastThrown.current = autoThrowCardKey; throwCard(origin); }
   }, [autoThrowCardKey, all, throwCard]);
 
   const cards = useMemo(() => {
