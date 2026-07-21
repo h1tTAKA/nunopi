@@ -28,6 +28,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
   const [phase, setPhase] = useState<MemPhase>("select");
   const [showAllCards, setShowAllCards] = useState(false);
   const [autoThrowKey, setAutoThrowKey] = useState<string | undefined>(undefined);
+  const [autoThrowChat, setAutoThrowChat] = useState(false); // peek 시 챗룸 자동 열기(히스토리 카드챗 이동)
 
   // 카드 "출처로 이동" — 출처 종류별 분기. analysis=분석+챗세션 복원(부모),
   // card=전체 카드 보기 열고 생성처 카드를 바로 띄운다(peek).
@@ -35,6 +36,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     if (card.sourceKind === "card" && card.originCardKey) {
       setPhase("select"); // 세션 중이면 선택 화면으로 나와 갤러리 표시
       setAutoThrowKey(card.originCardKey);
+      setAutoThrowChat(false); // 생성처 카드 peek — 챗 자동 열기 아님
       setShowAllCards(true);
     } else if (card.sourceKind === "ask" && card.sourceSessionId) {
       // 질문발 — 출처(세션/질문)가 남아 있을 때만 Ask로 전환·이동. 삭제됐으면 여기서 안내(모드 전환 X).
@@ -121,6 +123,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     /* eslint-disable react-hooks/set-state-in-effect */
     setPhase("select");
     setAutoThrowKey(goToCard.cardKey);
+    setAutoThrowChat(true); // 히스토리 카드챗 이동 — 챗룸 자동 열기
     setShowAllCards(true);
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +186,7 @@ export default function MemorizeView({ active = true, providerId, providerSettin
         </div>
       </div>
     </div>
-    {showAllCards && <AllCardsModal now={now} active={active} autoThrowCardKey={autoThrowKey} providerId={providerId} providerSettings={providerSettings} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); }} />}
+    {showAllCards && <AllCardsModal now={now} active={active} autoThrowCardKey={autoThrowKey} autoThrowOpenChat={autoThrowChat} providerId={providerId} providerSettings={providerSettings} onClose={() => { setShowAllCards(false); setAutoThrowKey(undefined); setAutoThrowChat(false); }} />}
     </FlyCardProvider>
   );
 }

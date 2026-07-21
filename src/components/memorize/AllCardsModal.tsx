@@ -53,7 +53,7 @@ const CAT_DOT: Record<CardCategory, string> = {
 };
 
 // 전체 보유 카드 갤러리 — 검색·출처/분류 필터·정렬. 타일 클릭 시 카드가 날아온다(peek 재사용).
-export default function AllCardsModal({ now, active = true, autoThrowCardKey, providerId, providerSettings, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; providerId: AgentProviderKind; providerSettings: ProviderSettings; onClose: () => void }) {
+export default function AllCardsModal({ now, active = true, autoThrowCardKey, autoThrowOpenChat = false, providerId, providerSettings, onClose }: { now: Date; active?: boolean; autoThrowCardKey?: string; autoThrowOpenChat?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; onClose: () => void }) {
   const t = useT();
   const confirm = useConfirm();
   const { throwCard } = useFlyCard();
@@ -121,8 +121,8 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, pr
   useEffect(() => {
     if (!autoThrowCardKey || lastThrown.current === autoThrowCardKey) return;
     const origin = all.find((c) => c.key === autoThrowCardKey);
-    if (origin) { lastThrown.current = autoThrowCardKey; throwCard(origin); }
-  }, [autoThrowCardKey, all, throwCard]);
+    if (origin) { lastThrown.current = autoThrowCardKey; throwCard(origin, undefined, { openChat: autoThrowOpenChat }); }
+  }, [autoThrowCardKey, autoThrowOpenChat, all, throwCard]);
 
   const cards = useMemo(() => {
     const needle = q.trim().toLowerCase();
