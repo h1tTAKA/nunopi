@@ -56,7 +56,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   // 외부(암기 갤러리 등)에서 특정 세션·질문으로 이동 요청. nonce 변경 시 네비.
-  goToTarget?: { sessionId: string; subId?: string; nonce: number };
+  goToTarget?: { sessionId: string; subId?: string; quizId?: string; nonce: number };
 }) {
   const t = useT();
   const { locale } = useLocale();
@@ -139,7 +139,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
 
   // 외부 출처 이동 요청 — nonce 바뀌면 그 세션·질문으로.
   useEffect(() => {
-    if (goToTarget) navigateToAskSource(goToTarget.sessionId, goToTarget.subId);
+    if (goToTarget) navigateToAskSource(goToTarget.sessionId, goToTarget.subId, goToTarget.quizId);
     // navigateToAskSource는 storeRef만 읽어 안정적 — nonce만 트리거.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [goToTarget?.nonce]);
@@ -224,7 +224,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
 
   // 카드 출처로 이동 — 그 세션 활성 + 생성 질문(sub) 활성 + 폴더 펼침.
   // 출처(세션 또는 그 질문)가 삭제됐으면 이동 대신 안내 토스트.
-  function navigateToAskSource(sessionId: string, subId?: string) {
+  function navigateToAskSource(sessionId: string, subId?: string, quizId?: string) {
     const prev = storeRef.current;
     const session = prev.sessions.find((s) => s.id === sessionId);
     const subOk = !subId || !!session?.subs.some((x) => x.id === subId);
@@ -234,9 +234,23 @@ export default function AskView({ active = true, providerId, providerSettings, g
     commit({
       ...prev,
       activeSessionId: sessionId,
-      sessions: prev.sessions.map((s) => (s.id !== sessionId ? s : { ...s, activeSubId, layout: [activeSubId] })),
+      sessions: prev.sessions.map((s) =>
+        s.id !== sessionId
+          ? s
+          : {
+              ...s,
+              activeSubId,
+              layout: [activeSubId],
+              // 퀴즈 이동이면 그 서브의 활성 퀴즈 지정 — 단 그 퀴즈가 실존할 때만(삭제됐으면 기존 활성 유지).
+              subs: quizId
+                ? s.subs.map((sub) => (sub.id === activeSubId && (sub.quizzes ?? []).some((q) => q.id === quizId) ? { ...sub, activeQuizId: quizId } : sub))
+                : s.subs,
+            },
+      ),
     });
     expand(sessionId);
+    // 퀴즈 이동이면 우측 퀴즈 패널 열기(카드 패널과 배타).
+    if (quizId) { setQuizOpen(true); setCardsOpen(false); }
   }
 
   function handleCardGoToSource(card: Card) {

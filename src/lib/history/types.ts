@@ -8,6 +8,7 @@ export interface HistoryNav {
   sourceId?: string;   // 분석 히스토리 항목 id
   sessionId?: string;  // 질문/분석 챗 세션 id
   subId?: string;      // 질문(서브) id
+  quizId?: string;     // 퀴즈 세션 id(질문모드 퀴즈 탭 열기)
   cardKey?: string;    // 카드(암기) key
 }
 

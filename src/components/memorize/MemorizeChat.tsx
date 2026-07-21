@@ -17,6 +17,7 @@ interface MemorizeChatProps {
   providerSettings: ProviderSettings;
   onOpenChange?: (open: boolean) => void; // 열림 상태 알림(확대 모달 레이아웃 조정용)
   expanded?: boolean; // 확대 모달 내 — 패널 크게 + 세로 중앙 정렬(모달과 나란히)
+  autoOpen?: boolean; // 마운트 시 챗룸 바로 열기(전역 히스토리 카드챗 이동용, #565)
 }
 
 type StreamEvent =
@@ -27,10 +28,10 @@ type StreamEvent =
 
 // 암기 카드 우하단 챗 — 현재 카드(용어) 스코프 로컬 단일 스레드(히스토리 미저장).
 // 코드/글 모드 챗은 좌하단, 암기는 우하단(대칭). ChatRoom UI 재사용.
-export default function MemorizeChat({ card, providerId, providerSettings, onOpenChange, expanded = false }: MemorizeChatProps) {
+export default function MemorizeChat({ card, providerId, providerSettings, onOpenChange, expanded = false, autoOpen = false }: MemorizeChatProps) {
   const t = useT();
   const { locale } = useLocale();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
   // 열림 변화 알림(확대 모달 레이아웃용) — updater가 아닌 effect에서(렌더 중 부모 setState 금지).
   useEffect(() => {
     onOpenChange?.(open);

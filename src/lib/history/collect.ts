@@ -70,7 +70,7 @@ export async function collectHistory(): Promise<UnifiedHistoryEvent[]> {
             createdAt: qs.createdAt,
             title: `퀴즈 ${qs.quiz.questions.length}문항`,
             description: sessLabel,
-            nav: { mode: "ask", sessionId: s.id, subId: sub.id },
+            nav: { mode: "ask", sessionId: s.id, subId: sub.id, quizId: qs.id },
           });
         }
       }

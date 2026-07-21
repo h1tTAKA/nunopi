@@ -3,10 +3,11 @@
 import { IconHistory, IconSparkles } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import HistoryTimeline from "@/components/history/HistoryTimeline";
+import type { HistoryNav } from "@/lib/history/types";
 
 // 전역 학습 히스토리(홈) 뷰 — 좌: 전 기능 이력 타임라인 / 우: 이력 참조 에이전트.
 // 이번 이슈(#561)는 2분할 뼈대 + 빈 상태. 타임라인 수집(#3)·클릭이동(#4)·에이전트(#5)는 후속.
-export default function HistoryView({ active = true }: { active?: boolean }) {
+export default function HistoryView({ active = true, onNavigate }: { active?: boolean; onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
   return (
     <div aria-hidden={!active} className="flex h-full w-full min-h-0">
@@ -16,7 +17,7 @@ export default function HistoryView({ active = true }: { active?: boolean }) {
           <IconHistory size={15} stroke={2} aria-hidden />
           <span>{t("home.title")}</span>
         </div>
-        <HistoryTimeline />
+        <HistoryTimeline onNavigate={onNavigate} />
       </section>
 
       {/* 우: 이력 참조 에이전트(자리) */}

@@ -7,7 +7,7 @@ import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
-import type { HistoryEventType, UnifiedHistoryEvent } from "@/lib/history/types";
+import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/history/types";
 
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
@@ -23,7 +23,7 @@ const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>
 
 // 전역 히스토리 좌 타임라인 — 모든 저장소 수집(collectHistory) → 날짜별 그룹 렌더.
 // 클릭 이동은 자식 #4에서. 지금은 표시 + 활동 변경 시 재수집.
-export default function HistoryTimeline() {
+export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
@@ -91,8 +91,15 @@ export default function HistoryTimeline() {
           <div className="flex flex-col gap-1">
             {g.items.map((e) => {
               const { Icon, cls } = TYPE_META[e.type];
+              const clickable = !!(e.nav && onNavigate);
               return (
-                <div key={e.id} className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+                <button
+                  key={e.id}
+                  type="button"
+                  disabled={!clickable}
+                  onClick={() => { if (e.nav) onNavigate?.(e.nav); }}
+                  className={`flex w-full items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-left transition dark:border-zinc-800 dark:bg-zinc-900 ${clickable ? "cursor-pointer hover:border-[#3B34E2] dark:hover:border-[#8b86f5]" : "cursor-default"}`}
+                >
                   <Icon size={15} stroke={2} className={`mt-0.5 shrink-0 ${cls}`} aria-hidden />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -102,7 +109,7 @@ export default function HistoryTimeline() {
                     <p className="truncate text-[13px] text-zinc-700 dark:text-zinc-200">{e.title}</p>
                     {e.description && <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{e.description}</p>}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>

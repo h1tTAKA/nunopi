@@ -26,13 +26,14 @@ interface Fly {
   inKf: Keyframe[]; // 도착 애니(출발점 → 중앙 정지)
   sway: number; // 낙하 방향(좌/우)
   fallY: number; // 낙하 목표 y(화면 밖)
+  openChat?: boolean; // peek 뜰 때 챗룸을 바로 열기(전역 히스토리 카드챗 이동용)
 }
 
 // throwCard(card, origin?): origin(DOMRect) 위치에서 카드가 3D로 날아와 중앙에 멈춘다.
 // 멈추면 왼쪽에 추가설명, 우하단에 챗봇(플래시카드 세션과 동일). 오버레이 클릭 시 낙하·사라짐.
 // origin 생략 시 등록된 originRef(부채꼴 자리)에서 출발.
 interface FlyApi {
-  throwCard: (card: Card, origin?: DOMRect) => void;
+  throwCard: (card: Card, origin?: DOMRect, opts?: { openChat?: boolean }) => void;
   originRef: React.RefObject<HTMLElement | null>; // 출발점으로 쓸 요소(부채꼴 컨테이너) 등록용
 }
 
@@ -70,7 +71,7 @@ export function FlyCardProvider({
   const inAnimRef = useRef<Animation | null>(null); // 도착 애니 핸들 — 낙하 시작 전 정리용
   const reduced = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const throwCard = useCallback((card: Card, origin?: DOMRect) => {
+  const throwCard = useCallback((card: Card, origin?: DOMRect, opts?: { openChat?: boolean }) => {
     if (reduced || typeof window === "undefined") return;
     // 출발점: 넘겨받은 origin, 없으면 등록된 originRef(부채꼴), 그것도 없으면 화면 중앙.
     const r = origin ?? originRef.current?.getBoundingClientRect();
@@ -100,7 +101,7 @@ export function FlyCardProvider({
     ];
     setArrived(false);
     setDropping(false);
-    setFly({ id: ++flyId.current, card, inKf, sway, fallY });
+    setFly({ id: ++flyId.current, card, inKf, sway, fallY, openChat: opts?.openChat });
   }, [reduced]);
 
   // 도착 애니 — fly 세팅 시 재생, 끝나면 중앙에 정지 유지(fill forwards) + arrived 플래그.
@@ -195,7 +196,7 @@ export function FlyCardProvider({
 
               {/* 우하단 — 카드 저장 챗 세션 */}
               <div className="cursor-auto" onClick={(e) => e.stopPropagation()}>
-                <MemorizeChat card={fly.card} providerId={providerId} providerSettings={providerSettings} />
+                <MemorizeChat card={fly.card} providerId={providerId} providerSettings={providerSettings} autoOpen={fly.openChat} />
               </div>
 
               {/* 하단 — 출처로 이동 + 삭제 + 안내 */}
