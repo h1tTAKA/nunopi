@@ -8,6 +8,8 @@ import { collectHistory } from "@/lib/history/collect";
 import { buildHistoryContext } from "@/lib/history/context";
 import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";
 import { dayKey } from "@/lib/srs/activityLog";
+import { summary } from "@/lib/srs/stats";
+import { categoryCounts } from "@/lib/srs/due";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 interface HistoryAgentProps {
@@ -72,9 +74,17 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
     (async () => {
       let answer = "";
       try {
-        // 전송 시점 최신 이력 → 날짜 다이제스트 컨텍스트.
+        // 전송 시점 최신 이력 + 복습(SRS) 현황 → 컨텍스트.
+        const now = new Date();
         const events = await collectHistory();
-        const context = buildHistoryContext(events, dayKey(new Date()));
+        const s = summary("all", now);
+        const cats = categoryCounts("all", now, undefined, "all");
+        const context = buildHistoryContext(events, dayKey(now), {
+          total: s.total,
+          due: s.due,
+          neverReviewed: cats.none,
+          reviews: s.reviews,
+        });
         const res = await fetch("/api/agent/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
