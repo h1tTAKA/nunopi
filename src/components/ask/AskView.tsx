@@ -241,8 +241,10 @@ export default function AskView({ active = true, providerId, providerSettings, g
               ...s,
               activeSubId,
               layout: [activeSubId],
-              // 퀴즈 이동이면 그 서브의 활성 퀴즈를 지정(패널이 이 퀴즈로 열림).
-              subs: quizId ? s.subs.map((sub) => (sub.id === activeSubId ? { ...sub, activeQuizId: quizId } : sub)) : s.subs,
+              // 퀴즈 이동이면 그 서브의 활성 퀴즈 지정 — 단 그 퀴즈가 실존할 때만(삭제됐으면 기존 활성 유지).
+              subs: quizId
+                ? s.subs.map((sub) => (sub.id === activeSubId && (sub.quizzes ?? []).some((q) => q.id === quizId) ? { ...sub, activeQuizId: quizId } : sub))
+                : s.subs,
             },
       ),
     });
