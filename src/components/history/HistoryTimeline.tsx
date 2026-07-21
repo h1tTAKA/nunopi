@@ -123,14 +123,13 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               onClick={() => toggleType(ty)}
               aria-pressed={on}
               style={on ? { backgroundImage: BRAND_GRADIENT } : undefined}
-              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
-                on
-                  ? "border-transparent font-medium text-white"
-                  : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
-              }`}
+              className={`rounded-full p-px text-[11px] transition ${on ? "" : "border border-zinc-200 opacity-60 dark:border-zinc-700"}`}
             >
-              <Icon size={12} stroke={2} aria-hidden />
-              {t(`home.evt.${ty}`)}
+              {/* 활성: 바깥은 그라데이션(1px 링), 안쪽은 패널색 — 전체 채우지 않고 테두리만. */}
+              <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 ${on ? "bg-zinc-50 text-zinc-700 dark:bg-[#13141b] dark:text-zinc-200" : "text-zinc-400 dark:text-zinc-500"}`}>
+                <Icon size={12} stroke={2} aria-hidden />
+                {t(`home.evt.${ty}`)}
+              </span>
             </button>
           );
         })}
