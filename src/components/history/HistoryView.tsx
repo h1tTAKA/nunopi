@@ -8,26 +8,32 @@ import type { HistoryNav } from "@/lib/history/types";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
 // 전역 학습 히스토리(홈) 뷰 — 좌: 전 기능 이력 타임라인 / 우: 이력 참조 에이전트.
+// 두 패널을 rounded-2xl 카드로 프레임(암기 홈 디자인 언어 차용).
+const CARD = "flex min-h-0 w-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-900/30";
+const HEADER = "flex items-center gap-2 border-b border-zinc-200/70 px-4 py-3 dark:border-zinc-800/70";
+const ICON = "text-[#3B34E2] dark:text-[#8b86f5]";
+const TITLE = "text-sm font-semibold text-zinc-700 dark:text-zinc-200";
+
 export default function HistoryView({ active = true, onNavigate, providerId, providerSettings }: { active?: boolean; onNavigate?: (nav: HistoryNav) => void; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
   const t = useT();
   return (
-    <div aria-hidden={!active} className="flex h-full w-full min-h-0">
-      {/* 좌: 히스토리 타임라인(자리) */}
-      <section className="flex min-h-0 w-1/2 flex-col border-r border-zinc-200 dark:border-zinc-800">
-        <div className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          <IconHistory size={15} stroke={2} aria-hidden />
-          <span>{t("home.title")}</span>
-        </div>
+    <div aria-hidden={!active} className="flex h-full w-full min-h-0 gap-4 p-5">
+      {/* 좌: 히스토리 타임라인 */}
+      <section className={CARD}>
+        <header className={HEADER}>
+          <IconHistory size={16} stroke={2} className={ICON} aria-hidden />
+          <span className={TITLE}>{t("home.title")}</span>
+        </header>
         <HistoryTimeline onNavigate={onNavigate} />
       </section>
 
       {/* 우: 이력 참조 에이전트 */}
-      <section className="flex min-h-0 w-1/2 flex-col">
-        <div className="flex items-center gap-1.5 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-          <IconSparkles size={15} stroke={2} aria-hidden />
-          <span>{t("home.agent")}</span>
-        </div>
-        <div className="min-h-0 flex-1 px-3 pb-3">
+      <section className={CARD}>
+        <header className={HEADER}>
+          <IconSparkles size={16} stroke={2} className={ICON} aria-hidden />
+          <span className={TITLE}>{t("home.agent")}</span>
+        </header>
+        <div className="min-h-0 flex-1 p-3">
           <HistoryAgent providerId={providerId} providerSettings={providerSettings} />
         </div>
       </section>
