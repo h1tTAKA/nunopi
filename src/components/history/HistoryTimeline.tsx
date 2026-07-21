@@ -154,8 +154,8 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
           <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
         </div>
       </div>
-      {/* 유형 재생목록 — 1열 로우. 좌 컬러 밴드(틴트+워터마크 아이콘) + 유형명·개수 + 최근 항목 + chevron. */}
-      <div className="nunopi-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-3">
+      {/* 유형 재생목록 — 1열 로우, 갭 없이 딱 붙여 꽉 채움(얇은 구분선). 풀블리드 틴트 + 텍스트 오버레이. */}
+      <div className="nunopi-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
         {present.map((ty) => {
           const { Icon, cls, tint } = TYPE_META[ty];
           const latest = latestByType(ty);
@@ -164,7 +164,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               key={ty}
               type="button"
               onClick={() => setOpenType(ty)}
-              className={`group relative flex min-h-[76px] flex-1 items-center gap-3 overflow-hidden rounded-xl border border-zinc-200 bg-gradient-to-r px-4 text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:hover:border-[#8b86f5] ${tint} to-transparent`}
+              className={`group relative flex min-h-[76px] flex-1 items-center gap-3 overflow-hidden border-b border-black/5 bg-gradient-to-r px-4 text-left transition last:border-b-0 hover:brightness-105 dark:border-white/5 ${tint} to-transparent`}
             >
               {/* 워터마크 — 큰 아이콘이 우측서 잘려 은은하게(로우 전체 틴트 위 장식). */}
               <Icon size={104} stroke={1.5} className={`pointer-events-none absolute -bottom-5 right-4 opacity-15 transition group-hover:scale-105 ${cls}`} aria-hidden />
