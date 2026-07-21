@@ -32,17 +32,29 @@ function loadRaw(): Record<string, unknown> {
 }
 
 // 한 카드의 세션 목록. 옛 형식(ChatMessage[])이면 세션 1개로 감싸 마이그레이션.
+// createdAt 누락(#559 이전 세션)은 여기서 채워 즉시 영속(heal) — 안 그러면 로드마다 now로 폴백돼
+// 히스토리 타임라인 시각이 계속 바뀐다. 이벤트 발행 X(수집기 무한 재수집 방지).
 export function loadCardSessions(cardKey: string): CardChatSession[] {
   const val = loadRaw()[cardKey];
   if (!Array.isArray(val)) return [];
   if (val.length === 0) return [];
   // 신형: 원소가 {id, messages}. 옛형: 원소가 {role, content}.
   const first = val[0] as Record<string, unknown>;
+  let list: CardChatSession[];
+  let heal = false;
   if (first && typeof first === "object" && "messages" in first) {
-    return (val as CardChatSession[]).filter((s) => s && typeof s.id === "string" && Array.isArray(s.messages));
+    list = (val as CardChatSession[]).filter((s) => s && typeof s.id === "string" && Array.isArray(s.messages));
+    for (const s of list) if (!s.createdAt) { s.createdAt = new Date().toISOString(); heal = true; }
+  } else {
+    // 옛 단일 스레드 → 세션 1개(신형으로 고정 = id·시각 안정).
+    list = [{ id: newSessionId(), createdAt: new Date().toISOString(), messages: val as ChatMessage[] }];
+    heal = true;
   }
-  // 옛 단일 스레드 → 세션 1개.
-  return [{ id: newSessionId(), createdAt: new Date().toISOString(), messages: val as ChatMessage[] }];
+  // 채웠으면 한 번 저장해 다음 로드부터 같은 값(이벤트 없이 조용히).
+  if (heal) {
+    try { const store = loadRaw() as Store; store[cardKey] = list; localStorage.setItem(KEY, JSON.stringify(store)); } catch { /* ignore */ }
+  }
+  return list;
 }
 
 // 전역 히스토리 수집용 — 모든 카드의 세션 목록(cardKey → 세션들). loadCardSessions와 같은 정규화.
