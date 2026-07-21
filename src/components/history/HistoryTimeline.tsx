@@ -166,10 +166,10 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               onClick={() => setOpenType(ty)}
               className="group flex min-h-[76px] flex-1 items-stretch overflow-hidden rounded-xl border border-zinc-200 bg-white text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#8b86f5]"
             >
-              {/* 좌 컬러 밴드 — 유형색 그라데이션 틴트 + 모서리서 잘린 워터마크 + 중앙 아이콘. 로우 높이 따라 늘어남. */}
-              <div className={`relative flex w-20 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
-                <Icon size={60} stroke={1.5} className={`pointer-events-none absolute -bottom-2 -right-2 opacity-15 ${cls}`} aria-hidden />
-                <Icon size={26} stroke={2} className={`transition group-hover:scale-110 ${cls}`} aria-hidden />
+              {/* 좌 컬러 밴드(썸네일) — 로우의 큰 비율(2/5). 유형색 그라데이션 틴트 + 모서리 워터마크 + 중앙 아이콘. */}
+              <div className={`relative flex w-2/5 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
+                <Icon size={88} stroke={1.5} className={`pointer-events-none absolute -bottom-3 -right-3 opacity-15 ${cls}`} aria-hidden />
+                <Icon size={34} stroke={2} className={`transition group-hover:scale-110 ${cls}`} aria-hidden />
               </div>
               {/* 텍스트 — 유형명 + 개수 칩 / 최근 항목. */}
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 py-2.5 pl-3 pr-1">
