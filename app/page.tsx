@@ -1095,7 +1095,7 @@ export default function Home() {
         ask={viewMode === "ask"}
         askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
         history={viewMode === "history"}
-        historyView={<HistoryView active={viewMode === "history"} onNavigate={handleGoToHistory} />}
+        historyView={<HistoryView active={viewMode === "history"} onNavigate={handleGoToHistory} providerId={providerId} providerSettings={providerSettings} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
