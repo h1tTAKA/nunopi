@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import ChatRoom from "@/components/learning/ChatRoom";
 import { collectHistory } from "@/lib/history/collect";
@@ -29,6 +29,9 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
   const [streaming, setStreaming] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // 언마운트 시 진행 중 스트림 취소 — setState-after-unmount 방지(MemorizeChat 패턴).
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   function handleClear() {
     abortRef.current?.abort();
@@ -81,7 +84,7 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
             } catch {
               continue;
             }
-            if (ev.type === "progress" && providerId !== "codex-agent") setStreaming(ev.line);
+            if (ev.type === "progress" && providerId !== "codex-agent" && !ac.signal.aborted) setStreaming(ev.line);
             else if (ev.type === "result") answer = ev.response.summary;
           }
         }
