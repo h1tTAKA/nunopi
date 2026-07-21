@@ -21,7 +21,7 @@ type StreamEvent =
   | { type: "error"; message: string };
 
 // 대화 시작 전 예시 프롬프트(i18n 키).
-const EXAMPLES = ["home.exToday", "home.exWeek", "home.exReview"] as const;
+const EXAMPLES = ["home.exYesterday", "home.exWeek", "home.exReview"] as const;
 
 // 홈 우측 통합 학습 에이전트 — 유저의 전 분석·학습 이력을 컨텍스트로 참조해 답한다("어제 뭐 배웠지?").
 // 전용 챗 UI(코드튜터용 ChatRoom 재사용 X — 헤더·힌트가 문맥과 안 맞음). 단일 in-memory 스레드(미저장).
