@@ -182,8 +182,11 @@ export default function Home() {
   // 화면 전환 축(코드/글/암기). code·text는 분석 모드(mode)와 연동, memorize는 분석 안 함.
   const [viewMode, setViewMode] = useState<ViewMode>("code");
   // Ask 출처 이동 타깃(암기 갤러리 등에서). nonce로 재트리거.
-  const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; nonce: number } | undefined>(undefined);
+  const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; quizId?: string; nonce: number } | undefined>(undefined);
   const askGoNonceRef = useRef(0);
+  // 암기 카드 이동 타깃(전역 히스토리 카드챗 등). nonce로 재트리거.
+  const [memGoTarget, setMemGoTarget] = useState<{ cardKey: string; nonce: number } | undefined>(undefined);
+  const memGoNonceRef = useRef(0);
   // 암기 탭 배지 — 오늘 복습할 전체 due 수(0이면 숨김). 뷰 진입 시 갱신.
   const [memorizeDue, setMemorizeDue] = useState(0);
   // 암기 카드 추가 설명 생성 provider(분석 provider와 별개, 설정에서 지정). localStorage 영속.
@@ -1041,17 +1044,20 @@ export default function Home() {
   }
 
   // 암기 갤러리 등에서 질문(Ask) 카드 "출처로 가기" — Ask 모드로 전환 + 세션·질문 타깃 전달.
-  function handleGoToAskSource(sessionId: string, subId?: string) {
-    setAskGoTarget({ sessionId, subId, nonce: askGoNonceRef.current + 1 });
+  function handleGoToAskSource(sessionId: string, subId?: string, quizId?: string) {
+    setAskGoTarget({ sessionId, subId, quizId, nonce: askGoNonceRef.current + 1 });
     askGoNonceRef.current += 1;
     handleViewModeChange("ask");
   }
 
   // 전역 히스토리 이벤트 클릭 → 그 활동 지점으로(#565). nav.mode·필드로 기존 핸들러에 분기.
   function handleGoToHistory(nav: HistoryNav) {
-    if (nav.mode === "ask" && nav.sessionId) handleGoToAskSource(nav.sessionId, nav.subId);
+    if (nav.mode === "ask" && nav.sessionId) handleGoToAskSource(nav.sessionId, nav.subId, nav.quizId);
     else if ((nav.mode === "code" || nav.mode === "text") && nav.sourceId) handleGoToSource(nav.sourceId, nav.sessionId);
-    else handleViewModeChange(nav.mode); // 카드챗/복습 등은 해당 모드로 전환(지점 지목은 후속)
+    else if (nav.mode === "memorize") {
+      if (nav.cardKey) { setMemGoTarget({ cardKey: nav.cardKey, nonce: memGoNonceRef.current + 1 }); memGoNonceRef.current += 1; }
+      handleViewModeChange("memorize");
+    } else handleViewModeChange(nav.mode);
   }
 
   function handleDeleteHistory(id: string) {
@@ -1085,7 +1091,7 @@ export default function Home() {
         chatOpen={chatOpen}
         onToggleEditorCollapsed={toggleEditorCollapsed}
         memorize={viewMode === "memorize"}
-        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} />}
+        memorizeView={<MemorizeView active={viewMode === "memorize"} providerId={memorizeProviderId} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} goToCard={memGoTarget} />}
         ask={viewMode === "ask"}
         askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
         history={viewMode === "history"}

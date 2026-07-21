@@ -22,7 +22,7 @@ type MemPhase = "select" | "session";
 type ReviewMode = "due" | "all";
 
 // 암기 모드 최상위 뷰 — 덱 선택(③) → 카드 세션(④). active: 헤더에서 암기 탭이 켜진 상태.
-export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource, onGoToAskSource }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string, sessionId?: string) => void; onGoToAskSource?: (sessionId: string, subId?: string) => void }) {
+export default function MemorizeView({ active = true, providerId, providerSettings, sourceIds, onGoToSource, onGoToAskSource, goToCard }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; sourceIds: Set<string>; onGoToSource: (sourceId: string, sessionId?: string) => void; onGoToAskSource?: (sessionId: string, subId?: string) => void; goToCard?: { cardKey: string; nonce: number } }) {
   const t = useT();
   const toast = useToast();
   const [phase, setPhase] = useState<MemPhase>("select");
@@ -115,6 +115,16 @@ export default function MemorizeView({ active = true, providerId, providerSettin
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+  // 전역 히스토리 등에서 특정 카드로 이동 — 갤러리 열고 그 카드를 peek(챗룸 접근점). nonce로 재트리거.
+  useEffect(() => {
+    if (!goToCard) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setPhase("select");
+    setAutoThrowKey(goToCard.cardKey);
+    setShowAllCards(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [goToCard?.nonce]);
   if (!mounted) return null;
 
   function handleStart(deck: Deck, sources: SrsSource[], mode: ReviewMode, resume: boolean, order: CardOrder, categories: CardCategory[]) {
