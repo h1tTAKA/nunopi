@@ -23,11 +23,33 @@ const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>
 
 // 전역 히스토리 좌 타임라인 — 모든 저장소 수집(collectHistory) → 날짜별 그룹 렌더.
 // 클릭 이동은 자식 #4에서. 지금은 표시 + 활동 변경 시 재수집.
+const ALL_TYPES: HistoryEventType[] = ["analysis", "chat", "ask", "quiz", "bookmark", "review"];
+const FILTER_KEY = "nunopi:history-filter";
+
 export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: HistoryNav) => void }) {
   const t = useT();
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const [events, setEvents] = useState<UnifiedHistoryEvent[] | null>(null);
+  // 타입 필터 — 기본 전부. SSR 안전 위해 전부로 시작, 마운트 후 저장값 복원.
+  const [enabled, setEnabled] = useState<Set<HistoryEventType>>(() => new Set(ALL_TYPES));
+  useEffect(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(FILTER_KEY) ?? "");
+      if (Array.isArray(raw)) {
+        const s = new Set(raw.filter((x): x is HistoryEventType => ALL_TYPES.includes(x)));
+        if (s.size) setEnabled(s); // eslint-disable-line react-hooks/set-state-in-effect
+      }
+    } catch { /* ignore */ }
+  }, []);
+  function toggleType(ty: HistoryEventType) {
+    setEnabled((prev) => {
+      const n = new Set(prev);
+      if (n.has(ty)) n.delete(ty); else n.add(ty);
+      try { localStorage.setItem(FILTER_KEY, JSON.stringify([...n])); } catch { /* ignore */ }
+      return n;
+    });
+  }
 
   useEffect(() => {
     // 언마운트 후 setState 방지 가드(collectHistory 비동기 완료가 언마운트 뒤일 수 있음).
@@ -60,9 +82,12 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
     );
   }
 
+  // 이력에 존재하는 유형만 칩으로 노출. 필터 적용 후 날짜 그룹.
+  const present = ALL_TYPES.filter((ty) => events.some((e) => e.type === ty));
+  const filtered = events.filter((e) => enabled.has(e.type));
   // 날짜별 그룹(이미 desc 정렬이라 최초 등장 순 = 최신 날짜부터).
   const groups: { day: string; items: UnifiedHistoryEvent[] }[] = [];
-  for (const e of events) {
+  for (const e of filtered) {
     const d = new Date(e.createdAt);
     const k = Number.isNaN(d.getTime()) ? "?" : dayKey(d);
     const last = groups[groups.length - 1];
@@ -82,8 +107,35 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   };
 
   return (
-    <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-      {groups.map((g) => (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* 타입 필터 칩 — 이력에 있는 유형만. 클릭 토글(영속). */}
+      <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
+        {present.map((ty) => {
+          const { Icon, cls } = TYPE_META[ty];
+          const on = enabled.has(ty);
+          return (
+            <button
+              key={ty}
+              type="button"
+              onClick={() => toggleType(ty)}
+              aria-pressed={on}
+              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
+                on ? `border-current ${cls}` : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
+              }`}
+            >
+              <Icon size={12} stroke={2} aria-hidden />
+              {t(`home.evt.${ty}`)}
+            </button>
+          );
+        })}
+      </div>
+      {groups.length === 0 ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 text-center">
+          <p className="text-[13px] text-zinc-400 dark:text-zinc-500">{t("home.noFiltered")}</p>
+        </div>
+      ) : (
+        <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-3">
+          {groups.map((g) => (
         <div key={g.day} className="mb-3">
           <div className="sticky top-0 z-10 bg-zinc-50/95 py-1.5 text-[11px] font-semibold text-zinc-500 backdrop-blur dark:bg-[#13141b]/95 dark:text-zinc-400">
             {dayLabel(g.day)}
@@ -115,6 +167,8 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
           </div>
         </div>
       ))}
+        </div>
+      )}
     </div>
   );
 }
