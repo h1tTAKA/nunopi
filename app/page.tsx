@@ -17,6 +17,7 @@ import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/c
 import MemorizeView from "@/components/memorize/MemorizeView";
 import AskView from "@/components/ask/AskView";
 import HistoryView from "@/components/history/HistoryView";
+import type { HistoryNav } from "@/lib/history/types";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
 import { detectLanguage } from "@/lib/translator/detectLanguage";
@@ -1046,6 +1047,13 @@ export default function Home() {
     handleViewModeChange("ask");
   }
 
+  // 전역 히스토리 이벤트 클릭 → 그 활동 지점으로(#565). nav.mode·필드로 기존 핸들러에 분기.
+  function handleGoToHistory(nav: HistoryNav) {
+    if (nav.mode === "ask" && nav.sessionId) handleGoToAskSource(nav.sessionId, nav.subId);
+    else if ((nav.mode === "code" || nav.mode === "text") && nav.sourceId) handleGoToSource(nav.sourceId, nav.sessionId);
+    else handleViewModeChange(nav.mode); // 카드챗/복습 등은 해당 모드로 전환(지점 지목은 후속)
+  }
+
   function handleDeleteHistory(id: string) {
     deleteFromHistory(id).then(() => getAllHistory()).then(setHistoryEntries).catch(() => {});
     // 지금 화면에 보고 있는 분석을 지웠으면 화면(입력+결과)도 비운다 — 안 그러면 삭제했는데 그대로 남음.
@@ -1081,7 +1089,7 @@ export default function Home() {
         ask={viewMode === "ask"}
         askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
         history={viewMode === "history"}
-        historyView={<HistoryView active={viewMode === "history"} />}
+        historyView={<HistoryView active={viewMode === "history"} onNavigate={handleGoToHistory} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
