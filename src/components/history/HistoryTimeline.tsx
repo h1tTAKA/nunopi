@@ -112,7 +112,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
       {/* 타입 필터 칩 — 이력에 있는 유형만. 클릭 토글(영속). */}
       <div className="flex flex-wrap gap-1.5 border-b border-zinc-200 px-3 pb-2.5 dark:border-zinc-800">
         {present.map((ty) => {
-          const { Icon, cls } = TYPE_META[ty];
+          const { Icon } = TYPE_META[ty];
           const on = enabled.has(ty);
           return (
             <button
@@ -121,7 +121,9 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               onClick={() => toggleType(ty)}
               aria-pressed={on}
               className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
-                on ? `border-current ${cls}` : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
+                on
+                  ? "border-zinc-300 text-zinc-700 dark:border-zinc-500 dark:text-zinc-200"
+                  : "border-zinc-200 text-zinc-400 opacity-60 dark:border-zinc-700 dark:text-zinc-500"
               }`}
             >
               <Icon size={12} stroke={2} aria-hidden />
