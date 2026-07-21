@@ -101,12 +101,38 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
   }
 
   return (
-    <ChatRoom
-      messages={messages}
-      streaming={streaming}
-      isLoading={loading}
-      onSend={handleSend}
-      onClear={handleClear}
-    />
+    <div className="flex h-full flex-col gap-2.5">
+      {/* 인트로 + 예시 프롬프트 — 대화 시작 전에만. 클릭 시 바로 전송(빈 화면을 행동 유도로). */}
+      {messages.length === 0 && (
+        <div className="flex flex-col gap-2 px-0.5">
+          <p className="text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">{t("home.agentIntro")}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {EXAMPLES.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => handleSend(t(k))}
+                disabled={loading}
+                className="rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] text-zinc-600 transition hover:border-[#3B34E2] hover:text-[#3B34E2] disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-[#8b86f5] dark:hover:text-[#8b86f5]"
+              >
+                {t(k)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        <ChatRoom
+          messages={messages}
+          streaming={streaming}
+          isLoading={loading}
+          onSend={handleSend}
+          onClear={handleClear}
+        />
+      </div>
+    </div>
   );
 }
+
+// 대화 시작 전 예시 프롬프트(i18n 키).
+const EXAMPLES = ["home.exToday", "home.exWeek", "home.exReview"] as const;
