@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
@@ -12,13 +12,14 @@ import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/hi
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
 // 타입별 아이콘·색(브랜드 계열 + 구분).
+// 유형별 뚜렷한 색(계열 겹침 방지) — 인디고/스카이/에메랄드/푸시아/앰버/로즈.
 const TYPE_META: Record<HistoryEventType, { Icon: React.ComponentType<IconProps>; cls: string }> = {
-  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]" },
-  chat: { Icon: IconMessage2, cls: "text-sky-500" },
-  ask: { Icon: IconMessage2, cls: "text-indigo-500" },
-  quiz: { Icon: IconListCheck, cls: "text-violet-500" },
-  bookmark: { Icon: IconCards, cls: "text-lime-500" },
-  review: { Icon: IconBrain, cls: "text-amber-500" },
+  analysis: { Icon: IconCode, cls: "text-[#3B34E2] dark:text-[#8b86f5]" }, // 브랜드 인디고
+  chat: { Icon: IconMessage2, cls: "text-sky-500" },                       // 스카이
+  ask: { Icon: IconMessageQuestion, cls: "text-emerald-500" },             // 에메랄드(초록)
+  quiz: { Icon: IconListCheck, cls: "text-fuchsia-500" },                  // 푸시아(마젠타)
+  bookmark: { Icon: IconCards, cls: "text-amber-500" },                    // 앰버(주황)
+  review: { Icon: IconBrain, cls: "text-rose-500" },                       // 로즈(빨강)
 };
 
 // 전역 히스토리 좌 타임라인 — 모든 저장소 수집(collectHistory) → 날짜별 그룹 렌더.
