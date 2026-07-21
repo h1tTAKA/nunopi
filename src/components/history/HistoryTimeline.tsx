@@ -34,6 +34,8 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   const { locale } = useLocale();
   const tag = LOCALE_TAG[locale] ?? "en-US";
   const [events, setEvents] = useState<UnifiedHistoryEvent[] | null>(null);
+  // "이번 주" 기준 시각 — 마운트 시 1회 고정(렌더 순수성; 지연 초기화라 Date.now 1회만).
+  const [nowMs] = useState(() => Date.now());
   // 타입 필터 — 기본 전부. SSR 안전 위해 전부로 시작, 마운트 후 저장값 복원.
   const [enabled, setEnabled] = useState<Set<HistoryEventType>>(() => new Set(ALL_TYPES));
   useEffect(() => {
@@ -91,7 +93,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   // 요약 스트립 — 총 기록 / 활동일(고유 날짜) / 이번 주(최근 7일).
   const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
   const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
   const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
   // 날짜별 그룹(이미 desc 정렬이라 최초 등장 순 = 최신 날짜부터).
   const groups: { day: string; items: UnifiedHistoryEvent[] }[] = [];
