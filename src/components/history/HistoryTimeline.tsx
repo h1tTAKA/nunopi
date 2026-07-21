@@ -164,22 +164,21 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
               key={ty}
               type="button"
               onClick={() => setOpenType(ty)}
-              className="group flex min-h-[76px] flex-1 items-stretch overflow-hidden rounded-xl border border-zinc-200 bg-white text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-[#8b86f5]"
+              className={`group relative flex min-h-[76px] flex-1 items-center gap-3 overflow-hidden rounded-xl border border-zinc-200 bg-gradient-to-r px-4 text-left transition hover:border-[#3B34E2] hover:shadow-sm dark:border-zinc-800 dark:hover:border-[#8b86f5] ${tint} to-transparent`}
             >
-              {/* 좌 컬러 밴드(썸네일) — 로우의 큰 비율(2/5). 유형색 그라데이션 틴트 + 모서리 워터마크 + 중앙 아이콘. */}
-              <div className={`relative flex w-2/5 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tint} to-transparent`}>
-                <Icon size={88} stroke={1.5} className={`pointer-events-none absolute -bottom-3 -right-3 opacity-15 ${cls}`} aria-hidden />
-                <Icon size={34} stroke={2} className={`transition group-hover:scale-110 ${cls}`} aria-hidden />
-              </div>
-              {/* 텍스트 — 유형명 + 개수 칩 / 최근 항목. */}
-              <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 py-2.5 pl-3 pr-1">
+              {/* 워터마크 — 큰 아이콘이 우측서 잘려 은은하게(로우 전체 틴트 위 장식). */}
+              <Icon size={104} stroke={1.5} className={`pointer-events-none absolute -bottom-5 right-4 opacity-15 transition group-hover:scale-105 ${cls}`} aria-hidden />
+              {/* 좌 아이콘 액센트 */}
+              <Icon size={30} stroke={2} className={`relative shrink-0 ${cls}`} aria-hidden />
+              {/* 텍스트 오버레이 — 유형명 + 개수 칩 / 최근 항목. */}
+              <div className="relative flex min-w-0 flex-1 flex-col justify-center gap-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t(`home.evt.${ty}`)}</span>
-                  <span className="shrink-0 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{counts[ty] ?? 0}</span>
+                  <span className="truncate text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t(`home.evt.${ty}`)}</span>
+                  <span className="shrink-0 rounded-md bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-600 dark:bg-white/10 dark:text-zinc-300">{counts[ty] ?? 0}</span>
                 </div>
-                <p className="truncate text-[11px] text-zinc-400 dark:text-zinc-500">{latest?.title ?? ""}</p>
+                <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">{latest?.title ?? ""}</p>
               </div>
-              <IconChevronRight size={16} stroke={2} className="mr-2 shrink-0 self-center text-zinc-300 transition group-hover:text-[#3B34E2] dark:text-zinc-600 dark:group-hover:text-[#8b86f5]" aria-hidden />
+              <IconChevronRight size={16} stroke={2} className="relative shrink-0 text-zinc-400 transition group-hover:text-[#3B34E2] dark:text-zinc-500 dark:group-hover:text-[#8b86f5]" aria-hidden />
             </button>
           );
         })}
