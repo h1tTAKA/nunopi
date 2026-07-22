@@ -32,9 +32,9 @@ export default function HistoryView({ active = true, onNavigate, providerId, pro
         <header className={HEADER}>
           {/* 누노피 심볼(좌상단 브랜드와 동일) — 라이트=darkeye, 다크=컬러 눈알 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" aria-hidden className="block h-6 w-6 object-contain dark:hidden" />
+          <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" aria-hidden className="block h-7 w-7 object-contain dark:hidden" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/nunopi-symbol-transparent.png" alt="" aria-hidden className="hidden h-6 w-6 object-contain dark:block" />
+          <img src="/brand/nunopi-symbol-transparent.png" alt="" aria-hidden className="hidden h-7 w-7 object-contain dark:block" />
           <span className={TITLE}>{t("home.agent")}</span>
         </header>
         <div className="min-h-0 flex-1 p-3">
