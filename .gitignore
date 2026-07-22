@@ -53,3 +53,4 @@ next-env.d.ts
 
 # electron-builder output
 dist_electron/
+graphify-out/

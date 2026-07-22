@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconArrowUp, IconRefresh, IconSparkles } from "@tabler/icons-react";
+import { IconArrowUp, IconRefresh } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { collectHistory } from "@/lib/history/collect";
@@ -145,9 +145,11 @@ export default function HistoryAgent({ providerId, providerSettings }: HistoryAg
         {empty ? (
           // 빈 상태 — 중앙 인트로 + 예시 프롬프트 칩(행동 유도).
           <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3B34E2] to-[#8b5cf6] text-white shadow-sm">
-              <IconSparkles size={24} stroke={2} aria-hidden />
-            </div>
+            {/* 누노피 브랜드 심볼 — 라이트=darkeye, 다크=컬러 눈알 */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/nunopi-symbol-darkeye-transparent.png" alt="" aria-hidden className="block h-16 w-16 object-contain opacity-90 dark:hidden" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/nunopi-symbol-transparent.png" alt="" aria-hidden className="hidden h-16 w-16 object-contain opacity-90 dark:block" />
             <p className="max-w-xs text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">{t("home.agentIntro")}</p>
             <div className="flex flex-wrap justify-center gap-1.5">
               {EXAMPLES.map((k) => (
