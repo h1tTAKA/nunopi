@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, IconCalendar, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, IconCalendar, IconFlame, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
+import { summary } from "@/lib/srs/stats";
 import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
 import { CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
 import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/history/types";
@@ -133,9 +134,16 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
 
   // ── ① 재생목록 그리드 ────────────────────────────────────────
   const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
-  const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
   const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
   const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
+  // 연속 학습일(streak) — 활동한 날짜 집합에서 오늘(또는 어제)부터 하루씩 뒤로 연속인 날 수.
+  const daySet = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "" : dayKey(d); }));
+  let streak = 0;
+  const cursor = new Date(now);
+  if (!daySet.has(dayKey(cursor))) cursor.setDate(cursor.getDate() - 1); // 오늘 아직 활동 없어도 어제까지 연속 유지
+  while (daySet.has(dayKey(cursor))) { streak++; cursor.setDate(cursor.getDate() - 1); }
+  // 복습 대기(due) — SRS 전체 덱 기준.
+  const due = summary("all", now).due;
   // 이력에 있는 유형만 재생목록으로. 각 유형 최근 항목(desc라 첫 매치).
   const present = ALL_TYPES.filter((ty) => (counts[ty] ?? 0) > 0);
   const latestByType = (ty: HistoryEventType) => events.find((e) => e.type === ty);
@@ -150,21 +158,27 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
           <span>{now.toLocaleDateString(tag, { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</span>
           <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
-        {/* 통계: 큰 숫자 + 라벨 */}
+        {/* 통계: 🔥연속 학습일 · 이번 주 활동 · 복습 대기(클릭 시 암기모드). */}
         <div className="flex items-center gap-4">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{events.length}</span>
-            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryTotal")}</span>
+          <div className="flex items-center gap-1.5">
+            <IconFlame size={20} stroke={2} className="text-orange-500" aria-hidden />
+            <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{streak}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryStreak")}</span>
           </div>
           <span className="h-6 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{activeDays}</span>
-            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryDays")}</span>
-          </div>
           <div className="flex items-baseline gap-1.5">
             <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{thisWeek}</span>
             <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
           </div>
+          <button
+            type="button"
+            onClick={() => onNavigate?.({ mode: "memorize" })}
+            disabled={!onNavigate}
+            className="flex items-baseline gap-1.5 rounded-md px-1 transition enabled:hover:bg-zinc-100 disabled:cursor-default dark:enabled:hover:bg-zinc-800"
+          >
+            <span className={`text-sm font-semibold tabular-nums ${due > 0 ? "text-rose-500" : "text-zinc-600 dark:text-zinc-300"}`}>{due}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryDue")}</span>
+          </button>
         </div>
       </div>
       {/* 유형 재생목록 — 1열 로우, 갭 없이 딱 붙여 꽉 채움(얇은 구분선). 풀블리드 틴트 + 텍스트 오버레이. */}
