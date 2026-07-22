@@ -1,6 +1,6 @@
 "use client";
 
-import { IconHistory, IconSparkles } from "@tabler/icons-react";
+import { IconHistory } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import HistoryTimeline from "@/components/history/HistoryTimeline";
 import HistoryAgent from "@/components/history/HistoryAgent";
@@ -30,7 +30,11 @@ export default function HistoryView({ active = true, onNavigate, providerId, pro
       {/* 우: 이력 참조 에이전트 */}
       <section className={CARD}>
         <header className={HEADER}>
-          <IconSparkles size={16} stroke={2} className={ICON} aria-hidden />
+          {/* 누노피 심볼 — 라이트=검정, 다크=흰색 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/nunopi-symbol-black.png" alt="" aria-hidden className="block h-4 w-4 object-contain dark:hidden" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/nunopi-symbol-white.png" alt="" aria-hidden className="hidden h-4 w-4 object-contain dark:block" />
           <span className={TITLE}>{t("home.agent")}</span>
         </header>
         <div className="min-h-0 flex-1 p-3">
