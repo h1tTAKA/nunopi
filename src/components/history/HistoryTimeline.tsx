@@ -38,7 +38,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   // 현재 시각 — 요약의 날짜·시간 표시 + "이번 주" 기준. 지연 초기화(순수성) + 분 단위 갱신.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60000);
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -156,7 +156,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
         <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
           <IconCalendar size={16} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
           <span>{now.toLocaleDateString(tag, { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</span>
-          <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
         </div>
         {/* 통계: 🔥연속 학습일 · 이번 주 활동 · 복습 대기(클릭 시 암기모드). */}
         <div className="flex items-center gap-4">
