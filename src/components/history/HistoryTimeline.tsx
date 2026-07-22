@@ -137,7 +137,8 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
   const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
   // 연속 학습일(streak) — 활동한 날짜 집합에서 오늘(또는 어제)부터 하루씩 뒤로 연속인 날 수.
-  const daySet = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "" : dayKey(d); }));
+  const daySet = new Set<string>();
+  for (const e of events) { const d = new Date(e.createdAt); if (!Number.isNaN(d.getTime())) daySet.add(dayKey(d)); }
   let streak = 0;
   const cursor = new Date(now);
   if (!daySet.has(dayKey(cursor))) cursor.setDate(cursor.getDate() - 1); // 오늘 아직 활동 없어도 어제까지 연속 유지
