@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, type IconProps } from "@tabler/icons-react";
+import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, IconCalendar, type IconProps } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import { collectHistory } from "@/lib/history/collect";
 import { dayKey } from "@/lib/srs/activityLog";
@@ -34,8 +34,12 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   const [events, setEvents] = useState<UnifiedHistoryEvent[] | null>(null);
   // 열린 재생목록(유형). null이면 그리드.
   const [openType, setOpenType] = useState<HistoryEventType | null>(null);
-  // "이번 주" 기준 시각 — 마운트 시 1회 고정(렌더 순수성; 지연 초기화라 Date.now 1회만).
-  const [nowMs] = useState(() => Date.now());
+  // 현재 시각 — 요약의 날짜·시간 표시 + "이번 주" 기준. 지연 초기화(순수성) + 분 단위 갱신.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     // 언마운트 후 setState 방지 가드(collectHistory 비동기 완료가 언마운트 뒤일 수 있음).
@@ -130,7 +134,7 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
   // ── ① 재생목록 그리드 ────────────────────────────────────────
   const counts = events.reduce<Partial<Record<HistoryEventType, number>>>((m, e) => { m[e.type] = (m[e.type] ?? 0) + 1; return m; }, {});
   const activeDays = new Set(events.map((e) => { const d = new Date(e.createdAt); return Number.isNaN(d.getTime()) ? "?" : dayKey(d); })).size;
-  const weekAgo = nowMs - 7 * 24 * 60 * 60 * 1000;
+  const weekAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
   const thisWeek = events.filter((e) => { const ms = new Date(e.createdAt).getTime(); return !Number.isNaN(ms) && ms >= weekAgo; }).length;
   // 이력에 있는 유형만 재생목록으로. 각 유형 최근 항목(desc라 첫 매치).
   const present = ALL_TYPES.filter((ty) => (counts[ty] ?? 0) > 0);
@@ -138,20 +142,29 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* 요약 스트립 — 총 기록(큰 숫자) + 활동일 + 이번 주. */}
-      <div className="flex items-center gap-4 border-b border-zinc-200 px-3 pb-2.5 pt-3 dark:border-zinc-800">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{events.length}</span>
-          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryTotal")}</span>
+      {/* 요약 스트립 — 오늘 날짜·시간 + 총 기록/활동일/이번 주. */}
+      <div className="flex flex-col gap-2 border-b border-zinc-200 px-3 pb-2.5 pt-3 dark:border-zinc-800">
+        {/* 오늘 날짜 · 현재 시각(분 단위 갱신) */}
+        <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+          <IconCalendar size={13} stroke={2} aria-hidden />
+          <span>{now.toLocaleDateString(tag, { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</span>
+          <span className="tabular-nums">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
-        <span className="h-6 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{activeDays}</span>
-          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryDays")}</span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{thisWeek}</span>
-          <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
+        {/* 통계: 큰 숫자 + 라벨 */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold leading-none tabular-nums text-zinc-800 dark:text-zinc-100">{events.length}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryTotal")}</span>
+          </div>
+          <span className="h-6 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{activeDays}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryDays")}</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">{thisWeek}</span>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("home.summaryWeek")}</span>
+          </div>
         </div>
       </div>
       {/* 유형 재생목록 — 1열 로우, 갭 없이 딱 붙여 꽉 채움(얇은 구분선). 풀블리드 틴트 + 텍스트 오버레이. */}
