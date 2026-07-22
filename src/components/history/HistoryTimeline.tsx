@@ -144,11 +144,11 @@ export default function HistoryTimeline({ onNavigate }: { onNavigate?: (nav: His
     <div className="flex min-h-0 flex-1 flex-col">
       {/* 요약 스트립 — 오늘 날짜·시간 + 총 기록/활동일/이번 주. */}
       <div className="flex flex-col gap-2 border-b border-zinc-200 px-3 pb-2.5 pt-3 dark:border-zinc-800">
-        {/* 오늘 날짜 · 현재 시각(분 단위 갱신) */}
-        <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
-          <IconCalendar size={13} stroke={2} aria-hidden />
+        {/* 오늘 날짜 · 현재 시각(분 단위 갱신) — 크게 강조 */}
+        <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+          <IconCalendar size={16} stroke={2} className="text-[#3B34E2] dark:text-[#8b86f5]" aria-hidden />
           <span>{now.toLocaleDateString(tag, { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</span>
-          <span className="tabular-nums">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="tabular-nums text-zinc-500 dark:text-zinc-400">{now.toLocaleTimeString(tag, { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
         {/* 통계: 큰 숫자 + 라벨 */}
         <div className="flex items-center gap-4">
