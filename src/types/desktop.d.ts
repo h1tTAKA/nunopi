@@ -6,6 +6,8 @@ interface NunopiDesktopApi {
   relaunch(): Promise<void>;
   // 데스크톱 네이티브 알림. 창 포커스 중이면 스킵(reason:"focused").
   notify(payload: { title: string; body?: string }): Promise<{ ok: boolean; reason?: string }>;
+  // 레포 폴더 선택(OS 네이티브 창). 취소 시 { canceled: true }.
+  pickRepoFolder(): Promise<{ canceled: boolean; path?: string }>;
 }
 
 interface Window {

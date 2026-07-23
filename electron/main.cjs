@@ -1,7 +1,7 @@
 // 일렉트론 셸 — nunopi(Next 앱)를 데스크톱 창으로 감싼다.
 // dev: ELECTRON_START_URL(예: http://localhost:3000) 로드(next dev 병행, HMR).
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
-const { app, BrowserWindow, shell, ipcMain, Notification } = require("electron");
+const { app, BrowserWindow, shell, ipcMain, Notification, dialog } = require("electron");
 const { readFileSync, writeFileSync, mkdirSync, existsSync } = require("node:fs");
 const {
   startSnaServer,
@@ -217,6 +217,13 @@ ipcMain.handle("notify", (_e, payload) => {
   n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   n.show();
   return { ok: true };
+});
+
+// 레포 폴더 선택 — OS 네이티브 폴더 창. { canceled, path }.
+ipcMain.handle("repo:pickFolder", async () => {
+  const res = await dialog.showOpenDialog(win ?? undefined, { properties: ["openDirectory"] });
+  if (res.canceled || res.filePaths.length === 0) return { canceled: true };
+  return { canceled: false, path: res.filePaths[0] };
 });
 
 // 단일 인스턴스.
