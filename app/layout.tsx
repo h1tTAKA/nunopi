@@ -48,6 +48,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        {/* 다크모드 FOUC 방지 — 서버 렌더 시 head에 인라인. (클라 재렌더만 없으면 React 에러 안 남 → 하이드레이션 불일치 제거가 핵심.) */}
         <script dangerouslySetInnerHTML={{ __html: DARK_MODE_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">{children}</body>

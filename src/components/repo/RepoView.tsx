@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
@@ -15,7 +15,11 @@ export default function RepoView({ active = true }: { active?: boolean }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [graph, setGraph] = useState<RepoGraph | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const desktop = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
+  // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
+  useEffect(() => setMounted(true), []);
+  const desktop = mounted ? window.nunopiDesktop : undefined;
 
   async function analyze(target: string) {
     setAnalyzing(true);
@@ -89,7 +93,7 @@ export default function RepoView({ active = true }: { active?: boolean }) {
               <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">{t("repo.intro")}</p>
             </div>
 
-            {desktop ? (
+            {!mounted ? null : desktop ? (
               <>
                 <button
                   type="button"
