@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
   getRuntimePaths: () => ipcRenderer.invoke("runtime-paths:get"),
   setRuntimePaths: (paths) => ipcRenderer.invoke("runtime-paths:set", paths),
   relaunch: () => ipcRenderer.invoke("app:relaunch"),
+  notify: (payload) => ipcRenderer.invoke("notify", payload),
 });
