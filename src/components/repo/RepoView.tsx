@@ -99,7 +99,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
             </button>
           </header>
           <div className="flex min-h-0 flex-1">
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1">
               <RepoGraphView graph={graph} onNodeClick={setSelectedId} />
             </div>
             {selectedId && (

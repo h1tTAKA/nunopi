@@ -147,7 +147,7 @@ export default function RepoNodePanel({ graph, nodeId, providerId, providerSetti
                   type="button"
                   onClick={generate}
                   disabled={generating}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#322bc9] disabled:opacity-50 dark:bg-[#8b86f5] dark:text-zinc-900 dark:hover:bg-[#a5a0f8]"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#3B34E2] px-3 py-1.5 text-[12px] font-semibold text-white transition hover:bg-[#322bc9] disabled:opacity-50 dark:bg-[#8b86f5] dark:text-zinc-900 dark:hover:bg-[#a5a0f8]"
                 >
                   <IconSparkles size={13} stroke={2} aria-hidden />
                   {t("repo.node.explain")}
