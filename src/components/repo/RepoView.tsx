@@ -5,7 +5,7 @@ import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle } from "@ta
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
-import { groupColors } from "@/lib/repo/colors";
+import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -90,7 +90,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     for (const n of graph.nodes) { const g = n.group ?? "(root)"; counts.set(g, (counts.get(g) ?? 0) + 1); }
     const groups = [...counts.keys()];
     const colors = groupColors(groups);
-    return groups.map((g) => ({ group: g, count: counts.get(g) ?? 0, color: colors.get(g) ?? "#71717a" }));
+    return groups.map((g) => ({ group: g, count: counts.get(g) ?? 0, color: colors.get(g) ?? REPO_NODE_FALLBACK }));
   }, [graph]);
   const toggleGroup = (g: string) => setHiddenGroups((prev) => {
     const n = new Set(prev);
