@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Inter, Space_Grotesk, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 
@@ -48,11 +47,11 @@ export default function RootLayout({
       className={`h-full antialiased ${inter.variable} ${spaceGrotesk.variable} ${notoSansKr.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
-        {/* 다크모드 FOUC 방지 — 하이드레이션 전 실행. next/script beforeInteractive로 초기 HTML에 안전 주입(React 19 raw <script> 에러 회피). */}
-        <Script id="nunopi-theme" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: DARK_MODE_SCRIPT }} />
-        {children}
-      </body>
+      <head>
+        {/* 다크모드 FOUC 방지 — 서버 렌더 시 head에 인라인. (클라 재렌더만 없으면 React 에러 안 남 → 하이드레이션 불일치 제거가 핵심.) */}
+        <script dangerouslySetInnerHTML={{ __html: DARK_MODE_SCRIPT }} />
+      </head>
+      <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
 }
