@@ -8,6 +8,8 @@ import RepoNodePanel from "@/components/repo/RepoNodePanel";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
+const REPO_PATH_KEY = "nunopi:repo-path";
+
 // 레포 분석 모드 — 로컬 레포 폴더 → 아키텍처 그래프 + 노드 클릭 설명(부모 #585).
 export default function RepoView({ active = true, providerId, providerSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
   const t = useT();
@@ -25,6 +27,18 @@ export default function RepoView({ active = true, providerId, providerSettings }
   useEffect(() => setMounted(true), []);
   const desktop = mounted ? window.nunopiDesktop : undefined;
 
+  // 새로고침 복원 — 저장된 레포 경로 있으면 자동 재분석(상태 미영속이라 재빌드).
+  useEffect(() => {
+    if (!mounted) return;
+    let saved: string | null = null;
+    try { saved = localStorage.getItem(REPO_PATH_KEY); } catch { /* ignore */ }
+    if (saved) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 새로고침 복원용 초기 세팅
+      setPath(saved);
+      void analyze(saved);
+    }
+  }, [mounted]);
+
   async function analyze(target: string) {
     setAnalyzing(true);
     setGraph(null);
@@ -40,6 +54,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
       const data = await res.json();
       if (!res.ok) { setError(data?.error ?? "failed"); return; }
       setGraph(data as RepoGraph);
+      try { localStorage.setItem(REPO_PATH_KEY, target); } catch { /* ignore */ }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -84,7 +99,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
             </button>
           </header>
           <div className="flex min-h-0 flex-1">
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 min-w-0 flex-1">
               <RepoGraphView graph={graph} onNodeClick={setSelectedId} />
             </div>
             {selectedId && (
