@@ -6,7 +6,7 @@ import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
 import type { RepoGraph } from "@/lib/repo/types";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 const REPO_PATH_KEY = "nunopi:repo-path";
 
@@ -21,6 +21,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 노드별 LLM 설명 캐시(재클릭 시 재생성 X).
   const [explains, setExplains] = useState<Record<string, string>>({});
+  // 노드별 챗 스레드 캐시(전환·닫기 후 복귀 시 유지).
+  const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -45,6 +47,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     setError(null);
     setSelectedId(null);
     setExplains({});
+    setChats({});
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -111,6 +114,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
                 providerSettings={providerSettings}
                 explanation={explains[selectedId]}
                 onExplained={(text) => setExplains((p) => ({ ...p, [selectedId]: text }))}
+                chat={chats[selectedId]}
+                onChat={(msgs) => setChats((p) => ({ ...p, [selectedId]: msgs }))}
                 onClose={() => setSelectedId(null)}
                 onSelect={setSelectedId}
               />

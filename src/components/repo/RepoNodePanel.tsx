@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconX, IconArrowUpRight, IconArrowDownLeft, IconFile, IconSparkles, IconLoader2 } from "@tabler/icons-react";
+import { IconX, IconArrowUpRight, IconArrowDownLeft, IconFile, IconSparkles, IconLoader2, IconMessageCircle, IconArrowUp } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";
@@ -14,13 +14,15 @@ type StreamEvent =
   | { type: "error"; message: string };
 
 // 노드 클릭 우측 패널 — 구조(파일·그룹·이웃 in/out) + 온디맨드 LLM 설명(기능·화면·연결·로직·설계의도).
-export default function RepoNodePanel({ graph, nodeId, providerId, providerSettings, explanation, onExplained, onClose, onSelect }: {
+export default function RepoNodePanel({ graph, nodeId, providerId, providerSettings, explanation, onExplained, chat, onChat, onClose, onSelect }: {
   graph: RepoGraph;
   nodeId: string;
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;
   explanation?: string;             // 캐시된 설명(있으면 바로 표시)
   onExplained: (text: string) => void;
+  chat?: ChatMessage[];             // 캐시된 챗 스레드
+  onChat: (msgs: ChatMessage[]) => void;
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
@@ -30,8 +32,26 @@ export default function RepoNodePanel({ graph, nodeId, providerId, providerSetti
   const [generating, setGenerating] = useState(false);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [input, setInput] = useState("");
+  const [chatStreaming, setChatStreaming] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  useEffect(() => () => abortRef.current?.abort(), []); // 언마운트 취소
+  const chatAbortRef = useRef<AbortController | null>(null);
+  const sourceRef = useRef<string | null>(null); // 파일 소스 1회 읽어 설명·챗 공유
+  useEffect(() => () => { abortRef.current?.abort(); chatAbortRef.current?.abort(); }, []);
+
+  // 파일 소스 읽기(캐시). 실패 시 빈 문자열.
+  async function getSource(signal: AbortSignal): Promise<string> {
+    if (sourceRef.current != null) return sourceRef.current;
+    try {
+      const r = await fetch("/api/repo/file", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ root: graph.root, file: node?.file }), signal,
+      });
+      const d = await r.json();
+      sourceRef.current = r.ok ? (d.content ?? "") : "";
+    } catch { sourceRef.current = ""; }
+    return sourceRef.current ?? "";
+  }
 
   // 이웃 — out: 이 파일이 import 하는 것 / in: 이 파일을 import 하는 것.
   const { imports, importedBy } = useMemo(() => {
@@ -50,15 +70,8 @@ export default function RepoNodePanel({ graph, nodeId, providerId, providerSetti
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      // 1) 파일 소스 읽기.
-      const fRes = await fetch("/api/repo/file", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ root: graph.root, file: node.file }), signal: ac.signal,
-      });
-      const fData = await fRes.json();
-      const source: string = fRes.ok ? fData.content ?? "" : "";
-      // 2) 5축 설명 컨텍스트.
-      const ctx = `# 파일: ${node.file}\n이 파일이 import: ${imports.map((i) => i.split("/").pop()).join(", ") || "(없음)"}\n이 파일을 import: ${importedBy.map((i) => i.split("/").pop()).join(", ") || "(없음)"}\n\n# 소스\n\`\`\`\n${source}\n\`\`\``;
+      const source = await getSource(ac.signal);
+      const ctx = buildCtx(source);
       const ask = "위 파일을 비개발자도 이해하게 설명해줘. ①무슨 기능인지 ②앱 화면의 어느 부분인지(추정) ③어떤 것들과 연결·의존하는지 ④주요 로직 흐름 ⑤왜 이렇게 설계됐는지(추론이면 '추론'이라 표기). 짧은 문단·불릿으로.";
       const thread: ChatMessage[] = [{ role: "user", content: ask }];
       const res = await fetch("/api/agent/analyze", {
@@ -92,6 +105,57 @@ export default function RepoNodePanel({ graph, nodeId, providerId, providerSetti
     } finally {
       if (!ac.signal.aborted) { setGenerating(false); setStreaming(null); }
     }
+  }
+
+  // 소스 + 이웃 + (있으면)설명 → 챗/설명 공용 컨텍스트.
+  function buildCtx(source: string): string {
+    const nbr = (arr: string[]) => arr.map((i) => i.split("/").pop()).join(", ") || "(없음)";
+    const exp = explanation ? `\n\n# 이 파일 설명(참고)\n${explanation}` : "";
+    return `# 파일: ${node?.file}\n이 파일이 import: ${nbr(imports)}\n이 파일을 import: ${nbr(importedBy)}${exp}\n\n# 소스\n\`\`\`\n${source}\n\`\`\``;
+  }
+
+  function submitChat() {
+    const text = input.trim();
+    if (!text || chatStreaming != null || !node) return;
+    setInput("");
+    const thread: ChatMessage[] = [...(chat ?? []), { role: "user", content: text }];
+    onChat(thread);
+    setChatStreaming("");
+    const ac = new AbortController();
+    chatAbortRef.current = ac;
+    (async () => {
+      let answer = "";
+      try {
+        const source = await getSource(ac.signal);
+        const res = await fetch("/api/agent/analyze", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ providerId, request: { code: buildCtx(source), locale, providerId, mode: "chat", messages: thread, providerSettings } }),
+          signal: ac.signal,
+        });
+        if (!res.ok || !res.body) { if (!ac.signal.aborted) onChat([...thread, { role: "assistant", content: t("repo.node.chatError") }]); return; }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n"); buffer = lines.pop() ?? "";
+          for (const l of lines) {
+            if (!l.trim()) continue;
+            let ev: StreamEvent;
+            try { ev = JSON.parse(l) as StreamEvent; } catch { continue; }
+            if (ev.type === "progress" && providerId !== "codex-agent" && !ac.signal.aborted) setChatStreaming(ev.line);
+            else if (ev.type === "result") answer = ev.response.summary;
+          }
+        }
+        if (!ac.signal.aborted) onChat([...thread, { role: "assistant", content: parseCardSuggestions(answer || "").text || answer || "(빈 응답)" }]);
+      } catch {
+        if (!ac.signal.aborted) onChat([...thread, { role: "assistant", content: t("repo.node.chatError") }]);
+      } finally {
+        if (!ac.signal.aborted) setChatStreaming(null);
+      }
+    })();
   }
 
   if (!node) return null;
@@ -155,6 +219,41 @@ export default function RepoNodePanel({ graph, nodeId, providerId, providerSetti
                 {error && <span className="text-[12px] text-rose-500">{t("repo.node.explainError")}</span>}
               </>
             )}
+          </section>
+
+          {/* 챗 — 이 파일에 대한 꼬리질문. */}
+          <section className="flex flex-col gap-2 border-t border-zinc-200/70 pt-4 dark:border-zinc-800/70">
+            <h3 className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+              <IconMessageCircle size={12} stroke={2.5} aria-hidden /> {t("repo.node.chatTitle")}
+            </h3>
+            {(chat?.length || chatStreaming != null) && (
+              <div className="flex flex-col gap-2">
+                {(chat ?? []).map((m, i) => m.role === "user" ? (
+                  <div key={i} className="max-w-[85%] self-end whitespace-pre-wrap rounded-2xl rounded-br-md bg-[#3B34E2] px-3 py-1.5 text-[12px] text-white">{m.content}</div>
+                ) : (
+                  <div key={i} className="max-w-[90%] select-text self-start rounded-2xl rounded-bl-md bg-zinc-100 px-3 py-1.5 text-[12px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"><Markdown>{parseCardSuggestions(m.content).text}</Markdown></div>
+                ))}
+                {chatStreaming != null && (
+                  <div className="max-w-[90%] select-text self-start rounded-2xl rounded-bl-md bg-zinc-100 px-3 py-1.5 text-[12px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                    {chatStreaming ? <Markdown>{stripStreamingCardBlock(chatStreaming)}</Markdown> : <span className="inline-flex items-center gap-1 text-zinc-400 dark:text-zinc-500"><IconLoader2 size={12} stroke={2} className="animate-spin" aria-hidden />{t("repo.node.chatThinking")}</span>}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-end gap-1.5 rounded-xl border border-zinc-200 bg-white p-1 pl-2.5 transition focus-within:border-[#3B34E2] dark:border-zinc-800 dark:bg-zinc-900 dark:focus-within:border-[#8b86f5]">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submitChat(); } }}
+                disabled={chatStreaming != null}
+                rows={1}
+                placeholder={t("repo.node.chatPlaceholder")}
+                className="max-h-24 min-h-[1.5rem] flex-1 resize-none bg-transparent py-1 text-[12px] text-zinc-900 outline-none placeholder:text-zinc-400 disabled:opacity-60 dark:text-zinc-50 dark:placeholder:text-zinc-500"
+              />
+              <button type="button" onClick={submitChat} disabled={chatStreaming != null || !input.trim()} aria-label={t("repo.node.chatSend")} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#3B34E2] text-white transition hover:bg-[#322bc9] disabled:opacity-40 dark:bg-[#8b86f5] dark:text-zinc-900 dark:hover:bg-[#a5a0f8]">
+                <IconArrowUp size={15} stroke={2.5} aria-hidden />
+              </button>
+            </div>
           </section>
         </div>
       </div>
