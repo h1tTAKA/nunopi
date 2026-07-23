@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
+import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -23,6 +24,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const [explains, setExplains] = useState<Record<string, string>>({});
   // 노드별 챗 스레드 캐시(전환·닫기 후 복귀 시 유지).
   const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
+  // 숨긴 그룹(폴더) — 필터 칩 토글.
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -48,6 +51,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     setSelectedId(null);
     setExplains({});
     setChats({});
+    setHiddenGroups(new Set());
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -79,6 +83,21 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const folderName = path ? path.split("/").filter(Boolean).pop() ?? path : null;
   const showGraph = !!graph && !analyzing;
 
+  // 그룹(폴더) 목록 + 개수 + 색 — 필터 칩용.
+  const groupList = useMemo(() => {
+    if (!graph) return [] as { group: string; count: number; color: string }[];
+    const counts = new Map<string, number>();
+    for (const n of graph.nodes) { const g = n.group ?? "(root)"; counts.set(g, (counts.get(g) ?? 0) + 1); }
+    const groups = [...counts.keys()];
+    const colors = groupColors(groups);
+    return groups.map((g) => ({ group: g, count: counts.get(g) ?? 0, color: colors.get(g) ?? REPO_NODE_FALLBACK }));
+  }, [graph]);
+  const toggleGroup = (g: string) => setHiddenGroups((prev) => {
+    const n = new Set(prev);
+    if (n.has(g)) n.delete(g); else n.add(g);
+    return n;
+  });
+
   return (
     <div aria-hidden={!active} className="flex h-full w-full min-h-0 flex-col">
       {showGraph && graph ? (
@@ -102,8 +121,28 @@ export default function RepoView({ active = true, providerId, providerSettings }
             </button>
           </header>
           <div className="flex min-h-0 flex-1">
-            <div className="min-h-0 min-w-0 flex-1">
-              <RepoGraphView graph={graph} onNodeClick={setSelectedId} />
+            <div className="relative min-h-0 min-w-0 flex-1">
+              {/* 그룹(폴더) 필터 칩 — 클릭 토글로 숨김/표시. */}
+              {groupList.length > 1 && (
+                <div className="nunopi-scroll absolute left-2 top-2 z-10 flex max-h-[40%] max-w-[16rem] flex-col gap-1 overflow-y-auto rounded-xl border border-zinc-200 bg-white/85 p-1.5 backdrop-blur dark:border-zinc-800 dark:bg-[#111219]/85">
+                  {groupList.map(({ group, count, color }) => {
+                    const off = hiddenGroups.has(group);
+                    return (
+                      <button
+                        key={group}
+                        type="button"
+                        onClick={() => toggleGroup(group)}
+                        className={`flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left text-[11px] transition hover:bg-zinc-100 dark:hover:bg-zinc-800 ${off ? "opacity-40" : ""}`}
+                      >
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                        <span className="truncate text-zinc-700 dark:text-zinc-200">{group}</span>
+                        <span className="ml-auto shrink-0 tabular-nums text-zinc-400 dark:text-zinc-500">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <RepoGraphView graph={graph} onNodeClick={setSelectedId} hiddenGroups={hiddenGroups} focusId={selectedId} />
             </div>
             {selectedId && (
               <RepoNodePanel
