@@ -1106,7 +1106,7 @@ export default function Home() {
         history={viewMode === "history"}
         historyView={<HistoryView active={viewMode === "history"} onNavigate={handleGoToHistory} providerId={providerId} providerSettings={providerSettings} />}
         repo={viewMode === "repo"}
-        repoView={<RepoView active={viewMode === "repo"} />}
+        repoView={<RepoView active={viewMode === "repo"} providerId={providerId} providerSettings={providerSettings} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}

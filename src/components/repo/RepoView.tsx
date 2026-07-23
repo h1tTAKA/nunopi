@@ -6,10 +6,10 @@ import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
 import type { RepoGraph } from "@/lib/repo/types";
+import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 
-// 레포 분석 모드 — 로컬 레포 폴더 → 아키텍처 그래프(부모 #585).
-// 자식 #592: 분석 결과를 인터랙티브 그래프로 전면 렌더. 노드 클릭 정보 패널은 자식 5.
-export default function RepoView({ active = true }: { active?: boolean }) {
+// 레포 분석 모드 — 로컬 레포 폴더 → 아키텍처 그래프 + 노드 클릭 설명(부모 #585).
+export default function RepoView({ active = true, providerId, providerSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
   const t = useT();
   const [path, setPath] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -17,6 +17,8 @@ export default function RepoView({ active = true }: { active?: boolean }) {
   const [graph, setGraph] = useState<RepoGraph | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 노드별 LLM 설명 캐시(재클릭 시 재생성 X).
+  const [explains, setExplains] = useState<Record<string, string>>({});
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -28,6 +30,7 @@ export default function RepoView({ active = true }: { active?: boolean }) {
     setGraph(null);
     setError(null);
     setSelectedId(null);
+    setExplains({});
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -85,7 +88,17 @@ export default function RepoView({ active = true }: { active?: boolean }) {
               <RepoGraphView graph={graph} onNodeClick={setSelectedId} />
             </div>
             {selectedId && (
-              <RepoNodePanel graph={graph} nodeId={selectedId} onClose={() => setSelectedId(null)} onSelect={setSelectedId} />
+              <RepoNodePanel
+                key={selectedId}
+                graph={graph}
+                nodeId={selectedId}
+                providerId={providerId}
+                providerSettings={providerSettings}
+                explanation={explains[selectedId]}
+                onExplained={(text) => setExplains((p) => ({ ...p, [selectedId]: text }))}
+                onClose={() => setSelectedId(null)}
+                onSelect={setSelectedId}
+              />
             )}
           </div>
         </>
