@@ -1,8 +1,8 @@
 // 일렉트론 셸 — nunopi(Next 앱)를 데스크톱 창으로 감싼다.
 // dev: ELECTRON_START_URL(예: http://localhost:3000) 로드(next dev 병행, HMR).
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
-const { app, BrowserWindow, shell, ipcMain } = require("electron");
-const { readFileSync, writeFileSync, mkdirSync } = require("node:fs");
+const { app, BrowserWindow, shell, ipcMain, Notification } = require("electron");
+const { readFileSync, writeFileSync, mkdirSync, existsSync } = require("node:fs");
 const {
   startSnaServer,
   resolveClaudeCli,
@@ -195,6 +195,29 @@ async function boot() {
 ipcMain.handle("runtime-paths:get", () => loadSavedRuntimePaths());
 ipcMain.handle("runtime-paths:set", (_e, paths) => ({ ok: true, saved: saveRuntimePaths(paths) }));
 ipcMain.handle("app:relaunch", () => { app.relaunch(); app.quit(); });
+
+// 알림 아이콘 경로 — dev=public, 패키지=standalone/public(존재하는 첫 후보).
+function notifyIconPath() {
+  const candidates = app.isPackaged
+    ? [
+        join(process.resourcesPath, "standalone", "public", "brand", "nunopi-appicon-512.png"),
+        join(process.resourcesPath, "public", "brand", "nunopi-appicon-512.png"),
+      ]
+    : [join(__dirname, "..", "public", "brand", "nunopi-appicon-512.png")];
+  for (const c of candidates) { try { if (existsSync(c)) return c; } catch { /* ignore */ } }
+  return undefined;
+}
+
+// 데스크톱 네이티브 알림(분석 완료 등). 창을 보고 있으면(포커스) 스킵 — 안 보고 있을 때만 알림.
+ipcMain.handle("notify", (_e, payload) => {
+  const { title, body } = payload ?? {};
+  if (!Notification.isSupported()) return { ok: false, reason: "unsupported" };
+  if (win && win.isFocused()) return { ok: false, reason: "focused" };
+  const n = new Notification({ title: title || "nunopi", body: body || "", icon: notifyIconPath() });
+  n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  n.show();
+  return { ok: true };
+});
 
 // 단일 인스턴스.
 if (!app.requestSingleInstanceLock()) {
