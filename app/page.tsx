@@ -18,6 +18,7 @@ import { removeSuggestedCard, stripCardBlock, type SuggestedCard } from "@/lib/c
 import MemorizeView from "@/components/memorize/MemorizeView";
 import AskView from "@/components/ask/AskView";
 import HistoryView from "@/components/history/HistoryView";
+import RepoView from "@/components/repo/RepoView";
 import type { HistoryNav } from "@/lib/history/types";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
@@ -222,7 +223,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("nunopi:editor-collapsed") === "1") setEditorCollapsed(true);
     const storedView = localStorage.getItem(VIEW_MODE_KEY);
-    if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history") {
+    if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history" || storedView === "repo") {
 
       setViewMode(storedView);
       if (storedView === "text") setMode("text");
@@ -1104,6 +1105,8 @@ export default function Home() {
         askView={<AskView active={viewMode === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} />}
         history={viewMode === "history"}
         historyView={<HistoryView active={viewMode === "history"} onNavigate={handleGoToHistory} providerId={providerId} providerSettings={providerSettings} />}
+        repo={viewMode === "repo"}
+        repoView={<RepoView active={viewMode === "repo"} />}
         modeToggle={
           <ModeToggle
             viewMode={viewMode}
