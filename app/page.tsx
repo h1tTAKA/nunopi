@@ -8,6 +8,7 @@ import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import { MESSAGES } from "@/lib/i18n/messages";
 import CodeInputArea, { type LanguageChoice } from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
 import EditorChatColumn from "@/components/translator/EditorChatColumn";
@@ -602,6 +603,13 @@ export default function Home() {
         setLastElapsedMs(Date.now() - startedAt);
         setResumable(false);
         setAnalysisResult(saved);
+        // 데스크톱 알림 — 분석 완료. 웹에선 nunopiDesktop 없어 스킵, 데스크톱은 창 포커스 중이면 main이 스킵.
+        {
+          const loc = getAnalysisLocale();
+          const nTitle = MESSAGES[loc][mode === "code" ? "notify.codeDone" : "notify.textDone"];
+          const nBody = saved.title || saved.summary?.slice(0, 80) || "";
+          window.nunopiDesktop?.notify?.({ title: nTitle, body: nBody }).catch(() => {});
+        }
         // 이어서/구간 채우기(resumeFrom)였다면, 이번에 새로 채워진 첫 줄로 스크롤+강조해
         // "어디가 채워졌는지" 보여준다(#507). source:"editor" → 패널이 그 카드로 스크롤.
         if (resumeFrom) {
