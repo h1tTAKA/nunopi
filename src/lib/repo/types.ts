@@ -27,5 +27,6 @@ export interface RepoGraph {
     edges: number;
     scanned: number;         // 스캔한 총 지원 파일 수(상한 적용 전)
     capped: boolean;         // 상한에 걸려 잘렸는지
+    reparsed?: number;       // 이번 빌드서 실제 재파싱한 파일 수(증분 — 나머지는 캐시 재사용)
   };
 }
