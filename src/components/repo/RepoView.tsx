@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar } from "@tabler/icons-react";
+import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
+import RepoOverviewPanel from "@/components/repo/RepoOverviewPanel";
 import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
 import { blastRadius } from "@/lib/repo/blast";
+import { repoOverview } from "@/lib/repo/overview";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -29,6 +31,9 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   // 영향도(블래스트) 모드 — 켜면 선택 노드의 의존자를 거리별 색으로.
   const [blastMode, setBlastMode] = useState(false);
+  // "한눈에" 온보딩 패널 표시 + 쉬운 말 요약 캐시(패널 닫아도 유지).
+  const [showOverview, setShowOverview] = useState(false);
+  const [overviewSummary, setOverviewSummary] = useState<string | null>(null);
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -56,6 +61,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
     setChats({});
     setHiddenGroups(new Set());
     setBlastMode(false);
+    setShowOverview(false);
+    setOverviewSummary(null);
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -109,6 +116,9 @@ export default function RepoView({ active = true, providerId, providerSettings }
   );
   const impactCount = blastMap ? blastMap.size - 1 : 0; // 자기 자신 제외
 
+  // "한눈에" 리포트 — 그래프 통계만으로 계산(그래프 바뀔 때만).
+  const overview = useMemo(() => (graph ? repoOverview(graph) : null), [graph]);
+
   return (
     <div aria-hidden={!active} className="flex h-full w-full min-h-0 flex-col">
       {showGraph && graph ? (
@@ -128,8 +138,21 @@ export default function RepoView({ active = true, providerId, providerSettings }
             )}
             <button
               type="button"
-              onClick={() => setBlastMode((v) => !v)}
+              onClick={() => setShowOverview((v) => !v)}
               className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-medium transition ${
+                showOverview
+                  ? "border-[#3B34E2] bg-[#3B34E2] text-white dark:border-[#8b86f5] dark:bg-[#8b86f5] dark:text-zinc-900"
+                  : "border-zinc-200 text-zinc-600 hover:border-[#3B34E2] hover:text-[#3B34E2] dark:border-zinc-700 dark:text-zinc-300"
+              }`}
+              aria-pressed={showOverview}
+            >
+              <IconEye size={14} stroke={2} aria-hidden />
+              {t("repo.overview")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBlastMode((v) => !v)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-medium transition ${
                 blastMode
                   ? "border-rose-500 bg-rose-500 text-white dark:border-rose-500 dark:bg-rose-500"
                   : "border-zinc-200 text-zinc-600 hover:border-rose-400 hover:text-rose-500 dark:border-zinc-700 dark:text-zinc-300"
@@ -170,6 +193,18 @@ export default function RepoView({ active = true, providerId, providerSettings }
                     );
                   })}
                 </div>
+              )}
+              {showOverview && overview && (
+                <RepoOverviewPanel
+                  overview={overview}
+                  graph={graph}
+                  providerId={providerId}
+                  providerSettings={providerSettings}
+                  summary={overviewSummary ?? undefined}
+                  onSummarized={setOverviewSummary}
+                  onSelect={setSelectedId}
+                  onClose={() => setShowOverview(false)}
+                />
               )}
               <RepoGraphView graph={graph} onNodeClick={setSelectedId} hiddenGroups={hiddenGroups} focusId={selectedId} blastMap={blastMap} />
             </div>
