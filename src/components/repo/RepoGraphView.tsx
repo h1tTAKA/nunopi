@@ -19,12 +19,18 @@ function escapeHtml(s: string): string {
 const groupOf = (n: GNode) => n.group ?? "(root)";
 const linkEnd = (e: GNode | string) => (typeof e === "object" ? e.id : e); // 링크 끝(노드객체 또는 id)
 
-// 레포 그래프 — 파일 노드 + import 엣지. 색=폴더. hiddenGroups=필터, focusId=선택 강조(둘 다 접근자로, 재시뮬 없이).
-export default function RepoGraphView({ graph, onNodeClick, hiddenGroups, focusId }: {
+// 블래스트 색 — 직접 의존자(거리1)=빨강, 전이(거리2+)=주황.
+const BLAST_DIRECT = "#ef4444";
+const BLAST_TRANSITIVE = "#f59e0b";
+
+// 레포 그래프 — 파일 노드 + import 엣지. 색=폴더. hiddenGroups=필터, focusId=선택 강조,
+// blastMap=영향도(거리별 색). 전부 접근자로 처리 → 재시뮬 없이.
+export default function RepoGraphView({ graph, onNodeClick, hiddenGroups, focusId, blastMap }: {
   graph: RepoGraph;
   onNodeClick?: (id: string) => void;
   hiddenGroups?: Set<string>;
   focusId?: string | null;
+  blastMap?: Map<string, number> | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -75,6 +81,12 @@ export default function RepoGraphView({ graph, onNodeClick, hiddenGroups, focusI
           nodeLabel={(n) => `<div style="padding:3px 8px;font-size:14px;font-weight:600;border-radius:6px;background:#18181b;color:#fafafa">${escapeHtml((n as GNode).name)}</div>`}
           nodeColor={(n) => {
             const gn = n as GNode;
+            if (blastMap) {                                    // 영향도 모드: 거리별 색
+              const d = blastMap.get(gn.id);
+              if (d === undefined) return "rgba(120,120,130,0.18)"; // 영향 밖 흐림
+              if (d === 0) return colorOf(gn.group);              // 선택 파일 자신
+              return d === 1 ? BLAST_DIRECT : BLAST_TRANSITIVE;   // 직접=빨강 / 전이=주황
+            }
             if (related && !related.has(gn.id)) return "rgba(120,120,130,0.18)"; // focus 밖 흐림
             return colorOf(gn.group);
           }}
@@ -86,8 +98,11 @@ export default function RepoGraphView({ graph, onNodeClick, hiddenGroups, focusI
             return (typeof s === "object" ? visible(s) : true) && (typeof t === "object" ? visible(t) : true);
           }}
           linkColor={(l) => {
-            if (!related) return "rgba(120,120,130,0.22)";
             const s = linkEnd((l as GLink).source), t = linkEnd((l as GLink).target);
+            if (blastMap) {                                    // 영향도: 영향 경로 위 엣지만 강조
+              return blastMap.has(s) && blastMap.has(t) ? "rgba(239,68,68,0.45)" : "rgba(120,120,130,0.06)";
+            }
+            if (!related) return "rgba(120,120,130,0.22)";
             return related.has(s) && related.has(t) ? "rgba(139,134,245,0.55)" : "rgba(120,120,130,0.08)";
           }}
           linkDirectionalArrowLength={2.5}
