@@ -31,8 +31,9 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   // 영향도(블래스트) 모드 — 켜면 선택 노드의 의존자를 거리별 색으로.
   const [blastMode, setBlastMode] = useState(false);
-  // "한눈에" 온보딩 패널 표시.
+  // "한눈에" 온보딩 패널 표시 + 쉬운 말 요약 캐시(패널 닫아도 유지).
   const [showOverview, setShowOverview] = useState(false);
+  const [overviewSummary, setOverviewSummary] = useState<string | null>(null);
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -61,6 +62,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     setHiddenGroups(new Set());
     setBlastMode(false);
     setShowOverview(false);
+    setOverviewSummary(null);
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -193,7 +195,16 @@ export default function RepoView({ active = true, providerId, providerSettings }
                 </div>
               )}
               {showOverview && overview && (
-                <RepoOverviewPanel overview={overview} onSelect={setSelectedId} onClose={() => setShowOverview(false)} />
+                <RepoOverviewPanel
+                  overview={overview}
+                  graph={graph}
+                  providerId={providerId}
+                  providerSettings={providerSettings}
+                  summary={overviewSummary ?? undefined}
+                  onSummarized={setOverviewSummary}
+                  onSelect={setSelectedId}
+                  onClose={() => setShowOverview(false)}
+                />
               )}
               <RepoGraphView graph={graph} onNodeClick={setSelectedId} hiddenGroups={hiddenGroups} focusId={selectedId} blastMap={blastMap} />
             </div>
