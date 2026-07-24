@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye, IconRefresh } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye, IconRefresh, IconPhotoDown } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
@@ -9,6 +9,7 @@ import RepoOverviewPanel from "@/components/repo/RepoOverviewPanel";
 import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
 import { blastRadius } from "@/lib/repo/blast";
 import { repoOverview } from "@/lib/repo/overview";
+import { downloadDataUrl } from "@/lib/repo/export";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -114,6 +115,13 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const handleRefresh = () => { if (path && !analyzing) void analyze(path); };
 
   const folderName = path ? path.split("/").filter(Boolean).pop() ?? path : null;
+
+  // 그래프 캔버스 → PNG 다운로드(캔버스는 래스터라 SVG 대신 PNG).
+  const graphAreaRef = useRef<HTMLDivElement>(null);
+  const handleExportPng = () => {
+    const canvas = graphAreaRef.current?.querySelector("canvas");
+    if (canvas) downloadDataUrl(`${folderName ?? "repo"}-graph.png`, canvas.toDataURL("image/png"));
+  };
   const showGraph = !!graph && !analyzing;
 
   // 그룹(폴더) 목록 + 개수 + 색 — 필터 칩용.
@@ -186,6 +194,15 @@ export default function RepoView({ active = true, providerId, providerSettings }
             </button>
             <button
               type="button"
+              onClick={handleExportPng}
+              title={t("repo.exportPng")}
+              aria-label={t("repo.exportPng")}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-2 py-1 text-[12px] font-medium text-zinc-600 transition hover:border-[#3B34E2] hover:text-[#3B34E2] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-[#8b86f5] dark:hover:text-[#8b86f5]"
+            >
+              <IconPhotoDown size={14} stroke={2} aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={handleRefresh}
               disabled={analyzing}
               title={t("repo.refresh")}
@@ -205,7 +222,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
             </button>
           </header>
           <div className="flex min-h-0 flex-1">
-            <div className="relative min-h-0 min-w-0 flex-1">
+            <div ref={graphAreaRef} className="relative min-h-0 min-w-0 flex-1">
               {/* 그룹(폴더) 필터 칩 — 클릭 토글로 숨김/표시. */}
               {groupList.length > 1 && (
                 <div className="nunopi-scroll absolute left-2 top-2 z-10 flex max-h-[40%] max-w-[16rem] flex-col gap-1 overflow-y-auto rounded-xl border border-zinc-200 bg-white/85 p-1.5 backdrop-blur dark:border-zinc-800 dark:bg-[#111219]/85">
