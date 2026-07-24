@@ -11,8 +11,9 @@ import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 // 해석 시 붙여볼 확장자 — 지원 언어 전부 + d.ts.
 const RESOLVE_EXTS = [...SUPPORTED_EXTS, ".d.ts"];
 
-// 증분용 — root별 파일 추출 캐시(mtime+specs). 재분석 시 안 바뀐 파일은 재파싱 스킵.
-const rootCaches = new Map<string, FileCache>();
+// 증분용 — 최근 1개 root의 파일 추출 캐시(mtime+specs). 재분석 시 안 바뀐 파일은 재파싱 스킵.
+// 증분 이득은 "같은 root 반복 분석"에만 나므로 현재 root만 보관(무한 증가 방지).
+let lastCache: { root: string; cache: FileCache } | null = null;
 
 // tsconfig의 paths 별칭(@/* 등) + baseUrl 로드. 없으면 빈 별칭.
 function loadAliases(root: string): { baseUrl: string; paths: Record<string, string[]> } {
@@ -113,14 +114,14 @@ export function buildRepoGraph(root: string): RepoGraph {
   }
 
   // 변경/신규 파일만 read+extract(reconcile이 mtime 비교로 콜백 호출). 나머지 specs 재사용.
-  const prev = rootCaches.get(root) ?? new Map();
+  const prev: FileCache = lastCache?.root === root ? lastCache.cache : new Map();
   const extract = (rel: string): string[] => {
     const lang = detectLang(rel);
     if (!lang) return [];
     try { return lang.extract(readFileSync(join(root, rel), "utf8")); } catch { return []; }
   };
   const { cache, reparsed } = reconcile(prev, statted, extract);
-  rootCaches.set(root, cache);
+  lastCache = { root, cache };
 
   const edges: RepoEdge[] = [];
   const seen = new Set<string>();
