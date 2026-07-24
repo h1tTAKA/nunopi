@@ -2,9 +2,10 @@
 // 무시 디렉터리 제외 + 파일 수 상한(폭주 방지). import 파싱은 graph.ts에서.
 import { readdirSync, type Dirent } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { SUPPORTED_EXTS } from "./langs";
 
-// 파싱 대상 확장자(TS/JS 우선 — 멀티랭은 후속).
-const SUPPORTED = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
+// 파싱 대상 확장자 — 언어 레지스트리(langs.ts)서 파생(단일 소스).
+const SUPPORTED = SUPPORTED_EXTS;
 // 훑지 않을 디렉터리(빌드 산출물·의존성·VCS).
 const IGNORE_DIRS = new Set([
   "node_modules", ".git", ".next", "dist", "build", "out", "coverage",
