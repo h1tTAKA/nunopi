@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { IconX, IconChevronRight, IconSparkles, IconLoader2 } from "@tabler/icons-react";
+import { IconX, IconChevronRight, IconSparkles, IconLoader2, IconFileDownload } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
 import Markdown from "@/components/learning/Markdown";
 import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";
 import { groupColors } from "@/lib/repo/colors";
+import { overviewToMarkdown, downloadText } from "@/lib/repo/export";
 import type { RepoOverview } from "@/lib/repo/overview";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 import type { RepoGraph } from "@/lib/repo/types";
@@ -85,7 +86,16 @@ export default function RepoOverviewPanel({ overview, graph, providerId, provide
     <div className="nunopi-scroll absolute right-2 top-2 z-10 flex max-h-[calc(100%-1rem)] w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-zinc-200 bg-white/95 p-3 backdrop-blur dark:border-zinc-800 dark:bg-[#111219]/95">
       <div className="flex items-center gap-2">
         <span className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">{t("repo.overviewTitle")}</span>
-        <button type="button" onClick={onClose} className="ml-auto rounded-md p-0.5 text-zinc-400 transition hover:text-zinc-700 dark:hover:text-zinc-200" aria-label={t("repo.node.close")}>
+        <button
+          type="button"
+          onClick={() => downloadText(`${graph.root.split("/").filter(Boolean).pop() ?? "repo"}-overview.md`, overviewToMarkdown(graph, overview, summary))}
+          className="ml-auto rounded-md p-0.5 text-zinc-400 transition hover:text-[#3B34E2] dark:hover:text-[#8b86f5]"
+          title={t("repo.exportMd")}
+          aria-label={t("repo.exportMd")}
+        >
+          <IconFileDownload size={15} stroke={2} aria-hidden />
+        </button>
+        <button type="button" onClick={onClose} className="rounded-md p-0.5 text-zinc-400 transition hover:text-zinc-700 dark:hover:text-zinc-200" aria-label={t("repo.node.close")}>
           <IconX size={15} stroke={2} aria-hidden />
         </button>
       </div>
