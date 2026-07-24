@@ -1,9 +1,10 @@
 // import 그래프 빌더 — 서버(Node) 전용. 스캔한 파일들의 import를 뽑아 파일 노드 + imports 엣지로.
-// 파싱: TypeScript 컴파일러 API `ts.preProcessFile`(정확·의존성 0). 심볼레벨(calls)은 후속.
+// 언어별 추출기(langs.ts)로 dispatch — TS/JS는 컴파일러 API, 나머지는 경량 정규식. 심볼레벨(calls)은 후속.
 import { readFileSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { scanRepo } from "./scan";
+import { detectLang } from "./langs";
 import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 const RESOLVE_EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts"];
@@ -80,6 +81,8 @@ export function buildRepoGraph(root: string): RepoGraph {
   const edges: RepoEdge[] = [];
   const seen = new Set<string>();
   for (const f of files) {
+    const lang = detectLang(f);
+    if (!lang) continue;
     const abs = join(root, f);
     let text: string;
     try {
@@ -87,9 +90,8 @@ export function buildRepoGraph(root: string): RepoGraph {
     } catch {
       continue;
     }
-    const info = ts.preProcessFile(text, true, true);
-    for (const imp of info.importedFiles) {
-      const target = resolveSpec(imp.fileName, abs);
+    for (const spec of lang.extract(text)) {
+      const target = resolveSpec(spec, abs);
       if (!target || target === f) continue;
       const key = `${f}|${target}`;
       if (seen.has(key)) continue;
