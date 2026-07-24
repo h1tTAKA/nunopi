@@ -1,14 +1,19 @@
 // import 그래프 빌더 — 서버(Node) 전용. 스캔한 파일들의 import를 뽑아 파일 노드 + imports 엣지로.
 // 언어별 추출기(langs.ts)로 dispatch — TS/JS는 컴파일러 API, 나머지는 경량 정규식. 심볼레벨(calls)은 후속.
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { scanRepo } from "./scan";
 import { detectLang, SUPPORTED_EXTS } from "./langs";
+import { reconcile, type FileCache } from "./incremental";
 import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // 해석 시 붙여볼 확장자 — 지원 언어 전부 + d.ts.
 const RESOLVE_EXTS = [...SUPPORTED_EXTS, ".d.ts"];
+
+// 증분용 — 최근 1개 root의 파일 추출 캐시(mtime+specs). 재분석 시 안 바뀐 파일은 재파싱 스킵.
+// 증분 이득은 "같은 root 반복 분석"에만 나므로 현재 root만 보관(무한 증가 방지).
+let lastCache: { root: string; cache: FileCache } | null = null;
 
 // tsconfig의 paths 별칭(@/* 등) + baseUrl 로드. 없으면 빈 별칭.
 function loadAliases(root: string): { baseUrl: string; paths: Record<string, string[]> } {
@@ -102,19 +107,27 @@ export function buildRepoGraph(root: string): RepoGraph {
     group: f.includes("/") ? f.split("/")[0] : "(root)",
   }));
 
+  // 각 파일 mtime 확인(read보다 쌈) — 증분 재조정 입력.
+  const statted: { rel: string; mtimeMs: number }[] = [];
+  for (const f of files) {
+    try { statted.push({ rel: f, mtimeMs: statSync(join(root, f)).mtimeMs }); } catch { /* 사라짐 등 스킵 */ }
+  }
+
+  // 변경/신규 파일만 read+extract(reconcile이 mtime 비교로 콜백 호출). 나머지 specs 재사용.
+  const prev: FileCache = lastCache?.root === root ? lastCache.cache : new Map();
+  const extract = (rel: string): string[] => {
+    const lang = detectLang(rel);
+    if (!lang) return [];
+    try { return lang.extract(readFileSync(join(root, rel), "utf8")); } catch { return []; }
+  };
+  const { cache, reparsed } = reconcile(prev, statted, extract);
+  lastCache = { root, cache };
+
   const edges: RepoEdge[] = [];
   const seen = new Set<string>();
-  for (const f of files) {
-    const lang = detectLang(f);
-    if (!lang) continue;
+  for (const [f, entry] of cache) {
     const abs = join(root, f);
-    let text: string;
-    try {
-      text = readFileSync(abs, "utf8");
-    } catch {
-      continue;
-    }
-    for (const spec of lang.extract(text)) {
+    for (const spec of entry.specs) {
       const target = resolveSpec(spec, abs);
       if (!target || target === f) continue;
       const key = `${f}|${target}`;
@@ -128,6 +141,6 @@ export function buildRepoGraph(root: string): RepoGraph {
     root,
     nodes,
     edges,
-    stats: { files: nodes.length, edges: edges.length, scanned: files.length, capped },
+    stats: { files: nodes.length, edges: edges.length, scanned: files.length, capped, reparsed },
   };
 }
