@@ -17,7 +17,7 @@ export function overviewToMarkdown(graph: RepoGraph, overview: RepoOverview, sum
 
 // 그래프 → Graphviz DOT 문자열(외부 그래프 툴서 열기·재렌더 가능, 스크린샷 대비 재활용성 ↑).
 export function graphToDot(graph: RepoGraph): string {
-  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t");
   const out: string[] = [
     "digraph repo {",
     "  rankdir=LR;",
