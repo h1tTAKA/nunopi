@@ -85,8 +85,9 @@ assert.ok(phpspecs.includes("App/Models/User"), "use 백슬래시 → 슬래시"
 
 // C — 로컬 include만.
 const c = LANGS.find((l) => l.lang === "c/c++")!;
-const cspecs = c.extract(`#include "util.h"\n#include <stdio.h>`);
+const cspecs = c.extract(`#include "util.h"\n#include <stdio.h>\n// #include "commented.h"`);
 assert.ok(cspecs.includes("./util.h"), '로컬 #include "util.h"');
 assert.ok(!cspecs.some((s) => s.includes("stdio")), "시스템 <stdio.h> 스킵");
+assert.ok(!cspecs.some((s) => s.includes("commented")), "주석 속 #include 배제");
 
 console.log("langs.check OK");

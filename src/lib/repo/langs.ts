@@ -116,7 +116,8 @@ function extractPhp(text: string): string[] {
 // C/C++ — `#include "x.h"`(로컬만; `<...>`=시스템은 스킵). 파일 기준 상대로 해석.
 function extractC(text: string): string[] {
   const specs: string[] = [];
-  const re = /#\s*include\s*"([^"]+)"/g;
+  // 라인 시작 앵커 — `// #include ...` 주석 오탐 배제(전처리기는 항상 라인 시작).
+  const re = /^\s*#\s*include\s*"([^"]+)"/gm;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) specs.push("./" + m[1]);
   return specs;
