@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye } from "@tabler/icons-react";
+import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye, IconRefresh } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
@@ -13,6 +13,20 @@ import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
 const REPO_PATH_KEY = "nunopi:repo-path";
+const REPO_GRAPH_KEY = "nunopi:repo-graph"; // 최근 1개 경로의 그래프 결과 캐시
+
+// 캐시된 그래프 — 저장된 경로와 같을 때만 반환(다르면 재분석 필요).
+function readGraphCache(path: string): RepoGraph | null {
+  try {
+    const raw = localStorage.getItem(REPO_GRAPH_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw) as { path: string; graph: RepoGraph };
+    return obj.path === path ? obj.graph : null;
+  } catch { return null; }
+}
+function writeGraphCache(path: string, graph: RepoGraph) {
+  try { localStorage.setItem(REPO_GRAPH_KEY, JSON.stringify({ path, graph })); } catch { /* quota 무시 */ }
+}
 
 // 레포 분석 모드 — 로컬 레포 폴더 → 아키텍처 그래프 + 노드 클릭 설명(부모 #585).
 export default function RepoView({ active = true, providerId, providerSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings }) {
@@ -40,14 +54,18 @@ export default function RepoView({ active = true, providerId, providerSettings }
   useEffect(() => setMounted(true), []);
   const desktop = mounted ? window.nunopiDesktop : undefined;
 
-  // 새로고침 복원 — 저장된 레포 경로 있으면 자동 재분석(상태 미영속이라 재빌드).
+  // 재방문 복원 — 저장 경로 있으면: 캐시된 그래프는 즉시, 없으면 재분석.
   useEffect(() => {
     if (!mounted) return;
     let saved: string | null = null;
     try { saved = localStorage.getItem(REPO_PATH_KEY); } catch { /* ignore */ }
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- 새로고침 복원용 초기 세팅
-      setPath(saved);
+    if (!saved) return;
+    const cached = readGraphCache(saved);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 복원용 초기 세팅
+    setPath(saved);
+    if (cached) {
+      setGraph(cached);
+    } else {
       void analyze(saved);
     }
   }, [mounted]);
@@ -73,6 +91,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
       if (!res.ok) { setError(data?.error ?? "failed"); return; }
       setGraph(data as RepoGraph);
       try { localStorage.setItem(REPO_PATH_KEY, target); } catch { /* ignore */ }
+      writeGraphCache(target, data as RepoGraph);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -90,6 +109,9 @@ export default function RepoView({ active = true, providerId, providerSettings }
       setPicking(false);
     }
   }
+
+  // 새로고침 — 캐시 무시하고 현재 경로 재분석(파일 바뀌었을 때).
+  const handleRefresh = () => { if (path && !analyzing) void analyze(path); };
 
   const folderName = path ? path.split("/").filter(Boolean).pop() ?? path : null;
   const showGraph = !!graph && !analyzing;
@@ -161,6 +183,16 @@ export default function RepoView({ active = true, providerId, providerSettings }
             >
               <IconRadar size={14} stroke={2} aria-hidden />
               {t("repo.blast")}
+            </button>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={analyzing}
+              title={t("repo.refresh")}
+              aria-label={t("repo.refresh")}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-2 py-1 text-[12px] font-medium text-zinc-600 transition hover:border-[#3B34E2] hover:text-[#3B34E2] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-[#8b86f5] dark:hover:text-[#8b86f5]"
+            >
+              <IconRefresh size={14} stroke={2} className={analyzing ? "animate-spin" : ""} aria-hidden />
             </button>
             <button
               type="button"
