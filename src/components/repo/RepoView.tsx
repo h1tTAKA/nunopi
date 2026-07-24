@@ -49,6 +49,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
   // "한눈에" 온보딩 패널 표시 + 쉬운 말 요약 캐시(패널 닫아도 유지).
   const [showOverview, setShowOverview] = useState(false);
   const [overviewSummary, setOverviewSummary] = useState<string | null>(null);
+  // 새로고침 후 "N개 재분석" 잠깐 표시(증분 체감).
+  const [reparsedNote, setReparsedNote] = useState<number | null>(null);
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -71,7 +73,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     }
   }, [mounted]);
 
-  async function analyze(target: string) {
+  async function analyze(target: string, opts?: { note?: boolean }) {
     setAnalyzing(true);
     setGraph(null);
     setError(null);
@@ -93,6 +95,11 @@ export default function RepoView({ active = true, providerId, providerSettings }
       setGraph(data as RepoGraph);
       try { localStorage.setItem(REPO_PATH_KEY, target); } catch { /* ignore */ }
       writeGraphCache(target, data as RepoGraph);
+      if (opts?.note) {
+        // 새로고침(증분) 후 재파싱 개수 잠깐 표시.
+        setReparsedNote((data as RepoGraph).stats.reparsed ?? null);
+        setTimeout(() => setReparsedNote(null), 4000);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -112,7 +119,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
   }
 
   // 새로고침 — 캐시 무시하고 현재 경로 재분석(파일 바뀌었을 때).
-  const handleRefresh = () => { if (path && !analyzing) void analyze(path); };
+  const handleRefresh = () => { if (path && !analyzing) void analyze(path, { note: true }); };
 
   const folderName = path ? path.split("/").filter(Boolean).pop() ?? path : null;
 
@@ -167,6 +174,11 @@ export default function RepoView({ active = true, providerId, providerSettings }
             {graph.nodes.length > LARGE_GRAPH_NODES && (
               <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[12px] font-medium text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" title={t("repo.largeGraphHint")}>
                 {t("repo.largeGraph")}
+              </span>
+            )}
+            {reparsedNote != null && (
+              <span className="shrink-0 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[12px] font-medium tabular-nums text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                {t("repo.reparsed").replace("{n}", String(reparsedNote))}
               </span>
             )}
             <button
