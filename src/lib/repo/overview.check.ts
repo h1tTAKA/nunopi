@@ -23,6 +23,7 @@ const o = repoOverview(g);
 assert.strictEqual(o.godNodes[0].id, "D", "D가 최고 degree");
 assert.strictEqual(o.godNodes[0].degree, 4, "D degree 4");
 assert.strictEqual(o.godNodes[1].id, "A", "A가 2등");
+assert.strictEqual(o.godNodes.length, 5, "degree>0 노드 5개 전부(TOP=8 미만)");
 const entryIds = o.entryPoints.map((e) => e.id).sort();
 assert.deepStrictEqual(entryIds, ["A", "E"], "진입점 A·E (in0 & out>0)");
 assert.strictEqual(o.groups[0].count, 2, "최다 그룹 2개(components 또는 lib)");
