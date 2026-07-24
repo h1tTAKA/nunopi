@@ -15,15 +15,26 @@ export function overviewToMarkdown(graph: RepoGraph, overview: RepoOverview, sum
   return out.join("\n") + "\n";
 }
 
-// 텍스트/데이터URL을 파일로 다운로드(브라우저·Electron 공통, <a download>).
-export function downloadText(filename: string, text: string, type = "text/markdown;charset=utf-8") {
+// 그래프 → Graphviz DOT 문자열(외부 그래프 툴서 열기·재렌더 가능, 스크린샷 대비 재활용성 ↑).
+export function graphToDot(graph: RepoGraph): string {
+  const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const out: string[] = [
+    "digraph repo {",
+    "  rankdir=LR;",
+    '  node [shape=box, style="rounded,filled", fillcolor="#eef2ff", color="#c7d2fe", fontsize=10];',
+    '  edge [color="#cbd5e1"];',
+  ];
+  for (const n of graph.nodes) out.push(`  "${esc(n.id)}" [label="${esc(n.label)}"];`);
+  for (const e of graph.edges) out.push(`  "${esc(e.source)}" -> "${esc(e.target)}";`);
+  out.push("}");
+  return out.join("\n") + "\n";
+}
+
+// 텍스트를 파일로 다운로드(브라우저·Electron 공통, <a download>).
+export function downloadText(filename: string, text: string, type = "text/plain;charset=utf-8") {
   const url = URL.createObjectURL(new Blob([text], { type }));
   triggerDownload(url, filename);
   setTimeout(() => URL.revokeObjectURL(url), 1000); // 다운로드 시작 후 정리
-}
-
-export function downloadDataUrl(filename: string, dataUrl: string) {
-  triggerDownload(dataUrl, filename);
 }
 
 function triggerDownload(url: string, filename: string) {
