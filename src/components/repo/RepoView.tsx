@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
+import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import RepoGraphView from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
 import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
+import { blastRadius } from "@/lib/repo/blast";
 import type { RepoGraph } from "@/lib/repo/types";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
 
@@ -26,6 +27,8 @@ export default function RepoView({ active = true, providerId, providerSettings }
   const [chats, setChats] = useState<Record<string, ChatMessage[]>>({});
   // 숨긴 그룹(폴더) — 필터 칩 토글.
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
+  // 영향도(블래스트) 모드 — 켜면 선택 노드의 의존자를 거리별 색으로.
+  const [blastMode, setBlastMode] = useState(false);
   // 마운트 후에만 window(Electron) 판별 — 서버/클라 초기 렌더 일치(하이드레이션 불일치 방지).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- 마운트 1회 플래그(SSR 안전)
@@ -52,6 +55,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
     setExplains({});
     setChats({});
     setHiddenGroups(new Set());
+    setBlastMode(false);
     try {
       const res = await fetch("/api/repo/analyze", {
         method: "POST",
@@ -98,6 +102,13 @@ export default function RepoView({ active = true, providerId, providerSettings }
     return n;
   });
 
+  // 영향도 맵 — 켜짐 + 노드 선택 시에만. id→거리(0=자기,1=직접,2+=전이). 그래프뷰 색·배지 공용.
+  const blastMap = useMemo(
+    () => (blastMode && graph && selectedId ? blastRadius(graph, selectedId) : null),
+    [blastMode, graph, selectedId],
+  );
+  const impactCount = blastMap ? blastMap.size - 1 : 0; // 자기 자신 제외
+
   return (
     <div aria-hidden={!active} className="flex h-full w-full min-h-0 flex-col">
       {showGraph && graph ? (
@@ -110,11 +121,29 @@ export default function RepoView({ active = true, providerId, providerSettings }
               {t("repo.result").replace("{files}", String(graph.stats.files)).replace("{edges}", String(graph.stats.edges))}
               {graph.stats.capped ? ` ${t("repo.capped")}` : ""}
             </span>
+            {blastMap && (
+              <span className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-[12px] font-medium tabular-nums text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
+                {t("repo.blastImpact").replace("{n}", String(impactCount))}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setBlastMode((v) => !v)}
+              className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-medium transition ${
+                blastMode
+                  ? "border-rose-500 bg-rose-500 text-white dark:border-rose-500 dark:bg-rose-500"
+                  : "border-zinc-200 text-zinc-600 hover:border-rose-400 hover:text-rose-500 dark:border-zinc-700 dark:text-zinc-300"
+              }`}
+              aria-pressed={blastMode}
+            >
+              <IconRadar size={14} stroke={2} aria-hidden />
+              {t("repo.blast")}
+            </button>
             <button
               type="button"
               onClick={handlePick}
               disabled={picking || analyzing}
-              className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-[12px] font-medium text-zinc-600 transition hover:border-[#3B34E2] hover:text-[#3B34E2] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-[#8b86f5] dark:hover:text-[#8b86f5]"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-[12px] font-medium text-zinc-600 transition hover:border-[#3B34E2] hover:text-[#3B34E2] disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-[#8b86f5] dark:hover:text-[#8b86f5]"
             >
               <IconFolderOpen size={14} stroke={2} aria-hidden />
               {t("repo.pickAnother")}
@@ -142,7 +171,7 @@ export default function RepoView({ active = true, providerId, providerSettings }
                   })}
                 </div>
               )}
-              <RepoGraphView graph={graph} onNodeClick={setSelectedId} hiddenGroups={hiddenGroups} focusId={selectedId} />
+              <RepoGraphView graph={graph} onNodeClick={setSelectedId} hiddenGroups={hiddenGroups} focusId={selectedId} blastMap={blastMap} />
             </div>
             {selectedId && (
               <RepoNodePanel
