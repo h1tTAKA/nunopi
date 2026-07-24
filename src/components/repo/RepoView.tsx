@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { IconSitemap, IconFolderOpen, IconLoader2, IconAlertTriangle, IconRadar, IconEye, IconRefresh, IconShare3 } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import RepoGraphView from "@/components/repo/RepoGraphView";
+import RepoGraphView, { LARGE_GRAPH_NODES } from "@/components/repo/RepoGraphView";
 import RepoNodePanel from "@/components/repo/RepoNodePanel";
 import RepoOverviewPanel from "@/components/repo/RepoOverviewPanel";
 import { groupColors, REPO_NODE_FALLBACK } from "@/lib/repo/colors";
@@ -162,6 +162,11 @@ export default function RepoView({ active = true, providerId, providerSettings }
             {blastMap && (
               <span className="shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-[12px] font-medium tabular-nums text-rose-600 dark:bg-rose-950/40 dark:text-rose-400">
                 {t("repo.blastImpact").replace("{n}", String(impactCount))}
+              </span>
+            )}
+            {graph.nodes.length > LARGE_GRAPH_NODES && (
+              <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[12px] font-medium text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" title={t("repo.largeGraphHint")}>
+                {t("repo.largeGraph")}
               </span>
             )}
             <button
