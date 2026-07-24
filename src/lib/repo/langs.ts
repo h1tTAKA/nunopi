@@ -56,10 +56,93 @@ function extractGo(text: string): string[] {
   return specs;
 }
 
+const dotsToSlash = (s: string) => s.replace(/\./g, "/");
+
+// Java / Kotlin — `import com.foo.Bar;`(자바 세미콜론, 코틀린 없음). static 포함.
+function extractJavaKotlin(text: string): string[] {
+  const specs: string[] = [];
+  const re = /^\s*import\s+(?:static\s+)?([\w.]+)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) specs.push(dotsToSlash(m[1]));
+  return specs;
+}
+
+// C# — `using Foo.Bar;` (네임스페이스, 파일 매핑 best-effort).
+function extractCSharp(text: string): string[] {
+  const specs: string[] = [];
+  const re = /^\s*using\s+(?:static\s+)?([\w.]+)\s*;/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) specs.push(dotsToSlash(m[1]));
+  return specs;
+}
+
+// Ruby — `require_relative "x"`(상대), `require "x"`(모듈).
+function extractRuby(text: string): string[] {
+  const specs: string[] = [];
+  let m: RegExpExecArray | null;
+  const rel = /require_relative\s+['"]([^'"]+)['"]/g;
+  while ((m = rel.exec(text))) specs.push("./" + m[1]);
+  const req = /(?:^|[^_])\brequire\s+['"]([^'"]+)['"]/g;
+  while ((m = req.exec(text))) specs.push(m[1]);
+  return specs;
+}
+
+// Rust — `mod name;`(형제 파일/디렉터리), `use crate::a::b::Item`(마지막 조각=아이템 제거).
+function extractRust(text: string): string[] {
+  const specs: string[] = [];
+  let m: RegExpExecArray | null;
+  const mod = /^\s*(?:pub\s+)?mod\s+(\w+)\s*;/gm;
+  while ((m = mod.exec(text))) specs.push("./" + m[1]);
+  const use = /^\s*(?:pub\s+)?use\s+((?:crate|self|super|\w+)(?:::\w+)+)/gm;
+  while ((m = use.exec(text))) {
+    const parts = m[1].split("::").filter((p) => p && p !== "crate" && p !== "self" && p !== "super");
+    if (parts.length > 1) parts.pop(); // 끝 = 타입/함수일 확률 → 모듈 경로만
+    if (parts.length) specs.push(parts.join("/"));
+  }
+  return specs;
+}
+
+// PHP — `require/include "x"`(경로), `use Namespace\Class;`(백슬래시→슬래시).
+function extractPhp(text: string): string[] {
+  const specs: string[] = [];
+  let m: RegExpExecArray | null;
+  const inc = /(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]/g;
+  while ((m = inc.exec(text))) specs.push(m[1].startsWith(".") ? m[1] : "./" + m[1]);
+  const use = /^\s*use\s+([\w\\]+)\s*;/gm;
+  while ((m = use.exec(text))) specs.push(m[1].replace(/\\/g, "/"));
+  return specs;
+}
+
+// C/C++ — `#include "x.h"`(로컬만; `<...>`=시스템은 스킵). 파일 기준 상대로 해석.
+function extractC(text: string): string[] {
+  const specs: string[] = [];
+  const re = /#\s*include\s*"([^"]+)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) specs.push("./" + m[1]);
+  return specs;
+}
+
+// Swift — `import Module`(모듈명, 파일 매핑 best-effort).
+function extractSwift(text: string): string[] {
+  const specs: string[] = [];
+  const re = /^\s*import\s+(\w+)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) specs.push(m[1]);
+  return specs;
+}
+
 export const LANGS: LangDef[] = [
   { lang: "ts/js", exts: [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"], extract: extractTsJs },
   { lang: "python", exts: [".py"], extract: extractPython },
   { lang: "go", exts: [".go"], extract: extractGo },
+  { lang: "java", exts: [".java"], extract: extractJavaKotlin },
+  { lang: "kotlin", exts: [".kt", ".kts"], extract: extractJavaKotlin },
+  { lang: "csharp", exts: [".cs"], extract: extractCSharp },
+  { lang: "ruby", exts: [".rb"], extract: extractRuby },
+  { lang: "rust", exts: [".rs"], extract: extractRust },
+  { lang: "php", exts: [".php"], extract: extractPhp },
+  { lang: "c/c++", exts: [".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".hxx"], extract: extractC },
+  { lang: "swift", exts: [".swift"], extract: extractSwift },
 ];
 
 const EXT_TO_LANG = new Map<string, LangDef>();

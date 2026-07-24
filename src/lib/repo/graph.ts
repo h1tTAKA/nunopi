@@ -40,6 +40,7 @@ export function buildRepoGraph(root: string): RepoGraph {
     for (const e of RESOLVE_EXTS) candidates.push(rel0 + e);
     for (const e of RESOLVE_EXTS) candidates.push(`${rel0}/index${e}`);
     candidates.push(`${rel0}/__init__.py`); // Python 패키지 디렉터리
+    candidates.push(`${rel0}/mod.rs`);      // Rust 모듈 디렉터리
     for (const c of candidates) if (fileSet.has(c)) return c;
     return null;
   };
