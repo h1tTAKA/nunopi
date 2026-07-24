@@ -23,4 +23,34 @@ assert.ok(specs.includes("./c"), "require");
 assert.ok(specs.includes("./d"), "dynamic import");
 assert.ok(specs.includes("react"), "외부 패키지도 지정자로(해석서 드롭)");
 
+// Python — 절대/from/상대.
+const py = LANGS.find((l) => l.lang === "python")!;
+const pyspecs = py.extract(`
+import os
+import a.b.c
+from a.b import thing
+from .sibling import x
+from ..pkg import y
+import numpy as np
+`);
+assert.ok(pyspecs.includes("a/b/c"), "import a.b.c → a/b/c");
+assert.ok(pyspecs.includes("a/b"), "from a.b import → a/b");
+assert.ok(pyspecs.includes("./sibling"), "from .sibling → ./sibling");
+assert.ok(pyspecs.includes("../pkg"), "from ..pkg → ../pkg");
+assert.ok(pyspecs.includes("numpy"), "import numpy → numpy(외부, 해석서 드롭)");
+
+// Go — 단일 + 블록.
+const go = LANGS.find((l) => l.lang === "go")!;
+const gospecs = go.extract(`
+package main
+import "fmt"
+import (
+  "strings"
+  m "github.com/u/r/internal/db"
+)
+`);
+assert.ok(gospecs.includes("fmt"), "단일 import");
+assert.ok(gospecs.includes("strings"), "블록 import");
+assert.ok(gospecs.includes("github.com/u/r/internal/db"), "블록 alias import");
+
 console.log("langs.check OK");

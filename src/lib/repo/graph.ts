@@ -4,10 +4,11 @@ import { readFileSync } from "node:fs";
 import { join, dirname, relative, resolve, sep } from "node:path";
 import ts from "typescript";
 import { scanRepo } from "./scan";
-import { detectLang } from "./langs";
+import { detectLang, SUPPORTED_EXTS } from "./langs";
 import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
-const RESOLVE_EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".d.ts"];
+// 해석 시 붙여볼 확장자 — 지원 언어 전부 + d.ts.
+const RESOLVE_EXTS = [...SUPPORTED_EXTS, ".d.ts"];
 
 // tsconfig의 paths 별칭(@/* 등) + baseUrl 로드. 없으면 빈 별칭.
 function loadAliases(root: string): { baseUrl: string; paths: Record<string, string[]> } {
@@ -38,7 +39,29 @@ export function buildRepoGraph(root: string): RepoGraph {
     candidates.push(rel0); // 이미 확장자 포함일 수도
     for (const e of RESOLVE_EXTS) candidates.push(rel0 + e);
     for (const e of RESOLVE_EXTS) candidates.push(`${rel0}/index${e}`);
+    candidates.push(`${rel0}/__init__.py`); // Python 패키지 디렉터리
     for (const c of candidates) if (fileSet.has(c)) return c;
+    return null;
+  };
+
+  // 비상대 모듈 지정자 해석용 인덱스: 마지막 경로조각 → 확장자 뗀 후보들.
+  const relNoExt = (rel: string) => rel.replace(/\.[^./]+$/, "");
+  const byTail = new Map<string, { noExt: string; rel: string }[]>();
+  for (const f of files) {
+    const noExt = relNoExt(f);
+    const tail = noExt.split("/").pop() ?? noExt;
+    const arr = byTail.get(tail);
+    if (arr) arr.push({ noExt, rel: f });
+    else byTail.set(tail, [{ noExt, rel: f }]);
+  }
+  // 모듈 지정자(예: "a/b/c") → 경로가 그걸로 끝나는 레포 파일. 여러 언어 공통 best-effort.
+  const resolveModule = (spec: string): string | null => {
+    const clean = spec.replace(/^\/+|\/+$/g, "");
+    if (!clean) return null;
+    const tail = clean.split("/").pop() ?? clean;
+    for (const c of byTail.get(tail) ?? []) {
+      if (c.noExt === clean || c.noExt.endsWith("/" + clean)) return c.rel;
+    }
     return null;
   };
 
@@ -67,7 +90,7 @@ export function buildRepoGraph(root: string): RepoGraph {
         }
       }
     }
-    return null; // 외부 패키지 등
+    return resolveModule(spec); // 비상대 모듈(py/go 등) 접미사 매칭, 미해결이면 null(외부)
   };
 
   const nodes: RepoNode[] = files.map((f) => ({
