@@ -589,11 +589,13 @@ const narrPending = new Map(); // id → 마지막 내레이션 이후 누적된
 const lastNarr = new Map();   // id → 마지막 내레이션 시각
 const lastDiffHash = new Map(); // id → 직전 내레이션에 쓴 git diff 해시(같은 코드 재설명 방지)
 // 실제 코드 변경(git diff HEAD) 확보 — 터미널 산문 대신 진짜 코드로 학습(#870). 캡 6KB, 실패 시 "".
-function getGitDiff(cwd) {
+// 비동기 execFile — main 이벤트루프 안 막음(동기 execFileSync는 타임아웃까지 최대 3s 블록, UI 프리즈)(cavecrew).
+const execFileP = require("node:util").promisify(require("node:child_process").execFile);
+async function getGitDiff(cwd) {
   try {
     // *.md 제외 — 문서화(학습정리·작업일지·개념정리 등)는 학습 대상 아님(#870). 코드 변경만.
-    const out = require("node:child_process").execFileSync("git", ["-C", cwd, "diff", "HEAD", "--unified=1", "--", ".", ":(exclude)*.md"], { encoding: "utf8", timeout: 3000, maxBuffer: 4_000_000 });
-    return out.length > 6000 ? out.slice(0, 6000) + "\n…(diff 생략)" : out;
+    const { stdout } = await execFileP("git", ["-C", cwd, "diff", "HEAD", "--unified=1", "--", ".", ":(exclude)*.md"], { encoding: "utf8", timeout: 3000, maxBuffer: 4_000_000 });
+    return stdout.length > 6000 ? stdout.slice(0, 6000) + "\n…(diff 생략)" : stdout;
   } catch { return ""; } // 깃 아님·HEAD 없음·타임아웃 등
 }
 function djb2(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return h; }
@@ -630,7 +632,7 @@ async function observeActivity(id) {
   narrPending.set(id, "");                                                          // 소비(비움)
   if (delta.length < NARR_MIN_DELTA || !/[a-zA-Z가-힣]/.test(delta)) return;         // 알맹이 없으면 스킵(토큰 낭비 방지)
   // 실제 코드 변경(diff)을 재료로 — 코드가 바뀌었으면 그 diff로 코드 학습. 안 바뀌었으면 diff 없이 탐색/개념 학습.
-  const diffFull = getGitDiff(cwd);
+  const diffFull = await getGitDiff(cwd);
   const dh = diffFull ? djb2(diffFull) : 0;
   const diffChanged = !!diffFull && dh !== lastDiffHash.get(id);
   if (diffChanged) lastDiffHash.set(id, dh);
