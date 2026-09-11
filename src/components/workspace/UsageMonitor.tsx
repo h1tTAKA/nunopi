@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconGauge, IconRefresh, IconSparkles, IconTerminal2 } from "@tabler/icons-react";
+import { IconBrandX, IconGauge, IconRefresh, IconSparkles, IconTerminal2 } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import type { ProviderUsage, ProviderUsageResult, UsageWindow } from "@/lib/usage/types";
 
@@ -49,7 +49,9 @@ function WinRow({ label, w }: { label: string; w: UsageWindow | null | undefined
 
 // provider 한 블록 — 아이콘+이름 + 윈도우들 또는 상태 메시지.
 function ProviderBlock({ u, name, Icon, t }: { u: ProviderUsage; name: string; Icon: typeof IconSparkles; t: (k: string) => string }) {
-  const hasWindows = u.status === "ok" && (u.session || u.weekly || u.fableWeekly);
+  const hasWindows = u.status === "ok" && (u.session || u.weekly || u.monthly || u.fableWeekly);
+  // 상태 메시지 — Grok stale는 "grok 한번 돌려 갱신"(needsRefresh), 그 외 로그인/에러 문구.
+  const statusMsg = u.needsRefresh ? t("usage.grokRefresh") : u.status === "unavailable" ? t("usage.unavailable") : t("usage.error");
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">
@@ -60,12 +62,11 @@ function ProviderBlock({ u, name, Icon, t }: { u: ProviderUsage; name: string; I
         <div className="flex flex-col gap-2">
           <WinRow label={t("usage.session")} w={u.session} />
           <WinRow label={t("usage.weekly")} w={u.weekly} />
+          <WinRow label={t("usage.monthly")} w={u.monthly} />
           <WinRow label={t("usage.fable")} w={u.fableWeekly} />
         </div>
       ) : (
-        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">
-          {u.status === "unavailable" ? t("usage.unavailable") : t("usage.error")}
-        </p>
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{statusMsg}</p>
       )}
     </div>
   );
@@ -155,6 +156,8 @@ export default function UsageMonitor({ active = true }: { active?: boolean }) {
               <ProviderBlock u={data.claude} name="Claude" Icon={IconSparkles} t={t} />
               <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
               <ProviderBlock u={data.codex} name="Codex" Icon={IconTerminal2} t={t} />
+              <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+              <ProviderBlock u={data.grok} name="Grok" Icon={IconBrandX} t={t} />
             </div>
           ) : err ? (
             <div className="flex flex-col gap-1">
