@@ -7,11 +7,13 @@ export type UsageWindow = {
 };
 
 export type ProviderUsage = {
-  provider: "claude" | "codex";
+  provider: "claude" | "codex" | "grok";
   status: "ok" | "unavailable" | "error"; // unavailable=크레덴셜 없음(로그인 안 함), error=네트워크/서버
   session?: UsageWindow | null;
   weekly?: UsageWindow | null;
+  monthly?: UsageWindow | null; // Grok 월간 예산 윈도우(43200분) — 크레딧% 없는 통합빌링 계정
   fableWeekly?: UsageWindow | null; // Claude 전용
+  needsRefresh?: boolean; // Grok 전용 — 토큰 stale = "터미널서 grok 한번 돌려 갱신"(재로그인 아님)
 };
 
-export type ProviderUsageResult = { claude: ProviderUsage; codex: ProviderUsage };
+export type ProviderUsageResult = { claude: ProviderUsage; codex: ProviderUsage; grok: ProviderUsage };
