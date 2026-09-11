@@ -174,13 +174,85 @@ async function fetchCodexUsage() {
   return { provider: "codex", status: "ok", session, weekly };
 }
 
-// 둘 병렬. 개별 실패는 status로 격리(전체 실패로 안 번지게).
+// ── Grok(#874) — orca grok-fetcher 방식. ~/.grok/auth.json 읽어 xAI billing 조회. 토큰 읽기만(로그인/refresh 안 함).
+const GROK_BILLING_BASE = (process.env.GROK_CLI_CHAT_PROXY_BASE_URL?.trim().replace(/\/$/, "")) || "https://cli-chat-proxy.grok.com/v1";
+const GROK_CREDITS_URL = `${GROK_BILLING_BASE}/billing?format=credits`;
+const GROK_DEFAULT_URL = `${GROK_BILLING_BASE}/billing`;
+const GROK_ISSUER = "https://auth.x.ai"; // 우선 issuer(auth.json 키 = "<issuer>::<clientId>")
+const GROK_SKEW_MS = 5 * 60 * 1000;      // 만료 5분 전이면 stale 취급(요청 도중 만료 방지)
+const WEEKLY_MIN = 10080;
+const MONTHLY_MIN = 43200;
+
+// auth.json: { "<issuer>::<clientId>": { key(=accessToken), user_id, expires_at, ... } }. 우선 issuer 엔트리 선택.
+async function readGrokSession() {
+  try {
+    const home = process.env.GROK_HOME || join(homedir(), ".grok");
+    const parsed = JSON.parse(await readFile(join(home, "auth.json"), "utf8"));
+    if (!parsed || typeof parsed !== "object") return null;
+    let preferred = null;
+    let fallback = null;
+    for (const [key, e] of Object.entries(parsed)) {
+      if (!e || typeof e !== "object" || typeof e.key !== "string" || !e.key) continue;
+      const s = { accessToken: e.key, userId: typeof e.user_id === "string" ? e.user_id : null, expiresAtMs: e.expires_at ? Date.parse(e.expires_at) : NaN };
+      if (key === GROK_ISSUER || key.startsWith(`${GROK_ISSUER}::`)) { if (!preferred) preferred = s; }
+      else if (!fallback) fallback = s;
+    }
+    return preferred || fallback; // 기본 issuer 우선, 없으면 대체 issuer
+  } catch { return null; } // 파일 없음·손상 = 로그인 안 함
+}
+
+// 돈 필드 { val: "1.23" | 1.23 } → 숫자.
+function grokMoney(v) {
+  const raw = v?.val;
+  const n = typeof raw === "string" ? Number.parseFloat(raw) : raw;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+// 주간 크레딧% 우선, 없으면 월간 예산쌍(used/limit). 둘 다 없으면 null(unavailable).
+// percent는 명시적 유한수일 때만 신뢰 — 필드 누락을 0%로 렌더하던 orca 버그(4934920f) 회피.
+function mapGrokWindows(cfg) {
+  const periodEnd = cfg.currentPeriod?.end ?? cfg.billingPeriodEnd ?? null;
+  const resetsAt = periodEnd ? parseResetTs(periodEnd) : null;
+  const win = (pct, minutes) => ({ usedPercent: Math.min(100, Math.max(0, pct)), windowMinutes: minutes, resetsAt, resetLabel: resetLabel(resetsAt) });
+  const pct = cfg.creditUsagePercent;
+  if (typeof pct === "number" && Number.isFinite(pct)) return { weekly: win(pct, WEEKLY_MIN) };
+  const limit = grokMoney(cfg.monthlyLimit);
+  const used = grokMoney(cfg.used);
+  if (limit !== null && used !== null && limit > 0) return { monthly: win((used / limit) * 100, MONTHLY_MIN) };
+  return null;
+}
+
+async function fetchGrokUsage() {
+  const session = await readGrokSession();
+  if (!session) return { provider: "grok", status: "unavailable" };
+  // stale 토큰: API 못 침 → "grok 한번 돌려 갱신"(재로그인 아님 — CLI가 refresh_token으로 자동 갱신). expires_at 없으면 그냥 시도.
+  if (Number.isFinite(session.expiresAtMs) && session.expiresAtMs - Date.now() < GROK_SKEW_MS) {
+    return { provider: "grok", status: "error", needsRefresh: true };
+  }
+  const headers = { Authorization: `Bearer ${session.accessToken}`, "X-XAI-Token-Auth": "xai-grok-cli", Accept: "application/json" };
+  if (session.userId) headers["x-userid"] = session.userId;
+  const { data, error } = await fetchJson(GROK_CREDITS_URL, headers);
+  if (error) return { provider: "grok", status: statusForError(error) };
+  if (!data) return { provider: "grok", status: "error" };
+  const cfg = (data.config && typeof data.config === "object") ? data.config : data;
+  const w = mapGrokWindows(cfg);
+  if (w) return { provider: "grok", status: "ok", weekly: w.weekly ?? null, monthly: w.monthly ?? null };
+  // credits 뷰에 %가 없는 통합빌링 계정 → 기본 billing 뷰서 월간 예산 재시도.
+  const fb = await fetchJson(GROK_DEFAULT_URL, headers);
+  const fcfg = (fb.data?.config && typeof fb.data.config === "object") ? fb.data.config : (fb.data || {});
+  const w2 = mapGrokWindows(fcfg);
+  if (w2) return { provider: "grok", status: "ok", weekly: w2.weekly ?? null, monthly: w2.monthly ?? null };
+  return { provider: "grok", status: "unavailable" }; // 로그인은 됐지만 노출할 한도 없음
+}
+
+// 셋 병렬. 개별 실패는 status로 격리(전체 실패로 안 번지게).
 async function getProviderUsage() {
-  const [claude, codex] = await Promise.all([
+  const [claude, codex, grok] = await Promise.all([
     fetchClaudeUsage().catch(() => ({ provider: "claude", status: "error" })),
     fetchCodexUsage().catch(() => ({ provider: "codex", status: "error" })),
+    fetchGrokUsage().catch(() => ({ provider: "grok", status: "error" })),
   ]);
-  return { claude, codex };
+  return { claude, codex, grok };
 }
 
 module.exports = { getProviderUsage };
