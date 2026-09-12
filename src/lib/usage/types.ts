@@ -17,4 +17,5 @@ export type ProviderUsage = {
   signedIn?: boolean;     // Grok 전용 — 로그인은 됐으나 노출할 한도 없음(무료 계정). "로그인 안 됨"과 구분
 };
 
-export type ProviderUsageResult = { claude: ProviderUsage; codex: ProviderUsage; grok: ProviderUsage };
+// grok?는 옵셔널 — 앱 재시작 전 옛 main(#874 이전)은 claude/codex만 반환. 소비부는 data.grok 존재 확인 필수.
+export type ProviderUsageResult = { claude: ProviderUsage; codex: ProviderUsage; grok?: ProviderUsage };
