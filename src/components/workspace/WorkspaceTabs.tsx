@@ -123,9 +123,10 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
       })).then((entries) => {
         if (!alive) return;
         // #876 전이 감지 — 레포가 working → 完了/대기/blocked로 바뀐 순간에만 데스크톱 알림(자리비움 게이트는 notify IPC가 처리).
+        // 이 콜백은 read(prev[p])~write(prev=…) 사이 await가 없어 원자적 — 동시 폴 2개여도 직렬 실행돼 한 전이가 두 번 안 울림.
         for (const [p, st] of entries) {
           if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
-            const name = p.split("/").filter(Boolean).pop() || p;                 // 레포 폴더명
+            const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
             const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
             void window.nunopiDesktop?.notify?.({ title, body: name });           // focused면 IPC가 스킵, 클릭 시 포커스
           }
