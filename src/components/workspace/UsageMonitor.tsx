@@ -29,9 +29,20 @@ function remaining(resetsAt: number | null | undefined): string | null {
 }
 
 // 사용 한도 윈도우 한 줄 — 라벨 + %·리셋까지 남은 시간 + 진행 바.
-function WinRow({ label, w }: { label: string; w: UsageWindow | null | undefined }) {
+function WinRow({ label, w, t }: { label: string; w: UsageWindow | null | undefined; t: (k: string) => string }) {
   if (!w) return null;
   const rem = remaining(w.resetsAt) ?? w.resetLabel;
+  // 종량제(한도 없음) — 퍼센트·막대 없이 절대 사용액만("N 사용 · 리셋").
+  if (w.amountUsed != null) {
+    return (
+      <div className="flex items-center justify-between text-[11px]">
+        <span className="text-zinc-500 dark:text-zinc-400">{label}</span>
+        <span className="font-medium text-zinc-700 dark:text-zinc-200">
+          {w.amountUsed} {t("usage.used")}{rem ? <span className="ml-1 font-normal text-zinc-400 dark:text-zinc-500">· {rem}</span> : null}
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between text-[11px]">
@@ -60,10 +71,10 @@ function ProviderBlock({ u, name, Icon, t }: { u: ProviderUsage; name: string; I
       </div>
       {hasWindows ? (
         <div className="flex flex-col gap-2">
-          <WinRow label={t("usage.session")} w={u.session} />
-          <WinRow label={t("usage.weekly")} w={u.weekly} />
-          <WinRow label={t("usage.monthly")} w={u.monthly} />
-          <WinRow label={t("usage.fable")} w={u.fableWeekly} />
+          <WinRow label={t("usage.session")} w={u.session} t={t} />
+          <WinRow label={t("usage.weekly")} w={u.weekly} t={t} />
+          <WinRow label={t("usage.monthly")} w={u.monthly} t={t} />
+          <WinRow label={t("usage.fable")} w={u.fableWeekly} t={t} />
         </div>
       ) : (
         <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{statusMsg}</p>

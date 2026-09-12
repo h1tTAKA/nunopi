@@ -208,17 +208,20 @@ function grokMoney(v) {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-// 주간 크레딧% 우선, 없으면 월간 예산쌍(used/limit). 둘 다 없으면 null(unavailable).
+// 주간 크레딧% 우선, 없으면 월간 예산쌍(used/limit)으로 %, 그것도 없고 한도가 0(종량제)이면 절대 사용액.
 // percent는 명시적 유한수일 때만 신뢰 — 필드 누락을 0%로 렌더하던 orca 버그(4934920f) 회피.
 function mapGrokWindows(cfg) {
   const periodEnd = cfg.currentPeriod?.end ?? cfg.billingPeriodEnd ?? null;
   const resetsAt = periodEnd ? parseResetTs(periodEnd) : null;
-  const win = (pct, minutes) => ({ usedPercent: Math.min(100, Math.max(0, pct)), windowMinutes: minutes, resetsAt, resetLabel: resetLabel(resetsAt) });
+  const base = { resetsAt, resetLabel: resetLabel(resetsAt) };
+  const win = (pct, minutes) => ({ usedPercent: Math.min(100, Math.max(0, pct)), windowMinutes: minutes, ...base });
   const pct = cfg.creditUsagePercent;
   if (typeof pct === "number" && Number.isFinite(pct)) return { weekly: win(pct, WEEKLY_MIN) };
   const limit = grokMoney(cfg.monthlyLimit);
   const used = grokMoney(cfg.used);
   if (limit !== null && used !== null && limit > 0) return { monthly: win((used / limit) * 100, MONTHLY_MIN) };
+  // 종량제(통합빌링) — 분모(한도) 없음. %는 못 내지만 이번 달 실사용액은 실존 → 절대값으로 노출.
+  if (used !== null && used > 0) return { monthly: { usedPercent: 0, amountUsed: used, windowMinutes: MONTHLY_MIN, ...base } };
   return null;
 }
 

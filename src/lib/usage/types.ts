@@ -1,9 +1,10 @@
 // Claude·Codex 구독 사용 한도 조회 결과(#735) — main의 provider-usage.cjs가 반환하는 형태.
 export type UsageWindow = {
   usedPercent: number; // 0-100
-  windowMinutes: number; // 300(5h) | 10080(7d)
+  windowMinutes: number; // 300(5h) | 10080(7d) | 43200(30d)
   resetsAt: number | null; // unix ms
   resetLabel: string | null; // "2:30 PM" | "Thu 2:30 PM"
+  amountUsed?: number | null; // 종량제(한도 없음) — %가 없어 절대 사용액만. 있으면 "N 사용"으로 렌더(막대 없음)
 };
 
 export type ProviderUsage = {
