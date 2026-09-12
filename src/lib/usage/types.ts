@@ -4,7 +4,6 @@ export type UsageWindow = {
   windowMinutes: number; // 300(5h) | 10080(7d) | 43200(30d)
   resetsAt: number | null; // unix ms
   resetLabel: string | null; // "2:30 PM" | "Thu 2:30 PM"
-  amountUsed?: number | null; // 종량제(한도 없음) — %가 없어 절대 사용액만. 있으면 "N 사용"으로 렌더(막대 없음)
 };
 
 export type ProviderUsage = {
@@ -15,6 +14,7 @@ export type ProviderUsage = {
   monthly?: UsageWindow | null; // Grok 월간 예산 윈도우(43200분) — 크레딧% 없는 통합빌링 계정
   fableWeekly?: UsageWindow | null; // Claude 전용
   needsRefresh?: boolean; // Grok 전용 — 토큰 stale = "터미널서 grok 한번 돌려 갱신"(재로그인 아님)
+  signedIn?: boolean;     // Grok 전용 — 로그인은 됐으나 노출할 한도 없음(무료 계정). "로그인 안 됨"과 구분
 };
 
 export type ProviderUsageResult = { claude: ProviderUsage; codex: ProviderUsage; grok: ProviderUsage };

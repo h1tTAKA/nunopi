@@ -208,20 +208,18 @@ function grokMoney(v) {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-// 주간 크레딧% 우선, 없으면 월간 예산쌍(used/limit)으로 %, 그것도 없고 한도가 0(종량제)이면 절대 사용액.
+// 주간 크레딧% 우선, 없으면 월간 예산쌍(used/limit)으로 %. 한도(분모)가 없으면 null.
 // percent는 명시적 유한수일 때만 신뢰 — 필드 누락을 0%로 렌더하던 orca 버그(4934920f) 회피.
+// (무료 계정은 billing에 진짜 한도·사용량이 안 잡힘 — top-level used는 history와 모순돼 신뢰 불가라 안 씀.)
 function mapGrokWindows(cfg) {
   const periodEnd = cfg.currentPeriod?.end ?? cfg.billingPeriodEnd ?? null;
   const resetsAt = periodEnd ? parseResetTs(periodEnd) : null;
-  const base = { resetsAt, resetLabel: resetLabel(resetsAt) };
-  const win = (pct, minutes) => ({ usedPercent: Math.min(100, Math.max(0, pct)), windowMinutes: minutes, ...base });
+  const win = (pct, minutes) => ({ usedPercent: Math.min(100, Math.max(0, pct)), windowMinutes: minutes, resetsAt, resetLabel: resetLabel(resetsAt) });
   const pct = cfg.creditUsagePercent;
   if (typeof pct === "number" && Number.isFinite(pct)) return { weekly: win(pct, WEEKLY_MIN) };
   const limit = grokMoney(cfg.monthlyLimit);
   const used = grokMoney(cfg.used);
   if (limit !== null && used !== null && limit > 0) return { monthly: win((used / limit) * 100, MONTHLY_MIN) };
-  // 종량제(통합빌링) — 분모(한도) 없음. %는 못 내지만 이번 달 실사용액은 실존 → 절대값으로 노출.
-  if (used !== null && used > 0) return { monthly: { usedPercent: 0, amountUsed: used, windowMinutes: MONTHLY_MIN, ...base } };
   return null;
 }
 
@@ -245,7 +243,7 @@ async function fetchGrokUsage() {
   const fcfg = (fb.data?.config && typeof fb.data.config === "object") ? fb.data.config : (fb.data || {});
   const w2 = mapGrokWindows(fcfg);
   if (w2) return { provider: "grok", status: "ok", weekly: w2.weekly ?? null, monthly: w2.monthly ?? null };
-  return { provider: "grok", status: "unavailable" }; // 로그인은 됐지만 노출할 한도 없음
+  return { provider: "grok", status: "unavailable", signedIn: true }; // 로그인은 됐지만 노출할 한도 없음(무료 계정)
 }
 
 // 셋 병렬. 개별 실패는 status로 격리(전체 실패로 안 번지게).
