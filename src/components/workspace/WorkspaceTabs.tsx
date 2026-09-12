@@ -102,6 +102,7 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   // 탭별 종합 상태(#764) — 호버 없이도 돌아가는중/완료/대기를 도트로. 레포 탭만 대상. 워크스페이스 활성 동안 폴링.
   const [repoStatus, setRepoStatus] = useState<Record<string, TabState | null>>({});
+  const prevRepoStatus = useRef<Record<string, TabState | null>>({}); // #876 전이 감지용(working→완료/대기 판정)
   useEffect(() => {
     if (!mounted || !active) return;
     const repoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => x.path);
@@ -112,7 +113,19 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
       Promise.all(repoPaths.map(async (p) => {
         try { const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json(); return [p, aggregate(j?.ok ? (j.statuses ?? []).map((s: { state: string }) => s.state) : [])] as const; }
         catch { return [p, null] as const; }
-      })).then((entries) => { if (alive) setRepoStatus(Object.fromEntries(entries)); });
+      })).then((entries) => {
+        if (!alive) return;
+        // #876 전이 감지 — 레포가 working → 完了/대기/blocked로 바뀐 순간에만 데스크톱 알림(자리비움 게이트는 notify IPC가 처리).
+        for (const [p, st] of entries) {
+          if (prevRepoStatus.current[p] === "working" && st && st !== "working") {
+            const name = p.split("/").filter(Boolean).pop() || p;                 // 레포 폴더명
+            const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
+            void window.nunopiDesktop?.notify?.({ title, body: name });           // focused면 IPC가 스킵, 클릭 시 포커스
+          }
+        }
+        prevRepoStatus.current = Object.fromEntries(entries);                      // 다음 비교 기준(중복 알림 방지)
+        setRepoStatus(prevRepoStatus.current);
+      });
     };
     void poll();
     // SSE 푸시(#764) — 훅이 열린 레포 중 하나의 cwd 상태를 바꾸면 즉시 재조회. 이게 "실제 변화 시" 갱신의 주 경로.
