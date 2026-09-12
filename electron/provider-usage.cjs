@@ -233,7 +233,11 @@ async function fetchGrokUsage() {
   const headers = { Authorization: `Bearer ${session.accessToken}`, "X-XAI-Token-Auth": "xai-grok-cli", Accept: "application/json" };
   if (session.userId) headers["x-userid"] = session.userId;
   const { data, error } = await fetchJson(GROK_CREDITS_URL, headers);
-  if (error) return { provider: "grok", status: statusForError(error) };
+  // 세션이 있는데 401/403 = 토큰이 거부됨(만료·무효) → "grok 한번 돌려 갱신"(로그인 안 됨과 구분). 그 외는 일반 에러.
+  if (error) {
+    const authRejected = error === "http-401" || error === "http-403";
+    return { provider: "grok", status: "error", ...(authRejected ? { needsRefresh: true } : {}) };
+  }
   if (!data) return { provider: "grok", status: "error" };
   const cfg = (data.config && typeof data.config === "object") ? data.config : data;
   const w = mapGrokWindows(cfg);

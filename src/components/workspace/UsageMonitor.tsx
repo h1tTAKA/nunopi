@@ -160,8 +160,13 @@ export default function UsageMonitor({ active = true }: { active?: boolean }) {
               <ProviderBlock u={data.claude} name="Claude" Icon={IconSparkles} t={t} />
               <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
               <ProviderBlock u={data.codex} name="Codex" Icon={IconTerminal2} t={t} />
-              <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
-              <ProviderBlock u={data.grok} name="Grok" Icon={IconBrandX} t={t} />
+              {/* grok은 앱 재시작 전 옛 main이 반환 안 할 수 있음 — 없으면 블록 생략(undefined 접근 크래시 방어). */}
+              {data.grok ? (
+                <>
+                  <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
+                  <ProviderBlock u={data.grok} name="Grok" Icon={IconBrandX} t={t} />
+                </>
+              ) : null}
             </div>
           ) : err ? (
             <div className="flex flex-col gap-1">
