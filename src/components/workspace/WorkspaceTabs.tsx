@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards } from "@tabler/icons-react";
+import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useToast } from "@/components/ui/Toast";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -103,6 +103,13 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
   // 탭별 종합 상태(#764) — 호버 없이도 돌아가는중/완료/대기를 도트로. 레포 탭만 대상. 워크스페이스 활성 동안 폴링.
   const [repoStatus, setRepoStatus] = useState<Record<string, TabState | null>>({});
   const prevRepoStatus = useRef<Record<string, TabState | null>>({}); // #876 전이 감지용(working→완료/대기 판정)
+  const [notifyOn, setNotifyOn] = useState(true);                     // #876 알림 on/off(벨 토글, localStorage 영속)
+  const notifyOnRef = useRef(true);                                   // poll .then 클로저서 최신값 읽기(effect 재실행 회피)
+  const toggleNotify = () => {
+    const next = !notifyOnRef.current;
+    notifyOnRef.current = next; setNotifyOn(next);
+    try { localStorage.setItem("nunopi:notifyAgentDone", next ? "1" : "0"); } catch { /* ignore */ }
+  };
   useEffect(() => {
     if (!mounted || !active) return;
     const repoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => x.path);
@@ -117,7 +124,7 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
         if (!alive) return;
         // #876 전이 감지 — 레포가 working → 完了/대기/blocked로 바뀐 순간에만 데스크톱 알림(자리비움 게이트는 notify IPC가 처리).
         for (const [p, st] of entries) {
-          if (prevRepoStatus.current[p] === "working" && st && st !== "working") {
+          if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
             const name = p.split("/").filter(Boolean).pop() || p;                 // 레포 폴더명
             const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
             void window.nunopiDesktop?.notify?.({ title, body: name });           // focused면 IPC가 스킵, 클릭 시 포커스
@@ -158,8 +165,11 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
       const want = act && keys.includes(act) ? act : act && keys.includes(`repo:${act}`) ? `repo:${act}` : null;
       a = want ?? keys[0] ?? null;
     } catch { /* ignore */ }
+    const notif = localStorage.getItem("nunopi:notifyAgentDone") !== "0"; // 기본 on(명시적 "0"만 off)
+    notifyOnRef.current = notif;
     /* eslint-disable react-hooks/set-state-in-effect -- 마운트 1회 복원 */
     setMounted(true);
+    setNotifyOn(notif);
     setTabs(ts);
     setActiveKey(a);
     if (a) setVisited(new Set([a]));
@@ -369,6 +379,11 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
       <button type="button" onClick={(e) => openAddMenu(e.currentTarget)} disabled={picking || !mounted} title={t("workspace.newTab")} aria-label={t("workspace.newTab")}
         className="flex shrink-0 items-center justify-center rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-200/60 hover:text-zinc-700 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200">
         <IconPlus size={16} stroke={2} aria-hidden />
+      </button>
+      {/* #876 에이전트 완료 알림 on/off */}
+      <button type="button" onClick={toggleNotify} title={t("notify.toggle")} aria-label={t("notify.toggle")} aria-pressed={notifyOn}
+        className="ml-auto flex shrink-0 items-center justify-center rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-200/60 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200">
+        {notifyOn ? <IconBell size={15} stroke={2} aria-hidden /> : <IconBellOff size={15} stroke={2} aria-hidden />}
       </button>
     </div>
   );
