@@ -7,6 +7,7 @@ import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
+import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import CodeInputArea from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
@@ -371,6 +372,7 @@ export default function Home() {
         memorizeProviderId={memorizeProviderId}
         onMemorizeProviderChange={handleMemorizeProviderChange}
       />
+      <GlobalCommandPalette onNavigate={handleViewModeChange} onOpenSettings={() => setIsSettingsOpen(true)} />
     </ToastProvider>
     </ConfirmProvider>
     </I18nProvider>
