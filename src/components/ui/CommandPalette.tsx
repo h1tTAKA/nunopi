@@ -2,11 +2,11 @@
 
 // 명령 팔레트(#878) — ⌘K로 뜨는 필터형 명령 리스트. 범용: commands 배열만 받아 렌더·필터·실행.
 // 앱 지식(뷰이동·탭열기)은 caller가 run 클로저로 주입 → 이 컴포넌트는 "명령이 뭘 하는지" 모름.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { IconSearch } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 
-export type Command = { id: string; label: string; section?: string; run: () => void };
+export type Command = { id: string; label: string; section?: string; icon?: ReactNode; run: () => void };
 
 export default function CommandPalette({ open, commands, onClose }: { open: boolean; commands: Command[]; onClose: () => void }) {
   const t = useT();
@@ -59,7 +59,8 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
               <li key={c.id}>
                 {showSection ? <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{c.section}</div> : null}
                 <button type="button" onMouseEnter={() => setSel(i)} onClick={() => run(c)}
-                  className={`flex w-full items-center px-4 py-2 text-left text-[13px] transition ${i === sel ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
+                  className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] transition ${i === sel ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
+                  {c.icon ? <span className="flex w-4 shrink-0 items-center justify-center text-zinc-400">{c.icon}</span> : null}
                   {c.label}
                 </button>
               </li>
