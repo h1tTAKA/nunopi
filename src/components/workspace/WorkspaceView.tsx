@@ -13,6 +13,7 @@ import RepoLearnStream from "@/components/workspace/RepoLearnStream";
 import { useBranchCi } from "@/components/workspace/github/useBranchCi";
 import TerminalPane from "@/components/workspace/TerminalPane";
 import UsageMonitor from "@/components/workspace/UsageMonitor";
+import PortsMonitor from "@/components/workspace/PortsMonitor";
 import GitGraph from "@/components/workspace/GitGraph";
 import DiffPane from "@/components/workspace/DiffPane";
 import DocViewer from "@/components/workspace/DocViewer";
@@ -639,8 +640,9 @@ export default function WorkspaceView({ path, active = true, providerId, provide
               className={`rounded-md p-1 transition ${docsOpen ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
               <IconFileText size={14} stroke={2} aria-hidden />
             </button>
-            {/* 우측 끝 — Claude·Codex 토큰 사용량 모니터(#735). active일 때만 폴링(중복 방지). */}
+            {/* 우측 끝 — 포트(#880)·설정·토큰 사용량(#735) 모니터. active일 때만 폴링(중복 방지). */}
             <div className="ml-auto flex items-center gap-0.5">
+              <PortsMonitor path={path} active={active} />
               {onOpenSettings && (
                 <button type="button" onClick={onOpenSettings} title={t("header.settings")} aria-label={t("header.settings")}
                   className="flex h-6 w-6 items-center justify-center rounded-md text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300">
