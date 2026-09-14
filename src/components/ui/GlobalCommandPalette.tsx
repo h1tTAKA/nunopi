@@ -9,11 +9,16 @@ import {
 } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import CommandPalette, { type Command } from "@/components/ui/CommandPalette";
+import { nunopiEnabled } from "@/lib/product";
 import type { ViewMode } from "@/lib/viewMode";
 import type { WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AddKind } from "@/components/workspace/WorkspaceAddMenu";
 
-const VIEWS: ViewMode[] = ["workspace", "code", "text", "ask", "memorize", "history"];
+// Mustard(워크스페이스 셸) 뷰 vs nunopi(학습 모듈) 뷰 — 팔레트서 섹션 분리, nunopi는 플래그로 게이트(#878).
+const MUSTARD_VIEWS: ViewMode[] = ["workspace"];
+const NUNOPI_VIEWS: ViewMode[] = ["code", "text", "ask", "memorize", "history"];
+// 새 탭 종류 — 레포는 Mustard 네이티브(항상), 나머지는 nunopi 학습 탭(게이트).
+const NUNOPI_TAB_KINDS: AddKind[] = ["ask", "code", "text", "memorize"];
 // 뷰별 아이콘 — AreaModeToggle과 동일(일관성).
 const VIEW_ICON: Record<ViewMode, React.ReactNode> = {
   workspace: <IconLayoutDashboard size={16} stroke={2} aria-hidden />,
@@ -61,17 +66,25 @@ export default function GlobalCommandPalette({
 
   // open을 dep에 포함 — 팔레트 열 때 workspaceRef.listTabs()를 새로 읽어 최신 탭 목록 반영.
   const commands = useMemo<Command[]>(() => {
-    const nav: Command[] = VIEWS.map((v) => ({
-      id: `view:${v}`, section: t("palette.section.go"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v),
-    }));
-    const base: Command[] = [...nav, { id: "settings", section: t("palette.section.action"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, run: onOpenSettings }];
+    // Mustard 섹션 — 워크스페이스 + 설정(항상).
+    const mustard: Command[] = [
+      ...MUSTARD_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.mustard"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) })),
+      { id: "settings", section: t("palette.section.mustard"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, run: onOpenSettings },
+    ];
+    // nunopi 학습 섹션 — 모듈 설치 시에만(스탠드얼론/설치된 경우). Mustard-only 빌드면 숨김.
+    const nunopiNav: Command[] = nunopiEnabled
+      ? NUNOPI_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.nunopi"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) }))
+      : [];
+    const base: Command[] = [...mustard, ...nunopiNav];
     // 워크스페이스일 때만 탭 전환·생성 명령(열린 탭 목록은 ref로 즉시 조회).
     const ws = vm === "workspace" ? workspaceRef.current : null;
     if (!ws) return base;
     const switchTabs: Command[] = ws.listTabs().map((tb) => ({
       id: `tab:${tb.key}`, section: t("palette.section.tab"), label: tb.label, icon: TAB_ICON[tb.kind], run: () => ws.activate(tb.key),
     }));
-    const newTabs: Command[] = NEW_TAB_KINDS.map((k) => ({
+    // 새 탭 — 레포(Mustard 네이티브)는 항상, nunopi 학습 탭은 게이트.
+    const newKinds: AddKind[] = ["repo", ...(nunopiEnabled ? NUNOPI_TAB_KINDS : [])];
+    const newTabs: Command[] = newKinds.map((k) => ({
       id: `new:${k}`, section: t("palette.section.newTab"),
       label: `${t("palette.newTab")}: ${k === "repo" ? t("palette.tabRepo") : t(`mode.${k}`)}`,
       icon: TAB_ICON[k], run: () => ws.addTab(k),
