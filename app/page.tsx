@@ -7,6 +7,7 @@ import LearningPanel from "@/components/learning/LearningPanel";
 import SettingsDrawer from "@/components/settings/SettingsDrawer";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
+import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import CodeInputArea from "@/components/translator/CodeInputArea";
 import TextInputArea from "@/components/translator/TextInputArea";
@@ -15,7 +16,7 @@ import ChatRoom from "@/components/learning/ChatRoom";
 import MemorizeView from "@/components/memorize/MemorizeView";
 import AskView from "@/components/ask/AskView";
 import HistoryView from "@/components/history/HistoryView";
-import WorkspaceTabs from "@/components/workspace/WorkspaceTabs";
+import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { HistoryNav } from "@/lib/history/types";
 import { type ViewMode, VIEW_MODE_KEY } from "@/lib/viewMode";
 import { deckStats } from "@/lib/srs/due";
@@ -79,6 +80,7 @@ export default function Home() {
   const vm: ViewMode = winKind ?? viewMode; // AppShell 슬롯 판정에 쓰는 유효 뷰모드.
   const lastQAViewRef = useRef<ViewMode>("code"); // 질문·분석 진입 시 복귀할 직전 하위뷰(ask/code/text).
   const memorizeOriginRef = useRef<ViewMode>("code"); // 암기 진입 직전 영역(#785) — 돌아가기 목적지.
+  const wsRef = useRef<WorkspaceTabsHandle>(null); // 명령 팔레트(#878)가 워크스페이스 탭 조작
   const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; quizId?: string; nonce: number } | undefined>(undefined);
   const askGoNonceRef = useRef(0);
   const [memGoTarget, setMemGoTarget] = useState<{ cardKey: string; nonce: number } | undefined>(undefined);
@@ -219,7 +221,7 @@ export default function Home() {
         history={vm === "history"}
         historyView={<HistoryView active={vm === "history"} onNavigate={handleGoToHistory} providerId={providerId} providerSettings={providerSettings} />}
         workspace={vm === "workspace"}
-        workspaceView={<WorkspaceTabs active={vm === "workspace"} providerId={providerId} providerSettings={providerSettings} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
+        workspaceView={<WorkspaceTabs ref={wsRef} active={vm === "workspace"} providerId={providerId} providerSettings={providerSettings} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
         modeToggle={
           <AreaPrimaryToggle
             viewMode={viewMode}
@@ -371,6 +373,7 @@ export default function Home() {
         memorizeProviderId={memorizeProviderId}
         onMemorizeProviderChange={handleMemorizeProviderChange}
       />
+      <GlobalCommandPalette onNavigate={handleViewModeChange} onOpenSettings={() => setIsSettingsOpen(true)} vm={vm} workspaceRef={wsRef} />
     </ToastProvider>
     </ConfirmProvider>
     </I18nProvider>
