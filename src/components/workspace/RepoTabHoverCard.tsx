@@ -43,6 +43,12 @@ function stateIcon(st: AgentState) {
 // path별 마지막 스냅샷 캐시 — 재호버 시 즉시 표시(빈 상태 깜빡임·지연 방지, #764).
 interface Snap { statuses: AgentStatus[]; worktrees: Worktree[] | null; ports?: Port[]; }
 const snapCache = new Map<string, Snap>();
+// path 스냅샷 부분 갱신 — 새 path 추가 시 100개 LRU 상한(모든 effect가 이걸 써서 무한 증가 방지, cavecrew).
+function cacheMerge(path: string, patch: Partial<Snap>) {
+  if (!snapCache.has(path) && snapCache.size >= 100) { const oldest = snapCache.keys().next().value; if (oldest !== undefined) snapCache.delete(oldest); }
+  const prev = snapCache.get(path) ?? { statuses: [], worktrees: null };
+  snapCache.set(path, { ...prev, ...patch });
+}
 
 export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMouseLeave }: {
   path: string;
@@ -61,14 +67,9 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
   useEffect(() => {
     let alive = true;
     const inRepo = (cwd: string) => { const a = norm(cwd), b = norm(path); return a === b || a.startsWith(b + "/"); };
-    const cacheMerge = (patch: Partial<Snap>) => {
-      const prev = snapCache.get(path) ?? { statuses: [], worktrees: null };
-      if (!snapCache.has(path) && snapCache.size >= 100) { const oldest = snapCache.keys().next().value; if (oldest !== undefined) snapCache.delete(oldest); } // LRU 상한
-      snapCache.set(path, { ...prev, ...patch });
-    };
     const load = () => {
       fetch(`/api/agent/status?root=${encodeURIComponent(path)}`).then((r) => r.json()).then((j) => {
-        if (!alive) return; const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : []; setStatuses(ss); cacheMerge({ statuses: ss });
+        if (!alive) return; const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : []; setStatuses(ss); cacheMerge(path, { statuses: ss });
       }).catch(() => { /* ignore */ });
     };
     void load();
@@ -91,8 +92,7 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
         const list: Worktree[] = r.ok && d.ok ? (d.worktrees ?? []) : [];
         if (!alive) return;
         setWorktrees(list);
-        const prev = snapCache.get(path) ?? { statuses: [], worktrees: null };
-        snapCache.set(path, { ...prev, worktrees: list });
+        cacheMerge(path, { worktrees: list });
       } catch { if (alive) setWorktrees([]); }
     };
     void load();
@@ -106,7 +106,7 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
     if (!fn) return;
     let alive = true;
     const load = () => { fn(path).then((ps) => {
-      if (!alive) return; setPorts(ps); const prev = snapCache.get(path) ?? { statuses: [], worktrees: null }; snapCache.set(path, { ...prev, ports: ps });
+      if (!alive) return; setPorts(ps); cacheMerge(path, { ports: ps });
     }).catch(() => { /* ignore */ }); };
     void load();
     const iv = setInterval(load, 3000);

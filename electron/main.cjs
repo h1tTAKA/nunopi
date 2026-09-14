@@ -822,7 +822,7 @@ async function ppidMap() {
     const m = new Map();
     for (const line of stdout.split("\n")) {
       const t = line.trim().split(/\s+/);
-      if (t.length >= 2) { const p = Number(t[0]), pp = Number(t[1]); if (Number.isInteger(p)) m.set(p, pp); }
+      if (t.length >= 2) { const p = Number(t[0]), pp = Number(t[1]); if (Number.isInteger(p) && Number.isInteger(pp)) m.set(p, pp); }
     }
     return m;
   } catch { return new Map(); }
