@@ -65,4 +65,8 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
     onData: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("terminal:data", h); return () => ipcRenderer.removeListener("terminal:data", h); },
     onExit: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("terminal:exit", h); return () => ipcRenderer.removeListener("terminal:exit", h); },
   },
+  ports: { // #880 워크스페이스 dev 서버 포트 감지·열기
+    list: (cwd) => ipcRenderer.invoke("ports:list", cwd),
+    open: (port) => ipcRenderer.invoke("ports:open", port),
+  },
 });

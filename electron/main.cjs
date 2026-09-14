@@ -793,6 +793,77 @@ ipcMain.handle("terminal:list", async () => {
   return ss.map(({ screen, ...s }) => ({ ...s, agent: agentForId(s.id, s.process, screen) }));
 });
 
+// ── 포트 패널(#880) — 워크스페이스가 띄운 dev 서버 리스닝 포트 감지. lsof(포트+PID)+세션PID+ps(ppid) 귀속.
+const LOCAL_ADDRS = /^(127\.0\.0\.1|::1|\*|0\.0\.0\.0|localhost)$/i;
+// lsof로 리스닝(LISTEN) TCP 포트+PID 목록. localhost만. 실패 시 [](패널만 비어 안전).
+async function listeningPorts() {
+  try {
+    const { stdout } = await execFileP("lsof", ["-nP", "-iTCP", "-sTCP:LISTEN"], { encoding: "utf8", timeout: 4000, maxBuffer: 4_000_000 });
+    const out = [];
+    for (const line of stdout.split("\n").slice(1)) { // 첫 줄 헤더
+      const parts = line.trim().split(/\s+/);
+      if (parts.length < 2) continue;
+      const cmd = parts[0], pid = Number(parts[1]);
+      if (!Number.isInteger(pid)) continue;
+      const nameTok = line.replace(/\s+\(LISTEN\)\s*$/, "").trim().split(/\s+/).pop() || ""; // NAME 열(예: 127.0.0.1:3000)
+      const ci = nameTok.lastIndexOf(":");
+      if (ci < 0) continue;
+      const addr = nameTok.slice(0, ci).replace(/^\[|\]$/g, ""), port = Number(nameTok.slice(ci + 1));
+      if (!Number.isInteger(port) || !LOCAL_ADDRS.test(addr)) continue;
+      out.push({ cmd, pid, port });
+    }
+    return out;
+  } catch { return []; } // lsof 없음(win)·타임아웃 등
+}
+// pid→ppid 맵(ps 한 번).
+async function ppidMap() {
+  try {
+    const { stdout } = await execFileP("ps", ["-eo", "pid=,ppid="], { encoding: "utf8", timeout: 4000, maxBuffer: 4_000_000 });
+    const m = new Map();
+    for (const line of stdout.split("\n")) {
+      const t = line.trim().split(/\s+/);
+      if (t.length >= 2) { const p = Number(t[0]), pp = Number(t[1]); if (Number.isInteger(p) && Number.isInteger(pp)) m.set(p, pp); }
+    }
+    return m;
+  } catch { return new Map(); }
+}
+// pid의 부모 체인에 sessionPids 중 하나가 있으면 true(방문 set·최대 뎁스로 루프 방지).
+function descendsFrom(pid, sessionPids, pmap) {
+  let cur = pid, depth = 0; const seen = new Set();
+  while (Number.isInteger(cur) && cur > 1 && depth < 40 && !seen.has(cur)) {
+    if (sessionPids.has(cur)) return true;
+    seen.add(cur); cur = pmap.get(cur); depth++;
+  }
+  return false;
+}
+async function listPorts(cwd) {
+  if (!cwd) return [];
+  const nc = String(cwd).replace(/\/+$/, "");
+  let sessions;
+  try { sessions = await termClient.list(); } catch { return []; }
+  // 이 워크스페이스 cwd(또는 하위)서 뜬 세션들의 pty pid — dev 서버는 이 pid의 자손.
+  const sessionPids = new Set(
+    sessions
+      .filter((s) => { const c = String(s.cwd || "").replace(/\/+$/, ""); return c === nc || c.startsWith(nc + "/"); })
+      .map((s) => Number(s.pid)).filter(Number.isInteger),
+  );
+  if (sessionPids.size === 0) return [];
+  const [ports, pmap] = await Promise.all([listeningPorts(), ppidMap()]);
+  const seen = new Set(); const out = [];
+  for (const p of ports) {
+    if (seen.has(p.port)) continue;
+    if (descendsFrom(p.pid, sessionPids, pmap)) { seen.add(p.port); out.push(p); }
+  }
+  return out.sort((a, b) => a.port - b.port);
+}
+ipcMain.handle("ports:list", (_e, cwd) => listPorts(cwd));
+ipcMain.handle("ports:open", (_e, port) => {
+  const n = Number(port);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) return { ok: false };
+  void shell.openExternal(`http://localhost:${n}`); // 앱 내부 창 아니라 기본 브라우저로(devtools·확장 위해)
+  return { ok: true };
+});
+
 // 단일 인스턴스.
 if (!app.requestSingleInstanceLock()) {
   app.quit();

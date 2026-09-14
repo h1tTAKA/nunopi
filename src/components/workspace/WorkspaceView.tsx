@@ -639,7 +639,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
               className={`rounded-md p-1 transition ${docsOpen ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
               <IconFileText size={14} stroke={2} aria-hidden />
             </button>
-            {/* 우측 끝 — Claude·Codex 토큰 사용량 모니터(#735). active일 때만 폴링(중복 방지). */}
+            {/* 우측 끝 — 설정·토큰 사용량(#735) 모니터. active일 때만 폴링(중복 방지). 포트(#880)는 레포 호버카드에. */}
             <div className="ml-auto flex items-center gap-0.5">
               {onOpenSettings && (
                 <button type="button" onClick={onOpenSettings} title={t("header.settings")} aria-label={t("header.settings")}

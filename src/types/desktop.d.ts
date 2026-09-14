@@ -86,6 +86,11 @@ interface NunopiDesktopApi {
     onData(cb: (p: { id: string; data: string }) => void): () => void;
     onExit(cb: (p: { id: string }) => void): () => void;
   };
+  // 포트 패널(#880) — 워크스페이스(cwd)가 띄운 dev 서버 리스닝 포트. open은 기본 브라우저로.
+  ports: {
+    list(cwd: string): Promise<{ port: number; pid: number; cmd: string }[]>;
+    open(port: number): Promise<{ ok: boolean }>;
+  };
 }
 
 interface Window {
