@@ -17,6 +17,7 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
   // 열릴 때 검색어·선택 초기화 + 입력창 포커스.
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 열릴 때 1회 초기화(open 토글에만 반응)
     setQ(""); setSel(0);
     const id = setTimeout(() => inputRef.current?.focus(), 0); // 렌더 후 포커스
     return () => clearTimeout(id);
@@ -30,12 +31,14 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
 
   if (!open) return null;
 
+  // 필터가 줄어 sel이 범위를 넘으면 마지막 항목으로 클램프(선택 안 보이는 문제 방지, cavecrew).
+  const cur = filtered.length ? Math.min(sel, filtered.length - 1) : 0;
   const run = (c?: Command) => { if (!c) return; onClose(); c.run(); };
 
   const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") { e.preventDefault(); setSel((i) => (filtered.length ? (i + 1) % filtered.length : 0)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((i) => (filtered.length ? (i - 1 + filtered.length) % filtered.length : 0)); }
-    else if (e.key === "Enter") { e.preventDefault(); run(filtered[sel]); }
+    if (e.key === "ArrowDown") { e.preventDefault(); setSel((i) => (filtered.length ? (Math.min(i, filtered.length - 1) + 1) % filtered.length : 0)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setSel((i) => (filtered.length ? (Math.min(i, filtered.length - 1) - 1 + filtered.length) % filtered.length : 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); run(filtered[cur]); }
     else if (e.key === "Escape") { e.preventDefault(); onClose(); }
   };
 
@@ -59,7 +62,7 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
               <li key={c.id}>
                 {showSection ? <div className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{c.section}</div> : null}
                 <button type="button" onMouseEnter={() => setSel(i)} onClick={() => run(c)}
-                  className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] transition ${i === sel ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
+                  className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] transition ${i === cur ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
                   {c.icon ? <span className="flex w-4 shrink-0 items-center justify-center text-zinc-400">{c.icon}</span> : null}
                   {c.label}
                 </button>

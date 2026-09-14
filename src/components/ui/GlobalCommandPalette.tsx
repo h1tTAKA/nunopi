@@ -17,8 +17,9 @@ import type { AddKind } from "@/components/workspace/WorkspaceAddMenu";
 // Mustard(워크스페이스 셸) 뷰 vs nunopi(학습 모듈) 뷰 — 팔레트서 섹션 분리, nunopi는 플래그로 게이트(#878).
 const MUSTARD_VIEWS: ViewMode[] = ["workspace"];
 const NUNOPI_VIEWS: ViewMode[] = ["code", "text", "ask", "memorize", "history"];
-// 새 탭 종류 — 레포는 Mustard 네이티브(항상), 나머지는 nunopi 학습 탭(게이트).
+// nunopi 학습 탭(게이트). 레포 탭은 Mustard 네이티브라 별도(항상).
 const NUNOPI_TAB_KINDS: AddKind[] = ["ask", "code", "text", "memorize"];
+
 // 뷰별 아이콘 — AreaModeToggle과 동일(일관성).
 const VIEW_ICON: Record<ViewMode, React.ReactNode> = {
   workspace: <IconLayoutDashboard size={16} stroke={2} aria-hidden />,
@@ -36,7 +37,6 @@ const TAB_ICON: Record<AddKind, React.ReactNode> = {
   text: <IconFileText size={16} stroke={2} aria-hidden />,
   memorize: <IconCards size={16} stroke={2} aria-hidden />,
 };
-const NEW_TAB_KINDS: AddKind[] = ["repo", "ask", "code", "text", "memorize"];
 
 export default function GlobalCommandPalette({
   onNavigate,
@@ -51,6 +51,7 @@ export default function GlobalCommandPalette({
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
+  const [tabCmds, setTabCmds] = useState<Command[]>([]);
 
   // ⌘K(맥) / Ctrl+K — 전역 토글. input 포커스 중에도 열리게 preventDefault.
   useEffect(() => {
@@ -64,33 +65,40 @@ export default function GlobalCommandPalette({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // open을 dep에 포함 — 팔레트 열 때 workspaceRef.listTabs()를 새로 읽어 최신 탭 목록 반영.
+  // 워크스페이스 탭 명령은 팔레트 열 때 스냅샷 — ref는 effect서만 읽음(렌더 중 접근 금지).
+  // run 클로저는 workspaceRef.current를 직접 호출(캡처 stale 회피).
+  useEffect(() => {
+    const ws = open && vm === "workspace" ? workspaceRef.current : null;
+    let next: Command[] = [];
+    if (ws) {
+      const switchTabs: Command[] = ws.listTabs().map((tb) => ({
+        id: `tab:${tb.key}`, section: t("palette.section.tab"), label: tb.label, icon: TAB_ICON[tb.kind],
+        run: () => workspaceRef.current?.activate(tb.key),
+      }));
+      const newKinds: AddKind[] = ["repo", ...(nunopiEnabled ? NUNOPI_TAB_KINDS : [])];
+      const newTabs: Command[] = newKinds.map((k) => ({
+        id: `new:${k}`, section: t("palette.section.newTab"),
+        label: `${t("palette.newTab")}: ${k === "repo" ? t("palette.tabRepo") : t(`mode.${k}`)}`,
+        icon: TAB_ICON[k], run: () => workspaceRef.current?.addTab(k),
+      }));
+      next = [...switchTabs, ...newTabs];
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 열림/뷰 전환 시 탭 스냅샷 1회 갱신
+    setTabCmds(next);
+  }, [open, vm, t, workspaceRef]);
+
   const commands = useMemo<Command[]>(() => {
     // Mustard 섹션 — 워크스페이스 + 설정(항상).
     const mustard: Command[] = [
       ...MUSTARD_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.mustard"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) })),
       { id: "settings", section: t("palette.section.mustard"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, run: onOpenSettings },
     ];
-    // nunopi 학습 섹션 — 모듈 설치 시에만(스탠드얼론/설치된 경우). Mustard-only 빌드면 숨김.
+    // nunopi 학습 섹션 — 모듈 설치 시에만. Mustard-only 빌드면 숨김.
     const nunopiNav: Command[] = nunopiEnabled
       ? NUNOPI_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.nunopi"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) }))
       : [];
-    const base: Command[] = [...mustard, ...nunopiNav];
-    // 워크스페이스일 때만 탭 전환·생성 명령(열린 탭 목록은 ref로 즉시 조회).
-    const ws = vm === "workspace" ? workspaceRef.current : null;
-    if (!ws) return base;
-    const switchTabs: Command[] = ws.listTabs().map((tb) => ({
-      id: `tab:${tb.key}`, section: t("palette.section.tab"), label: tb.label, icon: TAB_ICON[tb.kind], run: () => ws.activate(tb.key),
-    }));
-    // 새 탭 — 레포(Mustard 네이티브)는 항상, nunopi 학습 탭은 게이트.
-    const newKinds: AddKind[] = ["repo", ...(nunopiEnabled ? NUNOPI_TAB_KINDS : [])];
-    const newTabs: Command[] = newKinds.map((k) => ({
-      id: `new:${k}`, section: t("palette.section.newTab"),
-      label: `${t("palette.newTab")}: ${k === "repo" ? t("palette.tabRepo") : t(`mode.${k}`)}`,
-      icon: TAB_ICON[k], run: () => ws.addTab(k),
-    }));
-    return [...base, ...switchTabs, ...newTabs];
-  }, [t, onNavigate, onOpenSettings, vm, workspaceRef, open]);
+    return [...mustard, ...nunopiNav, ...tabCmds];
+  }, [t, onNavigate, onOpenSettings, tabCmds]);
 
   return <CommandPalette open={open} commands={commands} onClose={() => setOpen(false)} />;
 }
