@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useToast } from "@/components/ui/Toast";
@@ -68,7 +68,14 @@ function tabDot(st: TabState | null) {
 
 // 멀티 워크스페이스 탭(#731) — 여러 레포를 탭으로 열고 전환. 각 탭 = WorkspaceView 인스턴스(key=tabKey).
 // 방문한 탭은 숨긴 채 계속 마운트(lazy keep-alive) — 전환해도 도킹/에디터/터미널 상태 보존.
-export default function WorkspaceTabs({ active = true, providerId, providerSettings, onExitWorkspace, onOpenMemorize, onOpenSettings }: { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; onExitWorkspace?: () => void; onOpenMemorize?: () => void; onOpenSettings?: () => void }) {
+// 명령 팔레트(#878)가 워크스페이스 탭을 조작하는 명령형 핸들 — 전환/생성/목록.
+export type WorkspaceTabsHandle = {
+  listTabs: () => { key: string; kind: "repo" | ModeKind; label: string }[];
+  activate: (key: string) => void;
+  addTab: (kind: AddKind) => void;
+};
+type WorkspaceTabsProps = { active?: boolean; providerId: AgentProviderKind; providerSettings: ProviderSettings; onExitWorkspace?: () => void; onOpenMemorize?: () => void; onOpenSettings?: () => void };
+const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(function WorkspaceTabs({ active = true, providerId, providerSettings, onExitWorkspace, onOpenMemorize, onOpenSettings }, ref) {
   const t = useT();
   const toast = useToast();
   const confirm = useConfirm();
@@ -319,6 +326,13 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
     else void addModeTab(kind);
   };
 
+  // 명령 팔레트(#878)용 명령형 핸들 — 매 렌더 최신 tabs/activate/onPick 반영(activate는 setter-only라 stale 무해).
+  useImperativeHandle(ref, () => ({
+    listTabs: () => tabs.map((tb) => ({ key: tabKey(tb), kind: tb.type, label: tb.type === "repo" ? basename(tb.path) : t(MODE_TAB[tb.type].labelKey) })),
+    activate: (key) => activate(key),
+    addTab: (kind) => onPick(kind),
+  }), [tabs, t, activate, onPick]);
+
   function closeTab(key: string) {
     const idx = tabs.findIndex((x) => tabKey(x) === key);
     if (idx < 0) return;
@@ -462,4 +476,5 @@ export default function WorkspaceTabs({ active = true, providerId, providerSetti
       <WorkspaceAddMenu anchor={addMenu} onClose={closeAddMenu} onPick={onPick} />
     </div>
   );
-}
+});
+export default WorkspaceTabs;
