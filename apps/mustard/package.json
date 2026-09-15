@@ -20,6 +20,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@mustard/core": "*",
+    "@mustard/nunopi": "*",
     "@sna-sdk/client": "0.17.2",
     "@sna-sdk/core": "0.17.2",
     "@tabler/icons-react": "^3.44.0",
