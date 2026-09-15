@@ -1,6 +1,6 @@
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
-import type { AgentAnalyzeCallOptions, AgentProvider } from "./types";
-import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "@mustard/core";
+import type { AgentAnalyzeCallOptions, AgentProvider } from "@mustard/core";
+import type { ConceptOccurrence, TranslateWarning } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { buildTextPrompt, normalizeTextOutput, textModeResponse } from "./textMode";

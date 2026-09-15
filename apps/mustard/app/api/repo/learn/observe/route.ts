@@ -1,7 +1,8 @@
 // 터미널 에이전트 실시간 활동 내레이션(#870) — main이 관찰한 터미널 버퍼 델타를 받아
 // SNA 에이전트(구독 CLI)로 "지금 뭘 어떻게 하는지 + 개념/용어"를 초보 눈높이로 생성해 학습 스트림에 push.
 // 유저 아키텍처: 머스타드 터미널의 에이전트 동작을 우리 SNA가 관찰하며 실시간 설명.
-import { snaClaudeProvider, snaCodexProvider, type AgentAnalyzeRequest } from "@/lib/agent";
+import { snaClaudeProvider, snaCodexProvider } from "@mustard/nunopi/server";
+import type { AgentAnalyzeRequest } from "@mustard/core";
 import { emitNarration } from "@/lib/mcpActivity";
 
 export const runtime = "nodejs";

@@ -3,7 +3,7 @@ import type {
   AgentAnalyzeResponse,
   AgentProvider,
   AgentProviderKind,
-} from "@/lib/agent";
+} from "../agent";
 import { detectLanguage, type DetectLanguageResult } from "./detectLanguage";
 import type {
   ExplanationBlock,
@@ -13,7 +13,7 @@ import type {
   TranslateRequest,
   TranslateResponse,
   TranslateWarning,
-} from "./types";
+} from "@mustard/core";
 
 export interface AnalyzeCodeParams {
   request: TranslateRequest;

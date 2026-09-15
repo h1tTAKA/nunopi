@@ -1,9 +1,9 @@
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
-import type { AgentProviderKind } from "./types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "@mustard/core";
+import type { AgentProviderKind } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 import { coerceModelTokens, dedupeConcepts, dedupeTokens } from "./dedupe";
 import { codeChunkDirectives } from "./codeChunkPrompt";
-import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import type { ConceptOccurrence, TranslateWarning } from "@mustard/core";
 
 // 코드 모드 프롬프트 빌더 + LLM 출력 정규화. 런타임(spawn) 무관한 순수 도메인 로직이라
 // 임베드 런타임 provider(snaAgentProvider)가 그대로 재사용한다.

@@ -1,8 +1,8 @@
 // 학습 챗 — 사용자가 보고 있는 코드에 대해 자유롭게 질문하면 튜터가 한국어로 답한다.
 // 응답은 JSON이 아니라 자유 텍스트라, 답을 그대로 summary에 담아 반환한다.
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProviderKind } from "./types";
-import type { TranslateWarning } from "@/lib/translator/types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "@mustard/core";
+import type { AgentProviderKind } from "@mustard/core";
+import type { TranslateWarning } from "@mustard/core";
 
 const LANG_NAME: Record<AgentAnalyzeRequest["locale"], string> = {
   ko: "Korean",

@@ -1,18 +1,18 @@
+import { snaClaudeProvider, snaCodexProvider, snaOpenCodeProvider } from "@mustard/nunopi/server";
 import {
   analyzeCodeChunked,
-  snaClaudeProvider,
-  snaCodexProvider,
-  snaOpenCodeProvider,
   createAgentRegistry,
   openAICompatibleProvider,
   shouldChunkCodeAnalysis,
   scanUniversalTokens,
   mergeUniversalTokens,
-  type AgentAnalyzeRequest,
-  type AgentAnalyzeResponse,
-  type AgentProvider,
-  type AgentProviderKind,
-} from "@/lib/agent";
+} from "@mustard/nunopi";
+import type {
+  AgentAnalyzeRequest,
+  AgentAnalyzeResponse,
+  AgentProvider,
+  AgentProviderKind,
+} from "@mustard/core";
 
 interface AgentAnalyzeHttpRequest {
   providerId: AgentProviderKind;

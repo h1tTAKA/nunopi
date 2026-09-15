@@ -2,9 +2,9 @@
 // 프롬프트와 출력 정규화는 동일하므로 여기서 공용화한다. 각 프로바이더는
 // request.mode === "text"일 때 buildTextPrompt로 프롬프트를 만들고 normalizeTextOutput으로
 // 결과를 정규화한다.
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
-import type { AgentProviderKind } from "./types";
-import type { ItConcept, ItTerm, TranslateWarning } from "@/lib/translator/types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "@mustard/core";
+import type { AgentProviderKind } from "@mustard/core";
+import type { ItConcept, ItTerm, TranslateWarning } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;

@@ -4,7 +4,7 @@
 //
 // 정확도: 문자열·주석 안의 단어는 세지 않는다(토크나이저가 그 구간을 통째 스킵). 연산자는
 // 최장일치(===가 = 앞)로 잡는다. 줄번호는 매치 위치로 계산한다.
-import type { CodeToken, TokenCategory } from "@/lib/translator/types";
+import type { CodeToken, TokenCategory } from "@mustard/core";
 
 // 예약어 + 원시 타입 키워드. 단어 경계로 매칭되므로 문자열/식별자 조각과 안 섞인다.
 // get/set/of/as/from/type 등은 식별자로도 쓰일 수 있어 드물게 오탐이 있으나, 범용 학습

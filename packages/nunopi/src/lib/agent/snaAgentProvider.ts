@@ -1,7 +1,7 @@
 import "server-only";
 import { getSnaClient } from "@mustard/core/sna";
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
-import type { AgentAnalyzeCallOptions, AgentProvider, AgentProviderKind } from "./types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "@mustard/core";
+import type { AgentAnalyzeCallOptions, AgentProvider, AgentProviderKind } from "@mustard/core";
 import {
   buildTextPrompt,
   mergeTextResults,

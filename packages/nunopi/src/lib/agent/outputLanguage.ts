@@ -1,4 +1,4 @@
-import type { AgentAnalyzeRequest } from "./schema";
+import type { AgentAnalyzeRequest } from "@mustard/core";
 
 const NAME: Record<AgentAnalyzeRequest["locale"], string> = {
   ko: "Korean",

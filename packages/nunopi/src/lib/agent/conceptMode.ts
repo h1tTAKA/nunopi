@@ -1,8 +1,8 @@
 // lazy 개념 설명 — 개념 카드를 클릭하면 그 개념 1개만 코드 맥락에서 on-demand로 설명한다.
 // 토큰(tokenMode)과 같은 패턴. 프로바이더는 실행만 다르고 프롬프트/파싱은 공용.
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProviderKind } from "./types";
-import type { ConceptOccurrence, TranslateWarning } from "@/lib/translator/types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "@mustard/core";
+import type { AgentProviderKind } from "@mustard/core";
+import type { ConceptOccurrence, TranslateWarning } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;

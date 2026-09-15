@@ -3,7 +3,7 @@
 // - outlineOnly: 1차. 개념/요약/제목만, 줄설명 비움.
 // - lineRange: 2차. 그 범위 줄설명만, 개념은 비우고 1차 개념 id만 참조.
 // - 둘 다 아니면: 기존 전체 분석.
-import type { AgentAnalyzeRequest } from "./schema";
+import type { AgentAnalyzeRequest } from "@mustard/core";
 
 // 줄별 설명(explanation)의 공통 형식 지시. 누노피 타깃(비개발자 바이브코더·주니어)이
 // 한 줄 한 줄 이해하도록: 한 문장 퉁 금지, 쉬운말 요약 + 코드 조각별 풀이(마크다운, #503).
