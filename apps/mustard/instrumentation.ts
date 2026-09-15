@@ -5,7 +5,7 @@ export async function register() {
   // 외부 런타임 서버(일렉트론 main 소유)면 임베드 스킵 — SnaClient가 SNA_BASE_URL로 연결.
   if (process.env.SNA_BASE_URL) { console.log("[sna] external runtime — skip embed"); return; }
   try {
-    const { getSnaServer } = await import("@/lib/sna/server");
+    const { getSnaServer } = await import("@mustard/core/sna/server");
     const sna = await getSnaServer();
     console.log("[sna] embedded runtime ready on", sna.port);
   } catch (e) {

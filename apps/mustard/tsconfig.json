@@ -22,7 +22,9 @@
     "paths": {
       "@/*": ["./src/*", "./*"],
       "@mustard/core": ["../../packages/core/src/index.ts"],
-      "@mustard/nunopi": ["../../packages/nunopi/src/index.ts"]
+      "@mustard/nunopi": ["../../packages/nunopi/src/index.ts"],
+      "@mustard/core/sna": ["../../packages/core/src/sna/client.ts"],
+      "@mustard/core/sna/server": ["../../packages/core/src/sna/server.ts"]
     }
   },
   "include": [

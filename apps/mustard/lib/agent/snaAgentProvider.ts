@@ -1,5 +1,5 @@
 import "server-only";
-import { getSnaClient } from "@/lib/sna/client";
+import { getSnaClient } from "@mustard/core/sna";
 import type { AgentAnalyzeRequest, AgentAnalyzeResponse, AgentUsage } from "./schema";
 import type { AgentAnalyzeCallOptions, AgentProvider, AgentProviderKind } from "./types";
 import {
