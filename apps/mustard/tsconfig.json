@@ -21,7 +21,8 @@
     ],
     "paths": {
       "@/*": ["./src/*", "./*"],
-      "@mustard/core": ["../../packages/core/src/index.ts"]
+      "@mustard/core": ["../../packages/core/src/index.ts"],
+      "@mustard/nunopi": ["../../packages/nunopi/src/index.ts"]
     }
   },
   "include": [
