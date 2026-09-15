@@ -1,3 +1,5 @@
+"use client";
+
 // 학습 패널 카드/사전 공용 아이콘 — Tabler Icons 백엔드.
 // 기존 export 이름(StarIcon/XIcon/BanIcon)·API(className, filled)를 유지해 호출부는 그대로.
 // currentColor 상속이라 text-* 색 클래스가 그대로 먹는다.

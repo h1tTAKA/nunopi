@@ -1,3 +1,5 @@
+"use client";
+
 import { IconEraser, IconMessageCircle } from "@tabler/icons-react";
 import type { AgentProviderKind } from "../../lib/agent";
 import CodeEditor from "./CodeEditor";
