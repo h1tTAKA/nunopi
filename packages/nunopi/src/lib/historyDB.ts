@@ -167,3 +167,4 @@ export async function clearHistory(mode?: AnalyzeMode): Promise<void> {
     req.onerror = () => reject(req.error);
   });
 }
+export { newSessionId };

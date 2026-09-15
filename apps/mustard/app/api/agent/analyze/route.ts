@@ -6,7 +6,7 @@ import {
   shouldChunkCodeAnalysis,
   scanUniversalTokens,
   mergeUniversalTokens,
-} from "@mustard/nunopi";
+} from "@mustard/nunopi/agent";
 import type {
   AgentAnalyzeRequest,
   AgentAnalyzeResponse,
