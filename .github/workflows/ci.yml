@@ -21,11 +21,12 @@ jobs:
           node-version: 24
           cache: npm
 
+      # 모노레포 루트에서 전체 워크스페이스 설치(#883).
       - name: Install dependencies
         run: npm ci
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint --workspace apps/mustard
 
       - name: Build
-        run: npm run build
+        run: npm run build --workspace apps/mustard
