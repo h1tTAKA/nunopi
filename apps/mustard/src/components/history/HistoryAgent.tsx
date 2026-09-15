@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconArrowUp, IconRefresh } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { collectHistory } from "@/lib/history/collect";
 import { buildHistoryContext } from "@/lib/history/context";
 import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";

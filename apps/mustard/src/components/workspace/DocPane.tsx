@@ -3,7 +3,7 @@
 // 탭 바·dock 컨트롤·닫기는 상위 DocViewer(#693 멀티탭)가 담당. /api/repo/file 재사용(root=docsRoot 스코프).
 import { useEffect, useState } from "react";
 import { IconLoader2 } from "@tabler/icons-react";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 export default function DocPane({ root, file }: { root: string; file: string }) {

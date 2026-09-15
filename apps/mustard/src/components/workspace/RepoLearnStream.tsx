@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { stripCardBlock } from "@/lib/cardSuggestion";
 
 type ConceptKind = "symbol" | "file" | "query" | "repo" | "edit" | "narration";

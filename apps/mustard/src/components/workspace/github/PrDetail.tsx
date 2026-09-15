@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle, IconArrowLeft, IconExternalLink, IconPencil, IconGitPullRequest, IconGitPullRequestDraft, IconGitPullRequestClosed, IconGitMerge, IconChevronDown, IconCheck } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
 import ChecksView from "@/components/workspace/github/ChecksView";
 import MarkdownToolbar from "@/components/workspace/github/MarkdownToolbar";

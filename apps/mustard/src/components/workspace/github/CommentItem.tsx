@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import GhAvatar from "@/components/workspace/github/GhAvatar";
 import ReactionBar from "@/components/workspace/github/ReactionBar";
 import { relTime } from "@/lib/relTime";

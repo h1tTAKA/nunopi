@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { IconSitemap, IconX, IconLoader2, IconChevronDown, IconRefresh, IconCode, IconBook2, IconSparkles, IconMessageCircle } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { stripCardBlock } from "@/lib/cardSuggestion";
 import { fetchGraphDigest } from "@/lib/repo/fetchDigest";
 

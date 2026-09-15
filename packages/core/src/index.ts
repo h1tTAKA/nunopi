@@ -11,3 +11,4 @@ export * from "./lib/askStore";
 export * from "./lib/bookmarkDetails";
 export * from "./lib/cardSuggestion";
 export * from "./lib/chatCard";
+export { default as Markdown } from "./components/Markdown";

@@ -5,7 +5,7 @@ import { IconBookmark, IconBookmarkFilled } from "@tabler/icons-react";
 import type { AgentLineExplanation } from "@/lib/agent";
 import type { ConceptOccurrence } from "@/lib/translator/types";
 import CodeBlock from "./CodeBlock";
-import Markdown from "./Markdown";
+import { Markdown } from "@mustard/core";
 import { useT } from "@/lib/i18n/I18nProvider";
 
 interface LineExplanationListProps {

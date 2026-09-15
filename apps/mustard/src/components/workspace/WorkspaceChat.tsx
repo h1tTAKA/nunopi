@@ -7,7 +7,7 @@
 // 데이터(sessions)와 열린 탭(openKeys) 분리: 탭 닫아도 대화 보존, 다시 열면 복원. localStorage 영속.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconMessageCircle, IconArrowUp, IconLoader2, IconFileCode, IconFileText, IconEraser, IconStack2, IconGitBranch, IconGitCommit, IconPencil, IconX, IconPlus, IconCheck, IconHistory, IconSitemap, IconCards, IconListCheck } from "@tabler/icons-react";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import WorkspaceQuizPanel from "@/components/workspace/WorkspaceQuizPanel";
 import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { parseCardSuggestions, stripStreamingCardBlock, stripCardBlock, removeSuggestedCard, type SuggestedCard } from "@/lib/cardSuggestion";

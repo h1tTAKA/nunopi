@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle, IconArrowLeft, IconExternalLink, IconPencil, IconCircleCheck, IconCircleDot } from "@tabler/icons-react";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import MarkdownToolbar from "@/components/workspace/github/MarkdownToolbar";
 import { relTime } from "@/lib/relTime";
 import CommentComposer from "@/components/workspace/github/CommentComposer";

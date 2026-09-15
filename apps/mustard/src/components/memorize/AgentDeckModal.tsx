@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconSparkles, IconX, IconSend2, IconCheck, IconMinus, IconEye } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { collectCards } from "@/lib/srs/collect";
 import { addCustomDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "@/lib/srs/customDeck";
 import { buildDeckSelectContext, parseDeckSelect, stripDeckSelect, stripDeckSelectStreaming } from "@/lib/deckSelect";
