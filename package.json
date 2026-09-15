@@ -1,58 +1,19 @@
 {
-  "name": "nunopi",
+  "name": "mustard-monorepo",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "//": "monaco-editor는 @monaco-editor/react의 peer(타입 전용, 런타임은 CDN). 락파일 없던 이관서 0.56으로 드리프트해 옵션 타입 깨짐 → main과 동일한 0.55.1로 트리 전체 고정. dep 업그레이드는 별 PR.",
+  "overrides": {
+    "monaco-editor": "0.55.1"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "rebuild:native": "electron-rebuild -f -w node-pty",
-    "predev:electron": "lsof -ti tcp:3000 | xargs kill -9 2>/dev/null || true",
-    "electron:dev": "npm run predev:electron; concurrently -k \"next dev\" \"wait-on http://localhost:3000 && ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
-    "electron:build": "next build && node scripts/copy-standalone-assets.mjs",
-    "electron:prod": "npm run electron:build && electron electron/main.cjs",
-    "electron:dist:dir": "npm run electron:build && electron-builder --dir --config electron-builder.yml",
-    "electron:dist": "npm run electron:build && electron-builder --config electron-builder.yml",
-    "postelectron:dist:dir": "npm rebuild better-sqlite3 node-pty",
-    "postelectron:dist": "npm rebuild better-sqlite3 node-pty"
-  },
-  "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
-    "@sna-sdk/client": "0.17.2",
-    "@sna-sdk/core": "0.17.2",
-    "@tabler/icons-react": "^3.44.0",
-    "@types/d3-force": "^3.0.10",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-webgl": "^0.19.0",
-    "@xterm/xterm": "^6.0.0",
-    "better-sqlite3": "^12.11.1",
-    "d3-force": "^3.0.0",
-    "langfuse": "^3.38.20",
-    "next": "16.2.6",
-    "node-pty": "^1.1.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-markdown": "^10.1.0",
-    "rehype-highlight": "^7.0.2",
-    "remark-gfm": "^4.0.1",
-    "shiki": "^4.2.0",
-    "tree-sitter-wasms": "0.1.13",
-    "web-tree-sitter": "0.20.8"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "concurrently": "^10.0.3",
-    "electron": "^43.0.0",
-    "electron-builder": "^26.15.3",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "wait-on": "^9.0.10"
-  },
-  "main": "electron/main.cjs"
+    "lint": "npm run lint --workspace apps/mustard",
+    "build": "npm run build --workspace apps/mustard",
+    "dev": "npm run dev --workspace apps/mustard",
+    "electron:dev": "npm run electron:dev --workspace apps/mustard"
+  }
 }
