@@ -20,7 +20,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*", "./*"]
+      "@/*": ["./src/*", "./*"],
+      "@mustard/core": ["../../packages/core/src/index.ts"]
     }
   },
   "include": [
