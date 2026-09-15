@@ -1,3 +1,35 @@
-// @mustard/nunopi — 학습 모듈(#889). core만 의존(workspace/apps 절대 import 안 함, 불변식).
-// 서브3 배치서 학습 뷰·로직 채워짐. apps/mustard(옵션 임베드)·apps/nunopi(스탠드얼론)가 마운트.
-export {};
+// @mustard/nunopi — 학습 모듈 배럴(client-safe, #889 배치2). server-only는 @mustard/nunopi/server.
+export * from "./lib/agent/index";
+export * from "./lib/agent/catalog";
+export * from "./lib/agent/dedupe";
+export * from "./lib/translator/detectLanguage";
+export * from "./lib/srs/activityLog";
+export * from "./lib/srs/cardFrame";
+export * from "./lib/srs/cardSource";
+export * from "./lib/srs/collect";
+export * from "./lib/srs/customDeck";
+export * from "./lib/srs/deleteCard";
+export * from "./lib/srs/due";
+export * from "./lib/srs/schedule";
+export * from "./lib/srs/stats";
+export * from "./lib/srs/store";
+export * from "./lib/cardChat";
+export * from "./lib/cardDedup";
+export * from "./lib/cardExplain";
+export * from "./lib/collections";
+export * from "./lib/deckAssign";
+export * from "./lib/deckSelect";
+export * from "./lib/exclusions";
+export * from "./lib/exportHtml";
+export * from "./lib/formatDuration";
+export * from "./lib/highlightTerms";
+export * from "./lib/historyDB";
+export * from "./lib/isCommentLine";
+export * from "./lib/memSession";
+export * from "./lib/reanchorLines";
+export * from "./lib/safeText";
+export * from "./lib/history/collect";
+export * from "./lib/history/context";
+export * from "./lib/history/types";
+export * from "./hooks/useCollapsed";
+export * from "./hooks/useFullscreen";

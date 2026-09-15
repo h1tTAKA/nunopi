@@ -1,5 +1,5 @@
-import type { TranslatorProviderRegistry } from "@/lib/translator/orchestrator";
-import type { AgentProvider, AgentProviderKind } from "./types";
+import type { TranslatorProviderRegistry } from "../translator/orchestrator";
+import type { AgentProvider, AgentProviderKind } from "@mustard/core";
 
 export interface CreateAgentRegistryOptions {
   providers?: AgentProvider[];

@@ -1,9 +1,9 @@
 // lazy 토큰 사전 — 줄별 설명의 토큰 태그를 클릭하면 그 토큰 1개만 on-demand로 설명한다.
 // 초기 분석에서 토큰 사전을 통째로 만들지 않아 출력/비용을 크게 줄인다.
 // 프로바이더는 실행 방식만 다르고 프롬프트/파싱은 같으므로 여기서 공용화한다.
-import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "./schema";
-import type { AgentProviderKind } from "./types";
-import type { CodeToken, TranslateWarning } from "@/lib/translator/types";
+import type { AgentAnalyzeRequest, AgentAnalyzeResponse } from "@mustard/core";
+import type { AgentProviderKind } from "@mustard/core";
+import type { CodeToken, TranslateWarning } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 
 const JSON_CODE_BLOCK_PATTERN = /```json\s*([\s\S]*?)```/i;

@@ -1,4 +1,4 @@
-import { getSnaServer } from "@/lib/sna/server";
+import { getSnaServer } from "@mustard/core/sna/server";
 
 // 런타임 서버 헬스체크. 외부 서버(일렉트론 main 소유)면 external:true, 아니면 임베드 { ready, port }.
 export async function GET() {

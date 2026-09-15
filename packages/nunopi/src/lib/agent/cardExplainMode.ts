@@ -2,7 +2,7 @@
 // 북마크에 박힌 "이 분석에서의 설명"이 아니라, 그 용어 자체의 범용 정의/발음/원어 +
 // (코드 토큰이면) 예문·용도를 마크다운으로 생성한다. 응용력 학습용.
 // 출력은 엄격 JSON 아님 — 마크다운 텍스트(스트리밍 타이핑 + 자유 형식).
-import type { AgentAnalyzeRequest } from "./schema";
+import type { AgentAnalyzeRequest } from "@mustard/core";
 import { outputLanguageDirective } from "./outputLanguage";
 
 export function buildCardExplainPrompt(request: AgentAnalyzeRequest): string {
