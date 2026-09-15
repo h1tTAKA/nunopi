@@ -1,1 +1,1 @@
-export * from "@mustard/nunopi"; // #889 shim
+export * from "@mustard/nunopi/agent"; // #889 shim
