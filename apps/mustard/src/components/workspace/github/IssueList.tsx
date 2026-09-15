@@ -3,7 +3,7 @@
 // 행 클릭 시 onOpen(number)로 상세(IssueDetail)로. reloadKey 변하면 재조회(패널 새로고침 연동).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
 
 type Filter = "open" | "closed" | "all";

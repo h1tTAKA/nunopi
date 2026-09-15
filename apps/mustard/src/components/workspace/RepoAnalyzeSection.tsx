@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { IconSitemap, IconSparkles, IconLoader2, IconChevronRight, IconRefresh, IconBinaryTree2, IconPlugConnected, IconCheck } from "@tabler/icons-react";
-import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-import { stripCardBlock } from "@/lib/cardSuggestion";
+import { useT, useLocale } from "@mustard/core";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
+import { stripCardBlock } from "@mustard/core";
 import { fetchGraphDigest } from "@/lib/repo/fetchDigest";
 
 // 레포 기능 카테고리(#743) — 에이전트가 파일 목록 보고 나눔.

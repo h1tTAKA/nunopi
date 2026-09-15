@@ -3,7 +3,7 @@
 // 성공 시 onChanged()로 부모 재조회. commentId는 url의 #issuecomment-<id>에서 파싱.
 import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconPencil, IconTrash } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { Markdown } from "@mustard/core";
 import GhAvatar from "@/components/workspace/github/GhAvatar";
 import ReactionBar from "@/components/workspace/github/ReactionBar";

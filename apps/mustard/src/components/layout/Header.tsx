@@ -1,8 +1,7 @@
 "use client";
 
 import { IconSettings } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-
+import { useT } from "@mustard/core";
 interface HeaderProps {
   // 헤더 정중앙 슬롯 — 코드/글 분석 모드 토글.
   modeToggle?: React.ReactNode;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IconGitBranch, IconArrowUp, IconArrowDown, IconPencil, IconLoader2, IconCircleCheck, IconQuestionMark, IconAlertTriangle, IconPlugConnected, IconExternalLink } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { AgentLogo, AGENT_META, type AgentId } from "@/components/workspace/AgentLogo";
 import RepoAvatar from "@/components/workspace/RepoAvatar";
 

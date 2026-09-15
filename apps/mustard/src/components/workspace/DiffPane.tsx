@@ -3,11 +3,10 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { codeToTokens, type ThemedToken, type BundledLanguage } from "shiki";
 import { IconLoader2, IconAlertTriangle, IconGitCompare, IconSparkles, IconRefresh } from "@tabler/icons-react";
-import { useLocale, useT } from "@/lib/i18n/I18nProvider";
+import { useLocale, useT } from "@mustard/core";
 import { Markdown } from "@mustard/core";
-import { parseCardSuggestions } from "@/lib/cardSuggestion";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-
+import { parseCardSuggestions } from "@mustard/core";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 type StreamEvent = { type: "progress"; line: string } | { type: "result"; response: { summary: string } } | { type: "error"; message: string };
 
 interface DLine { kind: "hunk" | "add" | "del" | "ctx" | "meta"; oldN: number | null; newN: number | null; text: string; ctxLabel?: string }

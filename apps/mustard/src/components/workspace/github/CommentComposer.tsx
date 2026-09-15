@@ -3,7 +3,7 @@
 // 서식 버튼은 선택영역에 Markdown 삽입. Cmd/Ctrl+Enter 전송. write라 명시적 Send만.
 import { useEffect, useRef, useState } from "react";
 import { IconLoader2 } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import MarkdownToolbar from "@/components/workspace/github/MarkdownToolbar";
 
 export default function CommentComposer({ root, kind, number, onPosted }: { root: string; kind: "issue" | "pr"; number: number; onPosted: () => void }) {

@@ -2,15 +2,14 @@
 
 import type { ReactNode } from "react";
 import { IconMessages, IconCards, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useFullscreen } from "@/hooks/useFullscreen";
-import { useCollapsed } from "@/hooks/useCollapsed";
-import AskView from "@/components/ask/AskView";
+import { useT } from "@mustard/core";
+import { useFullscreen } from "@mustard/nunopi";
+import { useCollapsed } from "@mustard/nunopi";
+import { AskView } from "@mustard/nunopi";
 import CodeAnalysisView from "@/components/analyze/CodeAnalysisView";
-import MemorizeView from "@/components/memorize/MemorizeView";
-import { useAnalysisContext } from "@/lib/analyze/AnalysisContext";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-
+import { MemorizeView } from "@mustard/nunopi";
+import { useAnalysisContext } from "@mustard/nunopi";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 // 모드 탭 컨테이너(#769) — 질문/코드분석/글분석을 워크스페이스 탭 안에 임베드하는 자리.
 // 질문=AskView(#771), 코드분석·글분석=CodeAnalysisView(#773). 헤더 슬롯(tabStrip)은 레포 탭과
 // 동일하게 받아 활성 탭이 모드일 때도 탭 바가 그대로 보이게 한다(끌어올리기 없이 시각 일관).

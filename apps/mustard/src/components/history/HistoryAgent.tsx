@@ -2,18 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconArrowUp, IconRefresh } from "@tabler/icons-react";
-import { useLocale, useT } from "@/lib/i18n/I18nProvider";
+import { useLocale, useT } from "@mustard/core";
 import { Markdown } from "@mustard/core";
-import { collectHistory } from "@/lib/history/collect";
-import { buildHistoryContext } from "@/lib/history/context";
-import { parseCardSuggestions, stripStreamingCardBlock } from "@/lib/cardSuggestion";
-import { dayKey } from "@/lib/srs/activityLog";
-import { summary } from "@/lib/srs/stats";
-import { categoryCounts, dueCards } from "@/lib/srs/due";
-import { collectCards } from "@/lib/srs/collect";
-import { DECK_SOURCES } from "@/lib/srs/types";
-import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
-
+import { collectHistory } from "@mustard/nunopi";
+import { buildHistoryContext } from "@mustard/nunopi";
+import { parseCardSuggestions, stripStreamingCardBlock } from "@mustard/core";
+import { dayKey } from "@mustard/nunopi";
+import { summary } from "@mustard/nunopi";
+import { categoryCounts, dueCards } from "@mustard/nunopi";
+import { collectCards } from "@mustard/nunopi";
+import { DECK_SOURCES } from "@mustard/core";
+import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@mustard/core";
 interface HistoryAgentProps {
   providerId: AgentProviderKind;
   providerSettings: ProviderSettings;

@@ -3,7 +3,7 @@
 // 항목 클릭 시 orca식 상세(상태·시작/완료 시각·체크#·작업흐름#·주석) 펼침. 주석은 펼칠 때 lazy 조회.
 import { useEffect, useState } from "react";
 import { IconCircleCheck, IconCircleX, IconLoader2, IconCircle, IconExternalLink, IconChevronRight } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { normalizeChecks, summarize, type Check, type CheckState } from "@/components/workspace/github/checks";
 import { fmtDateTime } from "@/lib/relTime";
 

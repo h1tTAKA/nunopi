@@ -2,12 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconPlus, IconX } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useConfirm } from "@/components/ui/ConfirmDialog";
-import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@/lib/agent";
-import { newAskId, type QuizSession, type AskQuiz } from "@/lib/askStore";
-import QuizRunner from "@/components/ask/QuizRunner";
-
+import { useT } from "@mustard/core";
+import { useConfirm } from "@mustard/core";
+import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@mustard/core";
+import { newAskId, type QuizSession, type AskQuiz } from "@mustard/core";
+import { QuizRunner } from "@mustard/nunopi";
 // 워크스페이스 챗 테스트 오버레이용 퀴즈 패널(#760) — 질문모드 AskSessionQuiz와 동일한 다중 세션 모델
 // (여러 퀴즈 세션 + 새 퀴즈로 재출제 + 삭제). 실행부는 QuizRunner 재사용. 차이 두 가지:
 //   ① 우측 aside/리사이즈 없이 오버레이 본문을 통째로 채우는 bare 레이아웃.

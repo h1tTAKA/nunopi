@@ -1,9 +1,8 @@
 "use client";
 
 import { IconCode, IconFileText, IconMessage2, IconLayoutDashboard, IconMessages, IconCards, IconArrowBackUp } from "@tabler/icons-react";
-import type { ViewMode } from "@/lib/viewMode";
-import { useT } from "@/lib/i18n/I18nProvider";
-
+import type { ViewMode } from "@mustard/core";
+import { useT } from "@mustard/core";
 // 공통 세그먼트 스타일.
 const SEG_WRAP = "inline-flex rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900";
 const SEG_ON = "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50";

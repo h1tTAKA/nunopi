@@ -3,7 +3,7 @@
 // IssueList와 동형(무한 스크롤·dwell 툴팁·reqId stale 가드). 행에 statusCheckRollup 요약.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
 import { ChecksSummary } from "@/components/workspace/github/ChecksView";
 

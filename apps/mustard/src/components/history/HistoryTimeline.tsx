@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { IconCode, IconMessage2, IconMessageQuestion, IconListCheck, IconCards, IconBrain, IconLoader2, IconChevronLeft, IconChevronRight, IconCalendar, IconFlame, type IconProps } from "@tabler/icons-react";
-import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import { collectHistory } from "@/lib/history/collect";
-import { dayKey } from "@/lib/srs/activityLog";
-import { summary } from "@/lib/srs/stats";
-import { CARDS_CHANGED_EVENT } from "@/lib/chatCard";
-import { CARD_CHAT_CHANGED_EVENT } from "@/lib/cardChat";
-import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@/lib/history/types";
-
+import { useLocale, useT } from "@mustard/core";
+import { collectHistory } from "@mustard/nunopi";
+import { dayKey } from "@mustard/nunopi";
+import { summary } from "@mustard/nunopi";
+import { CARDS_CHANGED_EVENT } from "@mustard/core";
+import { CARD_CHAT_CHANGED_EVENT } from "@mustard/nunopi";
+import type { HistoryEventType, HistoryNav, UnifiedHistoryEvent } from "@mustard/nunopi";
 const LOCALE_TAG: Record<string, string> = { ko: "ko-KR", ja: "ja-JP", en: "en-US" };
 
 // 유형별 아이콘 · 색(cls) · 밴드 틴트(tint, 카드 상단 그라데이션 시작색).

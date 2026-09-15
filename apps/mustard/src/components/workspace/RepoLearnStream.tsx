@@ -3,11 +3,10 @@
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast } from "@tabler/icons-react";
-import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import { useT, useLocale } from "@mustard/core";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { Markdown } from "@mustard/core";
-import { stripCardBlock } from "@/lib/cardSuggestion";
-
+import { stripCardBlock } from "@mustard/core";
 type ConceptKind = "symbol" | "file" | "query" | "repo" | "edit" | "narration";
 interface ActivityEvent { root: string; tool: string; kind: ConceptKind; target: string; isError: boolean; ts: number; note?: string }
 interface Concept { key: string; kind: ConceptKind; target: string; tool: string; status: "idle" | "loading" | "done" | "error"; expl?: string; ts: number }

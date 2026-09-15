@@ -3,7 +3,7 @@
 // 탭 바(파일명+닫기) + 우측 dock 컨트롤(영역/상하 토글) + 활성 DocPane(활성 파일로 remount).
 import { useCallback } from "react";
 import { IconX, IconFileText, IconTerminal2, IconFileCode, IconLayoutNavbar, IconLayoutBottombar } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import DocPane from "@/components/workspace/DocPane";
 
 export default function DocViewer({ root, tabs, activeDoc, onActivate, onCloseTab, pos, onTogglePos, region, onToggleRegion }: {
