@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconRefresh, IconZoomScan, IconX } from "@tabler/icons-react";
 import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import MemorizeChat from "./MemorizeChat";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 import type { Card } from "@/lib/srs/types";

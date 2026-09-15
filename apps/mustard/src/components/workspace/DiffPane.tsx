@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { codeToTokens, type ThemedToken, type BundledLanguage } from "shiki";
 import { IconLoader2, IconAlertTriangle, IconGitCompare, IconSparkles, IconRefresh } from "@tabler/icons-react";
 import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { parseCardSuggestions } from "@/lib/cardSuggestion";
 import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
 

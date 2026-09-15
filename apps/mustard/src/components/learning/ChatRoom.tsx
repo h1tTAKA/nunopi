@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconMessageCircle, IconX } from "@tabler/icons-react";
 import { IconPlus, IconCheck } from "@tabler/icons-react";
 import type { ChatMessage } from "@/lib/agent";
-import Markdown from "./Markdown";
+import { Markdown } from "@mustard/core";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/components/ui/Toast";

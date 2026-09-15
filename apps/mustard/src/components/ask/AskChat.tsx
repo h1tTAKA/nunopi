@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { IconArrowUp, IconPlus, IconCheck, IconSparkles, IconLayoutColumns, IconX, IconCommand, IconCards, IconFileText, IconListCheck, IconEye, IconEyeOff } from "@tabler/icons-react";
-import Markdown from "@/components/learning/Markdown";
+import { Markdown } from "@mustard/core";
 import { formatChatAsMarkdown } from "@/components/learning/ChatRoom";
 import { useT } from "@/lib/i18n/I18nProvider";
 import { useToast } from "@/components/ui/Toast";
