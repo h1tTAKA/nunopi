@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { IconSitemap, IconX, IconLoader2, IconChevronDown, IconRefresh, IconCode, IconBook2, IconSparkles, IconMessageCircle } from "@tabler/icons-react";
-import { useT, useLocale } from "@/lib/i18n/I18nProvider";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
+import { useT, useLocale } from "@mustard/core";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { Markdown } from "@mustard/core";
-import { stripCardBlock } from "@/lib/cardSuggestion";
+import { stripCardBlock } from "@mustard/core";
 import { fetchGraphDigest } from "@/lib/repo/fetchDigest";
 
 // 기능별 아키텍처 플로우(#743) — Manyfast 유저플로우식: 레이어=밴드(위→아래), 알약 노드, 노드→코드 점프.

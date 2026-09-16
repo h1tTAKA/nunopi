@@ -4,8 +4,7 @@
 // 앱 지식(뷰이동·탭열기)은 caller가 run 클로저로 주입 → 이 컴포넌트는 "명령이 뭘 하는지" 모름.
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { IconSearch } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-
+import { useT } from "@mustard/core";
 export type Command = { id: string; label: string; section?: string; icon?: ReactNode; run: () => void };
 
 export default function CommandPalette({ open, commands, onClose }: { open: boolean; commands: Command[]; onClose: () => void }) {

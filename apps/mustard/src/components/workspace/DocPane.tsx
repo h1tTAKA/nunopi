@@ -4,8 +4,7 @@
 import { useEffect, useState } from "react";
 import { IconLoader2 } from "@tabler/icons-react";
 import { Markdown } from "@mustard/core";
-import { useT } from "@/lib/i18n/I18nProvider";
-
+import { useT } from "@mustard/core";
 export default function DocPane({ root, file }: { root: string; file: string }) {
   const t = useT();
   const [content, setContent] = useState("");

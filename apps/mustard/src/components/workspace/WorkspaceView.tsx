@@ -3,8 +3,8 @@
 // 골격(커밋1): 4존 셸 [파일트리 | 터미널 | 코드 | 챗]. 각 존은 후속 커밋서 채움(트리·코드·챗·pty터미널).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconFolderOpen, IconFiles, IconFileCode, IconFileText, IconLoader2, IconGitBranch, IconGitCommit, IconX, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconMessages, IconCards, IconSettings, IconSitemap, IconTerminal2, IconBrandGithub, IconMessageCircle, IconActivity } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useFullscreen } from "@/hooks/useFullscreen";
+import { useT } from "@mustard/core";
+import { useFullscreen } from "@mustard/nunopi";
 import FileTree from "@/components/workspace/FileTree";
 import CodePane from "@/components/workspace/CodePane";
 import WorkspaceChat, { type ChatFocus } from "@/components/workspace/WorkspaceChat";
@@ -19,10 +19,9 @@ import DocViewer from "@/components/workspace/DocViewer";
 import RepoFlowPane from "@/components/workspace/RepoFlowPane";
 import RepoAnalyzeSection from "@/components/workspace/RepoAnalyzeSection";
 import RepoGraphViewer from "@/components/workspace/RepoGraphViewer";
-import { FlyCardProvider } from "@/components/memorize/FlyCard";
+import { FlyCardProvider } from "@mustard/nunopi";
 import WorkspaceDockLayout, { defaultTree, pruneTree, leavesOf, isDockNode, appendPanel, removePanel, type DockNode, type PanelId } from "@/components/workspace/WorkspaceDockLayout";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 // 코드/diff 멀티탭 한 건(#714) — 파일 또는 diff(커밋 diff는 hash, 워킹트리 diff는 worktree).
 type CodeTab = { kind: "file"; file: string } | { kind: "diff"; hash?: string; file: string; worktree?: "staged" | "unstaged" | "untracked" };
 // 탭 식별 키(중복 열기 방지·활성 지정). file / diff(hash) / diff(워킹트리) 구분.

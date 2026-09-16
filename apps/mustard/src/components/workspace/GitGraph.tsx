@@ -3,7 +3,7 @@
 // 커밋 클릭 → 바뀐 파일(M/A/D) 펼침, 파일 클릭 → onOpenDiff(diff 뷰).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import { parseGitLog, assignLanes, githubLogin, type GitGraphModel } from "@/lib/repo/gitGraph";
 
 // ref 배지 종류별 스타일 — 로컬 브랜치 / 원격(origin/*) / 태그 / 현재 HEAD 브랜치 구분(색 같으면 못 알아봄).

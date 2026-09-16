@@ -7,10 +7,10 @@ import {
   IconCode, IconFileText, IconMessage2, IconLayoutDashboard, IconCards, IconHome, IconSettings,
   IconFiles, IconFileCode, IconMessages,
 } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import CommandPalette, { type Command } from "@/components/ui/CommandPalette";
 import { nunopiEnabled } from "@/lib/product";
-import type { ViewMode } from "@/lib/viewMode";
+import type { ViewMode } from "@mustard/core";
 import type { WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AddKind } from "@/components/workspace/WorkspaceAddMenu";
 

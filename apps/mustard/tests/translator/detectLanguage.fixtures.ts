@@ -1,5 +1,5 @@
-import { detectLanguage } from "../../lib/translator/detectLanguage";
-import type { SupportedLanguage } from "../../lib/translator/types";
+import { detectLanguage } from "@mustard/nunopi";
+import type { SupportedLanguage } from "@mustard/core";
 
 interface DetectLanguageFixture {
   name: string;

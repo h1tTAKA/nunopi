@@ -2,16 +2,15 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useToast } from "@/components/ui/Toast";
-import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@mustard/core";
+import { useToast } from "@mustard/core";
+import { useConfirm } from "@mustard/core";
 import WorkspaceView from "@/components/workspace/WorkspaceView";
 import WorkspaceModePane from "@/components/workspace/WorkspaceModePane";
 import RepoAvatar from "@/components/workspace/RepoAvatar";
 import WorkspaceAddMenu, { type AddKind } from "@/components/workspace/WorkspaceAddMenu";
 import RepoTabHoverCard from "@/components/workspace/RepoTabHoverCard";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 const TABS_KEY = "nunopi:ws-tabs";       // 열린 탭 배열(#731, #769에서 태그드 유니온으로 확장)
 const ACTIVE_KEY = "nunopi:ws-active";   // 활성 탭 키(tabKey)
 const OLD_PATH_KEY = "nunopi:workspace-path"; // 구 단일 워크스페이스 경로 — 최초 1회 마이그레이션

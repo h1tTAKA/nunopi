@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide, type Simulation, type SimulationNodeDatum } from "d3-force";
 import { IconX, IconLoader2, IconFocus2 } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import type { RepoGraph, RepoNodeKind } from "@/lib/repo/types";
 
 type SimNode = SimulationNodeDatum & { id: string; label: string; file: string; kind: RepoNodeKind };

@@ -5,15 +5,14 @@
 // AnalysisContext에서 받는다(독립 모드와 같은 저장소). 좌우(세로 화면은 상하) 드래그 스플릿은
 // AppShell과 동일 동작·동일 localStorage 키를 복제해 독립 모드와 비율이 일관되게 한다.
 import { useEffect, useRef, useState } from "react";
-import LearningPanel from "@/components/learning/LearningPanel";
-import CodeInputArea from "@/components/translator/CodeInputArea";
-import TextInputArea from "@/components/translator/TextInputArea";
-import EditorChatColumn from "@/components/translator/EditorChatColumn";
-import ChatRoom from "@/components/learning/ChatRoom";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useCodeAnalysis, generateAutoTitle } from "@/hooks/useCodeAnalysis";
-import { useAnalysisContext } from "@/lib/analyze/AnalysisContext";
-
+import { LearningPanel } from "@mustard/nunopi";
+import { CodeInputArea } from "@mustard/nunopi";
+import { TextInputArea } from "@mustard/nunopi";
+import { EditorChatColumn } from "@mustard/nunopi";
+import { ChatRoom } from "@mustard/nunopi";
+import { useT } from "@mustard/core";
+import { useCodeAnalysis, generateAutoTitle } from "@mustard/nunopi";
+import { useAnalysisContext } from "@mustard/nunopi";
 const SPLIT_STORAGE_KEY = "nunopi:split-left-pct";
 const TOP_SPLIT_STORAGE_KEY = "nunopi:split-top-pct";
 const DEFAULT_LEFT_PCT = 70;

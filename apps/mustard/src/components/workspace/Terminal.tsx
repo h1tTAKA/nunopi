@@ -3,8 +3,7 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT } from "@/lib/i18n/I18nProvider";
-
+import { useT } from "@mustard/core";
 // 재접속 스크롤백 재생 시 xterm이 버퍼 속 터미널 질의(DA/DSR/OSC 색 등)에 "다시" 응답해
 // 입력창에 에코되는 문제(#807) 방지 — 질의는 화면 출력이 없어 재생 전 제거(라이브 스트림엔 미적용).
 // xterm.write는 비동기 파싱이라, 재생 시점에 term.onData(→pty)가 연결된 뒤 질의가 파싱돼 응답이 pty로 새 나감.

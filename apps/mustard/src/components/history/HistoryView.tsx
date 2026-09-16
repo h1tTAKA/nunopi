@@ -1,12 +1,11 @@
 "use client";
 
 import { IconHistory } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import HistoryTimeline from "@/components/history/HistoryTimeline";
 import HistoryAgent from "@/components/history/HistoryAgent";
-import type { HistoryNav } from "@/lib/history/types";
-import type { AgentProviderKind, ProviderSettings } from "@/lib/agent";
-
+import type { HistoryNav } from "@mustard/nunopi";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 // 전역 학습 히스토리(홈) 뷰 — 좌: 전 기능 이력 타임라인 / 우: 이력 참조 에이전트.
 // 두 패널을 rounded-2xl 카드로 프레임(암기 홈 디자인 언어 차용).
 const CARD = "flex min-h-0 w-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-900/30";

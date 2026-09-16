@@ -4,7 +4,7 @@
 // 실제 이슈·PR·CI는 서브3~5(#812/#813/#814)가 이 자리에 채운다.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconBrandGithub, IconLoader2, IconRefresh, IconAlertTriangle } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import IssueList from "@/components/workspace/github/IssueList";
 import IssueDetail from "@/components/workspace/github/IssueDetail";
 import PrList from "@/components/workspace/github/PrList";

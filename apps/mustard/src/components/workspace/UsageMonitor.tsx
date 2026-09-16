@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconBrandX, IconGauge, IconRefresh, IconSparkles, IconTerminal2 } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
+import { useT } from "@mustard/core";
 import type { ProviderUsage, ProviderUsageResult, UsageWindow } from "@/lib/usage/types";
 
 const STALE_MS = 30_000; // 최근 결과 재사용(호버/활성전환 시 과호출 방지)

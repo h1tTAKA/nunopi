@@ -2,8 +2,8 @@
 // GitHub 패널 이슈 상세(#813) — gh issue view(브릿지 #810) → 본문·코멘트(Markdown 재사용).
 import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle, IconArrowLeft, IconExternalLink, IconPencil, IconCircleCheck, IconCircleDot } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@mustard/core";
+import { useConfirm } from "@mustard/core";
 import { Markdown } from "@mustard/core";
 import MarkdownToolbar from "@/components/workspace/github/MarkdownToolbar";
 import { relTime } from "@/lib/relTime";

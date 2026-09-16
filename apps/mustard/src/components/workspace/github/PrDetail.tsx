@@ -2,8 +2,8 @@
 // GitHub 패널 PR 상세(#814) — gh pr view → 제목·상태·머지상태·담당자 + 체크(ChecksView)·본문·코멘트.
 import { useEffect, useRef, useState } from "react";
 import { IconLoader2, IconAlertTriangle, IconArrowLeft, IconExternalLink, IconPencil, IconGitPullRequest, IconGitPullRequestDraft, IconGitPullRequestClosed, IconGitMerge, IconChevronDown, IconCheck } from "@tabler/icons-react";
-import { useT } from "@/lib/i18n/I18nProvider";
-import { useConfirm } from "@/components/ui/ConfirmDialog";
+import { useT } from "@mustard/core";
+import { useConfirm } from "@mustard/core";
 import { Markdown } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
 import ChecksView from "@/components/workspace/github/ChecksView";

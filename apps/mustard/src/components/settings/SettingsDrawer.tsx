@@ -1,10 +1,9 @@
 import { useState } from "react";
-import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@/lib/agent";
-import { PROVIDER_CATALOG } from "@/lib/agent/catalog";
-import { XIcon } from "@/components/learning/icons";
-import { useLocale, useT } from "@/lib/i18n/I18nProvider";
-import { LOCALES, type Locale } from "@/lib/i18n/messages";
-
+import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
+import { PROVIDER_CATALOG } from "@mustard/nunopi/agent";
+import { XIcon } from "@mustard/nunopi";
+import { useLocale, useT } from "@mustard/core";
+import { LOCALES, type Locale } from "@mustard/core";
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
