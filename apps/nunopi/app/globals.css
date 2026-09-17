@@ -1,4 +1,9 @@
 @import "tailwindcss";
+
+/* 모노레포 패키지의 유틸 클래스도 스캔(#894 서브5). Tailwind v4 자동감지는 이 앱 dir만 훑어
+   packages/* 의 클래스(카드 cqw 사이징 등)가 누락된다 — 명시 등록으로 생성 보장. */
+@source "../../../packages/nunopi/src";
+@source "../../../packages/core/src";
 /* 마크다운 코드펜스 신택스 하이라이팅 테마(rehype-highlight / highlight.js) */
 @import "highlight.js/styles/github-dark.css";
 @custom-variant dark (&:where(.dark, .dark *));
