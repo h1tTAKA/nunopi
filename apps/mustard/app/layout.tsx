@@ -20,19 +20,19 @@ const notoSansKr = Noto_Sans_KR({
 const DARK_MODE_SCRIPT = `(function(){try{var t=localStorage.getItem('nunopi:theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t?t==='dark':d)document.documentElement.classList.add('dark');}catch(e){}})();`;
 
 export const metadata: Metadata = {
-  title: "Nunopi",
+  title: "Mustard",
   description:
-    "바이브코더를 위한 AI 코드 학습 도구. 코드를 붙여넣으면 줄별 설명, 토큰 사전, 개념 정리를 만들어준다.",
+    "AI 에이전트 개발 워크스페이스(ADE). 레포를 탭으로 열어 에이전트·터미널·깃과 함께 개발하고, 옵션으로 nunopi 코드 학습 모듈을 임베드한다.",
   openGraph: {
-    title: "Nunopi",
-    description: "바이브코더를 위한 AI 코드 학습 도구",
+    title: "Mustard",
+    description: "AI 에이전트 개발 워크스페이스(ADE)",
     type: "website",
     locale: "ko_KR",
   },
   twitter: {
     card: "summary",
-    title: "Nunopi",
-    description: "바이브코더를 위한 AI 코드 학습 도구",
+    title: "Mustard",
+    description: "AI 에이전트 개발 워크스페이스(ADE)",
   },
 };
 

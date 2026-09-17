@@ -2,7 +2,7 @@
 // dev: ELECTRON_START_URL(예: http://localhost:3000) 로드(next dev 병행, HMR).
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
 const { app, BrowserWindow, shell, ipcMain, Notification, dialog, clipboard, safeStorage } = require("electron");
-const { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } = require("node:fs");
+const { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, cpSync } = require("node:fs");
 const {
   startSnaServer,
   resolveClaudeCli,
@@ -15,7 +15,25 @@ const { removeRepoHooks } = require("./agent-hooks.cjs");
 const { getProviderUsage } = require("./provider-usage.cjs");
 const { startWatch, stopWatch, stopAll: stopAllWatchers } = require("./repo-watcher.cjs");
 const githubBridge = require("./github-bridge.cjs"); // GitHub 패널(#809/#810) gh CLI 브릿지
-const { join } = require("node:path");
+const { join, dirname } = require("node:path");
+
+// Mustard 리브랜딩(#900) — app 이름이 "nunopi"→"Mustard"로 바뀌며 userData 디렉터리도 바뀐다.
+// 옛 "nunopi" userData(sqlite·Local Storage·설정)를 새 "Mustard" userData로 1회 복사해 데이터 보존.
+// 이미 이관했거나(플래그) 새 쪽에 같은 파일이 있으면 덮지 않음(force:false). 실패해도 앱은 정상 기동.
+function migrateUserData() {
+  try {
+    const cur = app.getPath("userData");           // 새(Mustard)
+    const old = join(dirname(cur), "nunopi");       // 옛(nunopi)
+    const flag = join(cur, ".migrated-from-nunopi");
+    if (!existsSync(old) || existsSync(flag) || old === cur) return;
+    mkdirSync(cur, { recursive: true });
+    cpSync(old, cur, { recursive: true, force: false, errorOnExist: false });
+    writeFileSync(flag, `migrated from ${old}\n`);
+    console.log(`[migrate] userData ${old} → ${cur} 복사 완료`);
+  } catch (e) {
+    console.warn("[migrate] userData 이관 실패(무시, 앱은 정상 기동):", String(e?.message || e));
+  }
+}
 const net = require("node:net");
 
 // 빈 포트 하나 확보(패키지엔 devDep get-port가 없으므로 노드 net로 자체 구현).
@@ -248,6 +266,7 @@ function clearModeTabClaims() {
 }
 
 async function boot() {
+  migrateUserData(); // #900 리브랜딩 — 옛 nunopi userData 1회 이관(창·서버 뜨기 전)
   try { loadRegistry(); } catch { /* #864 재시작 생존 세션 신원 복원 */ }
   if (DEV_URL) {
     // dev: next dev가 자체 임베드(간섭 방지) → main은 SNA 안 띄움.
