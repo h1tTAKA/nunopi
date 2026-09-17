@@ -11,8 +11,9 @@ const LearningHome = lazy(() => import("./LearningHome"));
 
 export default function Home() {
   if (!nunopiEnabled) return <WorkspaceOnlyHome />;
+  // fallback은 앱 배경 전면 div — lazy 로드 순간 흰 화면 flash 방지(다크 테마 대비).
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="h-full w-full bg-white dark:bg-zinc-950" />}>
       <LearningHome />
     </Suspense>
   );
