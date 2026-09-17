@@ -1,0 +1,231 @@
+@import "tailwindcss";
+/* 마크다운 코드펜스 신택스 하이라이팅 테마(rehype-highlight / highlight.js) */
+@import "highlight.js/styles/github-dark.css";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  /* PDF 타이포: 라틴 본문 Inter + 한글 Noto Sans KR (next/font CSS variable).
+     로드 전 폴백으로 시스템 스택 유지. 코드(--font-mono)는 유저 요청대로 제외. */
+  --font-sans: var(--font-inter), var(--font-noto), "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: var(--font-display), var(--font-noto), var(--font-inter), system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", "Roboto Mono", "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* 브랜드 색 정렬 — 앱 전역 액센트(blue)를 로고 브랜드 블루(#2E7DF6)로, 캔버스는 깊은
+   near-black(#010102). 컴포넌트는 기존 blue/zinc 클래스 그대로 쓰고 여기서 토큰만 재정의
+   → 레이아웃·클래스 변경 0, 색만 교체. blue는 액센트 전용이라 전역 일괄 정렬된다.
+   (라임 #C6FB2A는 브랜드 단일 pop으로 분석 CTA 한 곳에만 — 토큰 아님.) */
+@theme {
+  --color-blue-50: #eff5ff;
+  --color-blue-100: #d9e8fe;
+  --color-blue-200: #bdd6fd;
+  --color-blue-300: #93bbfd;
+  --color-blue-400: #5b9bfa; /* hover */
+  --color-blue-500: #2e7df6; /* 브랜드 블루 = 액센트 */
+  --color-blue-600: #1f63d6; /* active */
+  --color-blue-700: #1c4fa8;
+  --color-blue-900: #15306b;
+  --color-blue-950: #0f2147; /* 다크 하이라이트 배경 */
+  --color-zinc-950: #010102; /* 다크 패널 near-black(원래대로). 다크 외곽/헤더는 ink #111219(AppShell/Header 인라인) */
+
+  /* 라이트 — 베이지(웜)는 로고 쿨 팔레트와 안 맞아 폐기. 흰색 + 쿨 그레이 기본으로.
+     패널/헤더/외곽=흰색, 코드 surface만 회색계통(Monaco nunopi-light). */
+  --color-white: #ffffff; /* 패널/카드/헤더/외곽 — 순백 */
+  --color-zinc-50: #fafafa; /* 작은 input/칩 배경 — 쿨 near-white */
+  --color-zinc-100: #f4f4f5; /* 토글 트랙/hover fill */
+  --color-zinc-200: #e4e4e7; /* 라이트 보더 */
+
+  /* 북마크 = 로고 라임 마름모. 다크는 브랜드 라임(밝게), 라이트는 흰배경서 날리지
+     않게 어두운 라임. text-lime-400(다크) / text-lime-600(라이트)로 사용. */
+  --color-lime-400: #c6fb2a; /* 브랜드 스파크 라임 — 다크 북마크 */
+  --color-lime-600: #4d7c0f; /* 어두운 라임 — 라이트 북마크(흰배경서 날리지 않게 진하게) */
+
+  /* Mustard 리브랜딩(#792) — 워크스페이스 셸 크롬 전용 액센트. 전역 blue-*는 nunopi·비워크스페이스가
+     계속 쓰므로 건드리지 않고, 셸 컴포넌트에서만 mustard-* 유틸(bg/text/ring/border)을 쓴다.
+     오프블랙 대비 AA(500 on near-black ≈ 7:1). 텍스트로 밝게 쓸 땐 400. */
+  --color-mustard-400: #e8b93a; /* hover·밝은 텍스트 */
+  --color-mustard-500: #d4a017; /* 브랜드 액센트(활성·포커스·주요 버튼) */
+  --color-mustard-600: #a67c11; /* active */
+  --color-mustard-700: #7a5a0c; /* 보더·비활성 */
+
+  /* LV 조합(#792) — 딥 브라운(캔버스/따뜻함) + 머스타드 골드(모노그램/액센트). 골드 버튼 위
+     글자를 딥브라운으로(gold-on-brown) 두면 럭셔리 톤. 브라운은 웜 서피스·보더에도 재사용. */
+  /* 붉은 웜 초콜릿/체스트넛 계열 — 골드(#d4a017)와 확실히 구분되게(올리브·샌드 아님). */
+  --color-brown-300: #cf9b5f; /* 카라멜 — 다크서 또렷 */
+  --color-brown-400: #b0763d; /* 체스트넛 — 명확한 브라운(다크 링/아이콘) */
+  --color-brown-500: #8f5a2a; /* 리치 브라운(라이트 링/보더) */
+  --color-brown-700: #5e3c1f; /* 딥 초콜릿(현재 브랜치 채움) */
+  --color-brown-900: #3a2412; /* 에스프레소(골드 위 글자) */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+/* 학습패널 ↔ 에디터 줄 링크: 활성 코드 줄 하이라이트 (Monaco decoration className) */
+.nunopi-active-line {
+  background: rgba(46, 125, 246, 0.22);
+}
+.dark .nunopi-active-line {
+  background: rgba(46, 125, 246, 0.22);
+}
+
+/* 토큰 사전 호버/클릭 시 해당 코드 줄 강조 (Monaco decoration className) */
+.nunopi-token-line {
+  background: rgba(245, 158, 11, 0.18);
+}
+.dark .nunopi-token-line {
+  background: rgba(245, 158, 11, 0.26);
+}
+
+/* 통일 스크롤바 — 투명 트랙 + 얇은 반투명 둥근 막대, 항상 표시 */
+/* (적용 요소는 overflow-y:scroll → webkit에서 비-오버레이 상시 표시) */
+.nunopi-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(113, 113, 122, 0.5) transparent;
+}
+.nunopi-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.nunopi-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nunopi-scroll::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.5);
+  border-radius: 9999px;
+  min-height: 24px;
+}
+.nunopi-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(113, 113, 122, 0.75);
+}
+.dark .nunopi-scroll {
+  scrollbar-color: rgba(161, 161, 170, 0.45) transparent;
+}
+.dark .nunopi-scroll::-webkit-scrollbar-thumb {
+  background: rgba(161, 161, 170, 0.45);
+}
+.dark .nunopi-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(161, 161, 170, 0.7);
+}
+
+/* 스크롤바 완전 숨김 — 가로 스크롤되는 세션 탭바 등(스크롤은 되되 바는 안 보임). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+.no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+/* 퀴즈 문제수 범위(dual-thumb) 슬라이더 — range input 2개를 겹쳐 놓고 thumb만 잡히게 한다. */
+/* 트랙은 pointer-events 없음(겹친 아래 input도 잡히게), thumb만 pointer-events 살림. */
+.nunopi-range { -webkit-appearance: none; appearance: none; background: transparent; pointer-events: none; }
+/* 기본 트랙 투명 — 겹친 그라데이션 바가 보이게. */
+.nunopi-range::-webkit-slider-runnable-track { background: transparent; border: none; }
+.nunopi-range::-moz-range-track { background: transparent; border: none; }
+/* thumb는 솔리드 브랜드색(그라데이션 바와 경쟁 안 하게). thumb만 pointer-events 살림. */
+.nunopi-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 9999px;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer;
+}
+.nunopi-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 16px; height: 16px; border-radius: 9999px;
+  background: #3B34E2; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer;
+}
+.dark .nunopi-range::-webkit-slider-thumb { background: #8b86f5; border-color: #13141b; }
+.dark .nunopi-range::-moz-range-thumb { background: #8b86f5; border-color: #13141b; }
+
+/* 챗 어시스턴트 마크다운 렌더 (.nunopi-md 스코프) */
+.nunopi-md { font-size: 0.75rem; line-height: 1.6; word-break: break-word; }
+/* 크게 보기(확대) — 루트 폰트 키우고 헤딩도 em으로 함께 확대(추가설명 모달). */
+.nunopi-md.nunopi-md-lg { font-size: 1rem; line-height: 1.75; }
+.nunopi-md.nunopi-md-lg h1 { font-size: 1.5em; }
+.nunopi-md.nunopi-md-lg h2 { font-size: 1.3em; }
+.nunopi-md.nunopi-md-lg h3 { font-size: 1.12em; }
+.nunopi-md > :first-child { margin-top: 0; }
+.nunopi-md > :last-child { margin-bottom: 0; }
+.nunopi-md p { margin: 0.4em 0; }
+.nunopi-md h1, .nunopi-md h2, .nunopi-md h3, .nunopi-md h4 { margin: 0.6em 0 0.3em; font-family: var(--font-heading); font-weight: 600; line-height: 1.3; }
+.nunopi-md h1 { font-size: 1.05rem; }
+.nunopi-md h2 { font-size: 1rem; }
+.nunopi-md h3 { font-size: 0.9rem; }
+.nunopi-md ul, .nunopi-md ol { margin: 0.4em 0; padding-left: 1.25em; }
+.nunopi-md li { margin: 0.15em 0; }
+.nunopi-md a { color: #1f63d6; text-decoration: underline; }
+.dark .nunopi-md a { color: #5b9bfa; }
+.nunopi-md hr { border: 0; border-top: 1px solid rgba(0,0,0,0.1); margin: 0.9em 0; }
+.dark .nunopi-md hr { border-top-color: rgba(255,255,255,0.14); }
+.nunopi-md code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; background: rgba(0,0,0,0.06); padding: 0.1em 0.35em; border-radius: 0.35em; }
+.dark .nunopi-md code { background: rgba(255,255,255,0.1); }
+/* 코드블록 배경 투명 — 감싸는 컨테이너(추가설명 패널 / 챗 버블)색과 통일한다. 테두리만 남겨 박스 구분.
+   code.hljs 는 github-dark가 background(#0d1117)를 깔므로 명시적으로 투명 덮어쓰기. */
+.nunopi-md pre { margin: 0.5em 0; padding: 0.7em 0.85em; border-radius: 0.6em; overflow-x: auto; background: transparent; border: 1px solid rgba(0,0,0,0.1); }
+.dark .nunopi-md pre { border-color: rgba(255,255,255,0.12); }
+.nunopi-md pre code,
+.nunopi-md pre code.hljs { background: transparent; padding: 0; font-size: 0.9em; }
+/* 다크모드 인라인 알약 규칙(.dark .nunopi-md code, 0,2,1)이 블록 코드에도 새어 특이도로
+   이기므로, 블록 코드는 .dark 스코프로 특이도(0,2,2) 높여 투명을 확실히 이기게 한다. */
+.dark .nunopi-md pre code,
+.dark .nunopi-md pre code.hljs { background: transparent; }
+.nunopi-md blockquote { margin: 0.5em 0; padding-left: 0.75em; border-left: 3px solid #d4d4d8; color: #52525b; }
+.dark .nunopi-md blockquote { border-left-color: #52525b; color: #a1a1aa; }
+.nunopi-md hr { margin: 0.8em 0; border: 0; border-top: 1px solid #d4d4d8; }
+.dark .nunopi-md hr { border-top-color: #52525b; }
+/* 표 — 말풍선보다 넓으면 가로 스크롤 */
+.nunopi-md table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 0.5em 0; font-size: 0.92em; }
+.nunopi-md th, .nunopi-md td { border: 1px solid #d4d4d8; padding: 0.35em 0.6em; text-align: left; vertical-align: top; }
+.dark .nunopi-md th, .dark .nunopi-md td { border-color: #52525b; }
+.nunopi-md th { background: #e4e4e7; font-weight: 600; }
+.dark .nunopi-md th { background: #3f3f46; }
+
+
+/* 에이전트 덱 커스터마이징 — 선별 카드 등장(pop) */
+@keyframes nunopi-pop {
+  from { opacity: 0; transform: scale(0.85) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 부정형(indeterminate) 진행 막대 — 소요시간을 알 수 없는 단일 호출용(가짜 % 대신 정직한 애니메이션).
+   translateX + 고정폭 세그먼트라 애니메이션이 꺼져도 색 세그먼트가 보인다(회색만 남지 않음). */
+@keyframes nunopi-indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+.nunopi-indeterminate { position: relative; overflow: hidden; }
+.nunopi-indeterminate > span { position: absolute; top: 0; bottom: 0; left: 0; width: 35%; border-radius: 9999px; animation: nunopi-indeterminate 1.1s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .nunopi-indeterminate > span { animation: none; transform: none; width: 100%; opacity: 0.5; }
+}
+
+/* 타이틀바 통합(#779) — 신호등 줄로 올린 헤더에서 빈 영역은 창 이동(drag),
+   버튼·탭·입력 등 인터랙션 요소는 no-drag(클릭·드래그 재정렬이 창 이동에 안 먹히게). */
+.titlebar-drag { -webkit-app-region: drag; app-region: drag; }
+.titlebar-drag button,
+.titlebar-drag a,
+.titlebar-drag input,
+.titlebar-drag [data-tab-key],
+.titlebar-drag [data-no-drag] { -webkit-app-region: no-drag; app-region: no-drag; }

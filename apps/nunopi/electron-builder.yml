@@ -1,0 +1,40 @@
+# nunopi 스탠드얼론 학습앱(#894 서브5). 워크스페이스(터미널 데몬·node-pty)는 없음.
+# 실제 dist 패키징 검증은 서브7(OOM #684 + outputFileTracingRoot). 이 파일은 그 선반영.
+appId: ai.neuradex.nunopi.standalone
+productName: nunopi-standalone
+directories:
+  output: dist_electron
+  buildResources: build
+
+# asar에 들어갈 것(앱 소스 + prod node_modules).
+files:
+  - electron/**
+  - package.json
+  - node_modules/**
+
+# asar 밖으로(네이티브 .node·fork 대상은 asar 안에서 못 돎).
+asarUnpack:
+  - node_modules/@sna-sdk/core/**
+  - node_modules/better-sqlite3/**
+
+# Next standalone 서버(fork 대상)는 리소스로 동봉 → process.resourcesPath/standalone.
+# (static·public은 빌드 스크립트가 standalone 안으로 복사해둠)
+extraResources:
+  - from: .next/standalone
+    to: standalone
+    filter:
+      - "**/*"        # node_modules 포함 강제(기본 pruning 무력화)
+      - ".next/**"    # dotdir(.next/서버청크·static) 명시 포함
+      - "!**/*.map"
+
+# 네이티브 모듈(better-sqlite3)을 electron ABI로 rebuild.
+npmRebuild: true
+
+# extraResources가 strip한 standalone/node_modules를 패킹 후 복원.
+afterPack: electron/after-pack.cjs
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dir   # 빠른 로컬 검증용
+    - dmg   # 배포물(미노터라이즈 — 서명/노터라이즈는 배포 임박 시)
