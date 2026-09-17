@@ -24,4 +24,6 @@ exports.default = async function afterPack(context) {
   );
   cpSync(src, dst, { recursive: true, dereference: true });
   console.log("[after-pack] standalone/node_modules → resources 복사 완료");
+  // 네이티브 ABI(better-sqlite3 등)는 package-app.mjs가 패키징 전 루트서 electron 헤더로 선빌드하고
+  // (npmRebuild:false로 덮어쓰기 방지) electron-builder가 그 148 사본을 그대로 복사하므로 여기선 불필요.
 };

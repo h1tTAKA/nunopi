@@ -116,11 +116,16 @@ async function startRuntimeServer() {
   // 주의: forked 런타임 서버는 better-sqlite3(네이티브)를 로드한다. 패키징(③)에서
   // electron ABI로 rebuild한 뒤 { nativeBinding } 경로를 넘겨야 electron-owned 실행이 됨
   // (미rebuild면 "compiled for a different Node.js version"). ③에서 nativeBinding 추가.
+  // 패키지 앱(asar:false): SNA fork(RUN_AS_NODE)가 로드할 better-sqlite3를 electron-ABI 앱 사본으로 명시(#684 ③).
+  const nativeBinding = app.isPackaged
+    ? join(process.resourcesPath, "app", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node")
+    : undefined;
   return startSnaServer({
     appId: "nunopi",
     port: await getFreePort(), // 3099 고정 대신 빈 포트(충돌 방지)
     dbPath: join(app.getPath("userData"), "sna.db"),
     runtimePaths,
+    ...(nativeBinding ? { nativeBinding } : {}),
     onLog: (l) => { if (/ready|error|fail/i.test(l)) console.log("[sna]", l); },
   });
 }
@@ -130,9 +135,10 @@ async function startStandaloneServer(extraEnv) {
   const port = await getStableAppPort();
   // 패키지: standalone은 extraResources로 process.resourcesPath/standalone.
   // 미패키지(electron electron/main.cjs): <appRoot>/.next/standalone.
+  // 모노레포 standalone은 앱별로 중첩 산출(#898): standalone/apps/mustard/server.js.
   const serverJs = app.isPackaged
-    ? join(process.resourcesPath, "standalone", "server.js")
-    : join(__dirname, "..", ".next", "standalone", "server.js");
+    ? join(process.resourcesPath, "standalone", "apps", "mustard", "server.js")
+    : join(__dirname, "..", ".next", "standalone", "apps", "mustard", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,
