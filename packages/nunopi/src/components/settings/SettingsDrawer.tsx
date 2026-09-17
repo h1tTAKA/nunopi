@@ -14,12 +14,14 @@ interface SettingsDrawerProps {
   onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
   theme: "light" | "dark";
   onThemeChange: (next: "light" | "dark") => void;
-  // 카드보기 날아오는 애니메이션 on/off (#641).
-  cardFlyAnimation: boolean;
-  onCardFlyAnimationChange: (next: boolean) => void;
-  // 암기모드 카드 기본 설명 생성에 쓸 provider(분석 provider와 별개).
-  memorizeProviderId: AgentProviderKind;
-  onMemorizeProviderChange: (id: AgentProviderKind) => void;
+  // 학습 전용 설정 노출 여부(#896 서브6). false=Mustard-only → 카드애니·암기provider·제외용어 숨김.
+  showLearning?: boolean;
+  // 카드보기 날아오는 애니메이션 on/off (#641). 학습 전용(showLearning=false면 미사용).
+  cardFlyAnimation?: boolean;
+  onCardFlyAnimationChange?: (next: boolean) => void;
+  // 암기모드 카드 기본 설명 생성에 쓸 provider(분석 provider와 별개). 학습 전용.
+  memorizeProviderId?: AgentProviderKind;
+  onMemorizeProviderChange?: (id: AgentProviderKind) => void;
 }
 
 // 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
@@ -75,7 +77,8 @@ export default function SettingsDrawer({
   onRemoveExclusion,
   theme,
   onThemeChange,
-  cardFlyAnimation,
+  showLearning = true,
+  cardFlyAnimation = true,
   onCardFlyAnimationChange,
   memorizeProviderId,
   onMemorizeProviderChange,
@@ -190,7 +193,8 @@ export default function SettingsDrawer({
                 })}
               </div>
             </div>
-            {/* 카드보기 날아오는 애니메이션 on/off (#641) */}
+            {/* 카드보기 날아오는 애니메이션 on/off (#641) — 학습 전용(#896) */}
+            {showLearning && (
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.cardFlyAnimation")}</span>
@@ -201,12 +205,13 @@ export default function SettingsDrawer({
                 role="switch"
                 aria-checked={cardFlyAnimation}
                 aria-label={t("settings.cardFlyAnimation")}
-                onClick={() => onCardFlyAnimationChange(!cardFlyAnimation)}
+                onClick={() => onCardFlyAnimationChange?.(!cardFlyAnimation)}
                 className={`relative h-6 w-11 shrink-0 rounded-full transition ${cardFlyAnimation ? "bg-[#3B34E2] dark:bg-[#8b86f5]" : "bg-zinc-300 dark:bg-zinc-700"}`}
               >
                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${cardFlyAnimation ? "left-[22px]" : "left-0.5"}`} />
               </button>
             </div>
+            )}
           </section>
 
           {/* 언어 카드 */}
@@ -373,6 +378,8 @@ export default function SettingsDrawer({
             )}
           </section>
 
+          {/* 암기모드 provider + 제외 목록 — 학습 전용(#896 서브6, Mustard-only서 숨김) */}
+          {showLearning && (<>
           {/* 암기모드 카드 설명 provider — 프로바이더 설정 바로 밑 */}
           <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
@@ -381,7 +388,7 @@ export default function SettingsDrawer({
             <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.memorizeProviderHint")}</p>
             <select
               value={memorizeProviderId}
-              onChange={(e) => onMemorizeProviderChange(e.target.value as AgentProviderKind)}
+              onChange={(e) => onMemorizeProviderChange?.(e.target.value as AgentProviderKind)}
               aria-label={t("settings.memorizeProvider")}
               className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
             >
@@ -407,6 +414,7 @@ export default function SettingsDrawer({
               onRemove={(text) => onRemoveExclusion?.("text", text)}
             />
           </section>
+          </>)}
 
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
             {t("settings.storageNote")}

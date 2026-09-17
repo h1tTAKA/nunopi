@@ -77,11 +77,7 @@ export default function WorkspaceOnlyHome() {
         onSave={handleSettingsSave}
         theme={theme}
         onThemeChange={changeTheme}
-        // 학습 전용 설정 — Mustard-only서 미사용. 커밋2서 SettingsDrawer 학습 섹션 게이트 예정.
-        cardFlyAnimation
-        onCardFlyAnimationChange={() => {}}
-        memorizeProviderId={DEFAULT_PROVIDER_ID}
-        onMemorizeProviderChange={() => {}}
+        showLearning={false}
       />
       <GlobalCommandPalette onNavigate={() => {}} onOpenSettings={() => setIsSettingsOpen(true)} vm="workspace" workspaceRef={wsRef} />
     </ToastProvider>
