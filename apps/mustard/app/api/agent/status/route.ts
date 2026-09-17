@@ -1,6 +1,6 @@
 // 에이전트 상태 수신·조회(#764) — Claude Code 등 CLI 훅이 이벤트를 POST하면 저장 + SSE 푸시,
-// 레포탭/호버 카드가 GET(폴백)·SSE(실시간)로 읽는다. 저장·푸시 로직은 @/lib/agentStatus 싱글턴.
-import { upsert, query, emit, remove, normPath, prune, type AgentState } from "@/lib/agentStatus";
+// 레포탭/호버 카드가 GET(폴백)·SSE(실시간)로 읽는다. 저장·푸시 로직은 @mustard/nunopi/agent(agentStatus) 싱글턴.
+import { upsert, query, emit, remove, normPath, prune, type AgentState } from "@mustard/nunopi/agent";
 import { emitEdit } from "@/lib/mcpActivity";
 
 export const runtime = "nodejs";

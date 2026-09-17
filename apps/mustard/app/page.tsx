@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
-import AppShell from "@/components/layout/AppShell";
-import AreaPrimaryToggle, { QASubToggle } from "@/components/layout/AreaModeToggle";
+import { AppShell } from "@mustard/nunopi";
+import { AreaPrimaryToggle, QASubToggle } from "@mustard/nunopi";
 import { LearningPanel } from "@mustard/nunopi";
-import SettingsDrawer from "@/components/settings/SettingsDrawer";
+import { SettingsDrawer } from "@mustard/nunopi";
 import { ConfirmProvider } from "@mustard/core";
 import { ToastProvider } from "@mustard/core";
 import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
@@ -15,7 +15,7 @@ import { EditorChatColumn } from "@mustard/nunopi";
 import { ChatRoom } from "@mustard/nunopi";
 import { MemorizeView } from "@mustard/nunopi";
 import { AskView } from "@mustard/nunopi";
-import HistoryView from "@/components/history/HistoryView";
+import { HistoryView } from "@mustard/nunopi";
 import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { HistoryNav } from "@mustard/nunopi";
 import { type ViewMode, VIEW_MODE_KEY } from "@mustard/core";

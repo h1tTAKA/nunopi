@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconSettings, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { useFullscreen } from "@mustard/nunopi";
+import { useFullscreen } from "../../hooks/useFullscreen";
 interface AppShellProps {
   editor: React.ReactNode;
   learningPanel: React.ReactNode;

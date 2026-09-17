@@ -3,3 +3,5 @@
 export * from "./lib/agent/index";
 export * from "./lib/agent/catalog";
 export * from "./lib/agent/dedupe";
+// #894 서브5: 에이전트 상태 서버 싱글턴(status·stream 라우트 공용) — 순수 JS, server-only 의존 없음
+export * from "./lib/agentStatus";
