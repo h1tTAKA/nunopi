@@ -45,9 +45,22 @@ for (const mod of NATIVE) {
   }
 }
 
-// 2) 패키징 동안 dependencies 축소(OOM 회피).
+// 2) 패키징 동안 dependencies 축소(OOM 회피). 축소본으로 방치되면 리포 손상이라
+//    finally + 시그널(SIGINT/SIGTERM)·uncaughtException까지 반드시 원복.
 const pkgPath = "package.json";
 const orig = readFileSync(pkgPath, "utf8");
+let restored = false;
+function restore() {
+  if (restored) return;
+  restored = true;
+  try { writeFileSync(pkgPath, orig); console.log("[package-app] package.json 원복 완료"); }
+  catch (e) { console.error("[package-app] 원복 실패! package.json 수동 복구 필요:", String(e?.message || e)); }
+}
+for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(sig, () => { restore(); process.exit(1); });
+}
+process.on("uncaughtException", (e) => { console.error(e); restore(); process.exit(1); });
+
 const pkg = JSON.parse(orig);
 const full = pkg.dependencies ?? {};
 const minimal = {};
@@ -60,6 +73,5 @@ try {
   const r = spawnSync("electron-builder", args, { stdio: "inherit", shell: true });
   process.exitCode = r.status ?? 1;
 } finally {
-  writeFileSync(pkgPath, orig); // 원본 정확 복원
-  console.log("[package-app] package.json 원복 완료");
+  restore(); // 원본 정확 복원
 }
