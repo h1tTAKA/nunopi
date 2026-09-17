@@ -120,9 +120,10 @@ async function startRuntimeServer() {
 // standalone 서버 spawn(prod). extraEnv(런타임 커넥션)를 주입. 준비되면 baseUrl 반환.
 async function startStandaloneServer(extraEnv) {
   const port = await getStableAppPort();
+  // 모노레포 standalone은 앱별로 중첩 산출(#898): standalone/apps/nunopi/server.js.
   const serverJs = app.isPackaged
-    ? join(process.resourcesPath, "standalone", "server.js")
-    : join(__dirname, "..", ".next", "standalone", "server.js");
+    ? join(process.resourcesPath, "standalone", "apps", "nunopi", "server.js")
+    : join(__dirname, "..", ".next", "standalone", "apps", "nunopi", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,

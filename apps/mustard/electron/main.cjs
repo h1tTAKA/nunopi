@@ -130,9 +130,10 @@ async function startStandaloneServer(extraEnv) {
   const port = await getStableAppPort();
   // 패키지: standalone은 extraResources로 process.resourcesPath/standalone.
   // 미패키지(electron electron/main.cjs): <appRoot>/.next/standalone.
+  // 모노레포 standalone은 앱별로 중첩 산출(#898): standalone/apps/mustard/server.js.
   const serverJs = app.isPackaged
-    ? join(process.resourcesPath, "standalone", "server.js")
-    : join(__dirname, "..", ".next", "standalone", "server.js");
+    ? join(process.resourcesPath, "standalone", "apps", "mustard", "server.js")
+    : join(__dirname, "..", ".next", "standalone", "apps", "mustard", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
     env: {
       ...process.env,
