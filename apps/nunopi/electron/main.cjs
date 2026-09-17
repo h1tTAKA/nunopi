@@ -108,11 +108,18 @@ async function startRuntimeServer() {
   };
   for (const k of Object.keys(runtimePaths)) if (!runtimePaths[k]) delete runtimePaths[k];
   console.log("[sna] runtimePaths:", JSON.stringify(runtimePaths));
+  // 패키지 앱(asar:false): SNA fork(RUN_AS_NODE)가 로드할 better-sqlite3를 electron-ABI로
+  // rebuild된 앱 내부 사본으로 명시(#684 ③). 미지정 시 fork가 process.cwd()(="/")서 못 찾거나
+  // ABI 안 맞는 사본을 로드해 즉사(code=1). dev는 auto-detect(undefined).
+  const nativeBinding = app.isPackaged
+    ? join(process.resourcesPath, "app", "node_modules", "better-sqlite3", "build", "Release", "better_sqlite3.node")
+    : undefined;
   return startSnaServer({
     appId: "nunopi",
     port: await getFreePort(),
     dbPath: join(app.getPath("userData"), "sna.db"),
     runtimePaths,
+    ...(nativeBinding ? { nativeBinding } : {}),
     onLog: (l) => { if (/ready|error|fail/i.test(l)) console.log("[sna]", l); },
   });
 }

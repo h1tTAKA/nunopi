@@ -24,4 +24,27 @@ exports.default = async function afterPack(context) {
   );
   cpSync(src, dst, { recursive: true, dereference: true });
   console.log("[after-pack] standalone/node_modules → resources 복사 완료");
+
+  // better-sqlite3를 패키지 앱 안에서 electron ABI로 재빌드(#684 ③). hoist 모노레포에선
+  // electron-builder 기본 @electron/rebuild가 앱 사본이 아닌 워크스페이스 사본을 건드려,
+  // 앱엔 시스템-node ABI(예: 127) 사본이 남아 SNA fork가 로드 실패(전자는 148 요구)한다.
+  // 여기서 Resources/app/node_modules의 better-sqlite3를 명시적으로 electron 타깃 재빌드.
+  const appDir = join(context.appOutDir, `${productName}.app`, "Contents", "Resources", "app");
+  const electronVersion = context.packager.config.electronVersion
+    || context.packager.info?.framework?.version
+    || "43.7.0";
+  try {
+    const { rebuild } = require("@electron/rebuild");
+    await rebuild({
+      buildPath: appDir,
+      electronVersion,
+      arch: process.arch,
+      force: true,
+      onlyModules: ["better-sqlite3"],
+    });
+    console.log(`[after-pack] better-sqlite3 electron ABI 재빌드 완료(electron=${electronVersion}, arch=${process.arch})`);
+  } catch (e) {
+    console.error("[after-pack] better-sqlite3 재빌드 실패:", String(e?.message || e));
+    throw e;
+  }
 };

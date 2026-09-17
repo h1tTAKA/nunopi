@@ -11,29 +11,16 @@
     "electron:dev": "npm run predev:electron; concurrently -k \"next dev\" \"wait-on http://localhost:3000 && ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
     "electron:build": "next build && node scripts/copy-standalone-assets.mjs",
     "electron:prod": "npm run electron:build && electron electron/main.cjs",
-    "electron:dist:dir": "npm run electron:build && electron-builder --dir --config electron-builder.yml",
-    "electron:dist": "npm run electron:build && electron-builder --config electron-builder.yml",
+    "electron:dist:dir": "npm run electron:build && node scripts/package-app.mjs --dir --config electron-builder.yml",
+    "electron:dist": "npm run electron:build && node scripts/package-app.mjs --config electron-builder.yml",
     "postelectron:dist:dir": "npm rebuild better-sqlite3",
     "postelectron:dist": "npm rebuild better-sqlite3"
   },
   "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
-    "@mustard/core": "*",
-    "@mustard/nunopi": "*",
     "@sna-sdk/client": "0.17.2",
     "@sna-sdk/core": "0.17.2",
-    "@tabler/icons-react": "^3.44.0",
     "better-sqlite3": "^12.11.1",
-    "langfuse": "^3.38.20",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-markdown": "^10.1.0",
-    "rehype-highlight": "^7.0.2",
-    "remark-gfm": "^4.0.1",
-    "shiki": "^4.2.0",
-    "tree-sitter-wasms": "0.1.13",
-    "web-tree-sitter": "0.20.8"
+    "langfuse": "^3.38.20"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
