@@ -5,8 +5,9 @@ import { IconSettings, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpan
 import { useT } from "@mustard/core";
 import { useFullscreen } from "../../hooks/useFullscreen";
 interface AppShellProps {
-  editor: React.ReactNode;
-  learningPanel: React.ReactNode;
+  // 학습 슬롯 — 워크스페이스 전용 모드(#896 Mustard-only)에선 미전달(그 영역은 workspace면 hidden).
+  editor?: React.ReactNode;
+  learningPanel?: React.ReactNode;
   modeToggle?: React.ReactNode;
   // 질문·분석 하위 세그(질문·코드·글) — 스트립 가운데 배치(#725). modeToggle(1차)은 우측.
   subToggle?: React.ReactNode;
