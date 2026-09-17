@@ -20,12 +20,14 @@ interface AreaPrimaryToggleProps {
   // 암기 배지 — 오늘 복습 due 수(0이면 숨김).
   memorizeBadge?: number;
   disabled?: boolean;
+  // 워크스페이스 진입 아이콘 표시 여부(#894 서브5). 스탠드얼론 학습앱(apps/nunopi)은 워크스페이스가 없어 false.
+  showWorkspace?: boolean;
 }
 
 // 워크스페이스 헤더 컨트롤 아이콘 버튼과 동일 스타일(#721) — 테두리 없는 hover 버튼.
 const ICON_BTN = "relative shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200";
 
-export default function AreaPrimaryToggle({ viewMode, onViewModeChange, onEnterQA, onBack, memorizeBadge = 0, disabled = false }: AreaPrimaryToggleProps) {
+export default function AreaPrimaryToggle({ viewMode, onViewModeChange, onEnterQA, onBack, memorizeBadge = 0, disabled = false, showWorkspace = true }: AreaPrimaryToggleProps) {
   const t = useT();
   const isMemorize = viewMode === "memorize";
   // 질문·분석 하위뷰(질문·코드·글)일 때만 true. 홈(history)은 영역 중립이라 false → 셋 다 노출.
@@ -41,11 +43,13 @@ export default function AreaPrimaryToggle({ viewMode, onViewModeChange, onEnterQ
   }
   return (
     <div className="flex items-center gap-0.5">
-      {/* → 워크스페이스 (이 헤더는 항상 non-workspace라 상시 표시) */}
-      <button type="button" onClick={() => onViewModeChange("workspace")} disabled={disabled}
-        title={t("mode.workspace")} aria-label={t("mode.workspace")} className={ICON_BTN}>
-        <IconLayoutDashboard size={16} stroke={2} aria-hidden />
-      </button>
+      {/* → 워크스페이스 (이 헤더는 항상 non-workspace라 상시 표시). 스탠드얼론 학습앱은 숨김(#894). */}
+      {showWorkspace && (
+        <button type="button" onClick={() => onViewModeChange("workspace")} disabled={disabled}
+          title={t("mode.workspace")} aria-label={t("mode.workspace")} className={ICON_BTN}>
+          <IconLayoutDashboard size={16} stroke={2} aria-hidden />
+        </button>
+      )}
       {/* → 질문·분석 (현재 QA면 숨김) */}
       {!inQA && (
         <button type="button" onClick={onEnterQA} disabled={disabled}

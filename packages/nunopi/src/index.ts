@@ -131,5 +131,19 @@ export * from "./components/learning/conceptDescriptions";
 export * from "./lib/analyze/AnalysisContext";
 export * from "./hooks/useCodeAnalysis";
 
+// #894 서브5: 학습셸(apps/mustard·apps/nunopi 공용) — layout/ui/settings/history/analyze
+export { default as AppShell } from "./components/layout/AppShell";
+export * from "./components/layout/AppShell";
+export { default as AreaPrimaryToggle } from "./components/layout/AreaModeToggle";
+export * from "./components/layout/AreaModeToggle";
+export { default as CommandPalette } from "./components/ui/CommandPalette";
+export * from "./components/ui/CommandPalette";
+export { default as SettingsDrawer } from "./components/settings/SettingsDrawer";
+export * from "./components/settings/SettingsDrawer";
+export { default as HistoryView } from "./components/history/HistoryView";
+export * from "./components/history/HistoryView";
+export { default as CodeAnalysisView } from "./components/analyze/CodeAnalysisView";
+export * from "./components/analyze/CodeAnalysisView";
+
 // newSessionId: cardChat·historyDB 동명 → 배럴 모호성 명시 해소(외부 미사용)
 export { newSessionId } from "./lib/cardChat";

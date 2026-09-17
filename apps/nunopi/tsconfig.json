@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*", "./*"],
+      "@mustard/core": ["../../packages/core/src/index.ts"],
+      "@mustard/nunopi": ["../../packages/nunopi/src/index.ts"],
+      "@mustard/nunopi/server": ["../../packages/nunopi/src/server.ts"],
+      "@mustard/nunopi/agent": ["../../packages/nunopi/src/agent.ts"],
+      "@mustard/core/sna": ["../../packages/core/src/sna/client.ts"],
+      "@mustard/core/sna/server": ["../../packages/core/src/sna/server.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules", "src/**/*.check.ts"]
+}

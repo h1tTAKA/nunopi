@@ -6,7 +6,7 @@ import { useT } from "@mustard/core";
 import { useFullscreen } from "@mustard/nunopi";
 import { useCollapsed } from "@mustard/nunopi";
 import { AskView } from "@mustard/nunopi";
-import CodeAnalysisView from "@/components/analyze/CodeAnalysisView";
+import { CodeAnalysisView } from "@mustard/nunopi";
 import { MemorizeView } from "@mustard/nunopi";
 import { useAnalysisContext } from "@mustard/nunopi";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";

@@ -16,7 +16,6 @@ import { ChatRoom } from "@mustard/nunopi";
 import { MemorizeView } from "@mustard/nunopi";
 import { AskView } from "@mustard/nunopi";
 import { HistoryView } from "@mustard/nunopi";
-import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { HistoryNav } from "@mustard/nunopi";
 import { type ViewMode, VIEW_MODE_KEY } from "@mustard/core";
 import { deckStats } from "@mustard/nunopi";
@@ -68,7 +67,7 @@ export default function Home() {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
 
-  // 화면 전환 축(코드/글/암기/질문/기록/워크스페이스).
+  // 화면 전환 축(코드/글/암기/질문/기록). 스탠드얼론 학습앱은 워크스페이스 없음.
   const [viewMode, setViewMode] = useState<ViewMode>("code");
   // 모드 전용 창(#789) — ?win=<kind>로 뜬 별도 창이면 그 모드만 렌더(영역전환·복원·영속 스킵).
   const winKind = useMemo<ViewMode | null>(() => {
@@ -79,7 +78,6 @@ export default function Home() {
   const vm: ViewMode = winKind ?? viewMode; // AppShell 슬롯 판정에 쓰는 유효 뷰모드.
   const lastQAViewRef = useRef<ViewMode>("code"); // 질문·분석 진입 시 복귀할 직전 하위뷰(ask/code/text).
   const memorizeOriginRef = useRef<ViewMode>("code"); // 암기 진입 직전 영역(#785) — 돌아가기 목적지.
-  const wsRef = useRef<WorkspaceTabsHandle>(null); // 명령 팔레트(#878)가 워크스페이스 탭 조작
   const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; quizId?: string; nonce: number } | undefined>(undefined);
   const askGoNonceRef = useRef(0);
   const [memGoTarget, setMemGoTarget] = useState<{ cardKey: string; nonce: number } | undefined>(undefined);
@@ -87,19 +85,17 @@ export default function Home() {
   const [memorizeDue, setMemorizeDue] = useState(0);
   const [memorizeProviderId, setMemorizeProviderId] = useState<AgentProviderKind>(DEFAULT_PROVIDER_ID);
 
-  // ── 코드/글 분석 로직(훅). 공유 상태를 주입한다. shared는 워크스페이스 탭의 CodeAnalysisView가
-  // Context로 받아 같은 저장소를 보게 하는 통로이기도 하다(#773).
+  // ── 코드/글 분석 로직(훅). 공유 상태를 주입한다.
   const shared = useMemo(() => ({ historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue }), [historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue]);
   const ca = useCodeAnalysis(shared);
   // 왼쪽 패널 접힘 — 헤더 토글이 제어(훅 밖 소유). 코드/글=입력 패널(#781), 질문=세션 패널(#783).
   const [editorCollapsed, toggleEditorCollapsed] = useCollapsed("nunopi:editor-collapsed");
   const [sessionCollapsed, toggleSessionCollapsed] = useCollapsed("nunopi:ask-panel-collapsed");
   // 암기 진입 출처 복원(#785) — 앱 재시작 후 암기 화면이면 돌아가기가 마지막 출처로 가게.
-  // 손상/수동편집 대비 유효한 non-memorize ViewMode만 채택(VIEW_MODE 복원과 동일 방식).
   useEffect(() => {
     try {
       const o = localStorage.getItem("nunopi:memorize-origin");
-      if (o === "code" || o === "text" || o === "ask" || o === "history" || o === "workspace") memorizeOriginRef.current = o;
+      if (o === "code" || o === "text" || o === "ask" || o === "history") memorizeOriginRef.current = o;
     } catch { /* ignore */ }
   }, []);
 
@@ -112,7 +108,7 @@ export default function Home() {
       if (winKind === "text") ca.setMode("text");
     } else {
       const storedView = localStorage.getItem(VIEW_MODE_KEY);
-      if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history" || storedView === "workspace") {
+      if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history") {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setViewMode(storedView);
         if (storedView === "text") ca.setMode("text");
@@ -219,8 +215,6 @@ export default function Home() {
         askView={<AskView active={vm === "ask"} providerId={providerId} providerSettings={providerSettings} goToTarget={askGoTarget} collapsed={sessionCollapsed} />}
         history={vm === "history"}
         historyView={<HistoryView active={vm === "history"} onNavigate={handleGoToHistory} providerId={providerId} providerSettings={providerSettings} />}
-        workspace={vm === "workspace"}
-        workspaceView={<WorkspaceTabs ref={wsRef} active={vm === "workspace"} providerId={providerId} providerSettings={providerSettings} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
         modeToggle={
           <AreaPrimaryToggle
             viewMode={viewMode}
@@ -229,6 +223,7 @@ export default function Home() {
             onBack={backFromMemorize}
             memorizeBadge={memorizeDue}
             disabled={ca.isLoading}
+            showWorkspace={false}
           />
         }
         subToggle={
@@ -360,7 +355,7 @@ export default function Home() {
       <SettingsDrawer
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        variant={viewMode === "workspace" ? "modal" : "drawer"}
+        variant="drawer"
         settings={providerSettings}
         onSave={handleSettingsSave}
         excludedTerms={excludedTerms}
@@ -372,7 +367,7 @@ export default function Home() {
         memorizeProviderId={memorizeProviderId}
         onMemorizeProviderChange={handleMemorizeProviderChange}
       />
-      <GlobalCommandPalette onNavigate={handleViewModeChange} onOpenSettings={() => setIsSettingsOpen(true)} vm={vm} workspaceRef={wsRef} />
+      <GlobalCommandPalette onNavigate={handleViewModeChange} onOpenSettings={() => setIsSettingsOpen(true)} />
     </ToastProvider>
     </ConfirmProvider>
     </I18nProvider>

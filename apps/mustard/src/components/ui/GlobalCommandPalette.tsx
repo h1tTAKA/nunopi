@@ -8,7 +8,7 @@ import {
   IconFiles, IconFileCode, IconMessages,
 } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import CommandPalette, { type Command } from "@/components/ui/CommandPalette";
+import { CommandPalette, type Command } from "@mustard/nunopi";
 import { nunopiEnabled } from "@/lib/product";
 import type { ViewMode } from "@mustard/core";
 import type { WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";

@@ -2,9 +2,9 @@
 
 import { IconHistory } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import HistoryTimeline from "@/components/history/HistoryTimeline";
-import HistoryAgent from "@/components/history/HistoryAgent";
-import type { HistoryNav } from "@mustard/nunopi";
+import HistoryTimeline from "./HistoryTimeline";
+import HistoryAgent from "./HistoryAgent";
+import type { HistoryNav } from "../../lib/history/types";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 // 전역 학습 히스토리(홈) 뷰 — 좌: 전 기능 이력 타임라인 / 우: 이력 참조 에이전트.
 // 두 패널을 rounded-2xl 카드로 프레임(암기 홈 디자인 언어 차용).
