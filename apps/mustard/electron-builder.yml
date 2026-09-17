@@ -40,7 +40,7 @@ extraResources:
       - "!**/*.map"
 
 # 네이티브 모듈(better-sqlite3)을 electron ABI로 rebuild.
-npmRebuild: true
+npmRebuild: false  # 네이티브는 package-app.mjs가 electron ABI로 선빌드(#684). electron-builder가 127로 덮지 않게.
 
 # extraResources가 strip한 standalone/node_modules를 패킹 후 복원.
 afterPack: electron/after-pack.cjs

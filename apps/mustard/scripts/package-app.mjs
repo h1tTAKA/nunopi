@@ -1,19 +1,51 @@
-// electron-builder 래퍼(#898, #684 OOM 해결).
+// electron-builder 래퍼(#898, #684 OOM + 네이티브 ABI 해결).
 //
-// 문제: hoist 모노레포에서 electron-builder는 package.json dependencies를 자동 수집하며
-// 루트 node_modules(1.2G)를 순회하다 OOM(fs.AfterStat 힙 폭주)한다. Next 서버 deps
-// (next·react·monaco·shiki·tree-sitter·@mustard/* 등)는 이미 .next/standalone(extraResources)에
-// 트랜스파일·번들돼 있어 asar에는 불필요하다. asar/메인 프로세스가 실제 필요한 건 네이티브·런타임 몇 개뿐.
-//
-// 해결: 패키징 동안만 package.json dependencies를 아래 allowlist로 줄여 electron-builder가
-// 작은 closure만 순회하게 한 뒤, 끝나면 원본 그대로 복원(finally).
-import { readFileSync, writeFileSync } from "node:fs";
+// 문제 1 (OOM): hoist 모노레포에서 electron-builder는 package.json dependencies를 자동 수집하며
+//   루트 node_modules(1.2G)를 순회하다 OOM한다. Next 서버 deps는 이미 .next/standalone에 있어
+//   asar엔 불필요. → 패키징 동안만 dependencies를 네이티브·메인프로세스 allowlist로 줄인다.
+// 문제 2 (네이티브 ABI): better-sqlite3 12.11.1은 electron prebuild가 없고, electron-builder의
+//   @electron/rebuild는 이 hoist 환경서 electron 헤더로 소스빌드하지 못해 시스템-node ABI(127)를
+//   남긴다(전자는 148 요구 → SNA fork 로드 실패). → 여기서 node-gyp로 electron 헤더 직접 소스빌드해
+//   루트 사본을 148로 만든 뒤 electron-builder가 그대로 복사(yml의 npmRebuild:false로 덮어쓰기 방지).
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { join } from "node:path";
 
-// main.cjs가 require하거나(@sna-sdk/core/electron), SNA 포크 런타임/데몬이 로드하는 네이티브·런타임.
-// 나머지(Next 서버용)는 standalone에 있음. 존재하는 것만 유지.
 const KEEP = new Set(["@sna-sdk/core", "@sna-sdk/client", "better-sqlite3", "node-pty", "langfuse"]);
+const NATIVE = ["better-sqlite3", "node-pty"]; // 소스빌드 대상(electron ABI)
 
+const args = process.argv.slice(2);
+// --config <file>에서 electronVersion 파싱(yml). 못 찾으면 폴백.
+function electronVersionFromConfig() {
+  const ci = args.indexOf("--config");
+  if (ci >= 0 && args[ci + 1] && existsSync(args[ci + 1])) {
+    const m = readFileSync(args[ci + 1], "utf8").match(/electronVersion:\s*([0-9][0-9.]*)/);
+    if (m) return m[1];
+  }
+  return "43.7.0";
+}
+
+const repoRoot = join(process.cwd(), "..", "..");
+const electronVersion = electronVersionFromConfig();
+const arch = process.arch;
+
+// 1) 네이티브를 electron ABI로 소스빌드(루트 node_modules — 소스가 있는 곳).
+for (const mod of NATIVE) {
+  const dir = join(repoRoot, "node_modules", mod);
+  if (!existsSync(dir)) continue;
+  console.log(`[package-app] ${mod} electron ABI 소스빌드(electron=${electronVersion}, arch=${arch})`);
+  const r = spawnSync(
+    "node-gyp",
+    ["rebuild", `--target=${electronVersion}`, `--arch=${arch}`, "--dist-url=https://electronjs.org/headers"],
+    { cwd: dir, stdio: "inherit", shell: true },
+  );
+  if (r.status !== 0) {
+    console.error(`[package-app] ${mod} electron 소스빌드 실패(status=${r.status})`);
+    process.exit(r.status ?? 1);
+  }
+}
+
+// 2) 패키징 동안 dependencies 축소(OOM 회피).
 const pkgPath = "package.json";
 const orig = readFileSync(pkgPath, "utf8");
 const pkg = JSON.parse(orig);
@@ -22,12 +54,12 @@ const minimal = {};
 for (const [k, v] of Object.entries(full)) if (KEEP.has(k)) minimal[k] = v;
 pkg.dependencies = minimal;
 writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-console.log(`[package-app] dependencies ${Object.keys(full).length} → ${Object.keys(minimal).length}개로 축소: ${Object.keys(minimal).join(", ")}`);
+console.log(`[package-app] dependencies ${Object.keys(full).length} → ${Object.keys(minimal).length}개: ${Object.keys(minimal).join(", ")}`);
 
 try {
-  const r = spawnSync("electron-builder", process.argv.slice(2), { stdio: "inherit", shell: true });
+  const r = spawnSync("electron-builder", args, { stdio: "inherit", shell: true });
   process.exitCode = r.status ?? 1;
 } finally {
-  writeFileSync(pkgPath, orig); // 원본 정확 복원(줄바꿈 포함)
+  writeFileSync(pkgPath, orig); // 원본 정확 복원
   console.log("[package-app] package.json 원복 완료");
 }
