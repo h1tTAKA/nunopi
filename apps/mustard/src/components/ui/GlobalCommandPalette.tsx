@@ -9,7 +9,7 @@ import {
 } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 import { CommandPalette, type Command } from "@mustard/nunopi";
-import { nunopiEnabled } from "@/lib/product";
+import { isNunopiEnabled } from "@/lib/product";
 import type { ViewMode } from "@mustard/core";
 import type { WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AddKind } from "@/components/workspace/WorkspaceAddMenu";
@@ -75,7 +75,7 @@ export default function GlobalCommandPalette({
         id: `tab:${tb.key}`, section: t("palette.section.tab"), label: tb.label, icon: TAB_ICON[tb.kind],
         run: () => workspaceRef.current?.activate(tb.key),
       }));
-      const newKinds: AddKind[] = ["repo", ...(nunopiEnabled ? NUNOPI_TAB_KINDS : [])];
+      const newKinds: AddKind[] = ["repo", ...(isNunopiEnabled() ? NUNOPI_TAB_KINDS : [])];
       const newTabs: Command[] = newKinds.map((k) => ({
         id: `new:${k}`, section: t("palette.section.newTab"),
         label: `${t("palette.newTab")}: ${k === "repo" ? t("palette.tabRepo") : t(`mode.${k}`)}`,
@@ -94,7 +94,7 @@ export default function GlobalCommandPalette({
       { id: "settings", section: t("palette.section.mustard"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, run: onOpenSettings },
     ];
     // nunopi 학습 섹션 — 모듈 설치 시에만. Mustard-only 빌드면 숨김.
-    const nunopiNav: Command[] = nunopiEnabled
+    const nunopiNav: Command[] = isNunopiEnabled()
       ? NUNOPI_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.nunopi"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) }))
       : [];
     return [...mustard, ...nunopiNav, ...tabCmds];
