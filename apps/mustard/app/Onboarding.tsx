@@ -23,9 +23,12 @@ function OnboardingInner({ onDone }: { onDone: () => void }) {
     if (d) window.nunopiDesktop?.getRuntimePaths().then((p) => setPaths((prev) => ({ ...prev, ...p }))).catch(() => {});
   }, []);
 
-  function finish() {
+  async function finish() {
     setNunopiEnabled(nunopi);          // 언어는 setLocale이 이미 실시간 영속.
-    if (isDesktop) window.nunopiDesktop?.setRuntimePaths(paths);
+    // CLI 경로 저장은 IPC(async) — onDone으로 언마운트되기 전에 완료 대기(유실 방지).
+    if (isDesktop) {
+      try { await window.nunopiDesktop?.setRuntimePaths(paths); } catch { /* 실패해도 진행(resolver 폴백) */ }
+    }
     try { localStorage.setItem("mustard:onboarded", "1"); } catch { /* ignore */ }
     onDone();
   }
