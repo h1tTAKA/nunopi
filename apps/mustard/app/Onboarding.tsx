@@ -14,14 +14,13 @@ function OnboardingInner({ onDone }: { onDone: () => void }) {
   const t = useT();
   const [nunopi, setNunopi] = useState(true);
   const [paths, setPaths] = useState<CliPaths>({});
-  const [isDesktop, setIsDesktop] = useState(false);
+  // Onboarding은 page.tsx가 client 마운트 후에만 렌더(SSR 없음) → window 참조 안전. 상태 아닌 렌더 상수.
+  const isDesktop = typeof window !== "undefined" && !!window.nunopiDesktop;
 
   useEffect(() => {
-    const d = typeof window !== "undefined" && !!window.nunopiDesktop;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsDesktop(d);
-    if (d) window.nunopiDesktop?.getRuntimePaths().then((p) => setPaths((prev) => ({ ...prev, ...p }))).catch(() => {});
-  }, []);
+    // CLI 경로 선로드는 async(.then) — 동기 setState-in-effect 아님(허용).
+    if (isDesktop) window.nunopiDesktop?.getRuntimePaths().then((p) => setPaths((prev) => ({ ...prev, ...p }))).catch(() => {});
+  }, [isDesktop]);
 
   async function finish() {
     setNunopiEnabled(nunopi);          // 언어는 setLocale이 이미 실시간 영속.
