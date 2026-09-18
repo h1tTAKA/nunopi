@@ -14,8 +14,11 @@ const SPLASH = <div className="h-full w-full bg-white dark:bg-zinc-950" />;
 export default function Home() {
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   useEffect(() => {
-    try { setOnboarded(localStorage.getItem("mustard:onboarded") === "1"); }
-    catch { setOnboarded(true); } // localStorage 불가 환경이면 온보딩 스킵
+    let done = true; // localStorage 불가 환경이면 온보딩 스킵(true)
+    try { done = localStorage.getItem("mustard:onboarded") === "1"; } catch { /* keep true */ }
+    // client 마운트 후 1회 판정 — SSR 하이드레이션 불일치 회피용 의도된 set-state-in-effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOnboarded(done);
   }, []);
 
   if (onboarded === null) return SPLASH;                 // client 마운트 전 — 깜빡임 방지
