@@ -35,8 +35,9 @@ function OnboardingInner({ onDone }: { onDone: () => void }) {
     const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); void finish(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // finish는 매 렌더 새로 생성돼 deps서 제외(대신 finish가 닫는 상태·콜백을 나열). exhaustive-deps는 그래서 disable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nunopi, paths, isDesktop]);
+  }, [nunopi, paths, isDesktop, onDone]);
 
   const CLI: { key: keyof CliPaths; label: string; ph: string }[] = [
     { key: "claudeCode", label: "Claude Code", ph: "claude" },
