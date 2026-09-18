@@ -7,6 +7,9 @@ out/
 
 # production build
 build/
+# electron-builder buildResources(앱 아이콘 등)는 추적(#906)
+!apps/mustard/build/
+!apps/mustard/build/**
 dist/
 
 # logs

@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   title: "Mustard",
   description:
     "AI 에이전트 개발 워크스페이스(ADE). 레포를 탭으로 열어 에이전트·터미널·깃과 함께 개발하고, 옵션으로 nunopi 코드 학습 모듈을 임베드한다.",
+  icons: { icon: "/brand/mustard-mark.svg" }, // 브랜드 심볼(겨자 꽃가지, #906)
   openGraph: {
     title: "Mustard",
     description: "AI 에이전트 개발 워크스페이스(ADE)",
