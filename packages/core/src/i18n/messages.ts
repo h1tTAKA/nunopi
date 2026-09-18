@@ -4,9 +4,9 @@
 export type Locale = "ko" | "ja" | "en";
 
 export const LOCALES: { value: Locale; label: string }[] = [
-  { value: "ko", label: "한국어" },
-  { value: "ja", label: "日本語" },
   { value: "en", label: "English" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
 ];
 
 // 분석 프롬프트 출력 언어 지시용 이름.
