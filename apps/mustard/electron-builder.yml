@@ -1,5 +1,5 @@
-appId: ai.neuradex.nunopi
-productName: nunopi
+appId: ai.neuradex.mustard
+productName: Mustard
 # hoist 모노레포라 electron이 앱 로컬 node_modules에 없음 → 범위 해석 불가. 설치본과 동일하게 고정(#898).
 electronVersion: 43.7.0
 directories:

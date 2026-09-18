@@ -71,7 +71,9 @@ export default function LearningHome() {
   const [excludedTerms, setExcludedTerms] = useState<string[]>([]);
 
   // 화면 전환 축(코드/글/암기/질문/기록/워크스페이스).
-  const [viewMode, setViewMode] = useState<ViewMode>("code");
+  // Mustard(ADE)는 워크스페이스-우선(#900 피봇) — 신규/미저장 부팅은 워크스페이스 빈 시작화면.
+  // 학습(code/text/ask/memorize/history)은 nav·탭으로 도달. 복귀 유저는 아래 복원 로직이 마지막 뷰로.
+  const [viewMode, setViewMode] = useState<ViewMode>("workspace");
   // 모드 전용 창(#789) — ?win=<kind>로 뜬 별도 창이면 그 모드만 렌더(영역전환·복원·영속 스킵).
   const winKind = useMemo<ViewMode | null>(() => {
     if (typeof window === "undefined") return null;
@@ -114,7 +116,7 @@ export default function LearningHome() {
       if (winKind === "text") ca.setMode("text");
     } else {
       const storedView = localStorage.getItem(VIEW_MODE_KEY);
-      if (storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history" || storedView === "workspace") {
+      if (storedView === "code" || storedView === "text" || storedView === "memorize" || storedView === "ask" || storedView === "history" || storedView === "workspace") {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setViewMode(storedView);
         if (storedView === "text") ca.setMode("text");
