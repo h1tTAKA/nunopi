@@ -107,7 +107,7 @@ export default function LearningHome() {
       const o = localStorage.getItem("nunopi:memorize-origin");
       if (o === "code" || o === "text" || o === "ask" || o === "history" || o === "workspace") memorizeOriginRef.current = o;
       const l = localStorage.getItem("nunopi:last-learn-view");
-      if (l === "code" || l === "text" || l === "ask" || l === "history" || l === "memorize") lastLearnViewRef.current = l;
+      if (l === "code" || l === "text" || l === "ask" || l === "history") lastLearnViewRef.current = l;
     } catch { /* ignore */ }
   }, []);
 
@@ -166,8 +166,9 @@ export default function LearningHome() {
       try { localStorage.setItem("nunopi:memorize-origin", viewMode); } catch { /* ignore */ }
     }
     if (next === "ask" || next === "code" || next === "text") lastQAViewRef.current = next;
-    // nunopi 학습뷰(워크스페이스 제외)면 마지막 학습뷰로 기억 → 브랜드 토글이 여기로 복원(#912).
-    if (next !== "workspace") {
+    // nunopi 학습뷰(워크스페이스·암기 제외)면 마지막 학습뷰로 기억 → 브랜드 토글이 여기로 복원(#912).
+    // 암기는 카드 없이 진입하면 빈 화면이라 착지 대상서 제외(진입은 +메뉴·워크스페이스 탭 경유).
+    if (next !== "workspace" && next !== "memorize") {
       lastLearnViewRef.current = next;
       try { localStorage.setItem("nunopi:last-learn-view", next); } catch { /* ignore */ }
     }
