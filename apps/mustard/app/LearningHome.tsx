@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef } from "react";
 import { AppShell } from "@mustard/nunopi";
-import { AreaPrimaryToggle, QASubToggle } from "@mustard/nunopi";
+import { QASubToggle } from "@mustard/nunopi";
+import ModeSwapToggle from "@/components/brand/ModeSwapToggle";
 import { LearningPanel } from "@mustard/nunopi";
 import { SettingsDrawer } from "@mustard/nunopi";
 import { ConfirmProvider } from "@mustard/core";
@@ -82,6 +83,7 @@ export default function LearningHome() {
   }, []);
   const vm: ViewMode = winKind ?? viewMode; // AppShell 슬롯 판정에 쓰는 유효 뷰모드.
   const lastQAViewRef = useRef<ViewMode>("code"); // 질문·분석 진입 시 복귀할 직전 하위뷰(ask/code/text).
+  const lastLearnViewRef = useRef<ViewMode>("history"); // nunopi(학습) 진입 시 복원할 마지막 학습뷰(#912). 워크스페이스 제외.
   const memorizeOriginRef = useRef<ViewMode>("code"); // 암기 진입 직전 영역(#785) — 돌아가기 목적지.
   const wsRef = useRef<WorkspaceTabsHandle>(null); // 명령 팔레트(#878)가 워크스페이스 탭 조작
   const [askGoTarget, setAskGoTarget] = useState<{ sessionId: string; subId?: string; quizId?: string; nonce: number } | undefined>(undefined);
@@ -104,6 +106,8 @@ export default function LearningHome() {
     try {
       const o = localStorage.getItem("nunopi:memorize-origin");
       if (o === "code" || o === "text" || o === "ask" || o === "history" || o === "workspace") memorizeOriginRef.current = o;
+      const l = localStorage.getItem("nunopi:last-learn-view");
+      if (l === "code" || l === "text" || l === "ask" || l === "history") lastLearnViewRef.current = l;
     } catch { /* ignore */ }
   }, []);
 
@@ -162,13 +166,20 @@ export default function LearningHome() {
       try { localStorage.setItem("nunopi:memorize-origin", viewMode); } catch { /* ignore */ }
     }
     if (next === "ask" || next === "code" || next === "text") lastQAViewRef.current = next;
+    // nunopi 학습뷰(워크스페이스·암기 제외)면 마지막 학습뷰로 기억 → 브랜드 토글이 여기로 복원(#912).
+    // 암기는 카드 없이 진입하면 빈 화면이라 착지 대상서 제외(진입은 +메뉴·워크스페이스 탭 경유).
+    if (next !== "workspace" && next !== "memorize") {
+      lastLearnViewRef.current = next;
+      try { localStorage.setItem("nunopi:last-learn-view", next); } catch { /* ignore */ }
+    }
     setViewMode(next);
     try { localStorage.setItem(VIEW_MODE_KEY, next); } catch { /* ignore */ }
     // 코드/글은 분석 모드와 연동(암기는 분석 상태 보존).
     if (next === "code" || next === "text") ca.handleModeChange(next);
   }
   const enterQAArea = () => handleViewModeChange(lastQAViewRef.current);
-  const backFromMemorize = () => handleViewModeChange(memorizeOriginRef.current);
+  // 브랜드 토글(#912): 워크스페이스 → 마지막 학습뷰 복원(없으면 history 기본).
+  const enterNunopi = () => handleViewModeChange(lastLearnViewRef.current);
 
   function handleSettingsSave(next: ProviderSettings) {
     setProviderSettings(next);
@@ -226,11 +237,10 @@ export default function LearningHome() {
         workspace={vm === "workspace"}
         workspaceView={<WorkspaceTabs ref={wsRef} active={vm === "workspace"} providerId={providerId} providerSettings={providerSettings} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
         modeToggle={
-          <AreaPrimaryToggle
-            viewMode={viewMode}
-            onViewModeChange={handleViewModeChange}
-            onEnterQA={enterQAArea}
-            onBack={backFromMemorize}
+          <ModeSwapToggle
+            viewMode={vm}
+            onEnterNunopi={enterNunopi}
+            onEnterWorkspace={() => handleViewModeChange("workspace")}
             memorizeBadge={memorizeDue}
             disabled={ca.isLoading}
           />
