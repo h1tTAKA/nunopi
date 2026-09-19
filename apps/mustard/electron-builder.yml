@@ -32,8 +32,9 @@ extraResources:
   - from: electron/terminal-daemon.cjs
     to: electron/terminal-daemon.cjs
   # 데몬이 require("node-pty") 하는데, resources/electron/에서 walk-up 하면 resources/node_modules/node-pty를
-  # 찾는다. node-pty는 N-API(ABI 안정)라 electron-rebuild본이 node 모드 데몬에서도 로드됨.
-  - from: node_modules/node-pty
+  # 찾는다. from은 hoist된 루트 node_modules(apps/mustard/node_modules는 비어 있음, #906).
+  # node-pty .node는 package-app.mjs가 패키징 전 electron ABI로 선빌드(RUN_AS_NODE 데몬서 로드).
+  - from: ../../node_modules/node-pty
     to: node_modules/node-pty
     filter:
       - "**/*"
