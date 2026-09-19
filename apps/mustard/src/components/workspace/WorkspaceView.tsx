@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { IconFolderOpen, IconFiles, IconFileCode, IconFileText, IconLoader2, IconGitBranch, IconGitCommit, IconX, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconMessages, IconCards, IconSettings, IconSitemap, IconTerminal2, IconBrandGithub, IconMessageCircle, IconActivity } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 import { useFullscreen } from "@mustard/nunopi";
+import { isNunopiEnabled } from "@/lib/product";
 import FileTree from "@/components/workspace/FileTree";
 import CodePane from "@/components/workspace/CodePane";
 import WorkspaceChat, { type ChatFocus } from "@/components/workspace/WorkspaceChat";
@@ -521,25 +522,30 @@ export default function WorkspaceView({ path, active = true, providerId, provide
         <span className="h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
         {tabStrip}
         {/* 영역 컨트롤(#721) — 질문·분석으로 나가기 / 암기(카드덱) / 설정 / 챗 토글. */}
-        {(onExitWorkspace || onOpenMemorize || onOpenSettings) && <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />}
-        {onExitWorkspace && (
+        {isNunopiEnabled() && (onExitWorkspace || onOpenMemorize) && <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />}
+        {isNunopiEnabled() && onExitWorkspace && (
           <button type="button" onClick={onExitWorkspace} title={t("workspace.toQA")} aria-label={t("workspace.toQA")}
             className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
             <IconMessages size={16} stroke={2} aria-hidden />
           </button>
         )}
-        {onOpenMemorize && (
+        {isNunopiEnabled() && onOpenMemorize && (
           <button type="button" onClick={onOpenMemorize} title={t("mode.memorize")} aria-label={t("mode.memorize")}
             className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
             <IconCards size={16} stroke={2} aria-hidden />
           </button>
         )}
         {/* 설정은 워크스페이스에선 하단 바(토큰 사용량 옆)로 이동(#752). */}
-        {/* 영역 nav(질문·분석/암기) ↔ 패널 유틸(챗 토글) 구분선(#785) — AppShell 헤더와 동일 패턴. */}
-        {(onExitWorkspace || onOpenMemorize) && <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />}
-        {/* 우측 패널 모드 토글(#811) — 질문(Chat) ↔ GitHub. 우측 패널 열려 있을 때만(전환 대상 존재). */}
+        {/* 영역 nav(질문·분석/암기) ↔ 패널 유틸(챗 토글) 구분선(#785) — AppShell 헤더와 동일 패턴. nunopi off면 위 nav가 없어 구분선도 숨김(#908). */}
+        {isNunopiEnabled() && (onExitWorkspace || onOpenMemorize) && <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />}
+        {/* 우측 패널 모드 토글(#811) — 순서: 학습스트림 → 질문(Chat) → GitHub(#908). 우측 패널 열려 있을 때만. */}
         {chatOpen && (
           <>
+            {/* 학습 스트림(#855) — MCP 에이전트 활동 실시간 개념 학습. */}
+            <button type="button" onClick={() => pickRightMode("learn")} aria-pressed={rightMode === "learn"} title={t("learn.mode")} aria-label={t("learn.mode")}
+              className={`shrink-0 rounded-lg p-1.5 transition ${rightMode === "learn" ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"}`}>
+              <IconActivity size={16} stroke={2} aria-hidden />
+            </button>
             <button type="button" onClick={() => pickRightMode("chat")} aria-pressed={rightMode === "chat"} title={t("chat.title")} aria-label={t("chat.title")}
               className={`shrink-0 rounded-lg p-1.5 transition ${rightMode === "chat" ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"}`}>
               <IconMessageCircle size={16} stroke={2} aria-hidden />
@@ -549,11 +555,6 @@ export default function WorkspaceView({ path, active = true, providerId, provide
               <IconBrandGithub size={16} stroke={2} aria-hidden />
               {/* CI 상태 도트(#812) — 진행(노랑,깜빡)/통과(초록)/실패(빨강). PR 없음·끝남이면 숨김. */}
               {ciDot && <span aria-hidden className={`absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0b0c12] ${ciDot === "running" ? "animate-pulse bg-amber-400" : ciDot === "failure" ? "bg-rose-500" : "bg-emerald-500"}`} />}
-            </button>
-            {/* 학습 스트림(#855) — MCP 에이전트 활동 실시간 개념 학습. */}
-            <button type="button" onClick={() => pickRightMode("learn")} aria-pressed={rightMode === "learn"} title={t("learn.mode")} aria-label={t("learn.mode")}
-              className={`shrink-0 rounded-lg p-1.5 transition ${rightMode === "learn" ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"}`}>
-              <IconActivity size={16} stroke={2} aria-hidden />
             </button>
             <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
           </>
