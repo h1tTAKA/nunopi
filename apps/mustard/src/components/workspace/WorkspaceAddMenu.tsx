@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconFolderOpen, IconMessages, IconFileCode, IconFileText, IconCards, IconChevronRight } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
+import { isNunopiEnabled } from "@/lib/product";
 // "+" 드롭다운 픽커(#769) — 워크스페이스에 새 탭으로 무엇을 열지 고른다(Orca式 컴팩트 메뉴).
 // "+" 버튼 아래에 앵커링(fixed). 레포는 폴더 다이얼로그, 모드는 즉시 빈 탭. 실제 추가는 onPick.
 // 섹션 라벨 + 키보드 네비(↑↓/Enter) + 활성 chevron으로 다듬음.
@@ -23,6 +24,9 @@ export default function WorkspaceAddMenu({ anchor, onClose, onPick }: {
   onPick: (kind: AddKind, target?: "tab" | "window") => void;
 }) {
   const t = useT();
+  // nunopi 학습툴 off(Mustard-only, #908)면 학습 모드 탭(ask/code/text/memorize) 숨김 — repo만.
+  // 학습스트림·워크스페이스 질문·퀴즈는 레포 뷰 내장이라 여기 무관(존치).
+  const rows = isNunopiEnabled() ? ROWS : ROWS.filter((r) => r.group !== "modes");
   // 새 창으로 열기(#789)는 Electron에서만. 메뉴는 클릭 후에만(클라이언트) 렌더돼 window 읽기 안전.
   const canWindow = typeof window !== "undefined" && !!window.nunopiDesktop?.openModeWindow;
   // 서브메뉴 방향(#789) — 우측 공간 부족(탭 많아 +가 우측이면)하면 왼쪽으로 뒤집어 잘림 방지.
@@ -34,15 +38,15 @@ export default function WorkspaceAddMenu({ anchor, onClose, onPick }: {
   // 최신 onPick 참조 — Enter 핸들러(effect 안 onKey)가 옛 onPick을 잡지 않게(stale closure 방지).
   const onPickRef = useRef(onPick);
   useEffect(() => { onPickRef.current = onPick; }, [onPick]);
-  const choose = (i: number) => { onPickRef.current(ROWS[i].kind); onClose(); };
+  const choose = (i: number) => { onPickRef.current(rows[i].kind); onClose(); };
 
   useEffect(() => {
     if (!open) return;
     setActiveIdx(0); // eslint-disable-line react-hooks/set-state-in-effect -- 열릴 때 첫 항목으로 리셋
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { onClose(); return; }
-      if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % ROWS.length); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i - 1 + ROWS.length) % ROWS.length); }
+      if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => (i + 1) % rows.length); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => (i - 1 + rows.length) % rows.length); }
       else if (e.key === "Enter") { e.preventDefault(); setActiveIdx((i) => { choose(i); return i; }); }
     };
     // 팝오버 바깥 클릭/스크롤/리사이즈 → 닫기. 다음 틱부터 걸어 여는 클릭이 즉시 닫는 것 방지.
@@ -63,9 +67,9 @@ export default function WorkspaceAddMenu({ anchor, onClose, onPick }: {
     <div role="menu" aria-label={t("workspace.addTitle")} onMouseDown={(e) => e.stopPropagation()}
       style={{ left: anchor.left, top: anchor.top }}
       className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#14151c] dark:ring-white/5">
-      {ROWS.map((row, i) => {
+      {rows.map((row, i) => {
         const on = i === activeIdx;
-        const first = i === 0 || ROWS[i - 1].group !== row.group;
+        const first = i === 0 || rows[i - 1].group !== row.group;
         const isMode = row.kind !== "repo"; // 모드 행만 서브메뉴(탭 추가/새 창). 레포는 즉시 폴더 선택.
         return (
           <div key={row.kind}>
