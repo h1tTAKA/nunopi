@@ -8,6 +8,7 @@ import { useState } from "react";
 import { I18nProvider, useLocale, useT, LOCALES, type Locale } from "@mustard/core";
 import { setNunopiEnabled } from "@/lib/product";
 import { IconFolderOpen, IconSparkles } from "@tabler/icons-react";
+import MustardMark from "@/components/brand/MustardMark";
 
 type CliPaths = { claudeCode?: string; codex?: string; opencode?: string };
 
@@ -50,8 +51,9 @@ function OnboardingInner({ onDone }: { onDone: () => void }) {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-zinc-950 text-zinc-100">
       <div className="flex min-h-full items-center justify-center p-6">
         <div className="w-full max-w-[480px] rounded-2xl border border-zinc-800 bg-zinc-900/50 p-8 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          {/* 헤더 */}
-          <div className="mb-7 text-center">
+          {/* 헤더 — 브랜드 심볼(겨자 꽃가지) + 워드마크 */}
+          <div className="mb-7 flex flex-col items-center text-center">
+            <MustardMark size={56} className="mb-3" />
             <h1 className="text-4xl font-bold tracking-tight text-mustard-400">Mustard</h1>
             <p className="mt-2.5 text-sm leading-relaxed text-zinc-400">{t("onboarding.welcome")}</p>
           </div>

@@ -10,6 +10,7 @@ import WorkspaceModePane from "@/components/workspace/WorkspaceModePane";
 import RepoAvatar from "@/components/workspace/RepoAvatar";
 import WorkspaceAddMenu, { type AddKind } from "@/components/workspace/WorkspaceAddMenu";
 import RepoTabHoverCard from "@/components/workspace/RepoTabHoverCard";
+import MustardMark from "@/components/brand/MustardMark";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 const TABS_KEY = "nunopi:ws-tabs";       // 열린 탭 배열(#731, #769에서 태그드 유니온으로 확장)
 const ACTIVE_KEY = "nunopi:ws-active";   // 활성 탭 키(tabKey)
@@ -409,10 +410,8 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
         {tabs.length === 0 ? (
           <div className="flex h-full flex-1 items-center justify-center p-8">
             <div className="flex max-w-sm flex-col items-center gap-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-50 text-mustard-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-mustard-400">
-                <IconFiles size={26} stroke={1.75} aria-hidden />
-              </div>
-              {/* 워드마크(#900 피봇 시작화면, orca Landing 참고) — 브랜드명이라 무번역. */}
+              {/* 브랜드 심볼(#906 겨자 꽃가지) + 워드마크. 브랜드명이라 무번역. */}
+              <MustardMark size={60} />
               <div className="text-2xl font-bold tracking-tight text-mustard-600 dark:text-mustard-400">Mustard</div>
               <p className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">{t("workspace.intro")}</p>
               <button type="button" onClick={(e) => openAddMenu(e.currentTarget)} disabled={picking || !mounted}
