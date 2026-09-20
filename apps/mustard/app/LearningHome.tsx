@@ -22,6 +22,7 @@ import { HistoryView } from "@mustard/nunopi";
 import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { HistoryNav } from "@mustard/nunopi";
 import { type ViewMode, VIEW_MODE_KEY } from "@mustard/core";
+import { type ThemeId, applyTheme, getStoredTheme, setStoredTheme } from "@mustard/core";
 import { deckStats } from "@mustard/nunopi";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { type HistoryEntry, getAllHistory } from "@mustard/nunopi";
@@ -39,20 +40,18 @@ export default function LearningHome() {
   const [providerSettings, setProviderSettings] = useState<ProviderSettings>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 테마(라이트/다크) — html.dark 클래스를 직접 토글해 Monaco/Shiki MutationObserver가 즉시 반응.
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  // 테마(#914 멀티) — data-theme + .dark(base)로 팔레트 재색조. Monaco/Shiki는 .dark MutationObserver로 반응.
+  const [theme, setTheme] = useState<ThemeId>("dark");
   useEffect(() => {
-    const stored = localStorage.getItem("nunopi:theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = stored ? stored === "dark" : prefersDark;
+    const t = getStoredTheme();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(isDark ? "dark" : "light");
-    document.documentElement.classList.toggle("dark", isDark);
+    setTheme(t);
+    applyTheme(t);
   }, []);
-  function changeTheme(next: "light" | "dark") {
+  function changeTheme(next: ThemeId) {
     setTheme(next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-    try { localStorage.setItem("nunopi:theme", next); } catch {}
+    applyTheme(next);
+    setStoredTheme(next);
   }
 
   // 카드보기 날아오는 애니메이션 on/off (#641).

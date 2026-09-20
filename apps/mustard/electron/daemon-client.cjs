@@ -83,11 +83,11 @@ function createDaemonClient(opts) {
   }
 
   return {
-    async ensure({ id, cwd, cols, rows }) {
+    async ensure({ id, cwd, cols, rows, dark }) {
       if (!(await ensureConnected())) return { ok: false, reason: "daemon unavailable" };
       return await new Promise((resolve) => {
         ensured.set(id, resolve);
-        socket.write(JSON.stringify({ t: "ensure", id, cwd, cols, rows }) + "\n");
+        socket.write(JSON.stringify({ t: "ensure", id, cwd, cols, rows, dark }) + "\n");
         setTimeout(() => { if (ensured.has(id)) { ensured.delete(id); resolve({ ok: false, reason: "ensure timeout" }); } }, 5000);
       });
     },

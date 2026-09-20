@@ -101,7 +101,7 @@ export default function AskSessionQuiz({ messages, providerId, providerSettings,
   }
 
   return (
-    <aside ref={asideRef} style={{ width }} className="relative flex shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+    <aside ref={asideRef} style={{ width }} className="relative flex shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[var(--ink2)]">
       <div
         role="separator"
         aria-orientation="vertical"

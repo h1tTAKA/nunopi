@@ -30,13 +30,16 @@ function shutdown() {
 function send(sock, msg) { try { sock.write(JSON.stringify(msg) + "\n"); } catch { /* ignore */ } }
 function broadcast(msg) { for (const c of clients) send(c, msg); }
 
-function ensure({ id, cwd, cols, rows }) {
+function ensure({ id, cwd, cols, rows, dark }) {
   let s = ptys.get(id);
   if (!s) {
     const shell = process.env.NUNOPI_TERM_SHELL || process.env.SHELL || "/bin/bash";
     const env = { ...process.env };
     delete env.npm_config_prefix; delete env.NPM_CONFIG_PREFIX; // nvm 경고 방지(#674)
     delete env.NUNOPI_TERM_SOCK; delete env.NUNOPI_TERM_TOKEN; delete env.NUNOPI_TERM_SHELL; // 데몬 내부 env 누출 방지
+    // 터미널 배경 밝기 힌트(#914) — CLI TUI(claude 등)가 라이트/다크 색을 스스로 고르게. "fg;bg" ANSI 인덱스.
+    // 라이트=bg 15(밝음)→"0;15", 다크=bg 0(어두움)→"15;0". OSC11 응답과 병행(env만 보는 도구 커버).
+    env.COLORFGBG = dark === false ? "0;15" : "15;0";
     let proc;
     // cols 하한 20 클램프(#832) — 레이아웃 미확정 폭으로 극소 cols가 새 나가도 셸 출력이 세로로 깨지지 않게(FE 폭 가드 백스톱).
     try { proc = pty.spawn(shell, [], { name: "xterm-256color", cols: Math.max(cols || 80, 20), rows: rows || 24, cwd, env }); }

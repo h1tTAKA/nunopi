@@ -17,7 +17,8 @@ const notoSansKr = Noto_Sans_KR({
   display: "swap",
 });
 
-const DARK_MODE_SCRIPT = `(function(){try{var t=localStorage.getItem('nunopi:theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t?t==='dark':d)document.documentElement.classList.add('dark');}catch(e){}})();`;
+// 테마 FOUC 방지(#914) — 하이드레이션 전 저장 테마를 data-theme + .dark(base)로 반영.
+const DARK_MODE_SCRIPT = `(function(){try{var t=localStorage.getItem('nunopi:theme');var dark=['dark','midnight','nord','solarized-dark'];var e=document.documentElement;if(!t)t='dark';e.setAttribute('data-theme',t);e.classList.toggle('dark',dark.indexOf(t)>=0);}catch(_){}})();`;
 
 export const metadata: Metadata = {
   title: "Nunopi",

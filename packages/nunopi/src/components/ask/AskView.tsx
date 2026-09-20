@@ -1076,7 +1076,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
     <div ref={rootRef} aria-hidden={!active} className={`flex h-full w-full overflow-hidden ${resizing ? "select-none" : ""}`}>
       {/* 좌측 세션 히스토리 패널 — 접힘(#783)이면 aside·리사이즈 핸들 숨기고 챗이 전폭. */}
       {!collapsed && (
-      <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+      <aside style={{ width: panelWidth }} className="flex shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[var(--ink2)]">
         <div className="flex items-center justify-between px-3 py-3">
           <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             <IconMessage2 size={15} stroke={2} aria-hidden />

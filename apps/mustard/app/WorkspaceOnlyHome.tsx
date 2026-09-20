@@ -11,6 +11,7 @@ import { ConfirmProvider, ToastProvider, I18nProvider } from "@mustard/core";
 import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
 import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
+import { type ThemeId, applyTheme, getStoredTheme, setStoredTheme } from "@mustard/core";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 const DEFAULT_PROVIDER_ID: AgentProviderKind = "claude-agent";
@@ -21,20 +22,18 @@ export default function WorkspaceOnlyHome() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const wsRef = useRef<WorkspaceTabsHandle>(null);
 
-  // 테마(라이트/다크) — 학습 홈과 동일 키·동작.
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  // 테마(#914 멀티) — 학습 홈과 동일 키·동작.
+  const [theme, setTheme] = useState<ThemeId>("dark");
   useEffect(() => {
-    const stored = localStorage.getItem("nunopi:theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const isDark = stored ? stored === "dark" : prefersDark;
+    const t = getStoredTheme();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setTheme(isDark ? "dark" : "light");
-    document.documentElement.classList.toggle("dark", isDark);
+    setTheme(t);
+    applyTheme(t);
   }, []);
-  function changeTheme(next: "light" | "dark") {
+  function changeTheme(next: ThemeId) {
     setTheme(next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-    try { localStorage.setItem("nunopi:theme", next); } catch {}
+    applyTheme(next);
+    setStoredTheme(next);
   }
 
   useEffect(() => {

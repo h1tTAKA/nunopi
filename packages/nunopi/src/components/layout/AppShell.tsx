@@ -137,7 +137,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, subToggle,
   }
 
   return (
-    <div className="relative flex h-screen min-h-0 flex-col bg-white dark:bg-[#111219]">
+    <div className="relative flex h-screen min-h-0 flex-col bg-white dark:bg-[var(--ink)]">
       {/* 질문·분석 영역: full-width 헤더 바 대신 얇은 상단 스트립에 우측 정렬 pill(모드 토글+설정) — orca식.
           투명 배경·최소 높이라 옛 헤더보다 얇고, 콘텐츠는 아래로 흘러 뷰 툴바와 안 겹침(#723). 워크스페이스는 자체 컨트롤(#721)이라 미표시. */}
       {!workspace && (
@@ -243,7 +243,7 @@ export default function AppShell({ editor, learningPanel, modeToggle, subToggle,
         {/* 학습패널 — 자체 세로 스크롤. data-panel-scroll: 안쪽 박스(forwardPanelWheel)가 wheel을 이 컨테이너로 넘긴다. */}
         <aside
           data-panel-scroll
-          className="nunopi-scroll min-h-0 flex-1 overflow-y-scroll bg-white dark:bg-[#111219]"
+          className="nunopi-scroll min-h-0 flex-1 overflow-y-scroll bg-white dark:bg-[var(--ink)]"
         >
           {learningPanel}
         </aside>

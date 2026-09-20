@@ -4,6 +4,18 @@ import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
 import { useLocale, useT } from "@mustard/core";
 import { LOCALES, type Locale } from "@mustard/core";
+import { THEMES, type ThemeId } from "@mustard/core";
+import { type TerminalThemePref, getTerminalThemePref, setTerminalThemePref } from "@mustard/core";
+// 테마 미리보기 스와치(배경/도트) — 피커 버튼용. 실제 색은 globals.css [data-theme] 블록서 온다.
+const THEME_SWATCH: Record<ThemeId, { bg: string; dot: string }> = {
+  dark: { bg: "#111219", dot: "#d4a017" },
+  light: { bg: "#ffffff", dot: "#d4a017" },
+  sepia: { bg: "#f4ecd8", dot: "#a67c11" },
+  midnight: { bg: "#0b1020", dot: "#9aa8c8" },
+  nord: { bg: "#2e3440", dot: "#88c0d0" },
+  "solarized-light": { bg: "#fdf6e3", dot: "#b58900" },
+  "solarized-dark": { bg: "#002b36", dot: "#2aa198" },
+};
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -12,8 +24,8 @@ interface SettingsDrawerProps {
   onSave: (next: ProviderSettings) => void;
   excludedTerms?: string[];
   onRemoveExclusion?: (mode: AnalyzeMode, text: string) => void;
-  theme: "light" | "dark";
-  onThemeChange: (next: "light" | "dark") => void;
+  theme: ThemeId;
+  onThemeChange: (next: ThemeId) => void;
   // 학습 전용 설정 노출 여부(#896 서브6). false=Mustard-only → 카드애니·암기provider·제외용어 숨김.
   showLearning?: boolean;
   // 카드보기 날아오는 애니메이션 on/off (#641). 학습 전용(showLearning=false면 미사용).
@@ -85,6 +97,9 @@ export default function SettingsDrawer({
 }: SettingsDrawerProps) {
   const { locale, setLocale } = useLocale();
   const t = useT();
+  // 터미널 테마(#914) — 앱 테마와 분리. getTerminalThemePref는 localStorage try/catch라 SSR 안전.
+  const [termPref, setTermPref] = useState<TerminalThemePref>(() => getTerminalThemePref());
+  const changeTermPref = (p: TerminalThemePref) => { setTermPref(p); setTerminalThemePref(p); };
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -140,8 +155,8 @@ export default function SettingsDrawer({
         onClick={onClose}
       />
       <div className={variant === "modal"
-        ? "fixed left-1/2 top-1/2 z-[90] flex max-h-[85vh] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[#111219]"
-        : "fixed inset-y-0 right-0 z-[90] flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[#111219]"}>
+        ? "fixed left-1/2 top-1/2 z-[90] flex max-h-[85vh] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[var(--ink)]"
+        : "fixed inset-y-0 right-0 z-[90] flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[var(--ink)]"}>
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {t("settings.title")}
@@ -164,29 +179,54 @@ export default function SettingsDrawer({
             </h3>
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.theme")}</span>
-              <div
-                role="radiogroup"
-                aria-label="테마"
-                className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900"
-              >
-                {([
-                  { value: "dark", label: t("settings.dark") },
-                  { value: "light", label: t("settings.light") },
-                ] as const).map((opt) => {
-                  const selected = theme === opt.value;
+              <div role="radiogroup" aria-label={t("settings.theme")} className="grid grid-cols-2 gap-1.5">
+                {THEMES.map((opt) => {
+                  const selected = theme === opt.id;
+                  const sw = THEME_SWATCH[opt.id];
                   return (
                     <button
-                      key={opt.value}
+                      key={opt.id}
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => onThemeChange(opt.value)}
+                      onClick={() => onThemeChange(opt.id)}
+                      className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 text-left text-[13px] font-medium transition ${
+                        selected
+                          ? "border-mustard-500 bg-mustard-500/10 text-zinc-900 dark:text-zinc-50"
+                          : "border-zinc-200 text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600"
+                      }`}
+                    >
+                      <span
+                        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-black/10 dark:border-white/10"
+                        style={{ background: sw.bg }}
+                        aria-hidden
+                      >
+                        <span className="h-2 w-2 rounded-full" style={{ background: sw.dot }} />
+                      </span>
+                      <span className="min-w-0 truncate">{t(opt.labelKey)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {/* 터미널 테마(#914) — 앱 테마와 분리(CLI TUI가 다크 전제라 기본 dark). */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalTheme")}</span>
+              <div role="radiogroup" aria-label={t("settings.terminalTheme")} className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+                {([
+                  { value: "dark", label: t("settings.dark") },
+                  { value: "light", label: t("settings.light") },
+                  { value: "auto", label: t("settings.themeAuto") },
+                ] as const).map((opt) => {
+                  const selected = termPref === opt.value;
+                  return (
+                    <button key={opt.value} type="button" role="radio" aria-checked={selected}
+                      onClick={() => changeTermPref(opt.value)}
                       className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
                         selected
                           ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
                           : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                      }`}
-                    >
+                      }`}>
                       {opt.label}
                     </button>
                   );

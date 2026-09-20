@@ -1,0 +1,125 @@
+/* 멀티 테마 토큰 블록(#914) — 접근 A: 컴포넌트는 스톡 zinc/white 클래스 그대로, 여기서
+   테마별로 그 토큰 의미만 재색조. Tailwind v4는 색 유틸이 var(--color-*)를 참조하므로
+   [data-theme] 스코프서 --color-* 를 덮으면 클래스 변경 0으로 팔레트가 갈린다.
+   Dark/Light는 기존 두 팔레트(.dark 유무)라 여기 블록 없음 — globals.css @theme 기본값 사용.
+   base=light 테마: .dark 미설정 → light 클래스(bg-white, zinc-50/100/200, text-zinc-700…) 재색조.
+   base=dark 테마: .dark 설정 → dark: 유틸(zinc-800/900/950, text-zinc-300/400…) 재색조. */
+
+/* 라이트 테마 코드블록 신택스(#914) — 전역 import한 github-dark.css는 다크 배경용(밝은 글자)이라
+   라이트서 흐리다. orca(markdown-preview.css)의 GitHub-light .hljs 팔레트를 :root:not(.dark)로 덮어씀.
+   특이도(:root:not(.dark) .nunopi-md .hljs = 0,4,0)로 github-dark(.hljs=0,1,0)를 이긴다. */
+:root:not(.dark) .nunopi-md .hljs { color: #24292f; }
+:root:not(.dark) .nunopi-md .hljs-comment,
+:root:not(.dark) .nunopi-md .hljs-quote { color: #6e7781; font-style: italic; }
+:root:not(.dark) .nunopi-md .hljs-keyword,
+:root:not(.dark) .nunopi-md .hljs-selector-tag,
+:root:not(.dark) .nunopi-md .hljs-template-tag,
+:root:not(.dark) .nunopi-md .hljs-operator { color: #cf222e; }
+:root:not(.dark) .nunopi-md .hljs-string,
+:root:not(.dark) .nunopi-md .hljs-doctag,
+:root:not(.dark) .nunopi-md .hljs-regexp { color: #0a3069; }
+:root:not(.dark) .nunopi-md .hljs-number,
+:root:not(.dark) .nunopi-md .hljs-literal { color: #0550ae; }
+:root:not(.dark) .nunopi-md .hljs-title,
+:root:not(.dark) .nunopi-md .hljs-section,
+:root:not(.dark) .nunopi-md .hljs-function { color: #8250df; }
+:root:not(.dark) .nunopi-md .hljs-type,
+:root:not(.dark) .nunopi-md .hljs-built_in,
+:root:not(.dark) .nunopi-md .hljs-attr,
+:root:not(.dark) .nunopi-md .hljs-attribute,
+:root:not(.dark) .nunopi-md .hljs-property,
+:root:not(.dark) .nunopi-md .hljs-symbol,
+:root:not(.dark) .nunopi-md .hljs-bullet,
+:root:not(.dark) .nunopi-md .hljs-selector-class,
+:root:not(.dark) .nunopi-md .hljs-selector-id,
+:root:not(.dark) .nunopi-md .hljs-meta { color: #0550ae; }
+:root:not(.dark) .nunopi-md .hljs-variable,
+:root:not(.dark) .nunopi-md .hljs-template-variable,
+:root:not(.dark) .nunopi-md .hljs-params { color: #953800; }
+:root:not(.dark) .nunopi-md .hljs-tag,
+:root:not(.dark) .nunopi-md .hljs-name { color: #116329; }
+
+/* ── Sepia (base light) — 따뜻한 종이. 머스타드 골드가 가장 살아나는 톤. ── */
+:root[data-theme="sepia"] {
+  --background: #f4ecd8;
+  --foreground: #43382a;
+  --color-white: #fbf5e6;      /* 패널/카드/헤더 */
+  --color-zinc-50: #f3ead4;    /* 작은 input/칩 */
+  --color-zinc-100: #ece0c4;   /* 토글 트랙/hover */
+  --color-zinc-200: #ddceac;   /* 보더 */
+  --color-zinc-300: #cbb98f;
+  --color-zinc-400: #9a875f;   /* 흐린 텍스트 */
+  --color-zinc-500: #7a6a4a;
+  --color-zinc-600: #5c4f3a;
+  --color-zinc-700: #4a3f2f;   /* 본문 텍스트 */
+  --color-zinc-800: #3a3122;
+  --color-zinc-900: #2c2519;   /* 진한 제목 */
+}
+
+/* ── Solarized Light (base light) — base3 배경 + base00/01 텍스트. ── */
+:root[data-theme="solarized-light"] {
+  --background: #fdf6e3;
+  --foreground: #586e75;
+  --color-white: #fefbf0;
+  --color-zinc-50: #f5efdc;
+  --color-zinc-100: #eee8d5;   /* base2 */
+  --color-zinc-200: #ddd6c1;
+  --color-zinc-300: #cbc4ad;
+  --color-zinc-400: #93a1a1;   /* base1 */
+  --color-zinc-500: #839496;   /* base0 */
+  --color-zinc-600: #657b83;   /* base00 */
+  --color-zinc-700: #586e75;   /* base01 */
+  --color-zinc-800: #073642;   /* base02 */
+  --color-zinc-900: #002b36;   /* base03 */
+}
+
+/* ── Midnight (base dark) — 깊은 네이비. 기본 다크보다 차분·고급. ── */
+:root[data-theme="midnight"] {
+  --background: #0b1020;
+  --foreground: #dbe3f4;
+  --ink: #131a2e;              /* 주 패널 */
+  --ink2: #0f1526;            /* 보조 패널/스티키 */
+  --color-zinc-950: #070b16;   /* 최심 배경 */
+  --color-zinc-900: #131a2e;   /* 주 패널 */
+  --color-zinc-800: #1c2540;   /* 카드/hover fill */
+  --color-zinc-700: #2b3555;   /* 보더 */
+  --color-zinc-600: #3a4a6f;
+  --color-zinc-500: #7c89a8;
+  --color-zinc-400: #9aa8c8;   /* 보조 텍스트 */
+  --color-zinc-300: #c3cee6;
+  --color-zinc-200: #dbe3f4;
+}
+
+/* ── Nord (base dark) — 폴라 나이트/스노우. 차가운 블루그레이. ── */
+:root[data-theme="nord"] {
+  --background: #242933;
+  --foreground: #e5e9f0;
+  --ink: #2e3440;
+  --ink2: #292e39;
+  --color-zinc-950: #1e222b;
+  --color-zinc-900: #2e3440;   /* polar night 0 */
+  --color-zinc-800: #3b4252;   /* polar night 1 */
+  --color-zinc-700: #434c5e;   /* polar night 2 */
+  --color-zinc-600: #4c566a;   /* polar night 3 */
+  --color-zinc-500: #8790a3;
+  --color-zinc-400: #b8c0d0;
+  --color-zinc-300: #d8dee9;   /* snow 0 */
+  --color-zinc-200: #e5e9f0;   /* snow 1 */
+}
+
+/* ── Solarized Dark (base dark) — base03 배경 + base0/1 텍스트. ── */
+:root[data-theme="solarized-dark"] {
+  --background: #002b36;
+  --foreground: #93a1a1;
+  --ink: #073642;
+  --ink2: #04303b;
+  --color-zinc-950: #002028;
+  --color-zinc-900: #073642;   /* base02 패널 */
+  --color-zinc-800: #0a4451;
+  --color-zinc-700: #0f5563;   /* 보더/hover */
+  --color-zinc-600: #486b73;
+  --color-zinc-500: #6a7d7d;
+  --color-zinc-400: #93a1a1;   /* base1 보조텍스트 */
+  --color-zinc-300: #a8b3b3;
+  --color-zinc-200: #c3cbcb;
+}
