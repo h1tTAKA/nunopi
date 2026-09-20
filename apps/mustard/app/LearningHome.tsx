@@ -9,6 +9,7 @@ import { SettingsDrawer } from "@mustard/nunopi";
 import { ConfirmProvider } from "@mustard/core";
 import { ToastProvider } from "@mustard/core";
 import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
+import { isNunopiEnabled, setNunopiEnabled } from "@/lib/product";
 // nunopiEnabled=true 경로의 학습 홈(#896 서브6). page.tsx가 React.lazy로 로드 —
 // 학습 표면(useCodeAnalysis·학습 컴포넌트) 전부 여기 static import라 false면 이 청크가 안 실린다.
 import { I18nProvider } from "@mustard/core";
@@ -384,6 +385,8 @@ export default function LearningHome() {
         onCardFlyAnimationChange={changeCardFlyAnimation}
         memorizeProviderId={memorizeProviderId}
         onMemorizeProviderChange={handleMemorizeProviderChange}
+        nunopiEnabled={isNunopiEnabled()}
+        onNunopiEnabledChange={(on) => { setNunopiEnabled(on); location.reload(); }}
       />
       <GlobalCommandPalette onNavigate={handleViewModeChange} onOpenSettings={() => setIsSettingsOpen(true)} vm={vm} workspaceRef={wsRef} />
     </ToastProvider>

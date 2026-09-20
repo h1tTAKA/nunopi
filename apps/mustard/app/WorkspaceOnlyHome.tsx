@@ -9,6 +9,7 @@ import { AppShell } from "@mustard/nunopi";
 import { SettingsDrawer } from "@mustard/nunopi";
 import { ConfirmProvider, ToastProvider, I18nProvider } from "@mustard/core";
 import GlobalCommandPalette from "@/components/ui/GlobalCommandPalette";
+import { isNunopiEnabled, setNunopiEnabled } from "@/lib/product";
 import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { type ThemeId, applyTheme, getStoredTheme, setStoredTheme } from "@mustard/core";
@@ -77,6 +78,8 @@ export default function WorkspaceOnlyHome() {
         theme={theme}
         onThemeChange={changeTheme}
         showLearning={false}
+        nunopiEnabled={isNunopiEnabled()}
+        onNunopiEnabledChange={(on) => { setNunopiEnabled(on); location.reload(); }}
       />
       <GlobalCommandPalette onNavigate={() => {}} onOpenSettings={() => setIsSettingsOpen(true)} vm="workspace" workspaceRef={wsRef} />
     </ToastProvider>
