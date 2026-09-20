@@ -86,15 +86,6 @@ interface NunopiDesktopApi {
     onData(cb: (p: { id: string; data: string }) => void): () => void;
     onExit(cb: (p: { id: string }) => void): () => void;
   };
-  // 네이티브 에이전트 챗(#916) — headless claude(stream-json) 연결. onFrame 프레임은 SDK 원본 JSON(any),
-  // Phase 2+서 렌더러가 파싱. sessionId로 멀티 세션 구분.
-  agent: {
-    create(opts: { sessionId: string; cwd: string; model?: string }): Promise<{ ok: boolean; already?: boolean; reason?: string }>;
-    send(sessionId: string, text: string): void;
-    close(sessionId: string): void;
-    onFrame(cb: (p: { sessionId: string; frame: unknown }) => void): () => void;
-    onExit(cb: (p: { sessionId: string }) => void): () => void;
-  };
   // 포트 패널(#880) — 워크스페이스(cwd)가 띄운 dev 서버 리스닝 포트. open은 기본 브라우저로.
   ports: {
     list(cwd: string): Promise<{ port: number; pid: number; cmd: string }[]>;
