@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles } from "@tabler/icons-react";
 import { useLocale, useT } from "@mustard/core";
 import { LOCALES, type Locale } from "@mustard/core";
 import { THEMES, type ThemeId } from "@mustard/core";
@@ -34,6 +35,10 @@ interface SettingsDrawerProps {
   // 암기모드 카드 기본 설명 생성에 쓸 provider(분석 provider와 별개). 학습 전용.
   memorizeProviderId?: AgentProviderKind;
   onMemorizeProviderChange?: (id: AgentProviderKind) => void;
+  // nunopi 학습 모듈 설치/사용 토글(#924) — 온보딩 외 설정서도. 핸들러 있으면 nunopi 섹션 노출.
+  // apps/mustard는 isNunopiEnabled/setNunopiEnabled 주입(변경 시 reload로 게이트 반영). apps/nunopi 스탠드얼론은 미주입.
+  nunopiEnabled?: boolean;
+  onNunopiEnabledChange?: (on: boolean) => void;
 }
 
 // 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
@@ -94,12 +99,15 @@ export default function SettingsDrawer({
   onCardFlyAnimationChange,
   memorizeProviderId,
   onMemorizeProviderChange,
+  nunopiEnabled,
+  onNunopiEnabledChange,
 }: SettingsDrawerProps) {
   const { locale, setLocale } = useLocale();
   const t = useT();
   // 터미널 테마(#914) — 앱 테마와 분리. getTerminalThemePref는 localStorage try/catch라 SSR 안전.
   const [termPref, setTermPref] = useState<TerminalThemePref>(() => getTerminalThemePref());
   const changeTermPref = (p: TerminalThemePref) => { setTermPref(p); setTerminalThemePref(p); };
+  const [activeSection, setActiveSection] = useState("set-appearance"); // 좌측 선택 = 우측 그 섹션만 렌더(#925). 훅은 early-return 위에.
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -122,6 +130,7 @@ export default function SettingsDrawer({
 
   if (!isOpen) return null;
 
+  // orca식 즉시 적용(#924) — 저장 버튼 없이 입력 blur 시 자동 반영. onClose 호출 안 함.
   function handleSave() {
     onSave({
       "openai-compatible": {
@@ -145,18 +154,35 @@ export default function SettingsDrawer({
       codex: codexCliPath.trim() || undefined,
       opencode: openCodeCliPath.trim() || undefined,
     }).catch((e) => console.warn("[settings] desktop runtime-paths save failed:", e));
-    onClose();
   }
 
+  // orca식 풀페이지 설정(#925) — 좌측 섹션 사이드바(스크롤 앵커) + 우측 내용. variant는 이제 무시(항상 풀페이지).
+  const SECTIONS: { id: string; label: string; Icon: typeof IconPalette; show: boolean }[] = [
+    { id: "set-appearance", label: t("settings.screen"), Icon: IconPalette, show: true },
+    { id: "set-language", label: t("settings.language"), Icon: IconLanguage, show: true },
+    { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
+    { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
+  ];
+  void variant;
   return (
-    <>
-      <div
-        className="fixed inset-0 z-[80] bg-black/30 dark:bg-black/50"
-        onClick={onClose}
-      />
-      <div className={variant === "modal"
-        ? "fixed left-1/2 top-1/2 z-[90] flex max-h-[85vh] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-[var(--ink)]"
-        : "fixed inset-y-0 right-0 z-[90] flex w-full max-w-sm flex-col bg-white shadow-xl dark:bg-[var(--ink)]"}>
+    <div className="fixed inset-0 z-[90] flex bg-white text-zinc-900 dark:bg-[var(--ink)] dark:text-zinc-100">
+      {/* 좌측 섹션 사이드바 — 상단 titlebar 공간(pt) 확보(macOS 신호등 버튼 겹침 방지) + 창 이동 드래그. */}
+      <nav className="titlebar-drag flex w-56 shrink-0 flex-col gap-0.5 border-r border-zinc-200 px-3 pb-3 pt-10 dark:border-zinc-800">
+        <button type="button" onClick={onClose} className="mb-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+          <IconArrowLeft size={16} stroke={2} aria-hidden /> {t("settings.backToApp")}
+        </button>
+        {SECTIONS.filter((s) => s.show).map((s) => {
+          const on = activeSection === s.id;
+          return (
+            <button key={s.id} type="button" aria-current={on} onClick={() => setActiveSection(s.id)}
+              className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition ${on ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"}`}>
+              <s.Icon size={16} stroke={1.75} className={`shrink-0 ${on ? "text-mustard-500" : "text-zinc-400 dark:text-zinc-500"}`} aria-hidden /> {s.label}
+            </button>
+          );
+        })}
+      </nav>
+      {/* 우측 내용 */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-800">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
             {t("settings.title")}
@@ -173,7 +199,8 @@ export default function SettingsDrawer({
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {/* 화면 카드 */}
-          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          {activeSection === "set-appearance" && (
+          <section id="set-appearance" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.screen")}
             </h3>
@@ -253,9 +280,11 @@ export default function SettingsDrawer({
             </div>
             )}
           </section>
+          )}
 
           {/* 언어 카드 */}
-          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          {activeSection === "set-language" && (
+          <section id="set-language" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.language")}
             </h3>
@@ -272,9 +301,11 @@ export default function SettingsDrawer({
               ))}
             </select>
           </section>
+          )}
 
           {/* 프로바이더 카드 — OpenAI-Compatible / Claude / Codex 소제목+구분선으로 */}
-          <section className="space-y-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          {activeSection === "set-agents" && (
+          <section id="set-agents" className="scroll-mt-4 space-y-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.provider")}
             </h3>
@@ -292,7 +323,7 @@ export default function SettingsDrawer({
               <input
                 type="url"
                 value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
+                onChange={(e) => setBaseUrl(e.target.value)} onBlur={handleSave}
                 placeholder="http://localhost:11434/v1"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -308,7 +339,7 @@ export default function SettingsDrawer({
               <input
                 type="text"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => setModel(e.target.value)} onBlur={handleSave}
                 placeholder="hermes-3"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -322,7 +353,7 @@ export default function SettingsDrawer({
               <input
                 type="password"
                 value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                onChange={(e) => setApiKey(e.target.value)} onBlur={handleSave}
                 placeholder="sk-..."
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -343,7 +374,7 @@ export default function SettingsDrawer({
               <input
                 type="text"
                 value={claudeCliPath}
-                onChange={(e) => setClaudeCliPath(e.target.value)}
+                onChange={(e) => setClaudeCliPath(e.target.value)} onBlur={handleSave}
                 placeholder="/usr/local/bin/claude"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -367,7 +398,7 @@ export default function SettingsDrawer({
               <input
                 type="text"
                 value={codexCliPath}
-                onChange={(e) => setCodexCliPath(e.target.value)}
+                onChange={(e) => setCodexCliPath(e.target.value)} onBlur={handleSave}
                 placeholder="/usr/local/bin/codex"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -391,7 +422,7 @@ export default function SettingsDrawer({
               <input
                 type="text"
                 value={openCodeCliPath}
-                onChange={(e) => setOpenCodeCliPath(e.target.value)}
+                onChange={(e) => setOpenCodeCliPath(e.target.value)} onBlur={handleSave}
                 placeholder="/opt/homebrew/bin/opencode"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
               />
@@ -417,11 +448,12 @@ export default function SettingsDrawer({
               </div>
             )}
           </section>
+          )}
 
-          {/* 암기모드 provider + 제외 목록 — 학습 전용(#896 서브6, Mustard-only서 숨김) */}
-          {showLearning && (<>
+          {/* 암기모드 provider + 제외 목록 — 프로바이더 섹션 안(학습 전용, Mustard-only서 숨김) */}
+          {showLearning && activeSection === "set-agents" && (<>
           {/* 암기모드 카드 설명 provider — 프로바이더 설정 바로 밑 */}
-          <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+          <section id="set-learning" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.memorizeProvider")}
             </h3>
@@ -456,21 +488,33 @@ export default function SettingsDrawer({
           </section>
           </>)}
 
+          {/* nunopi 학습 모듈 설치/사용(#924) — 온보딩 외 설정서도 토글. */}
+          {activeSection === "set-nunopi" && (
+          <section id="set-nunopi" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.nunopiModule")}</h3>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  <IconSparkles size={15} stroke={1.75} className="text-mustard-500" aria-hidden /> nunopi
+                </span>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-400 dark:text-zinc-500">{t("onboarding.nunopiDesc")}</p>
+              </div>
+              <button type="button" role="switch" aria-checked={!!nunopiEnabled} aria-label={t("settings.nunopiModule")}
+                onClick={() => onNunopiEnabledChange?.(!nunopiEnabled)}
+                className={`relative h-6 w-11 shrink-0 rounded-full transition ${nunopiEnabled ? "bg-mustard-500" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${nunopiEnabled ? "left-[22px]" : "left-0.5"}`} />
+              </button>
+            </div>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.nunopiModuleApply")}</p>
+          </section>
+          )}
+
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
             {t("settings.storageNote")}
           </p>
         </div>
 
-        <div className="border-t border-zinc-200 px-6 py-4 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={handleSave}
-            className="w-full rounded-xl bg-zinc-900 px-4 py-3 text-sm font-semibold text-zinc-50 transition hover:opacity-90 dark:bg-zinc-50 dark:text-zinc-900"
-          >
-            {t("settings.save")}
-          </button>
-        </div>
       </div>
-    </>
+    </div>
   );
 }

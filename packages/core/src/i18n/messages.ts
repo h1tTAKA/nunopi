@@ -643,6 +643,9 @@ const ko: Dict = {
 
   "settings.title": "설정",
   "settings.close": "설정 닫기",
+  "settings.backToApp": "앱으로 돌아가기",
+  "settings.nunopiModule": "nunopi 학습 모듈",
+  "settings.nunopiModuleApply": "끄거나 켜면 앱이 새로고침되어 적용됩니다.",
   "settings.screen": "화면",
   "settings.cardFlyAnimation": "카드 날아오는 애니메이션",
   "settings.cardFlyAnimationDesc": "끄면 카드보기 시 즉시 표시(비행 생략)",
@@ -1497,6 +1500,9 @@ const ja: Dict = {
 
   "settings.title": "設定",
   "settings.close": "設定を閉じる",
+  "settings.backToApp": "アプリに戻る",
+  "settings.nunopiModule": "nunopi 学習モジュール",
+  "settings.nunopiModuleApply": "オン/オフするとアプリが再読み込みされて適用されます。",
   "settings.screen": "画面",
   "settings.cardFlyAnimation": "カードが飛んでくるアニメーション",
   "settings.cardFlyAnimationDesc": "オフにするとカード表示時に即表示(飛行を省略)",
@@ -2351,6 +2357,9 @@ const en: Dict = {
 
   "settings.title": "Settings",
   "settings.close": "Close settings",
+  "settings.backToApp": "Back to app",
+  "settings.nunopiModule": "nunopi learning module",
+  "settings.nunopiModuleApply": "Toggling reloads the app to apply.",
   "settings.screen": "Display",
   "settings.cardFlyAnimation": "Card fly-in animation",
   "settings.cardFlyAnimationDesc": "Off = show the card instantly (skip the flight)",
