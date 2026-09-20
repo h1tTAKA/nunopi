@@ -65,8 +65,8 @@ export function setStoredTheme(id: ThemeId): void {
   }
 }
 
-// ── 터미널 테마(#914) — 앱 테마와 분리. CLI TUI(claude·git diff)가 다크 전제라 기본 dark 유지가 안전.
-// auto=앱 테마(.dark) 따라감. 터미널 색은 앱 토큰이 아닌 자체 고정 팔레트를 쓴다(라이트 앱+다크 터미널 조합 가능).
+// ── 터미널 테마(#914·#922) — 앱 테마와 분리 가능하되 기본은 auto(앱 .dark 따라감).
+// dark/light로 고정도 가능(설정). 터미널 색은 앱 토큰이 아닌 자체 고정 팔레트(orca Ghostty/Tango).
 export type TerminalThemePref = "dark" | "light" | "auto";
 export const TERMINAL_THEME_KEY = "nunopi:terminal-theme";
 export const TERMINAL_THEME_EVENT = "nunopi:terminal-theme-change"; // 설정 변경 → 열린 터미널에 브로드캐스트
@@ -78,7 +78,7 @@ export function getTerminalThemePref(): TerminalThemePref {
   } catch {
     /* ignore */
   }
-  return "dark";
+  return "auto"; // 기본=앱 테마 따라감(#922). 라이트 앱 → 라이트 터미널(Tango).
 }
 
 export function setTerminalThemePref(p: TerminalThemePref): void {

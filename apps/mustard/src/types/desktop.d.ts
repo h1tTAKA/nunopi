@@ -82,7 +82,7 @@ interface NunopiDesktopApi {
     // agent(#803)=실행 중 에이전트 id | null(버퍼 파싱 우선 → node 래퍼 CLI도 감지). 탭 자동 이름·아이콘용.
     list(): Promise<{ id: string; cwd: string; process: string; pid: number; agent: string | null }[]>;
     // 에이전트 직접 실행(#864) — 신원을 실행 기록에 확정 + pty에 실행 커맨드 주입. 이후 탭 아이콘/이름=이 에이전트.
-    launchAgent(payload: { id: string; agent: string }): Promise<{ ok: boolean; reason?: string }>;
+    launchAgent(payload: { id: string; agent: string; dark?: boolean }): Promise<{ ok: boolean; reason?: string }>;
     onData(cb: (p: { id: string; data: string }) => void): () => void;
     onExit(cb: (p: { id: string }) => void): () => void;
   };
