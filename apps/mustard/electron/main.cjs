@@ -774,10 +774,13 @@ ipcMain.on("terminal:input", (_e, { id, data }) => { termClient.input({ id, data
 // #864 에이전트 직접 실행 — 신원을 실행 기록에 확정하고 pty 셸에 실행 커맨드 주입. 반환 후 탭 아이콘/이름=이 에이전트.
 // 새 탭은 렌더러가 Terminal 마운트→ensure까지 시간차가 있어, pty 준비(ensuredIds)를 최대 3s 대기 후 주입.
 const ensuredIds = new Set(); // ensure 완료된 세션 id
-ipcMain.handle("terminal:launchAgent", async (_e, { id, agent }) => {
+ipcMain.handle("terminal:launchAgent", async (_e, { id, agent, dark }) => {
   if (!id || typeof agent !== "string") return { ok: false, reason: "bad args" };
-  const cmd = agentCommand(agent);
+  let cmd = agentCommand(agent);
   if (!cmd) return { ok: false, reason: "unknown agent" };
+  // claude는 자기 theme(settings.json)으로 diff·프롬프트·링크 색을 truecolor로 찍어 터미널 팔레트가 못 이긴다(#922).
+  // 터미널 테마에 맞춰 --settings로 세션 theme만 덮어씀(유저 전역 ~/.claude/settings.json은 안 건드림, auth 유지·병합).
+  if (agent === "claude" && typeof dark === "boolean") cmd += ` --settings '{"theme":"${dark ? "dark" : "light"}"}'`;
   launchRegistry.set(id, { agent, confirmed: false, at: Date.now() }); // 즉시 신원(아이콘). 부팅 중 셸이어도 유지.
   let ready = false;
   for (let i = 0; i < 60; i++) { if (ensuredIds.has(id)) { ready = true; break; } await new Promise((r) => setTimeout(r, 50)); } // 최대 3s pty 대기

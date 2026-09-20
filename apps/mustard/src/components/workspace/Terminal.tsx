@@ -156,5 +156,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); term?.dispose(); term = null; };
   }, [id, cwd]);
 
-  return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: "#282c34" }} />;
+  // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
+  const initialBg = typeof document !== "undefined" && !isTerminalDark(getTerminalThemePref()) ? "#ffffff" : "#282c34";
+  return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: initialBg }} />;
 }

@@ -3,7 +3,7 @@
 // 활성 탭만 렌더(전환 시 remount → scrollback 재생). 탭 목록은 레포별 localStorage 영속.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconPlus, IconX, IconTerminal2 } from "@tabler/icons-react";
-import { useT } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark } from "@mustard/core";
 import Terminal from "@/components/workspace/Terminal";
 import { AgentLogo, AGENT_META, type AgentId } from "@/components/workspace/AgentLogo";
 
@@ -146,7 +146,8 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
     const id = genId();
     setTabs((prev) => [...prev, { id, title: t("workspace.terminalTab", { n: nextNum(prev) }) }]);
     setActiveId(id);
-    void window.nunopiDesktop?.terminal?.launchAgent?.({ id, agent }); // main이 pty ensure 대기 후 커맨드 주입
+    // 터미널 테마(#922) 전달 — claude는 자기 theme으로 색을 찍으므로, 라이트 터미널이면 --settings로 라이트 강제.
+    void window.nunopiDesktop?.terminal?.launchAgent?.({ id, agent, dark: isTerminalDark(getTerminalThemePref()) }); // main이 pty ensure 대기 후 커맨드 주입
   };
 
   return (
