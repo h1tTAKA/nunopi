@@ -14,7 +14,6 @@ const { createDaemonClient } = require("./daemon-client.cjs");
 const { removeRepoHooks } = require("./agent-hooks.cjs");
 const { getProviderUsage } = require("./provider-usage.cjs");
 const { startWatch, stopWatch, stopAll: stopAllWatchers } = require("./repo-watcher.cjs");
-const agentChat = require("./agent-chat.cjs"); // 네이티브 에이전트 챗(#916) — headless claude 연결
 const githubBridge = require("./github-bridge.cjs"); // GitHub 패널(#809/#810) gh CLI 브릿지
 const { join, dirname } = require("node:path");
 
@@ -787,19 +786,6 @@ ipcMain.handle("terminal:launchAgent", async (_e, { id, agent }) => {
   catch (e) { launchRegistry.delete(id); return { ok: false, reason: String((e && e.message) || e) }; }
   return { ok: true };
 });
-// ── 네이티브 에이전트 챗(#916 Phase 1) — headless claude 연결. 프레임은 broadcast로 렌더러에.
-ipcMain.handle("agent:create", async (_e, { sessionId, cwd, model }) => {
-  if (!sessionId || !cwd) return { ok: false, reason: "bad args" };
-  const claudePath = agentCommand("claude"); // 기존 경로 resolve 재사용(설정/PATH)
-  return agentChat.createSession(
-    { sessionId, cwd, claudePath, model },
-    (sid, frame) => broadcast("agent:frame", { sessionId: sid, frame }),
-    (sid) => broadcast("agent:exit", { sessionId: sid }),
-  );
-});
-ipcMain.on("agent:send", (_e, { sessionId, text }) => { try { agentChat.sendMessage(sessionId, text); } catch { /* ignore */ } });
-ipcMain.on("agent:close", (_e, { sessionId }) => { try { agentChat.closeSession(sessionId); } catch { /* ignore */ } });
-
 ipcMain.on("terminal:resize", (_e, { id, cols, rows }) => termClient.resize({ id, cols, rows }));
 ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
 // 세션의 실행 중 에이전트 id | null(#803) — 터미널 탭 자동 이름·아이콘용.
