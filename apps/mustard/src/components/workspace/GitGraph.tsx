@@ -304,7 +304,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
                   {/* 브랜치/태그 배지(refs) — 우측 끝 고정(#741). sticky right-0라 가로 스크롤해도 뷰포트 오른쪽에 떠 있음.
                       왼쪽 gradient 배경으로 스크롤되는 메세지를 덮음. 긴 이름은 배지에서 max-w+truncate. */}
                   {row.commit.refs.length > 0 && (
-                    <span className="sticky right-0 z-10 ml-auto flex shrink-0 items-center gap-1 self-center bg-gradient-to-l from-white via-white pl-4 dark:from-[#111219] dark:via-[#111219]">
+                    <span className="sticky right-0 z-10 ml-auto flex shrink-0 items-center gap-1 self-center bg-gradient-to-l from-white via-white pl-4 dark:from-[var(--ink)] dark:via-[var(--ink)]">
                       {row.commit.refs.map((rf) => {
                         const isCur = rf === branch; // 현재 체크아웃 브랜치 = HEAD 위치
                         const b = refBadge(rf, branch);

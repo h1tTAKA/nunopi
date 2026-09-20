@@ -54,7 +54,7 @@ export default function CommentItem({ root, comment, onChanged }: { root: string
 
   return (
     <div className="group rounded-md bg-zinc-50 p-2 dark:bg-zinc-800/40">
-      <div className="mb-1 flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-500">
+      <div className="mb-1 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400">
         <GhAvatar login={comment.author?.login} size={16} />
         <span>{comment.author?.login}</span>
         {comment.createdAt && <span>· {relTime(comment.createdAt)}</span>}
@@ -79,7 +79,7 @@ export default function CommentItem({ root, comment, onChanged }: { root: string
           </div>
         </div>
       ) : (
-        <Markdown className="text-[12px]">{comment.body}</Markdown>
+        <Markdown className="text-[12px] text-zinc-700 dark:text-zinc-200">{comment.body}</Markdown>
       )}
 
       {/* 리액션(#820) — 공용 ReactionBar. */}

@@ -46,7 +46,7 @@ export default function AskSessionCards({ sessionId, sourceLabel }: {
   }, [reload]);
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[#13141b]">
+    <aside className="flex w-72 shrink-0 flex-col border-l border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-[var(--ink2)]">
       <div className="flex items-center justify-between px-4 py-3 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         <div className="flex min-w-0 items-center gap-1.5">
           <IconCards size={15} stroke={2} aria-hidden />

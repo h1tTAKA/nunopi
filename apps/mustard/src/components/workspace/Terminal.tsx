@@ -3,7 +3,23 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT } from "@mustard/core";
+
+// 터미널 팔레트(#914) — 앱 테마와 분리된 자체 색(orca 참고). CLI TUI가 다크 전제라 기본 dark.
+// 다크=orca "Ghostty Default Dark", 라이트=orca "Builtin Tango Light"(밝은 배경서 안 날리게 튜닝).
+const TERM_DARK = {
+  background: "#282c34", foreground: "#ffffff", cursor: "#ffffff", cursorAccent: "#282c34", selectionBackground: "#3e4451",
+  black: "#1d1f21", red: "#cc6666", green: "#b5bd68", yellow: "#f0c674", blue: "#81a2be", magenta: "#b294bb", cyan: "#8abeb7", white: "#c5c8c6",
+  brightBlack: "#666666", brightRed: "#d54e53", brightGreen: "#b9ca4a", brightYellow: "#e7c547", brightBlue: "#7aa6da", brightMagenta: "#c397d8", brightCyan: "#70c0b1", brightWhite: "#eaeaea",
+};
+const TERM_LIGHT = {
+  background: "#ffffff", foreground: "#2e3434", cursor: "#2e3434", cursorAccent: "#ffffff", selectionBackground: "#accef7",
+  black: "#2e3436", red: "#cc0000", green: "#4e9a06", yellow: "#8e7700", blue: "#3465a4", magenta: "#75507b", cyan: "#05727e", white: "#6a6a6a",
+  brightBlack: "#555753", brightRed: "#ef2929", brightGreen: "#1b7a1b", brightYellow: "#6d5a00", brightBlue: "#204a87", brightMagenta: "#ad7fa8", brightCyan: "#034b50", brightWhite: "#3d3d3d",
+};
+function buildTermTheme() {
+  return isTerminalDark(getTerminalThemePref()) ? TERM_DARK : TERM_LIGHT;
+}
 // 재접속 스크롤백 재생 시 xterm이 버퍼 속 터미널 질의(DA/DSR/OSC 색 등)에 "다시" 응답해
 // 입력창에 에코되는 문제(#807) 방지 — 질의는 화면 출력이 없어 재생 전 제거(라이브 스트림엔 미적용).
 // xterm.write는 비동기 파싱이라, 재생 시점에 term.onData(→pty)가 연결된 뒤 질의가 파싱돼 응답이 pty로 새 나감.
@@ -30,6 +46,8 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     let offData: (() => void) | null = null;
     let offExit: (() => void) | null = null;
     let ro: ResizeObserver | null = null;
+    let mo: MutationObserver | null = null;
+    let offTheme: (() => void) | null = null;
     let fallback: ReturnType<typeof setTimeout> | null = null;
     let onPaste: ((ev: ClipboardEvent) => void | Promise<void>) | undefined;
 
@@ -38,17 +56,38 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         import("@xterm/xterm"), import("@xterm/addon-fit"), import("@xterm/addon-webgl"),
       ]);
       if (disposed) return;
-      const dark = document.documentElement.classList.contains("dark");
       term = new XTerm({
         fontSize: 12,
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         cursorBlink: true,
-        theme: dark ? { background: "#0b0c12", foreground: "#e4e4e7" } : { background: "#ffffff", foreground: "#27272a" },
+        theme: buildTermTheme(),
       });
+      if (host) host.style.background = buildTermTheme().background;
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
       try { term.loadAddon(new webgl.WebglAddon()); } catch { /* WebGL 미지원 → 기본 렌더 폴백 */ }
+      // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
+      const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
+      mo = new MutationObserver(applyTermTheme);
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+      window.addEventListener(TERMINAL_THEME_EVENT, applyTermTheme);
+      offTheme = () => window.removeEventListener(TERMINAL_THEME_EVENT, applyTermTheme);
+
+      // OSC 10/11 색 질의 응답(#914, orca 방식) — CLI(claude 등)가 `ESC]11;?ESC\`로 배경색을 물으면
+      // 현재 터미널 테마의 bg/fg를 rgb:RRRR/GGGG/BBBB로 답한다 → CLI가 배경 명암을 감지해 스스로
+      // 라이트/다크에 맞는 색(diff 배경·dim 등)을 고른다. env(COLORFGBG)가 아니라 터미널 능력 응답.
+      const oscColorReply = (slot: 10 | 11) => {
+        const th = buildTermTheme();
+        const hex = slot === 11 ? th.background : th.foreground;
+        const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+        if (!m) return true;
+        const [, r, g, b] = m;
+        nd.terminal.input({ id, data: `\x1b]${slot};rgb:${r}${r}/${g}${g}/${b}${b}\x1b\\` });
+        return true;
+      };
+      term.parser.registerOscHandler(10, (d) => (d === "?" ? oscColorReply(10) : false));
+      term.parser.registerOscHandler(11, (d) => (d === "?" ? oscColorReply(11) : false));
 
       // Shift+Enter(#799) — CSI-u(kitty/fixterms)로 인코딩된 "Shift+Enter" 키 이벤트를 전송.
       // \x1b[13;2u = Enter(13) + Shift 수정자(2). 에이전트 CLI(Claude Code 등)가 이를 진짜 개행 키로
@@ -87,7 +126,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       const firstEnsure = async () => {
         if (disposed || !term) return;
         try {
-          const r = await nd.terminal.ensure({ id, cwd, cols: term.cols, rows: term.rows });
+          const r = await nd.terminal.ensure({ id, cwd, cols: term.cols, rows: term.rows, dark: isTerminalDark(getTerminalThemePref()) });
           if (disposed || !term) return;
           if (!r.ok) { term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
           if (r.buffer) term.write(stripTermQueries(r.buffer)); // 정확한 cols 확보 후 재생(줄바꿈 안 굳음). 질의 시퀀스 제거(에코 방지 #807)
@@ -114,8 +153,8 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       fallback = setTimeout(() => { if (!ensured && !disposed && term) { ensured = true; void firstEnsure(); } }, 1500);
     })();
 
-    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); term?.dispose(); term = null; };
+    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); term?.dispose(); term = null; };
   }, [id, cwd]);
 
-  return <div ref={hostRef} className="h-full w-full overflow-hidden bg-white p-1.5 dark:bg-[#0b0c12]" />;
+  return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: "#282c34" }} />;
 }

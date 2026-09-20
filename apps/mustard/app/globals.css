@@ -6,11 +6,16 @@
 @source "../../../packages/core/src";
 /* 마크다운 코드펜스 신택스 하이라이팅 테마(rehype-highlight / highlight.js) */
 @import "highlight.js/styles/github-dark.css";
+/* 멀티 테마 토큰 블록(#914) — [data-theme] 별 팔레트 재색조(공유). */
+@import "../../../packages/core/src/styles/themes.css";
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* 다크 패널 잉크(#914 토큰화) — 기본 다크값. [data-theme] 다크 테마서 재색조. */
+  --ink: #111219;
+  --ink2: #13141b;
   /* PDF 타이포: 라틴 본문 Inter + 한글 Noto Sans KR (next/font CSS variable).
      로드 전 폴백으로 시스템 스택 유지. 코드(--font-mono)는 유저 요청대로 제외. */
   --font-sans: var(--font-inter), var(--font-noto), "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -72,11 +77,12 @@
   --color-brown-900: #3a2412; /* 에스프레소(골드 위 글자) */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 다크 base 팔레트(#914) — 앱 테마(.dark)에 종속. 예전 @media(prefers-color-scheme:dark)는
+   OS 다크면 앱이 라이트여도 --foreground를 뒤집어 "흰 배경에 흰 글자"를 만들었다(라이트 깨짐 진짜 원인).
+   이제 OS가 아니라 .dark 클래스가 결정 — 라이트 테마는 :root 기본값(#fff/#171717) 유지. */
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {

@@ -190,7 +190,7 @@ export default function CodeAnalysisView({ mode, editorCollapsed }: { mode: "cod
       {/* 접기/펼치기는 헤더 로고 옆 토글로 이전(#781) — 스플릿 핸들은 드래그 리사이즈만. */}
 
       {/* 학습 결과 패널 — 자체 세로 스크롤. */}
-      <aside data-panel-scroll className="nunopi-scroll min-h-0 flex-1 overflow-y-scroll bg-white dark:bg-[#111219]">
+      <aside data-panel-scroll className="nunopi-scroll min-h-0 flex-1 overflow-y-scroll bg-white dark:bg-[var(--ink)]">
         <LearningPanel
           providerId={providerId}
           mode={ca.mode}

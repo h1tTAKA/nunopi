@@ -135,7 +135,7 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
                 </div>
               </div>
             ) : (
-              d.body?.trim() ? <Markdown className="text-[12px]">{d.body}</Markdown> : <p className="text-[12px] italic text-zinc-400 dark:text-zinc-500">—</p>
+              d.body?.trim() ? <Markdown className="text-[12px] text-zinc-700 dark:text-zinc-200">{d.body}</Markdown> : <p className="text-[12px] italic text-zinc-400 dark:text-zinc-500">—</p>
             )}
             {/* 본문 리액션(#822) */}
             <ReactionBar groups={d.reactionGroups} onReact={(c) => void window.nunopiDesktop?.github?.bodyReact?.(root, number, c).then((r) => { if (r?.ok) setCmtNonce((n) => n + 1); }).catch(() => {})} />
