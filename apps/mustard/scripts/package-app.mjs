@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 
-const KEEP = new Set(["@sna-sdk/core", "@sna-sdk/client", "better-sqlite3", "node-pty", "langfuse", "@anthropic-ai/claude-agent-sdk"]);
+const KEEP = new Set(["@sna-sdk/core", "@sna-sdk/client", "better-sqlite3", "node-pty", "langfuse"]);
 const NATIVE = ["better-sqlite3", "node-pty"]; // 소스빌드 대상(electron ABI)
 
 const args = process.argv.slice(2);
