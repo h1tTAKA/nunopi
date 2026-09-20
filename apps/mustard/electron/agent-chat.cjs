@@ -33,10 +33,12 @@ function createInbox() {
 }
 
 const sessions = new Map(); // sessionId → { inbox, session }
+const creating = new Set(); // 생성 중(sessions.set은 await 뒤라, 동기 예약으로 동일 id 경합 방지)
 
 // claudePath가 실제 경로(/포함)면 SDK에 넘기고, 맨 이름("claude")이면 SDK 자체 resolve에 맡긴다.
 function createSession({ sessionId, cwd, claudePath, model }, onFrame, onExit) {
-  if (sessions.has(sessionId)) return Promise.resolve({ ok: true, already: true });
+  if (sessions.has(sessionId) || creating.has(sessionId)) return Promise.resolve({ ok: true, already: true });
+  creating.add(sessionId); // 동기 예약(loadSdk await 전에)
   return loadSdk().then(({ query }) => {
     const inbox = createInbox();
     const options = {
@@ -52,22 +54,26 @@ function createSession({ sessionId, cwd, claudePath, model }, onFrame, onExit) {
     try {
       session = query({ prompt: inbox.iter, options });
     } catch (e) {
+      creating.delete(sessionId);
       return { ok: false, reason: String((e && e.message) || e) };
     }
     sessions.set(sessionId, { inbox, session });
+    creating.delete(sessionId);
     // stdout 프레임 소비 → 렌더러 전달. 종료/에러 시 세션 정리 + onExit.
+    // onFrame/onExit(=broadcast)은 자체 try/catch(window별)라 안 던지지만, 콜백 예외가 unhandled로
+    // 새지 않게 방어적으로 감싼다.
     (async () => {
       try {
-        for await (const frame of session) onFrame(sessionId, frame);
+        for await (const frame of session) { try { onFrame(sessionId, frame); } catch { /* ignore */ } }
       } catch (e) {
-        onFrame(sessionId, { type: "_error", error: String((e && e.message) || e) });
+        try { onFrame(sessionId, { type: "_error", error: String((e && e.message) || e) }); } catch { /* ignore */ }
       } finally {
         sessions.delete(sessionId);
-        onExit(sessionId);
+        try { onExit(sessionId); } catch { /* ignore */ }
       }
     })();
     return { ok: true };
-  }).catch((e) => ({ ok: false, reason: String((e && e.message) || e) }));
+  }).catch((e) => { creating.delete(sessionId); return { ok: false, reason: String((e && e.message) || e) }; });
 }
 
 function sendMessage(sessionId, text) {
