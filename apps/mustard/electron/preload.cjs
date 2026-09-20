@@ -65,6 +65,15 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
     onData: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("terminal:data", h); return () => ipcRenderer.removeListener("terminal:data", h); },
     onExit: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("terminal:exit", h); return () => ipcRenderer.removeListener("terminal:exit", h); },
   },
+  // 네이티브 에이전트 챗(#916) — headless claude 연결. create로 세션 열고 send로 유저 턴,
+  // onFrame으로 stream-json 프레임 수신(sessionId로 필터).
+  agent: {
+    create: (opts) => ipcRenderer.invoke("agent:create", opts),
+    send: (sessionId, text) => ipcRenderer.send("agent:send", { sessionId, text }),
+    close: (sessionId) => ipcRenderer.send("agent:close", { sessionId }),
+    onFrame: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("agent:frame", h); return () => ipcRenderer.removeListener("agent:frame", h); },
+    onExit: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("agent:exit", h); return () => ipcRenderer.removeListener("agent:exit", h); },
+  },
   ports: { // #880 워크스페이스 dev 서버 포트 감지·열기
     list: (cwd) => ipcRenderer.invoke("ports:list", cwd),
     open: (port) => ipcRenderer.invoke("ports:open", port),
