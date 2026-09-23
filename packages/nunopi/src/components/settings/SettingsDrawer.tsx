@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles } from "@tabler/icons-react";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2 } from "@tabler/icons-react";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle } from "@mustard/core";
 import { useLocale, useT } from "@mustard/core";
 import { LOCALES, type Locale } from "@mustard/core";
 import { THEMES, type ThemeId } from "@mustard/core";
@@ -108,6 +109,16 @@ export default function SettingsDrawer({
   const [termPref, setTermPref] = useState<TerminalThemePref>(() => getTerminalThemePref());
   const changeTermPref = (p: TerminalThemePref) => { setTermPref(p); setTerminalThemePref(p); };
   const [activeSection, setActiveSection] = useState("set-appearance"); // 좌측 선택 = 우측 그 섹션만 렌더(#925). 훅은 early-return 위에.
+  // 터미널 설정(#926) — useSetting으로 구독(변경 즉시 반영). 모든 훅은 early-return 위.
+  const tFontSize = useSetting<number>(TKEYS.fontSize, TERMINAL_DEFAULTS.fontSize);
+  const tFontFamily = useSetting<string>(TKEYS.fontFamily, TERMINAL_DEFAULTS.fontFamily);
+  const tLineHeight = useSetting<number>(TKEYS.lineHeight, TERMINAL_DEFAULTS.lineHeight);
+  const tCursorStyle = useSetting<TerminalCursorStyle>(TKEYS.cursorStyle, TERMINAL_DEFAULTS.cursorStyle);
+  const tCursorBlink = useSetting<boolean>(TKEYS.cursorBlink, TERMINAL_DEFAULTS.cursorBlink);
+  const tScrollback = useSetting<number>(TKEYS.scrollback, TERMINAL_DEFAULTS.scrollback);
+  const tCopyOnSelect = useSetting<boolean>(TKEYS.copyOnSelect, TERMINAL_DEFAULTS.copyOnSelect);
+  const tRightClickPaste = useSetting<boolean>(TKEYS.rightClickPaste, TERMINAL_DEFAULTS.rightClickPaste);
+  const tGpu = useSetting<boolean>(TKEYS.gpu, TERMINAL_DEFAULTS.gpu);
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -160,6 +171,7 @@ export default function SettingsDrawer({
   const SECTIONS: { id: string; label: string; Icon: typeof IconPalette; show: boolean }[] = [
     { id: "set-appearance", label: t("settings.screen"), Icon: IconPalette, show: true },
     { id: "set-language", label: t("settings.language"), Icon: IconLanguage, show: true },
+    { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true },
     { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
@@ -236,7 +248,35 @@ export default function SettingsDrawer({
                 })}
               </div>
             </div>
-            {/* 터미널 테마(#914) — 앱 테마와 분리(CLI TUI가 다크 전제라 기본 dark). */}
+          </section>
+          )}
+
+          {/* 언어 카드 */}
+          {activeSection === "set-language" && (
+          <section id="set-language" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+              {t("settings.language")}
+            </h3>
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              aria-label="언어 선택"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+            >
+              {LOCALES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </section>
+          )}
+
+          {/* 터미널 설정 카드(#926) — 폰트·커서·스크롤백·클립보드·GPU */}
+          {activeSection === "set-terminal" && (
+          <section id="set-terminal" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.terminalSection")}</h3>
+            {/* 터미널 테마(#914) — 앱 테마와 분리(CLI TUI가 다크 전제라 기본 auto). */}
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalTheme")}</span>
               <div role="radiogroup" aria-label={t("settings.terminalTheme")} className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
@@ -260,46 +300,65 @@ export default function SettingsDrawer({
                 })}
               </div>
             </div>
-            {/* 카드보기 날아오는 애니메이션 on/off (#641) — 학습 전용(#896) */}
-            {showLearning && (
+            {/* 폰트 크기 */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalFontSize")}</span>
+              <input type="number" min={9} max={28} value={tFontSize}
+                onChange={(e) => setSetting(TKEYS.fontSize, Math.min(28, Math.max(9, Number(e.target.value) || TERMINAL_DEFAULTS.fontSize)))}
+                className="w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+            </div>
+            {/* 폰트 패밀리 */}
+            <label className="block space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalFontFamily")}</span>
+              <input type="text" value={tFontFamily} onChange={(e) => setSetting(TKEYS.fontFamily, e.target.value)}
+                placeholder={TERMINAL_DEFAULTS.fontFamily}
+                className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 font-mono text-[13px] text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+            </label>
+            {/* 행간 */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalLineHeight")}</span>
+              <input type="number" min={0.8} max={2} step={0.1} value={tLineHeight}
+                onChange={(e) => setSetting(TKEYS.lineHeight, Math.min(2, Math.max(0.8, Number(e.target.value) || TERMINAL_DEFAULTS.lineHeight)))}
+                className="w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+            </div>
+            {/* 커서 스타일 */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalCursorStyle")}</span>
+              <div className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+                {(["bar", "block", "underline"] as const).map((cs) => (
+                  <button key={cs} type="button" onClick={() => setSetting(TKEYS.cursorStyle, cs)}
+                    className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${tCursorStyle === cs ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"}`}>
+                    {t(`settings.cursor.${cs}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* 토글들 */}
+            {([
+              { key: TKEYS.cursorBlink, on: tCursorBlink, label: t("settings.terminalCursorBlink") },
+              { key: TKEYS.copyOnSelect, on: tCopyOnSelect, label: t("settings.terminalCopyOnSelect") },
+              { key: TKEYS.rightClickPaste, on: tRightClickPaste, label: t("settings.terminalRightClickPaste") },
+              { key: TKEYS.gpu, on: tGpu, label: t("settings.terminalGpu") },
+            ]).map((row) => (
+              <div key={row.key} className="flex items-center justify-between gap-3">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
+                <button type="button" role="switch" aria-checked={row.on} aria-label={row.label}
+                  onClick={() => setSetting(row.key, !row.on)}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${row.on ? "bg-mustard-500" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${row.on ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+            ))}
+            {/* 스크롤백 */}
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.cardFlyAnimation")}</span>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.cardFlyAnimationDesc")}</p>
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalScrollback")}</span>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.terminalScrollbackHint")}</p>
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={cardFlyAnimation}
-                aria-label={t("settings.cardFlyAnimation")}
-                onClick={() => onCardFlyAnimationChange?.(!cardFlyAnimation)}
-                className={`relative h-6 w-11 shrink-0 rounded-full transition ${cardFlyAnimation ? "bg-[#3B34E2] dark:bg-[#8b86f5]" : "bg-zinc-300 dark:bg-zinc-700"}`}
-              >
-                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${cardFlyAnimation ? "left-[22px]" : "left-0.5"}`} />
-              </button>
+              <input type="number" min={100} max={100000} step={100} value={tScrollback}
+                onChange={(e) => setSetting(TKEYS.scrollback, Math.min(100000, Math.max(100, Number(e.target.value) || TERMINAL_DEFAULTS.scrollback)))}
+                className="w-28 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
             </div>
-            )}
-          </section>
-          )}
-
-          {/* 언어 카드 */}
-          {activeSection === "set-language" && (
-          <section id="set-language" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              {t("settings.language")}
-            </h3>
-            <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              aria-label="언어 선택"
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
-            >
-              {LOCALES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
           </section>
           )}
 
@@ -506,6 +565,23 @@ export default function SettingsDrawer({
               </button>
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.nunopiModuleApply")}</p>
+            {/* nunopi UI — 학습 UI 옵션(카드 애니 등). nunopi 켜짐 + 학습노출 시. */}
+            {showLearning && onCardFlyAnimationChange && (
+              <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">UI</h4>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.cardFlyAnimation")}</span>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.cardFlyAnimationDesc")}</p>
+                  </div>
+                  <button type="button" role="switch" aria-checked={cardFlyAnimation} aria-label={t("settings.cardFlyAnimation")}
+                    onClick={() => onCardFlyAnimationChange?.(!cardFlyAnimation)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition ${cardFlyAnimation ? "bg-mustard-500" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${cardFlyAnimation ? "left-[22px]" : "left-0.5"}`} />
+                  </button>
+                </div>
+              </div>
+            )}
           </section>
           )}
 
