@@ -36,6 +36,13 @@ export const TKEYS = {
   gpu: "terminal.gpu",
 } as const;
 
+// 에이전트 런치(#927) — 기본 에이전트 + per-agent 추가 인자. 키는 agent.args.<id> 동적.
+export const AGENT_DEFAULTS = { default: "claude" };
+export const AKEYS = {
+  default: "agent.default",
+  args: (agentId: string) => `agent.args.${agentId}`,
+} as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();

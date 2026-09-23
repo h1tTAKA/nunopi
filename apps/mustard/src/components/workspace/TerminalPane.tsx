@@ -3,7 +3,7 @@
 // 활성 탭만 렌더(전환 시 remount → scrollback 재생). 탭 목록은 레포별 localStorage 영속.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconPlus, IconX, IconTerminal2 } from "@tabler/icons-react";
-import { useT, getTerminalThemePref, isTerminalDark } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, getSetting, AKEYS, AGENT_DEFAULTS } from "@mustard/core";
 import Terminal from "@/components/workspace/Terminal";
 import { AgentLogo, AGENT_META, type AgentId } from "@/components/workspace/AgentLogo";
 
@@ -146,9 +146,12 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
     const id = genId();
     setTabs((prev) => [...prev, { id, title: t("workspace.terminalTab", { n: nextNum(prev) }) }]);
     setActiveId(id);
-    // 터미널 테마(#922) 전달 — claude는 자기 theme으로 색을 찍으므로, 라이트 터미널이면 --settings로 라이트 강제.
-    void window.nunopiDesktop?.terminal?.launchAgent?.({ id, agent, dark: isTerminalDark(getTerminalThemePref()) }); // main이 pty ensure 대기 후 커맨드 주입
+    // 터미널 테마(#922) + 에이전트 추가 인자(#927) 전달. main이 cmd에 반영.
+    const extraArgs = getSetting<string>(AKEYS.args(agent), "");
+    void window.nunopiDesktop?.terminal?.launchAgent?.({ id, agent, dark: isTerminalDark(getTerminalThemePref()), extraArgs }); // main이 pty ensure 대기 후 커맨드 주입
   };
+  // 기본 에이전트(#927) 빠른 실행 — 설정의 agent.default.
+  const launchDefaultAgent = () => launchInNewTab(getSetting<string>(AKEYS.default, AGENT_DEFAULTS.default) as AgentId);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -212,6 +215,12 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
             <button type="button" onClick={newTerminal}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800">
               <IconTerminal2 size={14} stroke={2} aria-hidden /><span className="whitespace-nowrap">{t("workspace.terminalNew")}</span>
+            </button>
+            {/* 기본 에이전트 빠른 실행(#927) — 설정 agent.default */}
+            <button type="button" onClick={launchDefaultAgent}
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] font-medium text-zinc-800 transition hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-zinc-800">
+              <AgentLogo agent={getSetting<string>(AKEYS.default, AGENT_DEFAULTS.default) as AgentId} size={14} />
+              <span className="whitespace-nowrap">{t("workspace.launchDefaultAgent")}</span>
             </button>
             <div className="my-1 border-t border-zinc-200 dark:border-zinc-800" />
             {LAUNCHABLE.map((a) => (
