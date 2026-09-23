@@ -3,7 +3,19 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS } from "@mustard/core";
+
+// 터미널 설정(#926) — 스토어서 읽어 xterm 옵션 구성. copyOnSelect/rightClickPaste는 핸들러서 별도.
+function termOptionsFromSettings() {
+  return {
+    fontSize: getSetting<number>(TKEYS.fontSize, TERMINAL_DEFAULTS.fontSize),
+    fontFamily: getSetting<string>(TKEYS.fontFamily, TERMINAL_DEFAULTS.fontFamily),
+    lineHeight: getSetting<number>(TKEYS.lineHeight, TERMINAL_DEFAULTS.lineHeight),
+    cursorStyle: getSetting<"bar" | "block" | "underline">(TKEYS.cursorStyle, TERMINAL_DEFAULTS.cursorStyle),
+    cursorBlink: getSetting<boolean>(TKEYS.cursorBlink, TERMINAL_DEFAULTS.cursorBlink),
+    scrollback: getSetting<number>(TKEYS.scrollback, TERMINAL_DEFAULTS.scrollback),
+  };
+}
 
 // 터미널 팔레트(#914) — 앱 테마와 분리된 자체 색(orca 참고). CLI TUI가 다크 전제라 기본 dark.
 // 다크=orca "Ghostty Default Dark", 라이트=orca "Builtin Tango Light"(밝은 배경서 안 날리게 튜닝).
@@ -48,6 +60,9 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     let ro: ResizeObserver | null = null;
     let mo: MutationObserver | null = null;
     let offTheme: (() => void) | null = null;
+    let offSettings: (() => void) | null = null;
+    let selDisp: { dispose(): void } | null = null;
+    let onCtx: ((e: MouseEvent) => void) | null = null;
     let fallback: ReturnType<typeof setTimeout> | null = null;
     let onPaste: ((ev: ClipboardEvent) => void | Promise<void>) | undefined;
 
@@ -56,17 +71,32 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         import("@xterm/xterm"), import("@xterm/addon-fit"), import("@xterm/addon-webgl"),
       ]);
       if (disposed) return;
-      term = new XTerm({
-        fontSize: 12,
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        cursorBlink: true,
-        theme: buildTermTheme(),
-      });
+      term = new XTerm({ ...termOptionsFromSettings(), theme: buildTermTheme() });
       if (host) host.style.background = buildTermTheme().background;
       const fit = new FitAddon();
       term.loadAddon(fit);
       term.open(host);
-      try { term.loadAddon(new webgl.WebglAddon()); } catch { /* WebGL 미지원 → 기본 렌더 폴백 */ }
+      // GPU(WebGL) 렌더 — 설정 gpu=false면 canvas 폴백(#926).
+      if (getSetting<boolean>(TKEYS.gpu, TERMINAL_DEFAULTS.gpu)) {
+        try { term.loadAddon(new webgl.WebglAddon()); } catch { /* WebGL 미지원 → 기본 렌더 폴백 */ }
+      }
+      // 설정 라이브 갱신(#926) — fontSize/lineHeight/cursor 등 즉시 반영 + fit. (scrollback/gpu는 새 탭부터.)
+      const applyTermSettings = () => {
+        if (!term) return;
+        const o = termOptionsFromSettings();
+        term.options.fontSize = o.fontSize;
+        term.options.fontFamily = o.fontFamily;
+        term.options.lineHeight = o.lineHeight;
+        term.options.cursorStyle = o.cursorStyle;
+        term.options.cursorBlink = o.cursorBlink;
+        try { fit.fit(); } catch { /* ignore */ }
+      };
+      offSettings = subscribeSettings(applyTermSettings);
+      // 선택 시 복사(copyOnSelect) / 우클릭 붙여넣기(rightClickPaste) — 설정 시.
+      const onSelChange = () => { if (!term) return; if (!getSetting<boolean>(TKEYS.copyOnSelect, TERMINAL_DEFAULTS.copyOnSelect)) return; const sel = term.getSelection(); if (sel) navigator.clipboard?.writeText(sel).catch(() => {}); };
+      onCtx = (e: MouseEvent) => { if (!getSetting<boolean>(TKEYS.rightClickPaste, TERMINAL_DEFAULTS.rightClickPaste)) return; e.preventDefault(); navigator.clipboard?.readText().then((txt) => { if (txt) nd.terminal.input({ id, data: txt }); }).catch(() => {}); };
+      selDisp = term.onSelectionChange(onSelChange);
+      host.addEventListener("contextmenu", onCtx);
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
       const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
       mo = new MutationObserver(applyTermTheme);
@@ -153,7 +183,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       fallback = setTimeout(() => { if (!ensured && !disposed && term) { ensured = true; void firstEnsure(); } }, 1500);
     })();
 
-    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); term?.dispose(); term = null; };
+    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); term?.dispose(); term = null; };
   }, [id, cwd]);
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
