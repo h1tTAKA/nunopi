@@ -769,7 +769,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
 
       {/* 질문 이력 오버레이 — 이 레포에서 한 모든 질문. 클릭 시 그 챗으로 이동. */}
       {historyOpen && (
-        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[#0b0c12]">
+        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[var(--s-pane)]">
           <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
             <IconHistory size={13} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
             <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{t("workspace.chatHistory")}</span>
@@ -784,7 +784,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
             ) : historyGroups.map((group) => (
               <div key={group.key}>
                 {/* 날짜 헤더 — 스크롤 시 상단 고정 */}
-                <div className="sticky top-0 z-[1] bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 backdrop-blur dark:bg-[#0b0c12]/95 dark:text-zinc-500">{group.label}</div>
+                <div className="sticky top-0 z-[1] bg-white/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 backdrop-blur dark:bg-[var(--s-pane)]/95 dark:text-zinc-500">{group.label}</div>
                 {group.items.map((h) => (
                   <button key={`${h.sessionKey}:${h.subId}`} type="button" onClick={() => goToSub(h.sessionKey, h.subId)}
                     className="flex w-full items-start gap-2 px-3 py-2 text-left transition hover:bg-zinc-100 dark:hover:bg-zinc-800">
@@ -803,7 +803,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
       )}
       {/* 이 세션에서 추가된 카드 목록(#750) — 히스토리 오버레이와 동형. */}
       {cardsOpen && (
-        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[#0b0c12]">
+        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[var(--s-pane)]">
           <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
             <IconCards size={13} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
             <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{t("ask.sessionCards")}</span>
@@ -829,7 +829,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
       )}
       {/* 테스트(퀴즈) 오버레이(#760) — 히스토리/카드와 동형. 대상 자료 + 대화로 QuizRunner가 출제·채점. */}
       {testOpen && (
-        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[#0b0c12]">
+        <div className="absolute inset-0 z-10 flex flex-col bg-white dark:bg-[var(--s-pane)]">
           <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
             <IconListCheck size={13} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
             <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{t("quiz.title")}</span>
@@ -859,7 +859,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
 
       {/* 입력 */}
       <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
-        <div className="flex items-end gap-1.5 rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 focus-within:border-mustard-500 dark:border-zinc-700 dark:bg-[#0e0f16] dark:focus-within:border-mustard-400">
+        <div className="flex items-end gap-1.5 rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 focus-within:border-mustard-500 dark:border-zinc-700 dark:bg-[var(--s-raise)] dark:focus-within:border-mustard-400">
           <textarea
             ref={taRef}
             value={input}

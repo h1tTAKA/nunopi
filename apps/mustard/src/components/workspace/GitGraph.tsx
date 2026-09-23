@@ -216,7 +216,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
         <div className="flex min-h-0 flex-1 flex-col">
           {changes.length > 0 && (
             <div className="flex max-h-[45%] shrink-0 flex-col border-b border-zinc-200 dark:border-zinc-800">
-              <button type="button" onClick={() => setChangesOpen((v) => !v)} className="flex w-full shrink-0 items-center gap-1 bg-white px-2.5 py-1 text-left text-[11px] font-semibold text-zinc-600 transition hover:bg-zinc-50 dark:bg-[#0e0f16] dark:text-zinc-300 dark:hover:bg-zinc-800/50">
+              <button type="button" onClick={() => setChangesOpen((v) => !v)} className="flex w-full shrink-0 items-center gap-1 bg-white px-2.5 py-1 text-left text-[11px] font-semibold text-zinc-600 transition hover:bg-zinc-50 dark:bg-[var(--s-raise)] dark:text-zinc-300 dark:hover:bg-zinc-800/50">
                 {changesOpen ? <IconChevronDown size={12} stroke={2} className="shrink-0 text-zinc-400" aria-hidden /> : <IconChevronRight size={12} stroke={2} className="shrink-0 text-zinc-400" aria-hidden />}
                 <span>{t("workspace.gitChanges")}</span>
                 <span className="rounded bg-zinc-200 px-1 text-[9px] font-bold text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">{tracked.length}</span>
@@ -290,7 +290,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
                     <svg width={graphW} height={ROW_H} style={{ minWidth: graphW, overflow: "visible" }} aria-hidden>
                       {edges.map((l, k) => <path key={k} d={linkPath(l.x1, l.y1, l.x2, l.y2)} stroke={l.color} strokeWidth={2} fill="none" strokeLinecap="round" />)}
                       {row.lane === 0
-                        ? <circle cx={cx(row.lane)} cy={dotY} r={4} className="fill-white dark:fill-[#0b0c12]" stroke={colorOf(row.commit.hash)} strokeWidth={2} />
+                        ? <circle cx={cx(row.lane)} cy={dotY} r={4} className="fill-white dark:fill-[var(--s-pane)]" stroke={colorOf(row.commit.hash)} strokeWidth={2} />
                         : <circle cx={cx(row.lane)} cy={dotY} r={3.5} fill={colorOf(row.commit.hash)} />}
                     </svg>
                   </div>

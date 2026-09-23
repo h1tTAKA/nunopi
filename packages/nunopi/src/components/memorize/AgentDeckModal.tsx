@@ -375,7 +375,7 @@ export default function AgentDeckModal({
       </div>
 
       {/* 우: 대화형 프롬프트 */}
-      <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[#15161d]">
+      <div className="flex w-80 shrink-0 flex-col bg-white dark:bg-[var(--s-bar)]">
         <div className="relative flex h-14 shrink-0 items-center justify-center border-b border-zinc-200 px-4 dark:border-zinc-800">
           {headerRight ?? (
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-800 dark:text-zinc-100">

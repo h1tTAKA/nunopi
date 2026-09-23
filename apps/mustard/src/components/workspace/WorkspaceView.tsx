@@ -445,7 +445,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
   const codeNode = codeTabs.length ? (
     <div className="flex h-full min-h-0 flex-col">
       {/* 탭 바(스크롤) — 파일/diff 각 탭. × 로 닫기, 클릭으로 전환. pr-6: 우상단 이동 그립 자리 예약(#716). */}
-      <div className="flex shrink-0 items-stretch border-b border-zinc-200 bg-zinc-100/70 pr-[17px] dark:border-zinc-800 dark:bg-[#15161d]">
+      <div className="flex shrink-0 items-stretch border-b border-zinc-200 bg-zinc-100/70 pr-[17px] dark:border-zinc-800 dark:bg-[var(--s-bar)]">
         <div className="nunopi-scroll flex min-w-0 flex-1 items-stretch overflow-x-auto">
           {codeTabs.map((tb) => {
             const key = codeTabKey(tb);
@@ -453,7 +453,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
             const name = tb.file.split("/").pop() ?? tb.file;
             return (
               <div key={key} ref={on ? scrollTabIntoView : undefined} onClick={() => activateCode(key)}
-                className={`group relative flex shrink-0 cursor-pointer items-center gap-1.5 border-r border-zinc-200 px-3 py-1.5 text-[12px] transition dark:border-zinc-800 ${on ? "bg-white text-zinc-800 dark:bg-[#0b0c12] dark:text-zinc-100" : "text-zinc-500 hover:bg-white/50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"}`}>
+                className={`group relative flex shrink-0 cursor-pointer items-center gap-1.5 border-r border-zinc-200 px-3 py-1.5 text-[12px] transition dark:border-zinc-800 ${on ? "bg-white text-zinc-800 dark:bg-[var(--s-pane)] dark:text-zinc-100" : "text-zinc-500 hover:bg-white/50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"}`}>
                 {on && <span className="absolute inset-x-0 top-0 h-0.5 bg-mustard-500" aria-hidden />}
                 {tb.kind === "diff"
                   ? <IconGitCommit size={13} stroke={2} className={`shrink-0 ${on ? "text-mustard-600 dark:text-mustard-400" : "text-zinc-400"}`} aria-hidden />
@@ -554,7 +554,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
               className={`relative shrink-0 rounded-lg p-1.5 transition ${rightMode === "github" ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"}`}>
               <IconBrandGithub size={16} stroke={2} aria-hidden />
               {/* CI 상태 도트(#812) — 진행(노랑,깜빡)/통과(초록)/실패(빨강). PR 없음·끝남이면 숨김. */}
-              {ciDot && <span aria-hidden className={`absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0b0c12] ${ciDot === "running" ? "animate-pulse bg-amber-400" : ciDot === "failure" ? "bg-rose-500" : "bg-emerald-500"}`} />}
+              {ciDot && <span aria-hidden className={`absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[var(--s-pane)] ${ciDot === "running" ? "animate-pulse bg-amber-400" : ciDot === "failure" ? "bg-rose-500" : "bg-emerald-500"}`} />}
             </button>
             <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
           </>

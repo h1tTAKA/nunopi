@@ -479,7 +479,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
       {/* 커스터마이징 방식 선택 — 수동(직접 고르기) / 에이전트(이슈2, 곧). */}
       {customize === "choose" && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-6" onClick={() => setCustomize(null)}>
-          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-[var(--s-bar)]" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-center text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("mem.customizeTitle")}</h3>
             <div className="mt-4 grid grid-cols-2 gap-3">
               <button
@@ -509,7 +509,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
       {/* 덱 추가 결과 팝업 — 추가/중복 개수 안내. */}
       {addResult && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 p-6" onClick={() => setAddResult(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-[#15161d]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-xl dark:border-zinc-800 dark:bg-[var(--s-bar)]" onClick={(e) => e.stopPropagation()}>
             <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#3B34E2]/10 text-[#3B34E2] dark:text-[#8b86f5]">
               {addResult.added > 0 ? <IconCheck size={22} stroke={2.5} aria-hidden /> : <IconCirclePlus size={22} stroke={2} aria-hidden />}
             </span>

@@ -1113,7 +1113,7 @@ export default function LearningPanel({
               const failed = fillErrorLine === fillModalLine;
               return (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-                  <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-[#15161d]">
+                  <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-[var(--s-bar)]">
                     <div className="mb-3 flex items-start gap-2.5">
                       {failed
                         ? <IconAlertTriangle size={18} stroke={2} className="mt-0.5 shrink-0 text-amber-500" aria-hidden />

@@ -57,7 +57,7 @@ export default function CodePane({ root, file }: { root: string; file: string })
   if (status === "error") return <div className="flex h-full items-center justify-center gap-1.5 text-[12px] text-amber-600 dark:text-amber-500"><IconAlertTriangle size={14} stroke={2} aria-hidden /> {file}</div>;
 
   return (
-    <div className="nunopi-scroll h-full overflow-auto bg-white p-3 text-[12px] dark:bg-[#0b0c12] [&_pre]:!m-0 [&_pre]:!bg-transparent">
+    <div className="nunopi-scroll h-full overflow-auto bg-white p-3 text-[12px] dark:bg-[var(--s-pane)] [&_pre]:!m-0 [&_pre]:!bg-transparent">
       {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : <pre className="text-zinc-700 dark:text-zinc-200">{raw}</pre>}
     </div>
   );

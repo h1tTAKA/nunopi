@@ -135,7 +135,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
   const toggleExpand = useCallback((key: string) => { if (!seenRef.current.has(key) && cfgRef.current.providerId) enqueue(key); }, [enqueue]);
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-[#0b0c12]">
+    <div className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-[var(--s-pane)]">
       <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <IconActivity size={14} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
         <span className="mr-auto truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t("learn.title")}</span>

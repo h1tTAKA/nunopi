@@ -471,7 +471,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
         const GIcon = gm ? gm.Icon : IconFiles;
         const glabel = gp ? basename(gp) : t(gm!.labelKey);
         return (
-          <div className="pointer-events-none fixed z-[60] flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-800 opacity-90 shadow-lg ring-1 ring-black/10 dark:bg-[#0b0c12] dark:text-zinc-100 dark:ring-white/10"
+          <div className="pointer-events-none fixed z-[60] flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 text-[12px] font-medium text-zinc-800 opacity-90 shadow-lg ring-1 ring-black/10 dark:bg-[var(--s-pane)] dark:text-zinc-100 dark:ring-white/10"
             style={{ left: dragPos.x + 10, top: dragPos.y + 10 }}>
             <GIcon size={13} stroke={2} className={`shrink-0 ${gm ? gm.color : "text-mustard-600 dark:text-mustard-400"}`} aria-hidden />
             <span className="max-w-[12rem] truncate">{glabel}</span>

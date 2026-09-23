@@ -45,7 +45,7 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
     <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-[12vh]">
       <div className="absolute inset-0 bg-black/40 dark:bg-black/50" onClick={onClose} />
       <div role="dialog" aria-modal="true"
-        className="relative z-[71] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#14151c] dark:ring-white/5">
+        className="relative z-[71] w-full max-w-lg overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[var(--s-menu)] dark:ring-white/5">
         <div className="flex items-center gap-2 border-b border-zinc-200/70 px-3 dark:border-white/10">
           <IconSearch size={16} className="shrink-0 text-zinc-400" aria-hidden />
           <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }} onKeyDown={onKey}
