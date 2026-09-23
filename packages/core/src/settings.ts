@@ -11,6 +11,31 @@ export interface MustardSettings {
   [key: string]: unknown;
 }
 
+// 터미널 설정(#926) — 키·기본값 공유(Terminal[apps] + SettingsDrawer[packages] 둘 다 참조).
+export type TerminalCursorStyle = "bar" | "block" | "underline";
+export const TERMINAL_DEFAULTS = {
+  fontSize: 12,
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+  lineHeight: 1.0,
+  cursorStyle: "bar" as TerminalCursorStyle,
+  cursorBlink: true,
+  scrollback: 1000,
+  copyOnSelect: false,
+  rightClickPaste: false,
+  gpu: true,
+};
+export const TKEYS = {
+  fontSize: "terminal.fontSize",
+  fontFamily: "terminal.fontFamily",
+  lineHeight: "terminal.lineHeight",
+  cursorStyle: "terminal.cursorStyle",
+  cursorBlink: "terminal.cursorBlink",
+  scrollback: "terminal.scrollback",
+  copyOnSelect: "terminal.copyOnSelect",
+  rightClickPaste: "terminal.rightClickPaste",
+  gpu: "terminal.gpu",
+} as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();
