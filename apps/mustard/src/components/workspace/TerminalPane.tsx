@@ -153,7 +153,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* 터미널 탭 바 — 에디터 탭 느낌(활성 상단 강조선·구분선·닫기). pr-6 외곽: 우상단 이동 그립 자리 예약(#716). */}
-      <div className="flex shrink-0 items-stretch border-b border-zinc-200 bg-zinc-100/70 pr-[17px] dark:border-zinc-800 dark:bg-[#15161d]">
+      <div className="flex shrink-0 items-stretch border-b border-zinc-200 bg-zinc-100/70 pr-[17px] dark:border-zinc-800 dark:bg-[var(--s-bar)]">
       <div className="nunopi-scroll flex min-w-0 flex-1 items-stretch overflow-x-auto">
         {tabs.map((tab) => {
           const on = tab.id === activeId;
@@ -169,7 +169,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
               onDragLeave={() => setOverId((o) => (o === tab.id ? null : o))}
               onDrop={(e) => { e.preventDefault(); if (dragId) reorderTabs(dragId, tab.id); setDragId(null); setOverId(null); }}
               onDragEnd={() => { setDragId(null); setOverId(null); }}
-              className={`group relative flex shrink-0 cursor-pointer items-center gap-1.5 border-r border-zinc-200 px-3 py-1.5 text-[12px] transition dark:border-zinc-800 ${on ? "bg-white text-zinc-800 dark:bg-[#0b0c12] dark:text-zinc-100" : "text-zinc-500 hover:bg-white/50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"} ${dragId === tab.id ? "opacity-40" : ""}`}
+              className={`group relative flex shrink-0 cursor-pointer items-center gap-1.5 border-r border-zinc-200 px-3 py-1.5 text-[12px] transition dark:border-zinc-800 ${on ? "bg-white text-zinc-800 dark:bg-[var(--s-pane)] dark:text-zinc-100" : "text-zinc-500 hover:bg-white/50 dark:text-zinc-400 dark:hover:bg-zinc-800/50"} ${dragId === tab.id ? "opacity-40" : ""}`}
               onClick={() => setActiveId(tab.id)}>
               {on && <span className="absolute inset-x-0 top-0 h-0.5 bg-mustard-500" aria-hidden />}
               {overId === tab.id && <span className="absolute inset-y-0 left-0 w-0.5 bg-mustard-500" aria-hidden />}
@@ -208,7 +208,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden />
           <div style={{ position: "fixed", left: menuPos.x, top: menuPos.y }}
-            className="z-50 min-w-[180px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-[#0b0c12]">
+            className="z-50 min-w-[180px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-[var(--s-pane)]">
             <button type="button" onClick={newTerminal}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800">
               <IconTerminal2 size={14} stroke={2} aria-hidden /><span className="whitespace-nowrap">{t("workspace.terminalNew")}</span>

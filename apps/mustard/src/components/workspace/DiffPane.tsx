@@ -218,7 +218,7 @@ export default function DiffPane({ root, hash, file, worktree, providerId, provi
   const hunkStart = new Map(allHunks.map((h) => [h.startLine, h]));
   const hunkEnd = new Map(allHunks.map((h) => [h.endLine, h]));
   return (
-    <div className="relative h-full bg-white dark:bg-[#0b0c12]"
+    <div className="relative h-full bg-white dark:bg-[var(--s-pane)]"
       onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); setShowRuler(true); }}
       onMouseLeave={() => { if (hideTimer.current) clearTimeout(hideTimer.current); hideTimer.current = setTimeout(() => setShowRuler(false), 400); }}>
       <div ref={scrollRef} onScroll={() => { syncVp(); reveal(); }} className="h-full overflow-auto pr-3 font-mono text-[11px] leading-[1.55] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

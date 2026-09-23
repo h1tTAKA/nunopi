@@ -16,6 +16,11 @@
   /* 다크 패널 잉크(#914 토큰화) — 기본 다크값. [data-theme] 다크 테마서 재색조. */
   --ink: #111219;
   --ink2: #13141b;
+  /* 셸 surface(#932 토큰화) — 하드코딩 다크 hex를 테마서 재색조 가능하게. 기본=현 hex(무변화). */
+  --s-pane: #0b0c12;
+  --s-bar: #15161d;
+  --s-raise: #0e0f16;
+  --s-menu: #14151c;
   /* PDF 타이포: 라틴 본문 Inter + 한글 Noto Sans KR (next/font CSS variable).
      로드 전 폴백으로 시스템 스택 유지. 코드(--font-mono)는 유저 요청대로 제외. */
   --font-sans: var(--font-inter), var(--font-noto), "Apple SD Gothic Neo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

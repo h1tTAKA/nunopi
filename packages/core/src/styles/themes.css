@@ -79,6 +79,7 @@
   --foreground: #dbe3f4;
   --ink: #131a2e;              /* 주 패널 */
   --ink2: #0f1526;            /* 보조 패널/스티키 */
+  --s-pane: #0b1224; --s-bar: #182142; --s-raise: #131c38; --s-menu: #182142;
   --color-zinc-950: #070b16;   /* 최심 배경 */
   --color-zinc-900: #131a2e;   /* 주 패널 */
   --color-zinc-800: #1c2540;   /* 카드/hover fill */
@@ -96,6 +97,7 @@
   --foreground: #e5e9f0;
   --ink: #2e3440;
   --ink2: #292e39;
+  --s-pane: #272c36; --s-bar: #353c4a; --s-raise: #2f3641; --s-menu: #353c4a;
   --color-zinc-950: #1e222b;
   --color-zinc-900: #2e3440;   /* polar night 0 */
   --color-zinc-800: #3b4252;   /* polar night 1 */
@@ -113,6 +115,7 @@
   --foreground: #93a1a1;
   --ink: #073642;
   --ink2: #04303b;
+  --s-pane: #002b36; --s-bar: #0a4451; --s-raise: #063842; --s-menu: #0a4451;
   --color-zinc-950: #002028;
   --color-zinc-900: #073642;   /* base02 패널 */
   --color-zinc-800: #0a4451;

@@ -138,7 +138,7 @@ export default function CardExplainPanel({ card, providerId, providerSettings, f
           onClick={() => { setZoomed(false); setChatOpen(false); }}
         >
           <div
-            className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl transition-all dark:border-zinc-700 dark:bg-[#15161d]"
+            className="relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl transition-all dark:border-zinc-700 dark:bg-[var(--s-bar)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-3 dark:border-zinc-800">

@@ -147,7 +147,7 @@ export default function UsageMonitor({ active = true }: { active?: boolean }) {
         <IconGauge size={14} stroke={2} aria-hidden />
       </button>
       {open && pos && (
-        <div style={{ left: pos.left, bottom: pos.bottom }} className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[#15161d]">
+        <div style={{ left: pos.left, bottom: pos.bottom }} className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[var(--s-bar)]">
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{t("usage.title")}</span>
             <button type="button" onClick={() => void load(true)} disabled={loading} title={t("usage.refresh")} aria-label={t("usage.refresh")}

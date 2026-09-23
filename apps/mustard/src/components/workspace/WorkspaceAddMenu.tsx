@@ -66,7 +66,7 @@ export default function WorkspaceAddMenu({ anchor, onClose, onPick }: {
   return (
     <div role="menu" aria-label={t("workspace.addTitle")} onMouseDown={(e) => e.stopPropagation()}
       style={{ left: anchor.left, top: anchor.top }}
-      className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#14151c] dark:ring-white/5">
+      className="fixed z-50 w-64 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[var(--s-menu)] dark:ring-white/5">
       {rows.map((row, i) => {
         const on = i === activeIdx;
         const first = i === 0 || rows[i - 1].group !== row.group;
@@ -88,7 +88,7 @@ export default function WorkspaceAddMenu({ anchor, onClose, onPick }: {
               </button>
               {/* 모드 행 hover 시 우측 서브메뉴(#789) — 탭에 추가 / 새 창으로 열기(Electron만). */}
               {isMode && on && (
-                <div className={`absolute top-0 z-10 w-44 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[#14151c] dark:ring-white/5 ${openLeft ? "right-full mr-1" : "left-full ml-1"}`}>
+                <div className={`absolute top-0 z-10 w-44 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 dark:border-white/10 dark:bg-[var(--s-menu)] dark:ring-white/5 ${openLeft ? "right-full mr-1" : "left-full ml-1"}`}>
                   <button type="button" role="menuitem"
                     onClick={() => { onPickRef.current(row.kind, "tab"); onClose(); }}
                     className="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/[0.08]">

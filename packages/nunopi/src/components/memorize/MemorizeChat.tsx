@@ -218,7 +218,7 @@ export default function MemorizeChat({ card, providerId, providerSettings, onOpe
 
       {/* 우하단 챗 패널 — expanded면 크게 + 세로 중앙(확대 모달과 나란히) */}
       {open && (
-        <div className={`fixed z-30 flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[#15161d] ${expanded ? "right-8 top-1/2 h-[85vh] w-[34rem] -translate-y-1/2 md:right-12" : "bottom-24 right-6 h-[61vh] w-[30rem]"}`}>
+        <div className={`fixed z-30 flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-[var(--s-bar)] ${expanded ? "right-8 top-1/2 h-[85vh] w-[34rem] -translate-y-1/2 md:right-12" : "bottom-24 right-6 h-[61vh] w-[30rem]"}`}>
           <ChatRoom
             messages={messages}
             streaming={streaming}

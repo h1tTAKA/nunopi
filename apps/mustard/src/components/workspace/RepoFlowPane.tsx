@@ -306,7 +306,7 @@ export default function RepoFlowPane({ feature, root, providerId, providerSettin
     : 0;
 
   return (
-    <div className="relative flex h-full min-h-0 w-full flex-col bg-white dark:bg-[#0b0c12]">
+    <div className="relative flex h-full min-h-0 w-full flex-col bg-white dark:bg-[var(--s-pane)]">
       <div className="flex shrink-0 items-center gap-1 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
         <IconSitemap size={14} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
         <span className="mr-auto truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{feature || t("flow.title")}</span>
@@ -428,7 +428,7 @@ export default function RepoFlowPane({ feature, root, providerId, providerSettin
       {/* 갱신·재생성 확인 모달 — 내용이 바뀌거나 추가될 수 있어 먼저 물어봄(#743). */}
       {confirm && (
         <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirm(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[18rem] rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[#15161d]">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[18rem] rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[var(--s-bar)]">
             <p className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-100">{confirm === "regen" ? t("flow.regenerateTitle") : t("flow.updateTitle")}</p>
             <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">{confirm === "regen" ? t("flow.regenerate") : t("flow.update")}</p>
             <div className="mt-3 flex justify-end gap-1.5">

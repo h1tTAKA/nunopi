@@ -232,7 +232,7 @@ export default function RepoAnalyzeSection({ root, providerId, providerSettings,
       {/* 에이전트 MCP 연결 모달(#853, opt-in) — 대상 선택 후 설정 주입. */}
       {mcpOpen && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setMcpOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="nunopi-scroll flex max-h-[85%] w-full max-w-[20rem] flex-col overflow-y-auto rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[#15161d]">
+          <div onClick={(e) => e.stopPropagation()} className="nunopi-scroll flex max-h-[85%] w-full max-w-[20rem] flex-col overflow-y-auto rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[var(--s-bar)]">
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-zinc-700 dark:text-zinc-100"><IconPlugConnected size={13} stroke={2} aria-hidden /> {t("mcp.title")}</p>
             <p className="mt-1.5 shrink-0 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">{t("mcp.desc")}</p>
             <div className="mt-2.5 flex shrink-0 flex-col gap-1.5">
@@ -262,7 +262,7 @@ export default function RepoAnalyzeSection({ root, providerId, providerSettings,
       {/* 재분석·갱신 확인 모달 — 내용이 바뀌거나 추가될 수 있어 먼저 물어봄(#743). */}
       {confirm && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirm(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[16rem] rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[#15161d]">
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[16rem] rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-700 dark:bg-[var(--s-bar)]">
             <p className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-100">{confirm === "reanalyze" ? t("confirm.reanalyzeTitle") : t("confirm.updateTitle")}</p>
             <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">{confirm === "reanalyze" ? t("confirm.reanalyze") : t("confirm.update")}</p>
             <div className="mt-3 flex justify-end gap-1.5">
