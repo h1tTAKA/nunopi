@@ -3,7 +3,7 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, NKEYS, desktopNotify } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, type TerminalFontWeight, NKEYS, desktopNotify } from "@mustard/core";
 
 // 터미널 설정(#926) — 스토어서 읽어 xterm 옵션 구성. copyOnSelect/rightClickPaste는 핸들러서 별도.
 function termOptionsFromSettings() {
@@ -14,6 +14,10 @@ function termOptionsFromSettings() {
     cursorStyle: getSetting<"bar" | "block" | "underline">(TKEYS.cursorStyle, TERMINAL_DEFAULTS.cursorStyle),
     cursorBlink: getSetting<boolean>(TKEYS.cursorBlink, TERMINAL_DEFAULTS.cursorBlink),
     scrollback: getSetting<number>(TKEYS.scrollback, TERMINAL_DEFAULTS.scrollback),
+    // 심화(#941)
+    fontWeight: getSetting<TerminalFontWeight>(TKEYS.fontWeight, TERMINAL_DEFAULTS.fontWeight),
+    scrollSensitivity: getSetting<number>(TKEYS.scrollSensitivity, TERMINAL_DEFAULTS.scrollSensitivity),
+    macOptionIsMeta: getSetting<boolean>(TKEYS.macOptionIsMeta, TERMINAL_DEFAULTS.macOptionIsMeta),
   };
 }
 
@@ -64,6 +68,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     let selDisp: { dispose(): void } | null = null;
     let bellDisp: { dispose(): void } | null = null;
     let onCtx: ((e: MouseEvent) => void) | null = null;
+    let onEnter: (() => void) | null = null;
     let fallback: ReturnType<typeof setTimeout> | null = null;
     let onPaste: ((ev: ClipboardEvent) => void | Promise<void>) | undefined;
 
@@ -90,6 +95,11 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         term.options.lineHeight = o.lineHeight;
         term.options.cursorStyle = o.cursorStyle;
         term.options.cursorBlink = o.cursorBlink;
+        // 심화(#941) 라이브 반영
+        term.options.fontWeight = o.fontWeight;
+        term.options.scrollSensitivity = o.scrollSensitivity;
+        term.options.macOptionIsMeta = o.macOptionIsMeta;
+        if (host) host.style.padding = `${getSetting<number>(TKEYS.padding, TERMINAL_DEFAULTS.padding)}px`;
         try { fit.fit(); } catch { /* ignore */ }
       };
       offSettings = subscribeSettings(applyTermSettings);
@@ -98,6 +108,9 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       onCtx = (e: MouseEvent) => { if (!getSetting<boolean>(TKEYS.rightClickPaste, TERMINAL_DEFAULTS.rightClickPaste)) return; e.preventDefault(); navigator.clipboard?.readText().then((txt) => { if (txt) nd.terminal.input({ id, data: txt }); }).catch(() => {}); };
       selDisp = term.onSelectionChange(onSelChange);
       host.addEventListener("contextmenu", onCtx);
+      // 마우스 포커스(#941) — 설정 켜지면 호버 시 터미널 포커스.
+      onEnter = () => { if (getSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse)) term?.focus(); };
+      host.addEventListener("mouseenter", onEnter);
       // 터미널 벨(#928) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
       bellDisp = term.onBell(() => { if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: false }); });
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
@@ -186,10 +199,11 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       fallback = setTimeout(() => { if (!ensured && !disposed && term) { ensured = true; void firstEnsure(); } }, 1500);
     })();
 
-    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); bellDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); term?.dispose(); term = null; };
+    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); bellDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); if (onEnter) host.removeEventListener("mouseenter", onEnter); term?.dispose(); term = null; };
   }, [id, cwd]);
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
   const initialBg = typeof document !== "undefined" && !isTerminalDark(getTerminalThemePref()) ? "#ffffff" : "#282c34";
-  return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: initialBg }} />;
+  const initialPad = getSetting<number>(TKEYS.padding, TERMINAL_DEFAULTS.padding); // #941 여백(라이브 갱신은 applyTermSettings)
+  return <div ref={hostRef} className="h-full w-full overflow-hidden" style={{ background: initialBg, padding: `${initialPad}px` }} />;
 }
