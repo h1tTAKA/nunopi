@@ -2,8 +2,11 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2 } from "@tabler/icons-react";
-import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle } from "@mustard/core";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown } from "@tabler/icons-react";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS } from "@mustard/core";
+// 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
+const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
+const AGENT_LABEL: Record<string, string> = { claude: "Claude Code", codex: "Codex", grok: "Grok", opencode: "OpenCode", omp: "OMP", antigravity: "Antigravity", cursor: "Cursor", hermes: "Hermes" };
 import { useLocale, useT } from "@mustard/core";
 import { LOCALES, type Locale } from "@mustard/core";
 import { THEMES, type ThemeId } from "@mustard/core";
@@ -119,6 +122,11 @@ export default function SettingsDrawer({
   const tCopyOnSelect = useSetting<boolean>(TKEYS.copyOnSelect, TERMINAL_DEFAULTS.copyOnSelect);
   const tRightClickPaste = useSetting<boolean>(TKEYS.rightClickPaste, TERMINAL_DEFAULTS.rightClickPaste);
   const tGpu = useSetting<boolean>(TKEYS.gpu, TERMINAL_DEFAULTS.gpu);
+  // 에이전트 런치(#927)
+  const aDefault = useSetting<string>(AKEYS.default, AGENT_DEFAULTS.default);
+  const aArgsClaude = useSetting<string>(AKEYS.args("claude"), "");
+  const aArgsCodex = useSetting<string>(AKEYS.args("codex"), "");
+  const aArgsOpencode = useSetting<string>(AKEYS.args("opencode"), "");
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -257,18 +265,21 @@ export default function SettingsDrawer({
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.language")}
             </h3>
-            <select
-              value={locale}
-              onChange={(e) => setLocale(e.target.value as Locale)}
-              aria-label="언어 선택"
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
-            >
-              {LOCALES.map((l) => (
-                <option key={l.value} value={l.value}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as Locale)}
+                aria-label="언어 선택"
+                className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              >
+                {LOCALES.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+              <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+            </div>
           </section>
           )}
 
@@ -368,6 +379,35 @@ export default function SettingsDrawer({
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
               {t("settings.provider")}
             </h3>
+
+            {/* 에이전트 런치(#927) — 기본 에이전트 + per-agent 추가 인자 */}
+            <div className="space-y-4">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{t("settings.agentLaunch")}</h4>
+              <div className="space-y-1.5">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.defaultAgent")}</span>
+                <div className="relative">
+                  <select value={aDefault} onChange={(e) => setSetting(AKEYS.default, e.target.value)} aria-label={t("settings.defaultAgent")}
+                    className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 pr-9 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50">
+                    {LAUNCH_AGENTS.map((a) => <option key={a} value={a}>{AGENT_LABEL[a] || a}</option>)}
+                  </select>
+                  <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+                </div>
+              </div>
+              {([
+                { id: "claude", label: "Claude Code", val: aArgsClaude, ph: "--dangerously-skip-permissions" },
+                { id: "codex", label: "Codex", val: aArgsCodex, ph: "--model gpt-5" },
+                { id: "opencode", label: "OpenCode", val: aArgsOpencode, ph: "" },
+              ]).map((row) => (
+                <label key={row.id} className="block space-y-1.5">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label} {t("settings.agentExtraArgs")} <span className="text-zinc-400 dark:text-zinc-500">{t("settings.optional")}</span></span>
+                  <input type="text" value={row.val} onChange={(e) => setSetting(AKEYS.args(row.id), e.target.value)} placeholder={row.ph}
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-[13px] text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+                </label>
+              ))}
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.agentExtraArgsHint")}</p>
+            </div>
+
+            <div className="border-t border-zinc-200 dark:border-zinc-800" />
 
             <div className="space-y-4">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
@@ -517,18 +557,21 @@ export default function SettingsDrawer({
               {t("settings.memorizeProvider")}
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.memorizeProviderHint")}</p>
-            <select
-              value={memorizeProviderId}
-              onChange={(e) => onMemorizeProviderChange?.(e.target.value as AgentProviderKind)}
-              aria-label={t("settings.memorizeProvider")}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
-            >
-              {PROVIDER_CATALOG.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {t(`provider.${p.id}`)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={memorizeProviderId}
+                onChange={(e) => onMemorizeProviderChange?.(e.target.value as AgentProviderKind)}
+                aria-label={t("settings.memorizeProvider")}
+                className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+              >
+                {PROVIDER_CATALOG.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {t(`provider.${p.id}`)}
+                  </option>
+                ))}
+              </select>
+              <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+            </div>
           </section>
 
           {/* 제외 목록 카드 */}
