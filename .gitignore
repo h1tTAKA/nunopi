@@ -61,3 +61,6 @@ graphify-out/
 # openwiki (레포 분석 도구 실험 산출물 — 우리 레포엔 커밋 안 함. 도입 확정 시 재검토)
 openwiki/
 .github/workflows/openwiki-update.yml
+
+# 로컬 전용 학습정리·학습TODO(리포 미포함)
+docs/
