@@ -13,6 +13,7 @@ import { isNunopiEnabled, setNunopiEnabled } from "@/lib/product";
 import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/WorkspaceTabs";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { type ThemeId, applyTheme, getStoredTheme, setStoredTheme } from "@mustard/core";
+import { applyStoredAppearance } from "@mustard/core";
 
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 const DEFAULT_PROVIDER_ID: AgentProviderKind = "claude-agent";
@@ -30,6 +31,7 @@ export default function WorkspaceOnlyHome() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(t);
     applyTheme(t);
+    applyStoredAppearance(); // #937 저장된 UI 줌·폰트 복원
   }, []);
   function changeTheme(next: ThemeId) {
     setTheme(next);

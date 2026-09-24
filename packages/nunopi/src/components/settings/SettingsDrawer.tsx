@@ -3,7 +3,7 @@ import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
 import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf } from "@tabler/icons-react";
-import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS } from "@mustard/core";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
 const AGENT_LABEL: Record<string, string> = { claude: "Claude Code", codex: "Codex", grok: "Grok", opencode: "OpenCode", omp: "OMP", antigravity: "Antigravity", cursor: "Cursor", hermes: "Hermes" };
@@ -146,6 +146,9 @@ export default function SettingsDrawer({
   const cSkipDelete = useSetting<boolean>(CKEYS.skipDelete, CONFIRM_DEFAULTS.skipDelete);
   const cSkipCloseTab = useSetting<boolean>(CKEYS.skipCloseTab, CONFIRM_DEFAULTS.skipCloseTab);
   const cConfirmCloseTerminal = useSetting<boolean>(CKEYS.confirmCloseTerminal, CONFIRM_DEFAULTS.confirmCloseTerminal);
+  // 외관(#937)
+  const apZoom = useSetting<number>(APKEYS.uiZoom, APPEARANCE_DEFAULTS.uiZoom);
+  const apFont = useSetting<UiFontPref>(APKEYS.uiFont, APPEARANCE_DEFAULTS.uiFont);
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -204,6 +207,9 @@ export default function SettingsDrawer({
     { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
+  // 외관(#937) — 즉시 적용(저장 + 실제 반영).
+  const setZoom = (v: number) => { const z = Math.min(1.4, Math.max(0.8, Math.round(v * 10) / 10)); setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
+  const setFont = (f: UiFontPref) => { setSetting(APKEYS.uiFont, f); applyUiFont(f); };
   void variant;
   return (
     <div className="fixed inset-0 z-[90] flex bg-white text-zinc-900 dark:bg-[var(--ink)] dark:text-zinc-100">
@@ -275,6 +281,33 @@ export default function SettingsDrawer({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+            {/* UI 줌(#937) */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.uiZoom")}</span>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setZoom(apZoom - 0.1)} aria-label={t("settings.uiZoomOut")}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">−</button>
+                <span className="min-w-[3.5rem] text-center text-sm tabular-nums text-zinc-700 dark:text-zinc-200">{Math.round(apZoom * 100)}%</span>
+                <button type="button" onClick={() => setZoom(apZoom + 0.1)} aria-label={t("settings.uiZoomIn")}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">＋</button>
+                <button type="button" onClick={() => setZoom(1)}
+                  className="ml-1 rounded-lg border border-zinc-200 px-2.5 py-1 text-[13px] text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{t("settings.reset")}</button>
+              </div>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.uiZoomDesc")}</p>
+            </div>
+            {/* UI 폰트(#937) */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.uiFont")}</span>
+              <div className="relative">
+                <select value={apFont} onChange={(e) => setFont(e.target.value as UiFontPref)}
+                  className="w-full appearance-none rounded-lg border border-zinc-200 bg-transparent px-3 py-1.5 pr-9 text-sm text-zinc-700 dark:border-zinc-700 dark:text-zinc-200">
+                  <option value="default">{t("settings.uiFontDefault")}</option>
+                  <option value="system">{t("settings.uiFontSystem")}</option>
+                  <option value="mono">{t("settings.uiFontMono")}</option>
+                </select>
+                <IconChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400" aria-hidden />
               </div>
             </div>
           </section>
