@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconPlus, IconX } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@mustard/core";
 import { newAskId, type QuizSession, type AskQuiz } from "@mustard/core";
 import { QuizRunner } from "@mustard/nunopi";
@@ -50,7 +50,7 @@ export default function WorkspaceQuizPanel({ messages, sourceContext, providerId
     onQuizzesChange(quizzes.map((q) => (q.id === active.id ? { ...q, quiz } : q)), active.id);
   }
   async function deleteQuiz(id: string) {
-    if (!(await confirm({ title: t("quiz.confirmDeleteTitle"), message: t("quiz.confirmDeleteMsg") }))) return;
+    if (!(await confirm({ skipKey: CKEYS.skipDelete, title: t("quiz.confirmDeleteTitle"), message: t("quiz.confirmDeleteMsg") }))) return;
     const remaining = quizzes.filter((q) => q.id !== id);
     const nextActive = id === active?.id ? remaining[remaining.length - 1]?.id : activeQuizId;
     onQuizzesChange(remaining, nextActive);

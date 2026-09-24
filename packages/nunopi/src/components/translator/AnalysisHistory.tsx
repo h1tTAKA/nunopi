@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconFolder } from "@tabler/icons-react";
 import { StarIcon } from "../learning/icons";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useT, useLocale } from "@mustard/core";
 import type { HistoryEntry } from "../../lib/historyDB";
 import type { Collection } from "../../lib/collections";
@@ -154,7 +154,7 @@ export default function AnalysisHistory({
           {onDeleteCollection && (
             <button
               type="button"
-              onClick={async () => { if (await confirm({ message: t("confirm.deleteCollection", { name: c.name }), confirmText: t("common.delete"), danger: true })) onDeleteCollection(c.id); }}
+              onClick={async () => { if (await confirm({ skipKey: CKEYS.skipDelete, message: t("confirm.deleteCollection", { name: c.name }), confirmText: t("common.delete"), danger: true })) onDeleteCollection(c.id); }}
               className="pr-1.5 opacity-60 hover:opacity-100"
               title={t("history.deleteCollectionTitle")}
               aria-label={`${c.name} 목록 삭제`}
@@ -286,7 +286,7 @@ export default function AnalysisHistory({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirm({ message: t("confirm.deleteEntry"), confirmText: t("common.delete"), danger: true })) onDelete(entry.id);
+                    if (await confirm({ skipKey: CKEYS.skipDelete, message: t("confirm.deleteEntry"), confirmText: t("common.delete"), danger: true })) onDelete(entry.id);
                   }}
                   className="shrink-0 text-xs text-zinc-400 hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                   aria-label={t("history.deleteEntry")}

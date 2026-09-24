@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import type { ItTerm } from "@mustard/core";
 import { BanIcon, StarIcon } from "./icons";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useT } from "@mustard/core";
 
 interface ItTermSectionProps {
@@ -82,7 +82,7 @@ export default function ItTermSection({
                 <button
                   type="button"
                   onClick={async () => {
-                    if (await confirm({ title: t("confirm.excludeTermTitle", { term: term.term }), message: t("confirm.excludeTerm"), confirmText: t("common.exclude"), danger: true })) onExclude(term);
+                    if (await confirm({ skipKey: CKEYS.skipDelete, title: t("confirm.excludeTermTitle", { term: term.term }), message: t("confirm.excludeTerm"), confirmText: t("common.exclude"), danger: true })) onExclude(term);
                   }}
                   className="text-zinc-400 transition hover:text-red-500 dark:text-zinc-500 dark:hover:text-red-400"
                   title="이 용어 제외 (다음 분석부터 숨김)"

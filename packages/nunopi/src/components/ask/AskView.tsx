@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { IconMessage2, IconPlus, IconPencil, IconTrash, IconChevronRight, IconChevronDown, IconX, IconFolder, IconFolderPlus, IconSparkles, IconCards } from "@tabler/icons-react";
 import { useLocale, useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import AskChat from "./AskChat";
 import AskSessionCards from "./AskSessionCards";
@@ -351,7 +351,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
     commit({ ...store, sessions: remaining, activeSessionId });
   }
   async function confirmDeleteSession(id: string) {
-    if (await confirm({ title: t("ask.confirmDeleteSessionTitle"), message: t("ask.confirmDeleteSession"), confirmText: t("common.delete"), danger: true })) {
+    if (await confirm({ skipKey: CKEYS.skipDelete, title: t("ask.confirmDeleteSessionTitle"), message: t("ask.confirmDeleteSession"), confirmText: t("common.delete"), danger: true })) {
       handleDeleteSession(id);
     }
   }
@@ -433,7 +433,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
     commit({ folders, sessions, activeSessionId });
   }
   async function confirmDeleteFolder(id: string) {
-    if (await confirm({
+    if (await confirm({ skipKey: CKEYS.skipDelete,
       title: t("ask.confirmDeleteFolderTitle"),
       message: t("ask.confirmDeleteFolder"),
       confirmText: t("common.delete"),
@@ -662,7 +662,7 @@ export default function AskView({ active = true, providerId, providerSettings, g
   }
 
   async function confirmDeleteSub(sessionId: string, subId: string) {
-    if (await confirm({ title: t("ask.confirmDeleteThreadTitle"), message: t("ask.confirmDeleteThread"), confirmText: t("common.delete"), danger: true })) {
+    if (await confirm({ skipKey: CKEYS.skipDelete, title: t("ask.confirmDeleteThreadTitle"), message: t("ask.confirmDeleteThread"), confirmText: t("common.delete"), danger: true })) {
       handleDeleteSub(sessionId, subId);
     }
   }

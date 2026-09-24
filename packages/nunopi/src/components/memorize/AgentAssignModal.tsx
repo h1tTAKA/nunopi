@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { IconSparkles, IconX, IconCheck, IconEye } from "@tabler/icons-react";
 import { useT, useLocale } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { collectCards } from "../../lib/srs/collect";
 import { addCardsToDeck, loadCustomDecks, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "../../lib/srs/customDeck";
 import { buildDeckAssignContext, parseDeckAssign } from "../../lib/deckAssign";
@@ -240,7 +240,7 @@ export default function AgentAssignModal({
     if (!canApply) return;
     const targets = groups.filter((g) => g.checked && includedCount(g) > 0);
     const cardTotal = targets.reduce((n, g) => n + includedCount(g), 0);
-    const ok = await confirm({
+    const ok = await confirm({ skipKey: CKEYS.skipDelete,
       title: t("mem.assignApplyConfirmTitle"),
       message: t("mem.assignApplyConfirmMsg").replace("{decks}", String(targets.length)).replace("{n}", String(cardTotal)),
       confirmText: t("mem.assignApply"),

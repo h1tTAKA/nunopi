@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS } from "@mustard/core";
+import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import { useConfirm } from "@mustard/core";
 import WorkspaceView from "@/components/workspace/WorkspaceView";
@@ -391,7 +391,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
             {p ? tabDot(repoStatus[p] ?? null) : null}
             {p ? <RepoAvatar path={p} size={13} iconClassName={`shrink-0 ${iconColor}`} /> : <Icon size={13} stroke={2} className={`shrink-0 ${iconColor}`} aria-hidden />}
             <span className="max-w-[12rem] truncate whitespace-nowrap font-medium">{label}</span>
-            <button type="button" onClick={async (e) => { e.stopPropagation(); if (await confirm({ title: label, message: t("workspace.closeTabConfirm"), detail: t("workspace.closeTabConfirmDetail"), confirmText: t("workspace.closeTab"), tone: "warn" })) closeTab(key); }} title={t("workspace.closeTab")} aria-label={t("workspace.closeTab")}
+            <button type="button" onClick={async (e) => { e.stopPropagation(); if (await confirm({ skipKey: CKEYS.skipCloseTab, title: label, message: t("workspace.closeTabConfirm"), detail: t("workspace.closeTabConfirmDetail"), confirmText: t("workspace.closeTab"), tone: "warn" })) closeTab(key); }} title={t("workspace.closeTab")} aria-label={t("workspace.closeTab")}
               className={`ml-0.5 shrink-0 rounded p-0.5 text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200 ${on ? "" : "opacity-0 group-hover:opacity-100"}`}>
               <IconX size={12} stroke={2.5} aria-hidden />
             </button>

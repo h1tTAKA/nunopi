@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconX, IconSearch, IconTrash, IconCheck, IconSquareCheck, IconSparkles, IconHandFinger, IconCirclePlus, IconCircleMinus, IconCopyCheck, IconBrain, IconChartBar } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { collectCards } from "../../lib/srs/collect";
 import { cardCategory, type CardCategory } from "../../lib/srs/due";
 import { deleteCard } from "../../lib/srs/deleteCard";
@@ -165,7 +165,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
     if (selected.size === 0 || !addTarget) return;
     const target = customDecks.find((d) => d.id === addTarget);
     if (!target) return;
-    const ok = await confirm({
+    const ok = await confirm({ skipKey: CKEYS.skipDelete,
       title: t("mem.addToDeckConfirmTitle"),
       message: t("mem.addToDeckConfirmMsg").replace("{deck}", target.name).replace("{n}", String(selected.size)),
       confirmText: t("mem.addToDeckConfirmYes"),
@@ -182,7 +182,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
     if (selected.size === 0 || !deckFilter) return;
     const deck = customDecks.find((d) => d.id === deckFilter);
     if (!deck) return;
-    const ok = await confirm({
+    const ok = await confirm({ skipKey: CKEYS.skipDelete,
       title: t("mem.removeFromDeckTitle"),
       message: t("mem.removeFromDeckMsg").replace("{deck}", deck.name).replace("{n}", String(selected.size)),
       confirmText: t("mem.removeFromDeckYes"),
@@ -201,12 +201,12 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
     exitAll();
   }
   async function deleteDeck(d: CustomDeck) {
-    const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
+    const ok = await confirm({ skipKey: CKEYS.skipDelete, title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
     if (ok) removeCustomDeck(d.id);
   }
   async function deleteSelected() {
     if (selected.size === 0) return;
-    const ok = await confirm({
+    const ok = await confirm({ skipKey: CKEYS.skipDelete,
       title: t("mem.deleteCardTitle"),
       message: t("mem.deleteCardMsgN").replace("{n}", String(selected.size)),
       confirmText: t("common.delete"),
