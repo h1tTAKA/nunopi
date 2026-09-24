@@ -16,3 +16,4 @@ export * from "./viewMode";
 export * from "./theme";
 export * from "./settings";
 export * from "./appearance";
+export * from "./notify";

@@ -3,7 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS, CKEYS } from "@mustard/core";
+import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS, CKEYS, desktopNotify, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import { useConfirm } from "@mustard/core";
 import WorkspaceView from "@/components/workspace/WorkspaceView";
@@ -141,7 +141,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
           if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
             const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
             const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
-            void window.nunopiDesktop?.notify?.({ title, body: name, suppressWhileFocused: getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) }); // focused 억제는 설정 따라(#928)
+            void desktopNotify({ title, body: name, suppressWhileFocused: getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) }); // focused 억제는 설정 따라(#928), 마스터/silent는 desktopNotify서(#939)
           }
         }
         prevRepoStatus.current = Object.fromEntries(entries);                      // 다음 비교 기준(중복 알림 방지)
@@ -284,7 +284,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     if (!desktop?.pickRepoFolder || picking) return;
     setPicking(true);
     try {
-      const r = await desktop.pickRepoFolder();
+      const r = await desktop.pickRepoFolder({ defaultPath: getSetting<string>(WKEYS.defaultFolder, WORKSPACE_DEFAULTS.defaultFolder) || undefined });
       if (!r.canceled && r.path) {
         const path = r.path;
         const key = `repo:${path}`;

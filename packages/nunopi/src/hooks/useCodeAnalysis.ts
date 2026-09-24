@@ -10,6 +10,7 @@ import { deckStats } from "../lib/srs/due";
 import { detectLanguage } from "../lib/translator/detectLanguage";
 import { type LanguageChoice } from "../components/translator/CodeInputArea";
 import { MESSAGES } from "@mustard/core";
+import { desktopNotify } from "@mustard/core";
 import type { CodeToken } from "@mustard/core";
 import type { AgentAnalyzeResponse, AgentProviderKind, AnalyzeMode, ChatMessage, ProviderSettings } from "../lib/agent";
 import {
@@ -399,7 +400,7 @@ export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: Analyze
           const loc = getAnalysisLocale();
           const nTitle = MESSAGES[loc][mode === "code" ? "notify.codeDone" : "notify.textDone"];
           const nBody = saved.title || saved.summary?.slice(0, 80) || "";
-          window.nunopiDesktop?.notify?.({ title: nTitle, body: nBody }).catch(() => {});
+          desktopNotify({ title: nTitle, body: nBody }).catch(() => {});
         }
         if (resumeFrom) {
           const priorLines = new Set((resumeFrom.lineExplanations ?? []).map((l) => l.line));

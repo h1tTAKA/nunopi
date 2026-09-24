@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf } from "@tabler/icons-react";
-import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont } from "@mustard/core";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder } from "@tabler/icons-react";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
 const AGENT_LABEL: Record<string, string> = { claude: "Claude Code", codex: "Codex", grok: "Grok", opencode: "OpenCode", omp: "OMP", antigravity: "Antigravity", cursor: "Cursor", hermes: "Hermes" };
@@ -142,6 +142,9 @@ export default function SettingsDrawer({
   const nAgentDone = useSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
   const nSuppress = useSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused);
   const nBell = useSetting<boolean>(NKEYS.terminalBell, NOTIF_DEFAULTS.terminalBell);
+  const nMaster = useSetting<boolean>(NKEYS.master, NOTIF_DEFAULTS.master);   // #939
+  const nSilent = useSetting<boolean>(NKEYS.silent, NOTIF_DEFAULTS.silent);   // #939
+  const wDefaultFolder = useSetting<string>(WKEYS.defaultFolder, WORKSPACE_DEFAULTS.defaultFolder); // #939
   // 확인 다이얼로그(#929)
   const cSkipDelete = useSetting<boolean>(CKEYS.skipDelete, CONFIRM_DEFAULTS.skipDelete);
   const cSkipCloseTab = useSetting<boolean>(CKEYS.skipCloseTab, CONFIRM_DEFAULTS.skipCloseTab);
@@ -205,11 +208,19 @@ export default function SettingsDrawer({
     { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
     { id: "set-notifications", label: t("settings.notifications"), Icon: IconBell, show: true },
     { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true },
+    { id: "set-workspace", label: t("settings.workspaceSection"), Icon: IconFolder, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
   // 외관(#937) — 즉시 적용(저장 + 실제 반영).
   const setZoom = (v: number) => { const z = Math.min(1.4, Math.max(0.8, Math.round(v * 10) / 10)); setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
   const setFont = (f: UiFontPref) => { setSetting(APKEYS.uiFont, f); applyUiFont(f); };
+  // 워크스페이스 기본 폴더 선택(#939) — OS 폴더 창서 고른 경로 저장.
+  const pickDefaultFolder = async () => {
+    const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
+    if (!nd?.pickRepoFolder) return;
+    const r = await nd.pickRepoFolder({ defaultPath: wDefaultFolder || undefined });
+    if (!r.canceled && r.path) setSetting(WKEYS.defaultFolder, r.path);
+  };
   void variant;
   return (
     <div className="fixed inset-0 z-[90] flex bg-white text-zinc-900 dark:bg-[var(--ink)] dark:text-zinc-100">
@@ -649,9 +660,11 @@ export default function SettingsDrawer({
           <section id="set-notifications" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.notifications")}</h3>
             {([
+              { key: NKEYS.master, on: nMaster, label: t("settings.notifMaster"), desc: t("settings.notifMasterDesc") },
               { key: NKEYS.agentDone, on: nAgentDone, label: t("settings.notifAgentDone"), desc: t("settings.notifAgentDoneDesc") },
               { key: NKEYS.suppressWhileFocused, on: nSuppress, label: t("settings.notifSuppress"), desc: t("settings.notifSuppressDesc") },
               { key: NKEYS.terminalBell, on: nBell, label: t("settings.notifBell"), desc: t("settings.notifBellDesc") },
+              { key: NKEYS.silent, on: nSilent, label: t("settings.notifSilent"), desc: t("settings.notifSilentDesc") },
             ]).map((row) => (
               <div key={row.key} className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -693,6 +706,28 @@ export default function SettingsDrawer({
                 </button>
               </div>
             ))}
+          </section>
+          )}
+
+          {/* 워크스페이스/일반(#939) — 기본 폴더 등. */}
+          {activeSection === "set-workspace" && (
+          <section id="set-workspace" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.workspaceSection")}</h3>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.defaultFolder")}</span>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.defaultFolderDesc")}</p>
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] text-zinc-600 dark:border-zinc-700 dark:text-zinc-300" title={wDefaultFolder || undefined}>
+                  {wDefaultFolder || t("settings.defaultFolderNone")}
+                </span>
+                <button type="button" onClick={() => void pickDefaultFolder()}
+                  className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">{t("settings.chooseFolder")}</button>
+                {wDefaultFolder ? (
+                  <button type="button" onClick={() => setSetting(WKEYS.defaultFolder, "")}
+                    className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[13px] text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">{t("settings.clear")}</button>
+                ) : null}
+              </div>
+            </div>
           </section>
           )}
 
