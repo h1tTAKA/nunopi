@@ -133,6 +133,11 @@ export default function SettingsDrawer({
   const tCopyOnSelect = useSetting<boolean>(TKEYS.copyOnSelect, TERMINAL_DEFAULTS.copyOnSelect);
   const tRightClickPaste = useSetting<boolean>(TKEYS.rightClickPaste, TERMINAL_DEFAULTS.rightClickPaste);
   const tGpu = useSetting<boolean>(TKEYS.gpu, TERMINAL_DEFAULTS.gpu);
+  // 터미널 심화(#941)
+  const tFontWeight = useSetting<string>(TKEYS.fontWeight, TERMINAL_DEFAULTS.fontWeight);
+  const tScrollSensitivity = useSetting<number>(TKEYS.scrollSensitivity, TERMINAL_DEFAULTS.scrollSensitivity);
+  const tMacOptionIsMeta = useSetting<boolean>(TKEYS.macOptionIsMeta, TERMINAL_DEFAULTS.macOptionIsMeta);
+  const tFocusFollowsMouse = useSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse);
   // 에이전트 런치(#927)
   const aDefault = useSetting<string>(AKEYS.default, AGENT_DEFAULTS.default);
   const aArgsClaude = useSetting<string>(AKEYS.args("claude"), "");
@@ -415,6 +420,8 @@ export default function SettingsDrawer({
               { key: TKEYS.copyOnSelect, on: tCopyOnSelect, label: t("settings.terminalCopyOnSelect") },
               { key: TKEYS.rightClickPaste, on: tRightClickPaste, label: t("settings.terminalRightClickPaste") },
               { key: TKEYS.gpu, on: tGpu, label: t("settings.terminalGpu") },
+              { key: TKEYS.focusFollowsMouse, on: tFocusFollowsMouse, label: t("settings.terminalFocusFollowsMouse") },
+              { key: TKEYS.macOptionIsMeta, on: tMacOptionIsMeta, label: t("settings.terminalMacOptionIsMeta") },
             ]).map((row) => (
               <div key={row.key} className="flex items-center justify-between gap-3">
                 <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
@@ -434,6 +441,30 @@ export default function SettingsDrawer({
               <input type="number" min={100} max={100000} step={100} value={tScrollback}
                 onChange={(e) => setSetting(TKEYS.scrollback, Math.min(100000, Math.max(100, Number(e.target.value) || TERMINAL_DEFAULTS.scrollback)))}
                 className="w-28 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+            </div>
+            {/* 폰트 굵기(#941) */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalFontWeight")}</span>
+              <div className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+                {(["normal", "bold"] as const).map((fw) => (
+                  <button key={fw} type="button" onClick={() => setSetting(TKEYS.fontWeight, fw)}
+                    className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${tFontWeight === fw ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"}`}>
+                    {t(`settings.fontWeight.${fw}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* 스크롤 속도(#941) — scrollSensitivity는 값이 높을수록 빠름(한 틱에 더 많이 이동) */}
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalScrollSpeed")}</span>
+              <div className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+                {([{ v: 0.5, k: "slow" }, { v: 1, k: "normal" }, { v: 3, k: "fast" }] as const).map((opt) => (
+                  <button key={opt.k} type="button" onClick={() => setSetting(TKEYS.scrollSensitivity, opt.v)}
+                    className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${tScrollSensitivity === opt.v ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"}`}>
+                    {t(`settings.scrollSpeed.${opt.k}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
           )}

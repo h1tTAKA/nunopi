@@ -13,6 +13,7 @@ export interface MustardSettings {
 
 // 터미널 설정(#926) — 키·기본값 공유(Terminal[apps] + SettingsDrawer[packages] 둘 다 참조).
 export type TerminalCursorStyle = "bar" | "block" | "underline";
+export type TerminalFontWeight = "normal" | "bold";
 export const TERMINAL_DEFAULTS = {
   fontSize: 12,
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -23,6 +24,11 @@ export const TERMINAL_DEFAULTS = {
   copyOnSelect: false,
   rightClickPaste: false,
   gpu: true,
+  // 심화(#941)
+  fontWeight: "normal" as TerminalFontWeight, // xterm fontWeight
+  scrollSensitivity: 1,                        // 높을수록 빠름(한 틱에 더 많이 이동)
+  macOptionIsMeta: false,                      // mac Option→Alt
+  focusFollowsMouse: false,                    // 마우스 올리면 포커스
 };
 export const TKEYS = {
   fontSize: "terminal.fontSize",
@@ -34,6 +40,10 @@ export const TKEYS = {
   copyOnSelect: "terminal.copyOnSelect",
   rightClickPaste: "terminal.rightClickPaste",
   gpu: "terminal.gpu",
+  fontWeight: "terminal.fontWeight",
+  scrollSensitivity: "terminal.scrollSensitivity",
+  macOptionIsMeta: "terminal.macOptionIsMeta",
+  focusFollowsMouse: "terminal.focusFollowsMouse",
 } as const;
 
 // 에이전트 런치(#927) — 기본 에이전트 + per-agent 추가 인자. 키는 agent.args.<id> 동적.
