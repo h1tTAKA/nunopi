@@ -165,7 +165,7 @@ export default function AllCardsModal({ now, active = true, autoThrowCardKey, au
     if (selected.size === 0 || !addTarget) return;
     const target = customDecks.find((d) => d.id === addTarget);
     if (!target) return;
-    const ok = await confirm({ skipKey: CKEYS.skipDelete,
+    const ok = await confirm({
       title: t("mem.addToDeckConfirmTitle"),
       message: t("mem.addToDeckConfirmMsg").replace("{deck}", target.name).replace("{n}", String(selected.size)),
       confirmText: t("mem.addToDeckConfirmYes"),
