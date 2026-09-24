@@ -51,6 +51,16 @@ export const NKEYS = {
   terminalBell: "notif.terminalBell",
 } as const;
 
+// 확인 다이얼로그(#929) — 파괴적 액션 confirm 토글.
+// skipDelete/skipCloseTab: 이미 confirm 있는 액션의 확인을 "건너뛰기"(기본 false=확인 유지).
+// confirmCloseTerminal: 실행 중 터미널 닫기 시 확인을 "추가"(opt-in, 기본 false=바로 닫기).
+export const CONFIRM_DEFAULTS = { skipDelete: false, skipCloseTab: false, confirmCloseTerminal: false };
+export const CKEYS = {
+  skipDelete: "confirm.skipDelete",
+  skipCloseTab: "confirm.skipCloseTab",
+  confirmCloseTerminal: "confirm.confirmCloseTerminal",
+} as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();

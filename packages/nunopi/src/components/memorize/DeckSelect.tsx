@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconCode, IconFileText, IconStack2, IconCheck, IconTrash, IconSparkles } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { deckStats, categoryCounts, sessionCount, dueCards, type CardCategory } from "../../lib/srs/due";
 import { collectCardsByKeys } from "../../lib/srs/collect";
 import { loadCustomDecks, removeCustomDeck, CUSTOM_DECKS_CHANGED_EVENT, type CustomDeck } from "../../lib/srs/customDeck";
@@ -170,7 +170,7 @@ export default function DeckSelect({ deck: selected, onDeckChange, codeSources, 
     [customDecks, now, cardsNonce],
   );
   async function deleteCustomDeck(d: CustomDeck) {
-    const ok = await confirm({ title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
+    const ok = await confirm({ skipKey: CKEYS.skipDelete, title: t("mem.deleteDeckTitle"), message: t("mem.deleteDeckMsg").replace("{name}", d.name), confirmText: t("common.delete"), danger: true });
     if (ok) removeCustomDeck(d.id);
   }
   // 덱 목록 자체 스크롤바 — 네이티브 오버레이 바가 이 환경서 안 보여서 직접 그린다(트랙 항상 표시).

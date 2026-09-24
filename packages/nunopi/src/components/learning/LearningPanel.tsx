@@ -35,7 +35,7 @@ import ConceptSection from "./ConceptSection";
 import { CONCEPT_DESCRIPTIONS } from "./conceptDescriptions";
 import LineExplanationList from "./LineExplanationList";
 import ResizableBody from "./ResizableBody";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import { CARDS_CHANGED_EVENT } from "@mustard/core";
 import { useT, useLocale } from "@mustard/core";
@@ -663,7 +663,7 @@ export default function LearningPanel({
         <button
           type="button"
           onClick={async () => {
-            if (await confirm({ message: t("confirm.deleteAnalysis"), confirmText: t("common.delete"), danger: true })) onDeleteHistory(currentHistoryId);
+            if (await confirm({ skipKey: CKEYS.skipDelete, message: t("confirm.deleteAnalysis"), confirmText: t("common.delete"), danger: true })) onDeleteHistory(currentHistoryId);
           }}
           className="shrink-0 rounded-lg px-1.5 py-1 text-xs text-zinc-400 transition hover:bg-red-100 hover:text-red-600 dark:text-zinc-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
           title="이 분석 삭제"

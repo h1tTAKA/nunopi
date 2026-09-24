@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useRe
 import { createPortal } from "react-dom";
 import { IconExternalLink, IconTrash } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import type { Card } from "@mustard/core";
 import { canGoToSource } from "../../lib/srs/cardSource";
@@ -143,7 +143,7 @@ export function FlyCardProvider({
   async function handleDelete() {
     if (!fly) return;
     const card = fly.card;
-    const ok = await confirm({ title: t("mem.deleteCardTitle"), message: t("mem.deleteCardMsg"), confirmText: t("common.delete"), danger: true });
+    const ok = await confirm({ skipKey: CKEYS.skipDelete, title: t("mem.deleteCardTitle"), message: t("mem.deleteCardMsg"), confirmText: t("common.delete"), danger: true });
     if (!ok) return;
     deleteCard(card);
     setFly(null); setArrived(false); setDropping(false);

@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell } from "@tabler/icons-react";
-import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS } from "@mustard/core";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf } from "@tabler/icons-react";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
 const AGENT_LABEL: Record<string, string> = { claude: "Claude Code", codex: "Codex", grok: "Grok", opencode: "OpenCode", omp: "OMP", antigravity: "Antigravity", cursor: "Cursor", hermes: "Hermes" };
@@ -142,6 +142,10 @@ export default function SettingsDrawer({
   const nAgentDone = useSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
   const nSuppress = useSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused);
   const nBell = useSetting<boolean>(NKEYS.terminalBell, NOTIF_DEFAULTS.terminalBell);
+  // 확인 다이얼로그(#929)
+  const cSkipDelete = useSetting<boolean>(CKEYS.skipDelete, CONFIRM_DEFAULTS.skipDelete);
+  const cSkipCloseTab = useSetting<boolean>(CKEYS.skipCloseTab, CONFIRM_DEFAULTS.skipCloseTab);
+  const cConfirmCloseTerminal = useSetting<boolean>(CKEYS.confirmCloseTerminal, CONFIRM_DEFAULTS.confirmCloseTerminal);
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -197,6 +201,7 @@ export default function SettingsDrawer({
     { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true },
     { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
     { id: "set-notifications", label: t("settings.notifications"), Icon: IconBell, show: true },
+    { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
   void variant;
@@ -631,6 +636,30 @@ export default function SettingsDrawer({
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
               {t("settings.notifTest")}
             </button>
+          </section>
+          )}
+
+          {/* 확인 다이얼로그(#929) — 파괴적 액션 confirm 켜고 끄기. */}
+          {activeSection === "set-confirm" && (
+          <section id="set-confirm" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.confirmations")}</h3>
+            {([
+              { key: CKEYS.skipDelete, on: cSkipDelete, label: t("settings.confirmSkipDelete"), desc: t("settings.confirmSkipDeleteDesc") },
+              { key: CKEYS.skipCloseTab, on: cSkipCloseTab, label: t("settings.confirmSkipCloseTab"), desc: t("settings.confirmSkipCloseTabDesc") },
+              { key: CKEYS.confirmCloseTerminal, on: cConfirmCloseTerminal, label: t("settings.confirmCloseTerminal"), desc: t("settings.confirmCloseTerminalDesc") },
+            ]).map((row) => (
+              <div key={row.key} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500">{row.desc}</p>
+                </div>
+                <button type="button" role="switch" aria-checked={row.on} aria-label={row.label}
+                  onClick={() => setSetting(row.key, !row.on)}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${row.on ? "bg-mustard-500" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${row.on ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+            ))}
           </section>
           )}
 

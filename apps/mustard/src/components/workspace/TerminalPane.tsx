@@ -3,7 +3,7 @@
 // 활성 탭만 렌더(전환 시 remount → scrollback 재생). 탭 목록은 레포별 localStorage 영속.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconPlus, IconX, IconTerminal2 } from "@tabler/icons-react";
-import { useT, getTerminalThemePref, isTerminalDark, getSetting, AKEYS, AGENT_DEFAULTS } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, getSetting, AKEYS, AGENT_DEFAULTS, CKEYS, useConfirm } from "@mustard/core";
 import Terminal from "@/components/workspace/Terminal";
 import { AgentLogo, AGENT_META, type AgentId } from "@/components/workspace/AgentLogo";
 
@@ -40,6 +40,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
   const [tabs, setTabs] = useState<Tab[]>(initial.tabs);
   const [activeId, setActiveId] = useState<string>(initial.activeId);
   const curStore = useRef(store);
+  const confirm = useConfirm();
 
   // 폴더(cwd) 바뀌면 그 레포 탭셋 재로드(첫 마운트는 lazy init).
   useEffect(() => {
@@ -62,7 +63,11 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
     setTabs((prev) => [...prev, { id, title: t("workspace.terminalTab", { n: nextNum(prev) }) }]);
     setActiveId(id);
   }
-  function closeTab(id: string) {
+  async function closeTab(id: string) {
+    // #929 실행 중(에이전트 돌아가는) 터미널은 설정이 켜져 있으면 닫기 전 확인.
+    if (agentById[id] && getSetting<boolean>(CKEYS.confirmCloseTerminal, false)) {
+      if (!(await confirm({ title: t("workspace.closeTermRunningTitle"), message: t("workspace.closeTermRunningMsg"), confirmText: t("workspace.closeTab"), tone: "warn" }))) return;
+    }
     try { window.nunopiDesktop?.terminal?.kill({ id }); } catch { /* ignore */ } // pty 정리(좀비 방지)
     const next = tabs.filter((x) => x.id !== id);
     if (!next.length) { // 마지막 탭 → 새 빈 탭으로 대체 + 그 탭 활성(번호 1로 리셋)
@@ -191,7 +196,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
                   onDoubleClick={(e) => { e.stopPropagation(); setEditValue(tab.customTitle || (agent ? AGENT_META[agent].label : "")); setEditingId(tab.id); }}>{label}</span>
               )}
               {tabs.length > 1 && (
-                <button type="button" onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }}
+                <button type="button" onClick={(e) => { e.stopPropagation(); void closeTab(tab.id); }}
                   className={`ml-1 shrink-0 rounded p-0.5 text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200 ${on ? "" : "opacity-0 group-hover:opacity-100"}`} aria-label={t("workspace.terminalClose")}>
                   <IconX size={12} stroke={2.5} aria-hidden />
                 </button>

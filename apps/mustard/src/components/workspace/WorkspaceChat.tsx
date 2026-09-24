@@ -17,7 +17,7 @@ import { collectCards } from "@mustard/nunopi";
 import type { Card } from "@mustard/core";
 import { useFlyCard } from "@mustard/nunopi";
 import { useLocale, useT } from "@mustard/core";
-import { useConfirm } from "@mustard/core";
+import { useConfirm, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@mustard/core";
 import type { QuizSession } from "@mustard/core";
@@ -368,7 +368,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
   }
   async function closeSub(id: string) {
     // 항상 삭제 확인(실수 방지) — Ask 챗룸과 동일.
-    if (!(await confirm({ title: t("workspace.chatDeleteThreadTitle"), message: t("workspace.chatDeleteThread"), confirmText: t("common.delete"), danger: true }))) return;
+    if (!(await confirm({ skipKey: CKEYS.skipDelete, title: t("workspace.chatDeleteThreadTitle"), message: t("workspace.chatDeleteThread"), confirmText: t("common.delete"), danger: true }))) return;
     setSessions((prev) => {
       const s = prev[activeKey]; if (!s) return prev;
       let subs = s.subs.filter((su) => su.id !== id);
@@ -538,7 +538,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
   // 현재 대화 초기화(확인 모달 후). 목적지를 모달 전에 고정(모달 중 탭 전환 대비).
   async function clearThread() {
     const sk = active.key, subId = active.activeSubId;
-    if (!(await confirm({ title: t("chat.clear"), message: t("chat.confirmClear"), confirmText: t("chat.clear"), danger: true }))) return;
+    if (!(await confirm({ skipKey: CKEYS.skipDelete, title: t("chat.clear"), message: t("chat.confirmClear"), confirmText: t("chat.clear"), danger: true }))) return;
     writeSub(sk, subId, []);
   }
 
