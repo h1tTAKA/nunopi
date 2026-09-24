@@ -44,12 +44,18 @@ export const AKEYS = {
 } as const;
 
 // 알림(#928)
-export const NOTIF_DEFAULTS = { agentDone: true, suppressWhileFocused: true, terminalBell: false };
+export const NOTIF_DEFAULTS = { agentDone: true, suppressWhileFocused: true, terminalBell: false, master: true, silent: false };
 export const NKEYS = {
   agentDone: "notif.agentDone",
   suppressWhileFocused: "notif.suppressWhileFocused",
   terminalBell: "notif.terminalBell",
+  master: "notif.master",   // #939 알림 전체 on/off
+  silent: "notif.silent",   // #939 소리 없이(무음 알림)
 } as const;
+
+// 워크스페이스/일반(#939)
+export const WORKSPACE_DEFAULTS = { defaultFolder: "" };
+export const WKEYS = { defaultFolder: "workspace.defaultFolder" } as const;
 
 // 확인 다이얼로그(#929) — 파괴적 액션 confirm 토글.
 // skipDelete/skipCloseTab: 이미 confirm 있는 액션의 확인을 "건너뛰기"(기본 false=확인 유지).

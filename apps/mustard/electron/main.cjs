@@ -492,19 +492,22 @@ function notifyIconPath() {
 
 // 데스크톱 네이티브 알림(분석 완료 등). 창을 보고 있으면(포커스) 스킵 — 안 보고 있을 때만 알림.
 ipcMain.handle("notify", (_e, payload) => {
-  const { title, body, suppressWhileFocused } = payload ?? {};
+  const { title, body, suppressWhileFocused, silent } = payload ?? {};
   if (!Notification.isSupported()) return { ok: false, reason: "unsupported" };
   // #928 설정: suppressWhileFocused=false면 포커스여도 알림(기본 true=기존 동작).
   if (suppressWhileFocused !== false && win && win.isFocused()) return { ok: false, reason: "focused" };
-  const n = new Notification({ title: title || "nunopi", body: body || "", icon: notifyIconPath() });
+  // #939 silent=true면 무음 알림.
+  const n = new Notification({ title: title || "nunopi", body: body || "", icon: notifyIconPath(), silent: !!silent });
   n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   n.show();
   return { ok: true };
 });
 
 // 레포 폴더 선택 — OS 네이티브 폴더 창. { canceled, path }.
-ipcMain.handle("repo:pickFolder", async () => {
-  const res = await dialog.showOpenDialog(win ?? undefined, { properties: ["openDirectory"] });
+ipcMain.handle("repo:pickFolder", async (_e, opts) => {
+  // #939 defaultPath — 설정된 워크스페이스 기본 폴더서 열기.
+  const defaultPath = opts && typeof opts.defaultPath === "string" && opts.defaultPath ? opts.defaultPath : undefined;
+  const res = await dialog.showOpenDialog(win ?? undefined, { properties: ["openDirectory"], defaultPath });
   if (res.canceled || res.filePaths.length === 0) return { canceled: true };
   return { canceled: false, path: res.filePaths[0] };
 });
