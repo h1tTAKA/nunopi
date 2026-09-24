@@ -29,7 +29,6 @@ export const TERMINAL_DEFAULTS = {
   scrollSensitivity: 1,                        // 높을수록 빠름(한 틱에 더 많이 이동)
   macOptionIsMeta: false,                      // mac Option→Alt
   focusFollowsMouse: false,                    // 마우스 올리면 포커스
-  padding: 6,                                  // host CSS padding(px)
 };
 export const TKEYS = {
   fontSize: "terminal.fontSize",
@@ -45,7 +44,6 @@ export const TKEYS = {
   scrollSensitivity: "terminal.scrollSensitivity",
   macOptionIsMeta: "terminal.macOptionIsMeta",
   focusFollowsMouse: "terminal.focusFollowsMouse",
-  padding: "terminal.padding",
 } as const;
 
 // 에이전트 런치(#927) — 기본 에이전트 + per-agent 추가 인자. 키는 agent.args.<id> 동적.

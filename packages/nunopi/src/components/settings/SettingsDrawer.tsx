@@ -138,7 +138,6 @@ export default function SettingsDrawer({
   const tScrollSensitivity = useSetting<number>(TKEYS.scrollSensitivity, TERMINAL_DEFAULTS.scrollSensitivity);
   const tMacOptionIsMeta = useSetting<boolean>(TKEYS.macOptionIsMeta, TERMINAL_DEFAULTS.macOptionIsMeta);
   const tFocusFollowsMouse = useSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse);
-  const tPadding = useSetting<number>(TKEYS.padding, TERMINAL_DEFAULTS.padding);
   // 에이전트 런치(#927)
   const aDefault = useSetting<string>(AKEYS.default, AGENT_DEFAULTS.default);
   const aArgsClaude = useSetting<string>(AKEYS.args("claude"), "");
@@ -466,13 +465,6 @@ export default function SettingsDrawer({
                   </button>
                 ))}
               </div>
-            </div>
-            {/* 여백(#941) */}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalPadding")}</span>
-              <input type="number" min={0} max={24} value={tPadding}
-                onChange={(e) => setSetting(TKEYS.padding, Math.min(24, Math.max(0, Number(e.target.value) || 0)))}
-                className="w-24 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
             </div>
           </section>
           )}

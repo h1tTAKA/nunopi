@@ -99,7 +99,6 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         term.options.fontWeight = o.fontWeight;
         term.options.scrollSensitivity = o.scrollSensitivity;
         term.options.macOptionIsMeta = o.macOptionIsMeta;
-        if (host) host.style.padding = `${getSetting<number>(TKEYS.padding, TERMINAL_DEFAULTS.padding)}px`;
         try { fit.fit(); } catch { /* ignore */ }
       };
       offSettings = subscribeSettings(applyTermSettings);
@@ -204,6 +203,5 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
   const initialBg = typeof document !== "undefined" && !isTerminalDark(getTerminalThemePref()) ? "#ffffff" : "#282c34";
-  const initialPad = getSetting<number>(TKEYS.padding, TERMINAL_DEFAULTS.padding); // #941 여백(라이브 갱신은 applyTermSettings)
-  return <div ref={hostRef} className="h-full w-full overflow-hidden" style={{ background: initialBg, padding: `${initialPad}px` }} />;
+  return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: initialBg }} />;
 }
