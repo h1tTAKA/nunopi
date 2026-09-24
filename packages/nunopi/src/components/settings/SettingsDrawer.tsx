@@ -2,12 +2,12 @@ import { useState } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown } from "@tabler/icons-react";
-import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS } from "@mustard/core";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell } from "@tabler/icons-react";
+import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
 const AGENT_LABEL: Record<string, string> = { claude: "Claude Code", codex: "Codex", grok: "Grok", opencode: "OpenCode", omp: "OMP", antigravity: "Antigravity", cursor: "Cursor", hermes: "Hermes" };
-import { useLocale, useT } from "@mustard/core";
+import { useLocale, useT, useToast } from "@mustard/core";
 import { LOCALES, type Locale } from "@mustard/core";
 import { THEMES, type ThemeId } from "@mustard/core";
 import { type TerminalThemePref, getTerminalThemePref, setTerminalThemePref } from "@mustard/core";
@@ -108,6 +108,17 @@ export default function SettingsDrawer({
 }: SettingsDrawerProps) {
   const { locale, setLocale } = useLocale();
   const t = useT();
+  const toast = useToast();
+  // 테스트 알림(#928) — 결과를 토스트로 피드백(OS가 조용히 드롭해도 전송 여부/사유 확인).
+  const sendTestNotif = async () => {
+    const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
+    if (!nd?.notify) { toast(t("settings.notifTestNoDesktop"), "error"); return; }
+    try {
+      const r = await nd.notify({ title: t("settings.notifTestTitle"), body: t("settings.notifTestBody"), suppressWhileFocused: false });
+      if (r?.ok) toast(t("settings.notifTestSent"), "success");
+      else toast(t("settings.notifTestFailed") + (r?.reason ? ` (${r.reason})` : ""), "error");
+    } catch { toast(t("settings.notifTestFailed"), "error"); }
+  };
   // 터미널 테마(#914) — 앱 테마와 분리. getTerminalThemePref는 localStorage try/catch라 SSR 안전.
   const [termPref, setTermPref] = useState<TerminalThemePref>(() => getTerminalThemePref());
   const changeTermPref = (p: TerminalThemePref) => { setTermPref(p); setTerminalThemePref(p); };
@@ -127,6 +138,10 @@ export default function SettingsDrawer({
   const aArgsClaude = useSetting<string>(AKEYS.args("claude"), "");
   const aArgsCodex = useSetting<string>(AKEYS.args("codex"), "");
   const aArgsOpencode = useSetting<string>(AKEYS.args("opencode"), "");
+  // 알림(#928)
+  const nAgentDone = useSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
+  const nSuppress = useSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused);
+  const nBell = useSetting<boolean>(NKEYS.terminalBell, NOTIF_DEFAULTS.terminalBell);
   const [baseUrl, setBaseUrl] = useState(
     settings["openai-compatible"]?.baseUrl ?? "http://localhost:11434/v1",
   );
@@ -181,6 +196,7 @@ export default function SettingsDrawer({
     { id: "set-language", label: t("settings.language"), Icon: IconLanguage, show: true },
     { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true },
     { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
+    { id: "set-notifications", label: t("settings.notifications"), Icon: IconBell, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
   void variant;
@@ -589,6 +605,34 @@ export default function SettingsDrawer({
             />
           </section>
           </>)}
+
+          {/* 알림(#928) */}
+          {activeSection === "set-notifications" && (
+          <section id="set-notifications" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.notifications")}</h3>
+            {([
+              { key: NKEYS.agentDone, on: nAgentDone, label: t("settings.notifAgentDone"), desc: t("settings.notifAgentDoneDesc") },
+              { key: NKEYS.suppressWhileFocused, on: nSuppress, label: t("settings.notifSuppress"), desc: t("settings.notifSuppressDesc") },
+              { key: NKEYS.terminalBell, on: nBell, label: t("settings.notifBell"), desc: t("settings.notifBellDesc") },
+            ]).map((row) => (
+              <div key={row.key} className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{row.label}</span>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500">{row.desc}</p>
+                </div>
+                <button type="button" role="switch" aria-checked={row.on} aria-label={row.label}
+                  onClick={() => setSetting(row.key, !row.on)}
+                  className={`relative h-6 w-11 shrink-0 rounded-full transition ${row.on ? "bg-mustard-500" : "bg-zinc-300 dark:bg-zinc-700"}`}>
+                  <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${row.on ? "left-[22px]" : "left-0.5"}`} />
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={() => void sendTestNotif()}
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-[13px] font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800">
+              {t("settings.notifTest")}
+            </button>
+          </section>
+          )}
 
           {/* nunopi 학습 모듈 설치/사용(#924) — 온보딩 외 설정서도 토글. */}
           {activeSection === "set-nunopi" && (

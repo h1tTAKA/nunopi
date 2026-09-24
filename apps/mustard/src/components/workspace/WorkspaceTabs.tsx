@@ -3,6 +3,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
+import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import { useConfirm } from "@mustard/core";
 import WorkspaceView from "@/components/workspace/WorkspaceView";
@@ -115,8 +116,13 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   const toggleNotify = () => {
     const next = !notifyOnRef.current;
     notifyOnRef.current = next; setNotifyOn(next);
-    try { localStorage.setItem("nunopi:notifyAgentDone", next ? "1" : "0"); } catch { /* ignore */ }
+    setSetting(NKEYS.agentDone, next); // #928 설정 스토어로 이관(설정 페이지와 동기)
   };
+  // 설정 페이지서 알림 토글 변경 시 인탭 벨 동기(#928).
+  useEffect(() => subscribeSettings(() => {
+    const v = getSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
+    notifyOnRef.current = v; setNotifyOn(v);
+  }), []);
   useEffect(() => {
     if (!mounted || !active) return;
     const repoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => x.path);
@@ -135,7 +141,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
           if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
             const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
             const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
-            void window.nunopiDesktop?.notify?.({ title, body: name });           // focused면 IPC가 스킵, 클릭 시 포커스
+            void window.nunopiDesktop?.notify?.({ title, body: name, suppressWhileFocused: getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) }); // focused 억제는 설정 따라(#928)
           }
         }
         prevRepoStatus.current = Object.fromEntries(entries);                      // 다음 비교 기준(중복 알림 방지)
@@ -173,7 +179,9 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
       const want = act && keys.includes(act) ? act : act && keys.includes(`repo:${act}`) ? `repo:${act}` : null;
       a = want ?? keys[0] ?? null;
     } catch { /* ignore */ }
-    const notif = localStorage.getItem("nunopi:notifyAgentDone") !== "0"; // 기본 on(명시적 "0"만 off)
+    // #928 설정 스토어서 복원. 옛 키(nunopi:notifyAgentDone) 있으면 1회 이관.
+    try { const old = localStorage.getItem("nunopi:notifyAgentDone"); if (old !== null && getSetting(NKEYS.agentDone, null) === null) { setSetting(NKEYS.agentDone, old !== "0"); localStorage.removeItem("nunopi:notifyAgentDone"); } } catch { /* ignore */ }
+    const notif = getSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
     notifyOnRef.current = notif;
     /* eslint-disable react-hooks/set-state-in-effect -- 마운트 1회 복원 */
     setMounted(true);

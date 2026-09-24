@@ -492,9 +492,10 @@ function notifyIconPath() {
 
 // 데스크톱 네이티브 알림(분석 완료 등). 창을 보고 있으면(포커스) 스킵 — 안 보고 있을 때만 알림.
 ipcMain.handle("notify", (_e, payload) => {
-  const { title, body } = payload ?? {};
+  const { title, body, suppressWhileFocused } = payload ?? {};
   if (!Notification.isSupported()) return { ok: false, reason: "unsupported" };
-  if (win && win.isFocused()) return { ok: false, reason: "focused" };
+  // #928 설정: suppressWhileFocused=false면 포커스여도 알림(기본 true=기존 동작).
+  if (suppressWhileFocused !== false && win && win.isFocused()) return { ok: false, reason: "focused" };
   const n = new Notification({ title: title || "nunopi", body: body || "", icon: notifyIconPath() });
   n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   n.show();

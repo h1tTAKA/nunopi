@@ -43,6 +43,14 @@ export const AKEYS = {
   args: (agentId: string) => `agent.args.${agentId}`,
 } as const;
 
+// 알림(#928)
+export const NOTIF_DEFAULTS = { agentDone: true, suppressWhileFocused: true, terminalBell: false };
+export const NKEYS = {
+  agentDone: "notif.agentDone",
+  suppressWhileFocused: "notif.suppressWhileFocused",
+  terminalBell: "notif.terminalBell",
+} as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();
