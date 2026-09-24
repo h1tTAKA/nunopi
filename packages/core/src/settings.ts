@@ -61,6 +61,11 @@ export const CKEYS = {
   confirmCloseTerminal: "confirm.confirmCloseTerminal",
 } as const;
 
+// 외관 확장(#937) — UI 줌(electron webFrame 배율) + UI 폰트(--font-sans 프리셋).
+export type UiFontPref = "default" | "system" | "mono";
+export const APPEARANCE_DEFAULTS = { uiZoom: 1.0, uiFont: "default" as UiFontPref };
+export const APKEYS = { uiZoom: "appearance.uiZoom", uiFont: "appearance.uiFont" } as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();

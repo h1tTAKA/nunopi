@@ -15,3 +15,4 @@ export { default as Markdown } from "./components/Markdown";
 export * from "./viewMode";
 export * from "./theme";
 export * from "./settings";
+export * from "./appearance";

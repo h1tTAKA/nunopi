@@ -19,6 +19,8 @@ interface GhJobStep { name?: string; status?: string; conclusion?: string; numbe
 // 일렉트론 preload가 노출하는 데스크톱 API(웹에선 undefined).
 interface NunopiDesktopApi {
   isDesktop: true;
+  // UI 줌(#937) — 전체 인터페이스 배율(electron webFrame). 즉시 적용, 반환 없음.
+  setZoomFactor(factor: number): void;
   getRuntimePaths(): Promise<{ claudeCode?: string; codex?: string; opencode?: string }>;
   setRuntimePaths(paths: { claudeCode?: string; codex?: string; opencode?: string }): Promise<{ ok: boolean; saved: Record<string, string> }>;
   relaunch(): Promise<void>;
