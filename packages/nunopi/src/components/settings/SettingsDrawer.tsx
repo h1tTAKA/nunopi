@@ -455,11 +455,11 @@ export default function SettingsDrawer({
                 ))}
               </div>
             </div>
-            {/* 스크롤 속도(#941) — 값이 낮을수록 빠름 */}
+            {/* 스크롤 속도(#941) — scrollSensitivity는 값이 높을수록 빠름(한 틱에 더 많이 이동) */}
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalScrollSpeed")}</span>
               <div className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
-                {([{ v: 2, k: "slow" }, { v: 1, k: "normal" }, { v: 0.5, k: "fast" }] as const).map((opt) => (
+                {([{ v: 0.5, k: "slow" }, { v: 1, k: "normal" }, { v: 3, k: "fast" }] as const).map((opt) => (
                   <button key={opt.k} type="button" onClick={() => setSetting(TKEYS.scrollSensitivity, opt.v)}
                     className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${tScrollSensitivity === opt.v ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-50" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"}`}>
                     {t(`settings.scrollSpeed.${opt.k}`)}
