@@ -3,7 +3,7 @@
 // 골격(커밋1): 4존 셸 [파일트리 | 터미널 | 코드 | 챗]. 각 존은 후속 커밋서 채움(트리·코드·챗·pty터미널).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconFolderOpen, IconFiles, IconFileCode, IconFileText, IconLoader2, IconGitBranch, IconGitCommit, IconX, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconMessages, IconCards, IconSettings, IconSitemap, IconTerminal2, IconBrandGithub, IconMessageCircle, IconActivity } from "@tabler/icons-react";
-import { useT } from "@mustard/core";
+import { useT, getSetting, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 import { useFullscreen } from "@mustard/nunopi";
 import { isNunopiEnabled } from "@/lib/product";
 import FileTree from "@/components/workspace/FileTree";
@@ -393,7 +393,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
     if (!desktop?.pickRepoFolder || picking) return;
     setPicking(true);
     try {
-      const r = await desktop.pickRepoFolder();
+      const r = await desktop.pickRepoFolder({ defaultPath: getSetting<string>(WKEYS.defaultFolder, WORKSPACE_DEFAULTS.defaultFolder) || undefined });
       if (!r.canceled && r.path) {
         setDocsRoot(r.path);
         setDocTabs([]); setActiveDoc(null); // 새 문서 폴더 = 이전 탭 무효. 레포 스코프 저장 이펙트가 반영(#712)
