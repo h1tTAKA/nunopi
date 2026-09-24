@@ -24,6 +24,7 @@ import WorkspaceTabs, { type WorkspaceTabsHandle } from "@/components/workspace/
 import type { HistoryNav } from "@mustard/nunopi";
 import { type ViewMode, VIEW_MODE_KEY } from "@mustard/core";
 import { type ThemeId, applyTheme, getStoredTheme, setStoredTheme } from "@mustard/core";
+import { applyStoredAppearance } from "@mustard/core";
 import { deckStats } from "@mustard/nunopi";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { type HistoryEntry, getAllHistory } from "@mustard/nunopi";
@@ -48,6 +49,7 @@ export default function LearningHome() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(t);
     applyTheme(t);
+    applyStoredAppearance(); // #937 저장된 UI 줌·폰트 복원
   }, []);
   function changeTheme(next: ThemeId) {
     setTheme(next);

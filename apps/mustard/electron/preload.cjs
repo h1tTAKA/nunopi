@@ -1,9 +1,11 @@
 // preload — renderer에 최소 데스크톱 API 노출(contextIsolation 유지).
 // 런타임 CLI 경로 설정(재시작 후 적용)과 재시작만.
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webFrame } = require("electron");
 
 contextBridge.exposeInMainWorld("nunopiDesktop", {
   isDesktop: true,
+  // UI 줌(#937) — 전체 인터페이스 배율. webFrame은 렌더러 프로세스 API(즉시 적용).
+  setZoomFactor: (factor) => webFrame.setZoomFactor(factor),
   getRuntimePaths: () => ipcRenderer.invoke("runtime-paths:get"),
   setRuntimePaths: (paths) => ipcRenderer.invoke("runtime-paths:set", paths),
   relaunch: () => ipcRenderer.invoke("app:relaunch"),
