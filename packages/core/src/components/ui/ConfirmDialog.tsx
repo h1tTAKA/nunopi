@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { IconAlertTriangle, IconHelpCircle } from "@tabler/icons-react";
 import { useT } from "../../i18n/I18nProvider";
+import { getSetting } from "../../settings";
 
 export interface ConfirmOptions {
   title?: string;
@@ -19,6 +20,8 @@ export interface ConfirmOptions {
   tone?: "danger" | "warn";
   // 선택 체크박스 — 토글 시 onChange로 값 전달(호출부가 클로저 변수에 보관).
   checkbox?: { label: string; defaultChecked?: boolean; onChange?: (checked: boolean) => void };
+  // #929 이 설정 키가 true(스킵)면 다이얼로그 없이 즉시 승인(true). 파괴적 확인 끄기용.
+  skipKey?: string;
 }
 
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
@@ -36,6 +39,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const resolverRef = useRef<((v: boolean) => void) | null>(null);
 
   const confirm = useCallback<ConfirmFn>((opts) => {
+    // #929 스킵 설정이 켜져 있으면 다이얼로그 없이 즉시 승인.
+    if (opts.skipKey && getSetting<boolean>(opts.skipKey, false)) return Promise.resolve(true);
     return new Promise<boolean>((resolve) => {
       // 이전 confirm이 아직 열려 있으면 취소로 정리(promise 누수 방지).
       resolverRef.current?.(false);
