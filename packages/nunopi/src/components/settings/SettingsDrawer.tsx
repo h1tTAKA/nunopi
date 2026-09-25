@@ -369,6 +369,7 @@ export default function SettingsDrawer({
               <div role="radiogroup" aria-label={t("settings.terminalTheme")} className="inline-flex w-full rounded-xl border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
                 {([
                   { value: "dark", label: t("settings.dark") },
+                  { value: "gray", label: t("settings.gray") },
                   { value: "light", label: t("settings.light") },
                   { value: "auto", label: t("settings.themeAuto") },
                 ] as const).map((opt) => {
