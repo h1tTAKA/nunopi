@@ -3,16 +3,17 @@
 // 성공 시 stdout(PR URL)서 번호 파싱해 onCreated(number)로 상세 열기 트리거.
 import { useState } from "react";
 import { IconLoader2, IconX } from "@tabler/icons-react";
-import { useT, useToast } from "@mustard/core";
+import { useT, useToast, getSetting, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 
 export default function PrCompose({ root, onCreated, onCancel }: { root: string; onCreated: (n: number) => void; onCancel: () => void }) {
   const t = useT();
   const toast = useToast();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [base, setBase] = useState("");
+  // #954 설정 기본값 프리필(base·draft).
+  const [base, setBase] = useState(() => getSetting<string>(GKEYS.prBaseDefault, GIT_DEFAULTS.prBaseDefault));
   const [head, setHead] = useState("");
-  const [draft, setDraft] = useState(false);
+  const [draft, setDraft] = useState(() => getSetting<boolean>(GKEYS.prDraftDefault, GIT_DEFAULTS.prDraftDefault));
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {

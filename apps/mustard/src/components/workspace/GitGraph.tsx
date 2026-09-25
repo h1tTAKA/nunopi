@@ -3,7 +3,7 @@
 // 커밋 클릭 → 바뀐 파일(M/A/D) 펼침, 파일 클릭 → onOpenDiff(diff 뷰).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit, IconCloudDownload, IconArrowDown, IconPlus, IconMinus } from "@tabler/icons-react";
-import { useT, useToast } from "@mustard/core";
+import { useT, useToast, getSetting, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 import { parseGitLog, assignLanes, githubLogin, type GitGraphModel } from "@/lib/repo/gitGraph";
 
 // ref 배지 종류별 스타일 — 로컬 브랜치 / 원격(origin/*) / 태그 / 현재 HEAD 브랜치 구분(색 같으면 못 알아봄).
@@ -100,17 +100,24 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     // refreshNonce: 상위(WorkspaceView)가 파일 워처 변경 시 증가 → 그래프+변경사항 재fetch(#739).
   }, [root, onRefreshed, refreshNonce]);
   // 로컬 최신화(#946) — fetch/pull 후 성공 시 그래프 갱신 + 토스트.
-  const sync = useCallback(async (action: "fetch" | "pull") => {
+  const sync = useCallback(async (action: "fetch" | "pull", silent = false) => {
     if (!root || syncing) return;
     setSyncing(action);
     try {
       const r = await fetch("/api/repo/git-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, action }) });
       const d = await r.json();
-      if (d.ok) { toast(t(action === "fetch" ? "workspace.gitFetchDone" : "workspace.gitPullDone"), "success"); void load(); }
-      else toast(t("workspace.gitSyncFailed") + (d.error ? ` (${d.error})` : ""), "error");
-    } catch { toast(t("workspace.gitSyncFailed"), "error"); }
+      // #954 silent(자동 fetch)은 토스트 생략, 갱신만.
+      if (d.ok) { if (!silent) toast(t(action === "fetch" ? "workspace.gitFetchDone" : "workspace.gitPullDone"), "success"); void load(); }
+      else if (!silent) toast(t("workspace.gitSyncFailed") + (d.error ? ` (${d.error})` : ""), "error");
+    } catch { if (!silent) toast(t("workspace.gitSyncFailed"), "error"); }
     finally { setSyncing(null); }
   }, [root, syncing, toast, t, load]);
+  // #954 main 자동 최신화 — 레포 열 때(root 변경) 설정 켜져 있으면 조용한 fetch.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync가 setSyncing 호출(자동 fetch, 조용). root 변경 시 1회.
+    if (root && getSetting<boolean>(GKEYS.autoFetch, GIT_DEFAULTS.autoFetch)) void sync("fetch", true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- root 변경 시에만 자동 fetch
+  }, [root]);
   // 스테이징(#947) — stage/unstage 후 변경목록 갱신.
   const stageFiles = useCallback(async (files: string[], action: "stage" | "unstage") => {
     if (!root || files.length === 0) return;
@@ -135,8 +142,11 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   }, [root, commitMsg, committing, toast, t, load]);
   // 브랜치 생성(#948) — switch -c 후 그래프·브랜치 갱신.
   const createBranch = useCallback(async () => {
-    const name = branchName.trim();
-    if (!root || !name) return;
+    const raw = branchName.trim();
+    if (!root || !raw) return;
+    // #954 branch prefix — 설정된 prefix가 있고 아직 안 붙었으면 앞에 붙임.
+    const prefix = getSetting<string>(GKEYS.branchPrefix, GIT_DEFAULTS.branchPrefix);
+    const name = prefix && !raw.startsWith(prefix) ? prefix + raw : raw;
     try {
       const r = await fetch("/api/repo/git-branch-create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, name }) });
       const d = await r.json();
