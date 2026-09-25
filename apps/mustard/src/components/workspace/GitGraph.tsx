@@ -2,7 +2,7 @@
 // 워크스페이스 깃 그래프(#649) — /api/repo/git-log → 파싱 → 레인 배정 → SVG(점·선) + 커밋행.
 // 커밋 클릭 → 바뀐 파일(M/A/D) 펼침, 파일 클릭 → onOpenDiff(diff 뷰).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit, IconCloudDownload, IconArrowDown } from "@tabler/icons-react";
+import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit, IconCloudDownload, IconArrowDown, IconPlus, IconMinus } from "@tabler/icons-react";
 import { useT, useToast } from "@mustard/core";
 import { parseGitLog, assignLanes, githubLogin, type GitGraphModel } from "@/lib/repo/gitGraph";
 
@@ -61,6 +61,8 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   const [branch, setBranch] = useState("");
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<null | "fetch" | "pull">(null); // #946 최신화 진행
+  const [commitMsg, setCommitMsg] = useState(""); // #947 커밋 메시지
+  const [committing, setCommitting] = useState(false); // #947 커밋 진행
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filesByHash, setFilesByHash] = useState<Record<string, { status: string; path: string }[]>>({});
   const [changes, setChanges] = useState<Change[]>([]);
@@ -107,6 +109,28 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     } catch { toast(t("workspace.gitSyncFailed"), "error"); }
     finally { setSyncing(null); }
   }, [root, syncing, toast, t, load]);
+  // 스테이징(#947) — stage/unstage 후 변경목록 갱신.
+  const stageFiles = useCallback(async (files: string[], action: "stage" | "unstage") => {
+    if (!root || files.length === 0) return;
+    try {
+      const r = await fetch("/api/repo/git-stage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, files, action }) });
+      const d = await r.json();
+      if (d.ok) void load();
+      else toast(t("workspace.gitStageFailed") + (d.error ? ` (${d.error})` : ""), "error");
+    } catch { toast(t("workspace.gitStageFailed"), "error"); }
+  }, [root, toast, t, load]);
+  // 커밋(#947) — staged 변경 커밋 후 메시지 비우고 갱신.
+  const doCommit = useCallback(async () => {
+    if (!root || !commitMsg.trim() || committing) return;
+    setCommitting(true);
+    try {
+      const r = await fetch("/api/repo/git-commit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, message: commitMsg.trim() }) });
+      const d = await r.json();
+      if (d.ok) { toast(t("workspace.gitCommitDone"), "success"); setCommitMsg(""); void load(); }
+      else toast(t("workspace.gitCommitFailed") + (d.error ? ` (${d.error})` : ""), "error");
+    } catch { toast(t("workspace.gitCommitFailed"), "error"); }
+    finally { setCommitting(false); }
+  }, [root, commitMsg, committing, toast, t, load]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load()가 setLoading 동기 호출(마운트/root 변경 시 로드)
   useEffect(() => { void load(); }, [load]);
   // 폴더 바뀌면 펼침·캐시 초기화.
@@ -191,17 +215,33 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   const changeRow = (c: Change) => {
     const b = changeBadge(c);
     const name = c.path.replace(/\/$/, "").split("/").pop() || c.path;
+    const canStage = c.work !== " ";                    // #947 unstaged/untracked → stage
+    const canUnstage = c.index !== " " && c.index !== "?"; // #947 staged → unstage
     return (
-      <button key={c.path} type="button" onClick={() => onOpenChange?.(c.path, changeKind(c))} className="flex w-full items-baseline gap-1.5 py-0.5 pl-6 pr-2 text-left text-[11px] hover:bg-zinc-100 dark:hover:bg-zinc-800">
-        <span className={`shrink-0 font-mono text-[9px] font-bold ${b.cls}`}>{b.ch}</span>
-        <span className="truncate text-zinc-700 dark:text-zinc-200">{name}</span>
-        <span className="truncate text-[9px] text-zinc-400 dark:text-zinc-500">{c.path}</span>
-        <span className="ml-auto shrink-0 font-mono text-[9px]">
-          {c.added > 0 && <span className="text-emerald-600 dark:text-emerald-500">+{c.added}</span>}
-          {c.added > 0 && c.deleted > 0 && " "}
-          {c.deleted > 0 && <span className="text-rose-600 dark:text-rose-500">−{c.deleted}</span>}
-        </span>
-      </button>
+      <div key={c.path} className="group flex w-full items-center gap-1 pl-6 pr-2 text-[11px] hover:bg-zinc-100 dark:hover:bg-zinc-800">
+        <button type="button" onClick={() => onOpenChange?.(c.path, changeKind(c))} className="flex min-w-0 flex-1 items-baseline gap-1.5 py-0.5 text-left">
+          <span className={`shrink-0 font-mono text-[9px] font-bold ${b.cls}`}>{b.ch}</span>
+          <span className="truncate text-zinc-700 dark:text-zinc-200">{name}</span>
+          <span className="truncate text-[9px] text-zinc-400 dark:text-zinc-500">{c.path}</span>
+          <span className="ml-auto shrink-0 font-mono text-[9px]">
+            {c.added > 0 && <span className="text-emerald-600 dark:text-emerald-500">+{c.added}</span>}
+            {c.added > 0 && c.deleted > 0 && " "}
+            {c.deleted > 0 && <span className="text-rose-600 dark:text-rose-500">−{c.deleted}</span>}
+          </span>
+        </button>
+        {canUnstage && (
+          <button type="button" onClick={() => void stageFiles([c.path], "unstage")} aria-label={t("workspace.gitUnstage")} title={t("workspace.gitUnstage")}
+            className="shrink-0 rounded p-0.5 text-zinc-400 opacity-0 transition hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-200">
+            <IconMinus size={11} stroke={2.5} aria-hidden />
+          </button>
+        )}
+        {canStage && (
+          <button type="button" onClick={() => void stageFiles([c.path], "stage")} aria-label={t("workspace.gitStage")} title={t("workspace.gitStage")}
+            className="shrink-0 rounded p-0.5 text-zinc-400 opacity-0 transition hover:bg-zinc-200 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-zinc-700 dark:hover:text-zinc-200">
+            <IconPlus size={11} stroke={2.5} aria-hidden />
+          </button>
+        )}
+      </div>
     );
   };
 
@@ -265,6 +305,19 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
                       {untrackedOpen && untracked.map(changeRow)}
                     </>
                   )}
+                </div>
+              )}
+              {/* 커밋 박스(#947) — staged 있으면 메시지 + 커밋. */}
+              {changesOpen && changes.some((c) => c.index !== " " && c.index !== "?") && (
+                <div className="shrink-0 space-y-1.5 border-t border-zinc-200 p-2 dark:border-zinc-800">
+                  <textarea value={commitMsg} onChange={(e) => setCommitMsg(e.target.value)} placeholder={t("workspace.gitCommitPlaceholder")} rows={2}
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); void doCommit(); } }}
+                    className="w-full resize-none rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+                  <button type="button" onClick={() => void doCommit()} disabled={!commitMsg.trim() || committing}
+                    className="flex w-full items-center justify-center gap-1.5 rounded bg-mustard-500 py-1 text-[11px] font-medium text-white transition hover:bg-mustard-600 disabled:opacity-50">
+                    {committing ? <IconLoader2 size={11} className="animate-spin" aria-hidden /> : <IconGitCommit size={11} stroke={2} aria-hidden />}
+                    {t("workspace.gitCommit")}
+                  </button>
                 </div>
               )}
             </div>
