@@ -114,6 +114,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   }, [root, syncing, toast, t, load]);
   // #954 main 자동 최신화 — 레포 열 때(root 변경) 설정 켜져 있으면 조용한 fetch.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync가 setSyncing 호출(자동 fetch, 조용). root 변경 시 1회.
     if (root && getSetting<boolean>(GKEYS.autoFetch, GIT_DEFAULTS.autoFetch)) void sync("fetch", true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- root 변경 시에만 자동 fetch
   }, [root]);
