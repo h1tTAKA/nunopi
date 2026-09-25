@@ -218,12 +218,18 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
         )}
         {isGit ? (
           <>
-            <button type="button" onClick={() => void sync("fetch")} disabled={!!syncing} className="ml-auto rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800" title={t("workspace.gitFetch")}>
-              <IconCloudDownload size={12} stroke={2} className={syncing === "fetch" ? "animate-pulse" : ""} aria-hidden />
-            </button>
-            <button type="button" onClick={() => void sync("pull")} disabled={!!syncing} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800" title={t("workspace.gitPull")}>
-              <IconArrowDown size={12} stroke={2} className={syncing === "pull" ? "animate-pulse" : ""} aria-hidden />
-            </button>
+            <span className="group/ft relative ml-auto flex items-center">
+              <button type="button" onClick={() => void sync("fetch")} disabled={!!syncing} aria-label={t("workspace.gitFetch")} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800">
+                <IconCloudDownload size={12} stroke={2} className={syncing === "fetch" ? "animate-pulse" : ""} aria-hidden />
+              </button>
+              <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-white opacity-0 shadow transition group-hover/ft:opacity-100 dark:bg-zinc-700">{t("workspace.gitFetch")}</span>
+            </span>
+            <span className="group/pl relative flex items-center">
+              <button type="button" onClick={() => void sync("pull")} disabled={!!syncing} aria-label={t("workspace.gitPull")} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800">
+                <IconArrowDown size={12} stroke={2} className={syncing === "pull" ? "animate-pulse" : ""} aria-hidden />
+              </button>
+              <span className="pointer-events-none absolute right-0 top-full z-50 mt-1 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-white opacity-0 shadow transition group-hover/pl:opacity-100 dark:bg-zinc-700">{t("workspace.gitPull")}</span>
+            </span>
           </>
         ) : null}
         <button type="button" onClick={() => void load()} disabled={loading} className={`${isGit ? "" : "ml-auto "}rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800`} title={t("workspace.gitRefresh")}>
