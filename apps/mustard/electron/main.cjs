@@ -471,6 +471,15 @@ ipcMain.handle("github:merge", (_e, { cwd, number, method }) => {
   const flag = { merge: "--merge", squash: "--squash", rebase: "--rebase" }[method] || "--merge";
   return githubBridge.ghRun({ gh: ghExe(), cwd, env: ghEnv(), args: ["pr", "merge", String(n), flag, "--delete-branch"] });
 });
+// PR 생성(#944) — 성공 시 stdout=생성된 PR URL. base/head 빈값이면 플래그 생략(gh 기본: 현재 브랜치/origin default).
+ipcMain.handle("github:pr-create", (_e, { cwd, base, head, title, body, draft }) => {
+  if (!title || typeof title !== "string" || !title.trim()) return { ok: false, kind: "error", detail: "title required" };
+  const args = ["pr", "create", "--title", title.trim(), "--body", typeof body === "string" ? body : ""];
+  if (base && typeof base === "string" && base.trim()) args.push("--base", base.trim());
+  if (head && typeof head === "string" && head.trim()) args.push("--head", head.trim());
+  if (draft) args.push("--draft");
+  return githubBridge.ghRun({ gh: ghExe(), cwd, env: ghEnv(), args });
+});
 ipcMain.handle("app:relaunch", () => { app.relaunch(); app.quit(); });
 // Claude·Codex 구독 사용 한도 조회(#735) — 로컬 크레덴셜로 각 provider usage 엔드포인트 호출.
 ipcMain.handle("provider-usage:get", () => getProviderUsage());
