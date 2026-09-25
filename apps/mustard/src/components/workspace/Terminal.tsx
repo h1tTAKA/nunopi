@@ -21,12 +21,20 @@ function termOptionsFromSettings() {
   };
 }
 
-// 터미널 팔레트(#914) — 앱 테마와 분리된 자체 색(orca 참고). CLI TUI가 다크 전제라 기본 dark.
-// 다크=orca "Ghostty Default Dark", 라이트=orca "Builtin Tango Light"(밝은 배경서 안 날리게 튜닝).
-const TERM_DARK = {
-  background: "#282c34", foreground: "#ffffff", cursor: "#ffffff", cursorAccent: "#282c34", selectionBackground: "#3e4451",
+// 터미널 팔레트(#914·#956) — 앱 테마와 분리된 자체 색. CLI TUI가 다크 전제.
+// 다크=near-black 배경(앱 다크와 통일, #956), 그레이=orca "Ghostty Default Dark"(차콜),
+// 라이트=orca "Builtin Tango Light". ANSI 16색은 다크/그레이 공유(검정 배경서도 잘 보임).
+const TERM_ANSI_DARK = {
   black: "#1d1f21", red: "#cc6666", green: "#b5bd68", yellow: "#f0c674", blue: "#81a2be", magenta: "#b294bb", cyan: "#8abeb7", white: "#c5c8c6",
   brightBlack: "#666666", brightRed: "#d54e53", brightGreen: "#b9ca4a", brightYellow: "#e7c547", brightBlue: "#7aa6da", brightMagenta: "#c397d8", brightCyan: "#70c0b1", brightWhite: "#eaeaea",
+};
+const TERM_DARK = {
+  background: "#0a0a0a", foreground: "#ffffff", cursor: "#ffffff", cursorAccent: "#0a0a0a", selectionBackground: "#333333",
+  ...TERM_ANSI_DARK,
+};
+const TERM_GRAY = {
+  background: "#282c34", foreground: "#ffffff", cursor: "#ffffff", cursorAccent: "#282c34", selectionBackground: "#3e4451",
+  ...TERM_ANSI_DARK,
 };
 const TERM_LIGHT = {
   background: "#ffffff", foreground: "#2e3434", cursor: "#2e3434", cursorAccent: "#ffffff", selectionBackground: "#accef7",
@@ -34,7 +42,11 @@ const TERM_LIGHT = {
   brightBlack: "#555753", brightRed: "#ef2929", brightGreen: "#1b7a1b", brightYellow: "#6d5a00", brightBlue: "#204a87", brightMagenta: "#ad7fa8", brightCyan: "#034b50", brightWhite: "#3d3d3d",
 };
 function buildTermTheme() {
-  return isTerminalDark(getTerminalThemePref()) ? TERM_DARK : TERM_LIGHT;
+  const pref = getTerminalThemePref();
+  if (pref === "light") return TERM_LIGHT;
+  if (pref === "gray") return TERM_GRAY;
+  if (pref === "dark") return TERM_DARK;
+  return isTerminalDark(pref) ? TERM_DARK : TERM_LIGHT; // auto: 앱 다크면 검정
 }
 // 재접속 스크롤백 재생 시 xterm이 버퍼 속 터미널 질의(DA/DSR/OSC 색 등)에 "다시" 응답해
 // 입력창에 에코되는 문제(#807) 방지 — 질의는 화면 출력이 없어 재생 전 제거(라이브 스트림엔 미적용).
@@ -202,6 +214,6 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
   }, [id, cwd]);
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
-  const initialBg = typeof document !== "undefined" && !isTerminalDark(getTerminalThemePref()) ? "#ffffff" : "#282c34";
+  const initialBg = typeof document !== "undefined" ? buildTermTheme().background : "#0a0a0a"; // #956 pref별 배경(검정/그레이/흰색)
   return <div ref={hostRef} className="h-full w-full overflow-hidden p-1.5" style={{ background: initialBg }} />;
 }
