@@ -82,6 +82,15 @@ export type UiFontPref = "default" | "system" | "mono";
 export const APPEARANCE_DEFAULTS = { uiZoom: 1.0, uiFont: "default" as UiFontPref };
 export const APKEYS = { uiZoom: "appearance.uiZoom", uiFont: "appearance.uiFont" } as const;
 
+// git/소스컨트롤(#954, 에픽 #943 마무리) — PR 기본값·자동 fetch·브랜치 prefix.
+export const GIT_DEFAULTS = { prBaseDefault: "", prDraftDefault: false, autoFetch: false, branchPrefix: "" };
+export const GKEYS = {
+  prBaseDefault: "git.prBaseDefault",
+  prDraftDefault: "git.prDraftDefault",
+  autoFetch: "git.autoFetch",
+  branchPrefix: "git.branchPrefix",
+} as const;
+
 const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();
