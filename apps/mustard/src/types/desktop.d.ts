@@ -57,6 +57,7 @@ interface NunopiDesktopApi {
     // 이슈 목록·상세(#813). 성공 { ok:true, data } | 실패 { ok:false, kind, detail }.
     issueList(cwd: string, state?: "open" | "closed" | "all", limit?: number): Promise<GhResult<GhIssue[]>>;
     issueView(cwd: string, number: number): Promise<GhResult<GhIssueDetail>>;
+    issueCreate(cwd: string, opts: { title: string; body?: string; labels?: string }): Promise<{ ok: boolean; stdout?: string; kind?: string; detail?: string }>;  // #945 성공 시 stdout=이슈 URL
     prList(cwd: string, state?: "open" | "closed" | "all", limit?: number): Promise<GhResult<GhPr[]>>;  // #814
     prView(cwd: string, number: number): Promise<GhResult<GhPrDetail>>;
     checks(cwd: string): Promise<GhResult<GhChecks>>;  // #812

@@ -365,6 +365,15 @@ ipcMain.handle("github:issue-view", (_e, { cwd, number }) => {
   if (!Number.isInteger(n) || n <= 0) return { ok: false, kind: "error", detail: "invalid issue number" }; // 숫자만(플래그 오인 방지)
   return githubBridge.ghJson({ gh: ghExe(), cwd, env: ghEnv(), args: ["issue", "view", String(n), "--json", "number,title,state,labels,author,assignees,milestone,body,comments,createdAt,url,reactionGroups"] });
 });
+// 이슈 생성(#945) — 성공 시 stdout=생성된 이슈 URL. labels=쉼표 구분 → 각 --label.
+ipcMain.handle("github:issue-create", (_e, { cwd, title, body, labels }) => {
+  if (!title || typeof title !== "string" || !title.trim()) return { ok: false, kind: "error", detail: "title required" };
+  const args = ["issue", "create", "--title", title.trim(), "--body", typeof body === "string" ? body : ""];
+  if (typeof labels === "string" && labels.trim()) {
+    for (const l of labels.split(",").map((x) => x.trim()).filter(Boolean)) args.push("--label", l);
+  }
+  return githubBridge.ghRun({ gh: ghExe(), cwd, env: ghEnv(), args });
+});
 // PR 목록·상세(#814) — gh pr list/view --json. statusCheckRollup=CI 체크(서브3 재사용).
 ipcMain.handle("github:pr-list", (_e, { cwd, state, limit }) => {
   const st = state === "closed" ? "closed" : state === "all" ? "all" : "open";
