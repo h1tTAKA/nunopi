@@ -2,10 +2,11 @@
 // GitHub 패널 PR 목록(#814) — gh pr list(브릿지) → 필터 + 행(상태·번호·제목·체크요약·작성자·시각).
 // IssueList와 동형(무한 스크롤·dwell 툴팁·reqId stale 가드). 행에 statusCheckRollup 요약.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
+import { IconLoader2, IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
 import { ChecksSummary } from "@/components/workspace/github/ChecksView";
+import PrCompose from "@/components/workspace/github/PrCompose";
 
 type Filter = "open" | "closed" | "all";
 type Load = { loading: boolean; rows?: GhPr[]; error?: string; hasMore?: boolean };
@@ -24,6 +25,8 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
   const [filter, setFilter] = useState<Filter>("open");
   const [limit, setLimit] = useState(50);
   const [load, setLoad] = useState<Load>({ loading: true });
+  const [composing, setComposing] = useState(false); // #944 PR 생성 폼
+  const [localReload, setLocalReload] = useState(0);  // #944 생성 후 목록 갱신
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const reqIdRef = useRef(0);
@@ -53,7 +56,7 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
       if (r.ok) setLoad({ loading: false, rows: r.data, hasMore: r.data.length >= limit && limit < 1000 });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, filter, limit, reloadKey, t]);
+  }, [root, filter, limit, reloadKey, localReload, t]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -69,6 +72,10 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
   }, []);
 
   const FILTERS: Filter[] = ["open", "closed", "all"];
+  if (composing) {
+    return <PrCompose root={root} onCancel={() => setComposing(false)}
+      onCreated={(n) => { setComposing(false); setLocalReload((x) => x + 1); onOpen(n); }} />;
+  }
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-1 border-b border-zinc-100 px-2 py-1 dark:border-zinc-800/60">
@@ -78,6 +85,10 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
             {t(f === "open" ? "github.filterOpen" : f === "closed" ? "github.filterClosed" : "github.filterAll")}
           </button>
         ))}
+        <button type="button" onClick={() => setComposing(true)} title={t("github.createPr")} aria-label={t("github.createPr")}
+          className="ml-auto rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+          <IconPlus size={14} aria-hidden />
+        </button>
       </div>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {load.loading && !load.rows?.length ? (
