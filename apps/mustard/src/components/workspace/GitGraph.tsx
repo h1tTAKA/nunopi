@@ -63,6 +63,8 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   const [syncing, setSyncing] = useState<null | "fetch" | "pull">(null); // #946 최신화 진행
   const [commitMsg, setCommitMsg] = useState(""); // #947 커밋 메시지
   const [committing, setCommitting] = useState(false); // #947 커밋 진행
+  const [creatingBranch, setCreatingBranch] = useState(false); // #948 새 브랜치 입력 표시
+  const [branchName, setBranchName] = useState(""); // #948
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filesByHash, setFilesByHash] = useState<Record<string, { status: string; path: string }[]>>({});
   const [changes, setChanges] = useState<Change[]>([]);
@@ -131,6 +133,17 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     } catch { toast(t("workspace.gitCommitFailed"), "error"); }
     finally { setCommitting(false); }
   }, [root, commitMsg, committing, toast, t, load]);
+  // 브랜치 생성(#948) — switch -c 후 그래프·브랜치 갱신.
+  const createBranch = useCallback(async () => {
+    const name = branchName.trim();
+    if (!root || !name) return;
+    try {
+      const r = await fetch("/api/repo/git-branch-create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, name }) });
+      const d = await r.json();
+      if (d.ok) { toast(t("workspace.gitBranchCreated"), "success"); setCreatingBranch(false); setBranchName(""); void load(); }
+      else toast(t("workspace.gitBranchCreateFailed") + (d.error ? ` (${d.error})` : ""), "error");
+    } catch { toast(t("workspace.gitBranchCreateFailed"), "error"); }
+  }, [root, branchName, toast, t, load]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load()가 setLoading 동기 호출(마운트/root 변경 시 로드)
   useEffect(() => { void load(); }, [load]);
   // 폴더 바뀌면 펼침·캐시 초기화.
@@ -249,14 +262,28 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-1.5 border-b border-zinc-200 px-2.5 py-1 dark:border-zinc-800">
         <IconGitBranch size={13} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
-        {isGit && branch ? (
-          <span className="inline-flex min-w-0 items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-mustard-700 ring-1 ring-inset ring-mustard-500/60 dark:bg-zinc-900 dark:text-mustard-400 dark:ring-mustard-400/50" title={t("workspace.gitOnBranch", { branch })}>
-            <span className="truncate">{branch}</span>
-          </span>
+        {isGit && creatingBranch ? (
+          <input autoFocus type="text" value={branchName} onChange={(e) => setBranchName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void createBranch(); } else if (e.key === "Escape") { setCreatingBranch(false); setBranchName(""); } }}
+            onBlur={() => { setCreatingBranch(false); setBranchName(""); }}
+            placeholder={t("workspace.gitBranchNamePlaceholder")}
+            className="min-w-0 flex-1 rounded border border-mustard-500/60 bg-zinc-50 px-1.5 py-0.5 text-[11px] text-zinc-900 outline-none dark:border-mustard-400/50 dark:bg-zinc-900 dark:text-zinc-50" />
+        ) : isGit && branch ? (
+          <>
+            <span className="inline-flex min-w-0 items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-mustard-700 ring-1 ring-inset ring-mustard-500/60 dark:bg-zinc-900 dark:text-mustard-400 dark:ring-mustard-400/50" title={t("workspace.gitOnBranch", { branch })}>
+              <span className="truncate">{branch}</span>
+            </span>
+            <span className="group/nb relative flex items-center">
+              <button type="button" onClick={() => setCreatingBranch(true)} aria-label={t("workspace.gitNewBranch")} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+                <IconPlus size={12} stroke={2} aria-hidden />
+              </button>
+              <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-white opacity-0 shadow transition group-hover/nb:opacity-100 dark:bg-zinc-700">{t("workspace.gitNewBranch")}</span>
+            </span>
+          </>
         ) : (
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">git</span>
         )}
-        {isGit ? (
+        {isGit && !creatingBranch ? (
           <>
             <span className="group/ft relative ml-auto flex items-center">
               <button type="button" onClick={() => void sync("fetch")} disabled={!!syncing} aria-label={t("workspace.gitFetch")} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800">
