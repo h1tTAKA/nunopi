@@ -7,9 +7,10 @@ export const runtime = "nodejs";
 const pexecFile = promisify(execFile);
 
 export async function POST(request: Request): Promise<Response> {
-  let path: unknown, name: unknown;
-  try { ({ path, name } = await request.json()); } catch { return Response.json({ ok: false, error: "invalid body" }, { status: 400 }); }
-  if (typeof path !== "string" || !path.trim()) return Response.json({ ok: false, error: "path required" }, { status: 400 });
+  let rawPath: unknown, name: unknown;
+  try { ({ path: rawPath, name } = await request.json()); } catch { return Response.json({ ok: false, error: "invalid body" }, { status: 400 }); }
+  if (typeof rawPath !== "string" || !rawPath.trim()) return Response.json({ ok: false, error: "path required" }, { status: 400 });
+  const path = rawPath.trim(); // 후행 공백 제거 후 일관 사용(검증·cwd 동일 값)
   if (!existsSync(path) || !statSync(path).isDirectory()) return Response.json({ ok: false, error: "not a directory" }, { status: 400 });
   if (typeof name !== "string" || !name.trim() || /\s/.test(name.trim())) return Response.json({ ok: false, error: "invalid branch name" }, { status: 400 });
   try {
