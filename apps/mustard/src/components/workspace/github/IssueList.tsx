@@ -2,9 +2,10 @@
 // GitHub 패널 이슈 목록(#813) — gh issue list(브릿지 #810) → 필터(open/closed/all) + 행 목록.
 // 행 클릭 시 onOpen(number)로 상세(IssueDetail)로. reloadKey 변하면 재조회(패널 새로고침 연동).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconLoader2, IconAlertTriangle } from "@tabler/icons-react";
+import { IconLoader2, IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 import { relTime } from "@/lib/relTime";
+import IssueCompose from "@/components/workspace/github/IssueCompose";
 
 type Filter = "open" | "closed" | "all";
 type Load = { loading: boolean; rows?: GhIssue[]; error?: string; hasMore?: boolean };
@@ -20,6 +21,8 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
   const [filter, setFilter] = useState<Filter>("open");
   const [limit, setLimit] = useState(50); // 더 보기 페이지네이션(#813)
   const [load, setLoad] = useState<Load>({ loading: true });
+  const [composing, setComposing] = useState(false); // #945 이슈 생성 폼
+  const [localReload, setLocalReload] = useState(0);  // #945 생성 후 목록 갱신
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
   const reqIdRef = useRef(0); // 요청 세대 — 늦게 온 옛 fetch가 최신 결과 덮어쓰지 않게(IPC라 abort 불가, 리뷰 🟡)
@@ -51,7 +54,7 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
       if (r.ok) setLoad({ loading: false, rows: r.data, hasMore: r.data.length >= limit && limit < 1000 });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, filter, limit, reloadKey, t]);
+  }, [root, filter, limit, reloadKey, localReload, t]);
 
   // 무한 스크롤(#813) — 하단 sentinel이 보이면 limit +50. 로딩 중/더 없음이면 스킵(최신 상태는 ref로 읽음).
   // sentinel은 rows 로드 후에야 렌더되므로 콜백 ref로 부착(마운트 시엔 없어서 useEffect론 못 잡음).
@@ -69,6 +72,10 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
   }, []);
 
   const FILTERS: Filter[] = ["open", "closed", "all"];
+  if (composing) {
+    return <IssueCompose root={root} onCancel={() => setComposing(false)}
+      onCreated={(n) => { setComposing(false); setLocalReload((x) => x + 1); onOpen(n); }} />;
+  }
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* 필터 탭 */}
@@ -79,6 +86,10 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
             {t(f === "open" ? "github.filterOpen" : f === "closed" ? "github.filterClosed" : "github.filterAll")}
           </button>
         ))}
+        <button type="button" onClick={() => setComposing(true)} title={t("github.createIssue")} aria-label={t("github.createIssue")}
+          className="ml-auto rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+          <IconPlus size={14} aria-hidden />
+        </button>
       </div>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {load.loading && !load.rows?.length ? (
