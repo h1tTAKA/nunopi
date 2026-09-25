@@ -2,8 +2,8 @@
 // 워크스페이스 깃 그래프(#649) — /api/repo/git-log → 파싱 → 레인 배정 → SVG(점·선) + 커밋행.
 // 커밋 클릭 → 바뀐 파일(M/A/D) 펼침, 파일 클릭 → onOpenDiff(diff 뷰).
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit } from "@tabler/icons-react";
-import { useT } from "@mustard/core";
+import { IconLoader2, IconRefresh, IconGitBranch, IconTag, IconChevronRight, IconChevronDown, IconGitCommit, IconCloudDownload, IconArrowDown } from "@tabler/icons-react";
+import { useT, useToast } from "@mustard/core";
 import { parseGitLog, assignLanes, githubLogin, type GitGraphModel } from "@/lib/repo/gitGraph";
 
 // ref 배지 종류별 스타일 — 로컬 브랜치 / 원격(origin/*) / 태그 / 현재 HEAD 브랜치 구분(색 같으면 못 알아봄).
@@ -55,10 +55,12 @@ function changeBadge(c: Change): { ch: string; cls: string } {
 
 export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange, onRefreshed, refreshNonce }: { root: string; onOpenDiff: (hash: string, file: string) => void; onFocusBranch: (branch: string) => void; onOpenChange?: (file: string, kind: WorktreeKind) => void; onRefreshed?: () => void; refreshNonce?: number }) {
   const t = useT();
+  const toast = useToast();
   const [model, setModel] = useState<GitGraphModel | null>(null);
   const [isGit, setIsGit] = useState(true);
   const [branch, setBranch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState<null | "fetch" | "pull">(null); // #946 최신화 진행
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filesByHash, setFilesByHash] = useState<Record<string, { status: string; path: string }[]>>({});
   const [changes, setChanges] = useState<Change[]>([]);
@@ -93,6 +95,18 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     onRefreshed?.(); // 상위(파일트리 도트·챗 승계)도 함께 갱신(#687/#689)
     // refreshNonce: 상위(WorkspaceView)가 파일 워처 변경 시 증가 → 그래프+변경사항 재fetch(#739).
   }, [root, onRefreshed, refreshNonce]);
+  // 로컬 최신화(#946) — fetch/pull 후 성공 시 그래프 갱신 + 토스트.
+  const sync = useCallback(async (action: "fetch" | "pull") => {
+    if (!root || syncing) return;
+    setSyncing(action);
+    try {
+      const r = await fetch("/api/repo/git-sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, action }) });
+      const d = await r.json();
+      if (d.ok) { toast(t(action === "fetch" ? "workspace.gitFetchDone" : "workspace.gitPullDone"), "success"); void load(); }
+      else toast(t("workspace.gitSyncFailed") + (d.error ? ` (${d.error})` : ""), "error");
+    } catch { toast(t("workspace.gitSyncFailed"), "error"); }
+    finally { setSyncing(null); }
+  }, [root, syncing, toast, t, load]);
   // eslint-disable-next-line react-hooks/set-state-in-effect -- load()가 setLoading 동기 호출(마운트/root 변경 시 로드)
   useEffect(() => { void load(); }, [load]);
   // 폴더 바뀌면 펼침·캐시 초기화.
@@ -202,7 +216,17 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
         ) : (
           <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">git</span>
         )}
-        <button type="button" onClick={() => void load()} disabled={loading} className="ml-auto rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800" title={t("workspace.gitRefresh")}>
+        {isGit ? (
+          <>
+            <button type="button" onClick={() => void sync("fetch")} disabled={!!syncing} className="ml-auto rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800" title={t("workspace.gitFetch")}>
+              <IconCloudDownload size={12} stroke={2} className={syncing === "fetch" ? "animate-pulse" : ""} aria-hidden />
+            </button>
+            <button type="button" onClick={() => void sync("pull")} disabled={!!syncing} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800" title={t("workspace.gitPull")}>
+              <IconArrowDown size={12} stroke={2} className={syncing === "pull" ? "animate-pulse" : ""} aria-hidden />
+            </button>
+          </>
+        ) : null}
+        <button type="button" onClick={() => void load()} disabled={loading} className={`${isGit ? "" : "ml-auto "}rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800`} title={t("workspace.gitRefresh")}>
           <IconRefresh size={12} stroke={2} className={loading ? "animate-spin" : ""} aria-hidden />
         </button>
       </div>
