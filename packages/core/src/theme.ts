@@ -67,14 +67,14 @@ export function setStoredTheme(id: ThemeId): void {
 
 // ── 터미널 테마(#914·#922) — 앱 테마와 분리 가능하되 기본은 auto(앱 .dark 따라감).
 // dark/light로 고정도 가능(설정). 터미널 색은 앱 토큰이 아닌 자체 고정 팔레트(orca Ghostty/Tango).
-export type TerminalThemePref = "dark" | "light" | "auto";
+export type TerminalThemePref = "dark" | "gray" | "light" | "auto";
 export const TERMINAL_THEME_KEY = "nunopi:terminal-theme";
 export const TERMINAL_THEME_EVENT = "nunopi:terminal-theme-change"; // 설정 변경 → 열린 터미널에 브로드캐스트
 
 export function getTerminalThemePref(): TerminalThemePref {
   try {
     const v = localStorage.getItem(TERMINAL_THEME_KEY);
-    if (v === "dark" || v === "light" || v === "auto") return v;
+    if (v === "dark" || v === "gray" || v === "light" || v === "auto") return v;
   } catch {
     /* ignore */
   }
@@ -92,7 +92,7 @@ export function setTerminalThemePref(p: TerminalThemePref): void {
 
 export function isTerminalDark(pref: TerminalThemePref): boolean {
   if (pref === "auto") return typeof document !== "undefined" && document.documentElement.classList.contains("dark");
-  return pref === "dark";
+  return pref === "dark" || pref === "gray"; // #956 gray도 어두운 테마
 }
 
 // FOUC 방지용 인라인 스크립트(layout <head>에 dangerouslySetInnerHTML로 삽입).
