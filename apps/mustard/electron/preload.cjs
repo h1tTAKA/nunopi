@@ -58,6 +58,13 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
     tokenStatus: () => ipcRenderer.invoke("github:token-status"),  // #826 토큰 존재 여부(값 비노출)
     clearToken: () => ipcRenderer.invoke("github:clear-token"),  // #826 토큰 삭제
   },
+  // 연동 확장(#960) — GitLab glab 감지 + bitbucket/azure 토큰.
+  integrations: {
+    glabStatus: (cwd) => ipcRenderer.invoke("integrations:glab-status", { cwd }),
+    setToken: (host, token) => ipcRenderer.invoke("integrations:set-token", { host, token }),
+    tokenStatus: (host) => ipcRenderer.invoke("integrations:token-status", { host }),
+    clearToken: (host) => ipcRenderer.invoke("integrations:clear-token", { host }),
+  },
   // 터미널(pty) 브릿지 — 레포별 세션(#647).
   terminal: {
     ensure: (opts) => ipcRenderer.invoke("terminal:ensure", opts),

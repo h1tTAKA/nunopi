@@ -76,6 +76,13 @@ interface NunopiDesktopApi {
     tokenStatus(): Promise<{ hasToken: boolean }>;  // #826 토큰 존재 여부(값 비노출)
     clearToken(): Promise<{ ok: boolean }>;  // #826 토큰 삭제
   };
+  // 연동 확장(#960) — GitLab glab 감지 + bitbucket/azure 토큰(safeStorage).
+  integrations?: {
+    glabStatus(cwd?: string): Promise<{ state: "ok" | "not-installed" | "not-authed" | "rate-limited" | "error"; detail?: string }>;
+    setToken(host: "bitbucket" | "azure", token: string): Promise<{ ok: boolean; detail?: string }>;
+    tokenStatus(host: "bitbucket" | "azure"): Promise<{ hasToken: boolean }>;
+    clearToken(host: "bitbucket" | "azure"): Promise<{ ok: boolean }>;
+  };
   // 터미널(pty) — id별 세션(#647·#678 멀티탭). cwd는 spawn 작업 디렉터리. ensure는 세션 확보 + 재생용 scrollback 반환.
   terminal: {
     ensure(opts: { id: string; cwd: string; cols: number; rows: number; dark?: boolean }): Promise<{ ok: boolean; buffer?: string; reason?: string }>;

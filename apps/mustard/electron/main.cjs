@@ -345,6 +345,28 @@ function clearGhToken() { try { rmSync(ghTokenFile()); } catch { /* 없으면 �
 // gh 실행 env — 저장된 토큰 있으면 GH_TOKEN 주입, 없으면 기본 env(undefined → 브릿지가 process.env).
 function ghEnv() { const tok = loadGhToken(); return tok ? { ...process.env, GH_TOKEN: tok } : undefined; }
 
+// 연동 확장(#960) — 호스트별 토큰(safeStorage). gh(github)는 위 전용 함수, 여기선 bitbucket/azure.
+const TOKEN_HOSTS = ["bitbucket", "azure"];
+const glabExe = () => loadSavedRuntimePaths().glab || "glab";
+function hostTokenFile(host) { return join(app.getPath("userData"), `token-${host}.json`); }
+function loadHostToken(host) {
+  try {
+    const { enc } = JSON.parse(readFileSync(hostTokenFile(host), "utf8"));
+    if (!enc || !safeStorage.isEncryptionAvailable()) return null;
+    return safeStorage.decryptString(Buffer.from(enc, "base64")) || null;
+  } catch { return null; }
+}
+function saveHostToken(host, token) {
+  if (!safeStorage.isEncryptionAvailable()) return { ok: false, detail: "이 환경은 안전한 토큰 저장을 지원하지 않음(safeStorage 불가)" };
+  try {
+    mkdirSync(app.getPath("userData"), { recursive: true });
+    const enc = safeStorage.encryptString(String(token)).toString("base64");
+    writeFileSync(hostTokenFile(host), JSON.stringify({ enc }));
+    return { ok: true };
+  } catch (e) { return { ok: false, detail: String(e?.message || e).slice(0, 300) }; }
+}
+function clearHostToken(host) { try { rmSync(hostTokenFile(host)); } catch { /* 없으면 무시 */ } }
+
 // 토큰 IPC(#826) — set(저장)/status(존재 여부만)/clear(삭제).
 ipcMain.handle("github:set-token", (_e, { token }) => {
   if (typeof token !== "string" || !token.trim()) return { ok: false, detail: "빈 토큰" };
@@ -352,6 +374,16 @@ ipcMain.handle("github:set-token", (_e, { token }) => {
 });
 ipcMain.handle("github:token-status", () => ({ hasToken: loadGhToken() != null }));
 ipcMain.handle("github:clear-token", () => { clearGhToken(); return { ok: true }; });
+
+// 연동 확장(#960) — GitLab glab 감지(authDiagnose 재사용) + bitbucket/azure 토큰.
+ipcMain.handle("integrations:glab-status", (_e, { cwd } = {}) => githubBridge.authDiagnose({ gh: glabExe(), cwd: cwd || undefined, env: undefined }));
+ipcMain.handle("integrations:set-token", (_e, { host, token }) => {
+  if (!TOKEN_HOSTS.includes(host)) return { ok: false, detail: "invalid host" };
+  if (typeof token !== "string" || !token.trim()) return { ok: false, detail: "빈 토큰" };
+  return saveHostToken(host, token.trim());
+});
+ipcMain.handle("integrations:token-status", (_e, { host }) => ({ hasToken: TOKEN_HOSTS.includes(host) && loadHostToken(host) != null }));
+ipcMain.handle("integrations:clear-token", (_e, { host }) => { if (TOKEN_HOSTS.includes(host)) clearHostToken(host); return { ok: true }; });
 
 ipcMain.handle("github:auth", (_e, { cwd }) => githubBridge.authDiagnose({ gh: ghExe(), cwd, env: ghEnv() }));
 // 이슈 목록·상세(#813) — gh issue list/view --json. state=open|closed|all(기본 open).
