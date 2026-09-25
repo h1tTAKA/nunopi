@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch } from "@tabler/icons-react";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2 } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
@@ -155,6 +155,22 @@ export default function SettingsDrawer({
   const gPrDraft = useSetting<boolean>(GKEYS.prDraftDefault, GIT_DEFAULTS.prDraftDefault);
   const gAutoFetch = useSetting<boolean>(GKEYS.autoFetch, GIT_DEFAULTS.autoFetch);
   const gBranchPrefix = useSetting<string>(GKEYS.branchPrefix, GIT_DEFAULTS.branchPrefix);
+  // 연동(#958) — GitHub gh auth 상태 + PAT.
+  const [ghAuth, setGhAuth] = useState<{ state: string; detail?: string } | null>(null);
+  const [ghChecking, setGhChecking] = useState(false);
+  const [ghHasToken, setGhHasToken] = useState(false);
+  const [ghToken, setGhToken] = useState("");
+  const refreshGh = useCallback(async () => {
+    const gh = typeof window !== "undefined" ? window.nunopiDesktop?.github : undefined;
+    if (!gh?.auth) return;
+    setGhChecking(true);
+    try {
+      const a = await gh.auth(""); setGhAuth(a);
+      if (gh.tokenStatus) { const ts = await gh.tokenStatus(); setGhHasToken(ts.hasToken); }
+    } catch { setGhAuth({ state: "error" }); }
+    finally { setGhChecking(false); }
+  }, []);
+  useEffect(() => { if (isOpen) void refreshGh(); }, [isOpen, refreshGh]);
   // 확인 다이얼로그(#929)
   const cSkipDelete = useSetting<boolean>(CKEYS.skipDelete, CONFIRM_DEFAULTS.skipDelete);
   const cSkipCloseTab = useSetting<boolean>(CKEYS.skipCloseTab, CONFIRM_DEFAULTS.skipCloseTab);
@@ -220,11 +236,25 @@ export default function SettingsDrawer({
     { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true },
     { id: "set-workspace", label: t("settings.workspaceSection"), Icon: IconFolder, show: true },
     { id: "set-git", label: t("settings.gitSection"), Icon: IconGitBranch, show: true },
+    { id: "set-integrations", label: t("settings.integrations"), Icon: IconPlug, show: true },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
   ];
   // 외관(#937) — 즉시 적용(저장 + 실제 반영).
   const setZoom = (v: number) => { const z = Math.min(1.4, Math.max(0.8, Math.round(v * 10) / 10)); setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
   const setFont = (f: UiFontPref) => { setSetting(APKEYS.uiFont, f); applyUiFont(f); };
+  // 연동(#958) — PAT 저장/삭제 후 상태 재확인.
+  const saveGhToken = async () => {
+    const gh = typeof window !== "undefined" ? window.nunopiDesktop?.github : undefined;
+    if (!gh?.setToken || !ghToken.trim()) return;
+    const r = await gh.setToken(ghToken.trim());
+    if (r.ok) { toast(t("settings.ghPatSaved"), "success"); setGhToken(""); void refreshGh(); }
+    else toast(t("settings.ghPatFailed") + (r.detail ? ` (${r.detail})` : ""), "error");
+  };
+  const clearGhToken = async () => {
+    const gh = typeof window !== "undefined" ? window.nunopiDesktop?.github : undefined;
+    if (!gh?.clearToken) return;
+    await gh.clearToken(); toast(t("settings.ghPatCleared"), "success"); void refreshGh();
+  };
   // 워크스페이스 기본 폴더 선택(#939) — OS 폴더 창서 고른 경로 저장.
   const pickDefaultFolder = async () => {
     const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
@@ -802,6 +832,51 @@ export default function SettingsDrawer({
                 </button>
               </div>
             ))}
+          </section>
+          )}
+
+          {/* 연동(#958) — 소스 호스트 연결. 현재 GitHub(gh CLI + PAT). */}
+          {activeSection === "set-integrations" && (
+          <section id="set-integrations" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
+            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.integrations")}</h3>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.integrationsDesc")}</p>
+            {/* GitHub 카드 */}
+            <div className="space-y-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+              <div className="flex items-center gap-2">
+                <IconBrandGithub size={18} stroke={1.75} className="shrink-0 text-zinc-700 dark:text-zinc-200" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">GitHub</span>
+                {(() => {
+                  const st = ghAuth?.state;
+                  const badge = st === "ok" ? { txt: t("settings.ghConnected"), cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" }
+                    : st === "not-authed" ? { txt: t("settings.ghNotAuthed"), cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" }
+                    : st === "not-installed" ? { txt: t("settings.ghNotInstalled"), cls: "bg-zinc-500/15 text-zinc-500 dark:text-zinc-400" }
+                    : st ? { txt: t("settings.ghError"), cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" }
+                    : { txt: "…", cls: "bg-zinc-500/15 text-zinc-500" };
+                  return <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.txt}</span>;
+                })()}
+                <button type="button" onClick={() => void refreshGh()} disabled={ghChecking} title={t("settings.ghRecheck")} aria-label={t("settings.ghRecheck")}
+                  className="shrink-0 rounded p-1 text-zinc-400 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800">
+                  <IconLoader2 size={13} stroke={2} className={ghChecking ? "animate-spin" : ""} aria-hidden />
+                </button>
+              </div>
+              {ghAuth?.detail ? <p className="text-xs text-zinc-400 dark:text-zinc-500">{ghAuth.detail}</p> : null}
+              {/* PAT */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">{t("settings.ghPat")} {ghHasToken ? <span className="text-emerald-600 dark:text-emerald-400">✓</span> : null}</span>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("settings.ghPatHint")}</p>
+                <div className="flex items-center gap-2">
+                  <input type="password" value={ghToken} onChange={(e) => setGhToken(e.target.value)} placeholder={ghHasToken ? "••••••••" : "ghp_…"}
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 font-mono text-[13px] text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+                  <button type="button" onClick={() => void saveGhToken()} disabled={!ghToken.trim()}
+                    className="shrink-0 rounded-lg bg-mustard-500 px-3 py-1.5 text-[13px] font-medium text-white transition hover:bg-mustard-600 disabled:opacity-50">{t("settings.ghPatSave")}</button>
+                  {ghHasToken ? (
+                    <button type="button" onClick={() => void clearGhToken()}
+                      className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[13px] text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">{t("settings.clear")}</button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("settings.integrationsMore")}</p>
           </section>
           )}
 
