@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
     auth: (cwd) => ipcRenderer.invoke("github:auth", { cwd }),
     issueList: (cwd, state, limit) => ipcRenderer.invoke("github:issue-list", { cwd, state, limit }),  // #813
     issueView: (cwd, number) => ipcRenderer.invoke("github:issue-view", { cwd, number }),
+    issueCreate: (cwd, opts) => ipcRenderer.invoke("github:issue-create", { cwd, ...opts }),  // #945 이슈 생성(opts: title/body?/labels?)
     prList: (cwd, state, limit) => ipcRenderer.invoke("github:pr-list", { cwd, state, limit }),  // #814
     prView: (cwd, number) => ipcRenderer.invoke("github:pr-view", { cwd, number }),
     checks: (cwd) => ipcRenderer.invoke("github:checks", { cwd }),  // #812 현재 브랜치 CI
