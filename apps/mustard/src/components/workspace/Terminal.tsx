@@ -122,8 +122,10 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       // 마우스 포커스(#941) — 설정 켜지면 호버 시 터미널 포커스.
       onEnter = () => { if (getSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse)) term?.focus(); };
       host.addEventListener("mouseenter", onEnter);
-      // 터미널 벨(#928) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
-      bellDisp = term.onBell(() => { if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: false }); });
+      // 터미널 벨(#928/#973) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
+      // replaying: 복원 스크롤백 재생 중엔 벨 무시 — 옛 버퍼의 BEL 바이트가 재생돼 실행 직후 "띠링" 스팸 나던 문제(#973).
+      let replaying = true;
+      bellDisp = term.onBell(() => { if (replaying) return; if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: false }); });
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
       const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
       mo = new MutationObserver(applyTermTheme);
@@ -185,13 +187,16 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         try {
           const r = await nd.terminal.ensure({ id, cwd, cols: term.cols, rows: term.rows, dark: isTerminalDark(getTerminalThemePref()) });
           if (disposed || !term) return;
-          if (!r.ok) { term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
-          if (r.buffer) term.write(stripTermQueries(r.buffer)); // 정확한 cols 확보 후 재생(줄바꿈 안 굳음). 질의 시퀀스 제거(에코 방지 #807)
+          if (!r.ok) { replaying = false; term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
+          // #973 재생 완료 콜백서 replaying 해제 — 이후 라이브 벨만 알림. 버퍼 없으면 즉시 해제.
+          if (r.buffer) term.write(stripTermQueries(r.buffer), () => { replaying = false; }); // 정확한 cols 확보 후 재생(줄바꿈 안 굳음). 질의 시퀀스 제거(에코 방지 #807)
+          else replaying = false;
           offData = nd.terminal.onData(({ id: i, data }) => { if (i === id && term) term.write(data); });
           // 셸 종료 시 빈 화면 방치 대신 안내(+로 새 터미널).
           offExit = nd.terminal.onExit(({ id: i }) => { if (i === id && term) term.write(`\r\n\x1b[2m${tRef.current("workspace.terminalExited")}\x1b[0m\r\n`); });
           term.onData((d) => nd.terminal.input({ id, data: d }));
         } catch {
+          replaying = false; // #973 연결 실패해도 벨 게이트 해제(먹통 방지)
           // 핸들러 미등록(옛 메인) 등 — 크래시 대신 안내.
           if (term && !disposed) term.write("\r\n[터미널 연결 실패 — electron:dev를 완전히 껐다 재시작해 주세요]\r\n");
         }
