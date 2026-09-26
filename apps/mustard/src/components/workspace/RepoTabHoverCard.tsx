@@ -12,7 +12,7 @@ import RepoAvatar from "@/components/workspace/RepoAvatar";
 
 interface Worktree { path: string; branch: string | null; head: string; detached: boolean; bare: boolean; locked: boolean; dirty: number; ahead: number; behind: number; subject: string; committedAt: string; }
 type AgentState = "working" | "waiting" | "blocked" | "done";
-interface AgentStatus { sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; since?: number; }
+interface AgentStatus { sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; since?: number; }
 interface Port { port: number; pid: number; cmd: string } // #880 이 레포가 띄운 dev 서버 포트
 
 const basename = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
@@ -28,8 +28,29 @@ function rel(iso: string): string {
   return `${Math.floor(s / 86400)}d`;
 }
 const asAgentId = (s: string): AgentId => (Object.prototype.hasOwnProperty.call(AGENT_META, s) ? (s as AgentId) : "other");
+// 그 레포에서 현재 열린 터미널 탭 세션 id 집합(#968) — TerminalPane이 localStorage `nunopi:ws-terms:{cwd}`에
+// {tabs:[{id}]} 로 영속. 이 id가 곧 세션 id(= 상태 스토어 sessionId). 데몬 생존 유령(닫힌 탭 pty)을 호버서 제외하려고
+// "열린 탭에 있는 세션"만 남긴다. 키 없으면 null(폴백 = 필터 안 함).
+function openTermIds(repoPath: string): Set<string> | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(`nunopi:ws-terms:${repoPath}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { tabs?: Array<{ id?: unknown }> };
+    if (!Array.isArray(p.tabs)) return null;
+    return new Set(p.tabs.map((tb) => tb?.id).filter((x): x is string => typeof x === "string"));
+  } catch { return null; }
+}
+// 상대시각(ms 타임스탬프판) — since(stateStartedAt)용. "3s"/"5m"/"2h"/"4d".
+function relMs(ms?: number): string {
+  if (!ms || !Number.isFinite(ms)) return "";
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return `${Math.floor(s)}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+}
 
-const STATE_KEY: Record<AgentState, string> = { working: "workspace.agentWorking", waiting: "workspace.agentWaiting", blocked: "workspace.agentBlocked", done: "workspace.agentDone" };
 const STATE_TEXT: Record<AgentState, string> = { working: "text-amber-500", waiting: "text-amber-500", blocked: "text-rose-500", done: "text-emerald-500" };
 // 상태 아이콘 — 작업중=앰버 스피너, 대기(yes/no)=물음표, 막힘=경고, 완료=초록 체크. 색은 부모 텍스트색 상속.
 function stateIcon(st: AgentState) {
@@ -69,7 +90,12 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
     const inRepo = (cwd: string) => { const a = norm(cwd), b = norm(path); return a === b || a.startsWith(b + "/"); };
     const load = () => {
       fetch(`/api/agent/status?root=${encodeURIComponent(path)}`).then((r) => r.json()).then((j) => {
-        if (!alive) return; const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : []; setStatuses(ss); cacheMerge(path, { statuses: ss });
+        if (!alive) return;
+        const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : [];
+        // #968 유령 제외 — 그 레포서 현재 열린 터미널 탭 세션만. 키 없으면(폴백) 전부.
+        const openIds = openTermIds(path);
+        const shown = openIds ? ss.filter((s) => openIds.has(s.sessionId)) : ss;
+        setStatuses(shown); cacheMerge(path, { statuses: shown });
       }).catch(() => { /* ignore */ });
     };
     void load();
@@ -121,25 +147,29 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
         <span className="truncate">{basename(path)}</span>
       </div>
 
-      {/* 에이전트 */}
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">{t("workspace.agents")}</div>
+      {/* 에이전트(#968) — orca式: 그 레포 세션 전부를 [상태 아이콘 + 로고 + 작업 제목 + 시각]으로 나열 */}
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+        {t("workspace.agents")}{statuses.length > 0 ? ` · ${statuses.length}` : ""}
+      </div>
       {statuses.length === 0 ? (
         <div className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("workspace.noAgents")}</div>
       ) : (
         <div className="flex flex-col gap-1.5">
           {statuses.map((h, i) => {
             const id = asAgentId(h.agent);
+            // 주 텍스트 = 작업 제목(OSC 타이틀 요약). 없으면 에이전트 라벨. 서브 = working 중 툴.
+            const title = h.task && h.task.trim() ? h.task.trim() : AGENT_META[id].label;
             const sub = h.state === "working" && h.tool ? (h.toolInput ? `${h.tool}: ${h.toolInput}` : h.tool) : "";
+            const age = relMs(h.since);
             return (
-              <div key={`s${i}`}>
+              <div key={h.sessionId || `s${i}`}>
                 <div className="flex items-center gap-2 text-[12px] text-zinc-700 dark:text-zinc-200">
+                  <span className={`flex shrink-0 items-center ${STATE_TEXT[h.state]}`}>{stateIcon(h.state)}</span>
                   <AgentLogo agent={id} size={14} />
-                  <span className="min-w-0 flex-1 truncate">{AGENT_META[id].label}</span>
-                  <span className={`flex shrink-0 items-center gap-1 text-[10px] ${STATE_TEXT[h.state]}`}>
-                    {stateIcon(h.state)}{t(STATE_KEY[h.state])}
-                  </span>
+                  <span className="min-w-0 flex-1 truncate" title={title}>{title}</span>
+                  {age && <span className="shrink-0 tabular-nums text-[10px] text-zinc-300 dark:text-zinc-600">{age}</span>}
                 </div>
-                {sub && <div className="ml-6 truncate text-[10px] text-zinc-400 dark:text-zinc-500" title={sub}>{sub}</div>}
+                {sub && <div className="ml-[38px] truncate text-[10px] text-zinc-400 dark:text-zinc-500" title={sub}>{sub}</div>}
               </div>
             );
           })}

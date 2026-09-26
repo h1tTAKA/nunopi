@@ -24,6 +24,18 @@ export type Tab =
   | { type: ModeKind; id: string };
 // keep-alive·활성 판별 공통 키 — 레포=경로, 모드=id. localStorage active 키로도 씀.
 const tabKey = (t: Tab): string => (t.type === "repo" ? `repo:${t.path}` : `${t.type}:${t.id}`);
+// #968 그 레포서 현재 열린 터미널 탭 세션 id 집합(TerminalPane이 localStorage에 영속) — 데몬 생존 유령(닫힌 탭 pty)
+// 제외용. 호버 카드(RepoTabHoverCard)와 동일 필터라 탭 도트도 실제 열린 세션만 집계. 키 없으면 null(폴백=필터 안 함).
+function openTermIds(repoPath: string): Set<string> | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(`nunopi:ws-terms:${repoPath}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { tabs?: Array<{ id?: unknown }> };
+    if (!Array.isArray(p.tabs)) return null;
+    return new Set(p.tabs.map((tb) => tb?.id).filter((x): x is string => typeof x === "string"));
+  } catch { return null; }
+}
 const isMode = (k: unknown): k is ModeKind => k === "ask" || k === "code" || k === "text" || k === "memorize";
 // 저장된 원소 하나를 Tab으로 — 구 문자열(순수 경로)이면 레포 탭으로 이관, 신규 객체는 검증 후 통과, 그 외 버림.
 function migrateTab(x: unknown): Tab | null {
@@ -131,7 +143,13 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     // 각 레포의 에이전트 상태(버퍼 스크레이핑, /api/agent/status)로 종합 도트. 프로세스명 휴리스틱은 제거(#765).
     const poll = () => {
       Promise.all(repoPaths.map(async (p) => {
-        try { const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json(); return [p, aggregate(j?.ok ? (j.statuses ?? []).map((s: { state: string }) => s.state) : [])] as const; }
+        try {
+          const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json();
+          const raw: { sessionId: string; state: string }[] = j?.ok ? (j.statuses ?? []) : [];
+          const openIds = openTermIds(p); // #968 유령 제외 — 열린 터미널 탭 세션만 집계(호버와 일관)
+          const shown = openIds ? raw.filter((s) => openIds.has(s.sessionId)) : raw;
+          return [p, aggregate(shown.map((s) => s.state))] as const;
+        }
         catch { return [p, null] as const; }
       })).then((entries) => {
         if (!alive) return;
@@ -341,11 +359,33 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     addTab: (kind) => onPick(kind),
   }), [tabs, t, activate, onPick]);
 
+  // #968 레포 탭 닫을 때 그 repo(하위 포함)에서 도는 터미널 pty를 데몬서 kill — 유령 세션(닫힌 탭 생존) 방지.
+  // orca 기본 동작(닫기=kill)과 동일. 명시적 닫기에서만 호출(언마운트/앱종료엔 미호출 → #682 재시작 생존 보존).
+  function killRepoTerminals(repoPath: string) {
+    const nd = desktop;
+    if (!nd?.terminal?.list || !nd.terminal.kill) return;
+    const norm = (p: string) => p.replace(/\/+$/, "");
+    const root = norm(repoPath);
+    const inRepo = (root2: string, cwd: string) => cwd === root2 || cwd.startsWith(root2 + "/");
+    // 다른 열린 레포 탭 경로들(nested repo 대비) — 세션의 "가장 구체적(긴) 매칭 repo"가 닫는 repo일 때만 kill.
+    // 예: repoB가 repoA 하위인데 둘 다 열림 → repoA 닫아도 repoB 세션은 repoB가 더 긴 매칭이라 보존.
+    const openRepoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => norm(x.path));
+    nd.terminal.list().then((sessions) => {
+      for (const s of sessions) {
+        const c = s.cwd ? norm(s.cwd) : "";
+        if (!c || !inRepo(root, c)) continue;
+        const best = openRepoPaths.filter((p) => inRepo(p, c)).sort((a, b) => b.length - a.length)[0]; // 최장 매칭
+        if (best === root) nd.terminal.kill({ id: s.id }); // 이 세션의 주인이 닫는 repo일 때만
+      }
+    }).catch(() => { /* 데몬 미응답 — 무시(다음 idle reap이 정리) */ });
+  }
+
   function closeTab(key: string) {
     const idx = tabs.findIndex((x) => tabKey(x) === key);
     if (idx < 0) return;
     const closing = tabs[idx];
     if (closing.type !== "repo") desktop?.modeRelease?.(closing.type); // 모드 탭 닫으면 레지스트리 해제(#789)
+    else killRepoTerminals(closing.path); // #968 레포 탭 명시적 닫기 → 그 repo 터미널 pty kill(유령 세션 방지). 앱 재시작 생존(#682)은 별개.
     const next = tabs.filter((x) => tabKey(x) !== key);
     if (activeKey === key) {
       // 활성 탭을 닫으면 이웃으로 활성 이동.
