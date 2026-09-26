@@ -233,6 +233,9 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   // 추적 변경 vs 미추적(untracked) 분리 — 미추적은 접이식 하위그룹(#699).
   const tracked = useMemo(() => changes.filter((c) => changeKind(c) !== "untracked"), [changes]);
   const untracked = useMemo(() => changes.filter((c) => changeKind(c) === "untracked"), [changes]);
+  // #962 Staged(index 변경) / Changes(work만, 담김 없음) 분리. 부분 staged는 Staged로.
+  const staged = useMemo(() => tracked.filter((c) => c.index !== " " && c.index !== "?"), [tracked]);
+  const unstagedTracked = useMemo(() => tracked.filter((c) => c.index === " "), [tracked]);
 
   // 변경 파일 한 행(tracked·untracked 공용, #699).
   const changeRow = (c: Change) => {
@@ -330,22 +333,46 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
               </button>
               {changesOpen && (
                 <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
-                  {tracked.map(changeRow)}
+                  {/* #962 Staged 그룹 — 담긴 파일 + 모두 빼기 */}
+                  {staged.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-1 py-0.5 pl-4 pr-2 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        <span>{t("workspace.gitStaged")}</span>
+                        <span className="rounded bg-emerald-500/15 px-1 text-[9px] font-bold">{staged.length}</span>
+                        <button type="button" onClick={() => void stageFiles(staged.map((c) => c.path), "unstage")} className="ml-auto rounded px-1 py-0.5 text-[9px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">{t("workspace.gitUnstageAll")}</button>
+                      </div>
+                      {staged.map(changeRow)}
+                    </>
+                  )}
+                  {/* #962 Changes 그룹 — 안 담긴 파일 + 모두 담기 */}
+                  {unstagedTracked.length > 0 && (
+                    <>
+                      <div className="flex items-center gap-1 py-0.5 pl-4 pr-2 text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                        <span>{t("workspace.gitUnstagedChanges")}</span>
+                        <span className="rounded bg-amber-500/15 px-1 text-[9px] font-bold">{unstagedTracked.length}</span>
+                        <button type="button" onClick={() => void stageFiles(unstagedTracked.map((c) => c.path), "stage")} className="ml-auto rounded px-1 py-0.5 text-[9px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">{t("workspace.gitStageAll")}</button>
+                      </div>
+                      {unstagedTracked.map(changeRow)}
+                    </>
+                  )}
                   {untracked.length > 0 && (
                     <>
-                      {/* 미추적(gitignore 아님·git이 처음 보는) 파일 — 도배 방지 위해 기본 접힘(orca식). */}
-                      <button type="button" onClick={() => setUntrackedOpen((v) => !v)} className="flex w-full items-center gap-1 py-0.5 pl-6 pr-2 text-left text-[10px] font-medium text-zinc-400 transition hover:bg-zinc-100 dark:text-zinc-500 dark:hover:bg-zinc-800">
-                        {untrackedOpen ? <IconChevronDown size={11} stroke={2} className="shrink-0" aria-hidden /> : <IconChevronRight size={11} stroke={2} className="shrink-0" aria-hidden />}
-                        <span>{t("workspace.gitUntracked")}</span>
-                        <span className="rounded bg-zinc-200 px-1 text-[9px] font-bold text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">{untracked.length}</span>
-                      </button>
+                      {/* 미추적(gitignore 아님·git이 처음 보는) 파일 — 도배 방지 위해 기본 접힘(orca식). 헤더=div(버튼 중첩 회피). */}
+                      <div className="flex items-center gap-1 pl-4 pr-2 text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
+                        <button type="button" onClick={() => setUntrackedOpen((v) => !v)} className="flex flex-1 items-center gap-1 py-0.5 text-left transition hover:text-zinc-600 dark:hover:text-zinc-300">
+                          {untrackedOpen ? <IconChevronDown size={11} stroke={2} className="shrink-0" aria-hidden /> : <IconChevronRight size={11} stroke={2} className="shrink-0" aria-hidden />}
+                          <span>{t("workspace.gitUntracked")}</span>
+                          <span className="rounded bg-zinc-200 px-1 text-[9px] font-bold text-zinc-500 dark:bg-zinc-700 dark:text-zinc-300">{untracked.length}</span>
+                        </button>
+                        <button type="button" onClick={() => void stageFiles(untracked.map((c) => c.path), "stage")} className="shrink-0 rounded px-1 py-0.5 text-[9px] font-medium transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">{t("workspace.gitStageAll")}</button>
+                      </div>
                       {untrackedOpen && untracked.map(changeRow)}
                     </>
                   )}
                 </div>
               )}
-              {/* 커밋 박스(#947) — staged 있으면 메시지 + 커밋. */}
-              {changesOpen && changes.some((c) => c.index !== " " && c.index !== "?") && (
+              {/* 커밋 박스(#947·#962) — staged 있으면 메시지 + 커밋(개수 표시). */}
+              {changesOpen && staged.length > 0 && (
                 <div className="shrink-0 space-y-1.5 border-t border-zinc-200 p-2 dark:border-zinc-800">
                   <textarea value={commitMsg} onChange={(e) => setCommitMsg(e.target.value)} placeholder={t("workspace.gitCommitPlaceholder")} rows={2}
                     onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); void doCommit(); } }}
@@ -353,7 +380,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
                   <button type="button" onClick={() => void doCommit()} disabled={!commitMsg.trim() || committing}
                     className="flex w-full items-center justify-center gap-1.5 rounded bg-mustard-500 py-1 text-[11px] font-medium text-white transition hover:bg-mustard-600 disabled:opacity-50">
                     {committing ? <IconLoader2 size={11} className="animate-spin" aria-hidden /> : <IconGitCommit size={11} stroke={2} aria-hidden />}
-                    {t("workspace.gitCommit")}
+                    {t("workspace.gitCommit")} ({staged.length})
                   </button>
                 </div>
               )}
