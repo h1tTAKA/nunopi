@@ -48,4 +48,20 @@ assert.strictEqual(st(shell), null, "셸을 에이전트로 오판");
 const spinnerOverStale = title(`${braille} x`) + `─────\nDoyouwanttoproceed?❯1.Yes2.No Esctocancel`;
 assert.strictEqual(st(spinnerOverStale), "claude/working", "스피너 우선 실패");
 
+// 백그라운드 셸 실행 중(#966): idle-글리프 타이틀이어도 "N shell still running" → working(완료 오표시 방지).
+const bgShell = title(`${idleGlyph} 게임 개발`) + `? for shortcuts\n✻ Cogitated for 15s · 1 shell still running\n❯ `;
+assert.strictEqual(st(bgShell), "claude/working", "bg 셸 오판: " + st(bgShell));
+
+// 백그라운드 전환 순간: "Running in the background" → working.
+const bgManage = title(`${idleGlyph} task`) + `⎿ Running in the background (↓ to manage)\n? for shortcuts\n❯ `;
+assert.strictEqual(st(bgManage), "claude/working", "bg 전환 오판: " + st(bgManage));
+
+// #966 우선순위: BG는 stale 권한 프롬프트 잔재보다 우선 = working("?" 오표시 방지).
+const bgOverStaleWaiting = title(`${idleGlyph} task`) + `─────\nDoyouwanttoproceed?❯1.Yes2.No Esctocancel\n✻ Brewed for 1m · 2 shells still running\n❯ `;
+assert.strictEqual(st(bgOverStaleWaiting), "claude/working", "bg>stale waiting 실패: " + st(bgOverStaleWaiting));
+
+// #966 오탐 방지: claude chrome/title 없이 "running in the background" 문구만 있는 일반 셸 → null(claude 아님).
+const shellBgText = `hong@mac % ./deploy.sh\nStarting server, running in the background now.\nhong@mac % `;
+assert.strictEqual(st(shellBgText), null, "일반 셸의 bg 문구를 claude로 오판: " + st(shellBgText));
+
 console.log("PASS — all assertions");

@@ -67,6 +67,10 @@ const CLAUDE_WAITING = /doyouwantto|wouldyouliketo|esctocancel|tabtoamend|ctrl\+
 // 문자(·)가 빌드마다 달라 놓치던(작업중→완료 오판) 걸 화살표 매치가 구분자 무관하게 커버.
 const CLAUDE_WORKING = /esctointerrupt|[↓↑][\d.]+[km]?tokens|\(\d+m?\d*s[·)]/i;
 const CLAUDE_CHROME = /esctointerrupt|\?forshortcuts|claudecode|bypasspermissions|manualmodeon|foragents|tokens\)/i;
+// 백그라운드 셸 실행 중(#966) — claude가 ctrl+b로 bash를 백그라운드로 돌리면 TUI는 idle 프롬프트로 복귀하지만
+// 상태줄에 "· N shell(s) still running" 접미 또는 "Running in the background (↓ to manage)"를 남긴다.
+// 이 신호가 최신 compact tail에 있으면 셸이 아직 돌고 있으니 "작업 중"으로 봐야 한다(idle→done 오표시 방지).
+const CLAUDE_BG = /\d+shells?stillrunning|runninginthebackground/i;
 
 // codex(보조 — 유저 주력은 claude). 출처: herdr codex.toml.
 const CODEX_WAITING = /actionrequired|allowcommand\?|pressentertoconfirmoresctocancel|doyoutrustthecontentsofthisdirectory|\[y\/n\]|yes\(y\)/i;
@@ -114,9 +118,14 @@ function parseAgentScreen(buffer) {
 
   // ── Claude ──────────────────────────────
   const claudeTitle = isSpinnerGlyph(tc) || isClaudeIdleGlyph(tc); // claude가 세팅한 상태 글리프 타이틀
+  // CLAUDE_BG는 isClaude 게이트에 넣지 않는다(#966 리뷰) — "running in the background" 등은 일반 셸 출력에도 나올 수 있어
+  // 그것만으로 claude 판정하면 오탐. claude 확정(title/chrome/working/waiting) 후 블록 안에서만 BG를 상태 신호로 쓴다.
   const isClaude = claudeTitle || CLAUDE_CHROME.test(wide) || CLAUDE_WORKING.test(compact) || CLAUDE_WAITING.test(bottom);
   if (isClaude) {
     if (isSpinnerGlyph(tc)) return { agent: "claude", state: "working", task };             // 스피너 타이틀 = 지금 작업 중(최우선)
+    // 백그라운드 셸 실행 중(#966) — idle-글리프(✳)·stale 권한 프롬프트 잔재보다 우선. 셸이 도는 한 "작업 중".
+    // 최신 compact tail에 접미가 있으면 현재 프레임이 idle 프롬프트+셸실행(권한 박스가 bottom 아님)이라 waiting은 잔재.
+    if (CLAUDE_BG.test(compact)) return { agent: "claude", state: "working", task };
     if (CLAUDE_WAITING.test(bottom)) return { agent: "claude", state: "waiting", task };     // 권한/선택/인터럽트(바닥에서만)
     if (isClaudeIdleGlyph(tc)) return { agent: "claude", state: "idle", task };              // ✳ 타이틀 = 유휴(최신)
     if (CLAUDE_WORKING.test(compact)) return { agent: "claude", state: "working", task };    // 타이틀 없는 폴백(tokens)
