@@ -341,11 +341,24 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     addTab: (kind) => onPick(kind),
   }), [tabs, t, activate, onPick]);
 
+  // #968 레포 탭 닫을 때 그 repo(하위 포함)에서 도는 터미널 pty를 데몬서 kill — 유령 세션(닫힌 탭 생존) 방지.
+  // orca 기본 동작(닫기=kill)과 동일. 명시적 닫기에서만 호출(언마운트/앱종료엔 미호출 → #682 재시작 생존 보존).
+  function killRepoTerminals(repoPath: string) {
+    const nd = desktop;
+    if (!nd?.terminal?.list || !nd.terminal.kill) return;
+    const root = repoPath.replace(/\/+$/, "");
+    const inRepo = (cwd: string) => { const c = cwd.replace(/\/+$/, ""); return c === root || c.startsWith(root + "/"); };
+    nd.terminal.list().then((sessions) => {
+      for (const s of sessions) if (s.cwd && inRepo(s.cwd)) nd.terminal.kill({ id: s.id });
+    }).catch(() => { /* 데몬 미응답 — 무시(다음 idle reap이 정리) */ });
+  }
+
   function closeTab(key: string) {
     const idx = tabs.findIndex((x) => tabKey(x) === key);
     if (idx < 0) return;
     const closing = tabs[idx];
     if (closing.type !== "repo") desktop?.modeRelease?.(closing.type); // 모드 탭 닫으면 레지스트리 해제(#789)
+    else killRepoTerminals(closing.path); // #968 레포 탭 명시적 닫기 → 그 repo 터미널 pty kill(유령 세션 방지). 앱 재시작 생존(#682)은 별개.
     const next = tabs.filter((x) => tabKey(x) !== key);
     if (activeKey === key) {
       // 활성 탭을 닫으면 이웃으로 활성 이동.
