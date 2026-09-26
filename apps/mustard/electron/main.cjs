@@ -782,16 +782,15 @@ async function pushScreenState(id, screen) {
     if (lastScreen.has(id)) { lastScreen.delete(id); await postStatus({ cwd, sessionId: id, clear: true }); }
     return;
   }
+  // #968/#970 세션 작업 제목 — 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용(extractTask 넓은 스캔 + lastTaskById 유지).
+  const task = sessionTitleFor(id, proc, screen) || undefined;
   const prev = lastScreen.get(id);
   const now = Date.now();
-  const changed = !prev || prev.state !== state || prev.agent !== agent;
-  if (!changed && prev && now - prev.at < 30000) return; // 같은 상태면 30s마다만 재POST(TTL 유지, 과POST 억제)
-  lastScreen.set(id, { state, agent, at: now });
-  // #968 OSC 타이틀 요약을 세션 작업 제목으로 전송 — 호버 카드 목록 행 텍스트.
-  // #970 hotfix: 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용 — 16KB parse 실패 시 extractTask
-  // 넓은 스캔 + lastTaskById 유지. 예전엔 여기만 parsed.task(16KB)라 유휴 세션 호버가 "Claude" 폴백됐음.
-  // task는 changed 비교에 안 넣음(작업 중 매 프레임 타이틀 변화로 과POST 방지) — 다음 상태변화/30s 재POST 때 반영.
-  const task = sessionTitleFor(id, proc, screen) || undefined;
+  // #970 fix: task가 빈값↔제목으로 "생기거나 사라질 때"도 재POST(호버 즉시 반영). 작업 중 제목 텍스트만 바뀌는 건
+  // 제외(!!로 존재 여부만 비교) → 과POST 방지. 유휴 세션은 상태 변화가 없어 예전엔 30s 뒤에야 제목이 떴음.
+  const changed = !prev || prev.state !== state || prev.agent !== agent || (!!prev.task !== !!task);
+  if (!changed && prev && now - prev.at < 30000) return; // 같은 상태·제목유무면 30s마다만 재POST(TTL 유지, 과POST 억제)
+  lastScreen.set(id, { state, agent, at: now, task });
   await postStatus({ cwd, agent, state, sessionId: id, source: "screen", task });
 }
 function scheduleScreenParse(id) {
