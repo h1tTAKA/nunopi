@@ -125,6 +125,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   // 탭별 종합 상태(#764) — 호버 없이도 돌아가는중/완료/대기를 도트로. 레포 탭만 대상. 워크스페이스 활성 동안 폴링.
   const [repoStatus, setRepoStatus] = useState<Record<string, TabState | null>>({});
   const prevRepoStatus = useRef<Record<string, TabState | null>>({}); // #876 전이 감지용(working→완료/대기 판정)
+  const notifyWarmupUntil = useRef(0); // #973 실행 후 워밍업 종료 시각 — 복원 버퍼 정착 전 flicker 전이 알림 억제
   const [notifyOn, setNotifyOn] = useState(true);                     // #876 알림 on/off(벨 토글, localStorage 영속)
   const notifyOnRef = useRef(true);                                   // poll .then 클로저서 최신값 읽기(effect 재실행 회피)
   const toggleNotify = () => {
@@ -139,6 +140,9 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   }), []);
   useEffect(() => {
     if (!mounted || !active) return;
+    // #973 실행/재활성 직후 4s는 알림 워밍업 — 복원된 터미널 버퍼(옛 에이전트 출력)가 정착하며 생기는
+    // 가짜 working→done 전이로 알림이 뜨던 문제 억제. baseline(prevRepoStatus)은 그대로 잡되 알림만 스킵.
+    if (!notifyWarmupUntil.current) notifyWarmupUntil.current = Date.now() + 4000;
     const repoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => x.path);
     if (repoPaths.length === 0) return;
     let alive = true;
@@ -162,8 +166,10 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
         const focused = typeof document !== "undefined" && document.hasFocus();
         const activeRepoPath = (() => { const at = tabs.find((x) => tabKey(x) === activeKeyRef.current); return at && at.type === "repo" ? at.path : null; })();
         const gateOn = getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused); // 설정=보는 중 억제
+        const warming = Date.now() < notifyWarmupUntil.current; // #973 실행 직후 유예(복원 버퍼 정착 중)
         for (const [p, st] of entries) {
           if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
+            if (warming) continue;                            // 워밍업 중이면 알림 스킵(baseline은 아래서 갱신)
             const watching = focused && p === activeRepoPath; // 지금 이 레포를 보고 있음
             if (gateOn && watching) continue;                 // 보는 중이면 스킵
             const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
