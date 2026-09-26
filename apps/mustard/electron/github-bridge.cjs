@@ -10,8 +10,9 @@ const pexecFile = promisify(execFile);
 function classifyGhError(e) {
   if (e?.code === "ENOENT") return { kind: "not-installed", detail: "gh(GitHub CLI)를 찾을 수 없음" };
   const s = String(e?.stderr || e?.message || "").toLowerCase();
-  if (/auth login|not logged|authentication|gh auth|no accounts/.test(s)) return { kind: "not-authed", detail: "gh 인증 필요 — 터미널에서 `gh auth login`" };
-  if (/rate limit|api rate|\b403\b/.test(s)) return { kind: "rate-limited", detail: "GitHub API rate limit — 잠시 후 재시도" };
+  // #964 glab은 미인증 시 "401 Unauthorized"로 나옴(gh 문구와 다름) → 401/unauthorized도 not-authed.
+  if (/auth login|not logged|authentication|gh auth|no accounts|unauthorized|\b401\b/.test(s)) return { kind: "not-authed", detail: "인증 필요 — 터미널에서 `gh auth login` 또는 `glab auth login`" };
+  if (/rate limit|api rate|\b403\b/.test(s)) return { kind: "rate-limited", detail: "API rate limit — 잠시 후 재시도" };
   const line = (String(e?.stderr || e?.message || "").split("\n").find((l) => l.trim()) || "gh 실행 오류").trim();
   return { kind: "error", detail: line.slice(0, 300) };
 }
