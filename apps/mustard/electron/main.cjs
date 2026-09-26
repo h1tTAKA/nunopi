@@ -922,9 +922,13 @@ function agentForId(id, proc, screen) {
 // 옛 타이틀을 주워 오는 세션경계 오염 때문(#970 fix). 셸 복귀/종료 시 lastTaskById를 지워 이전 세션 제목이 안 샘.
 function sessionTitleFor(id, proc, screen) {
   if (proc !== undefined && isShellProc(proc)) return "";
+  // 라이브 추적값(onData가 잡아 셸 복귀 시 리셋 — 현재 세션 것만) 우선. ctrl+c 재시작 직후 옛 타이틀이 16KB 내
+  // 남아 parseAgentScreen이 그걸 주워오는 창(리뷰 🟡)을 막음 — 새 세션 제목이 onData로 잡히면 그게 권위.
+  const live = lastTaskById.get(id);
+  if (live) return live;
+  // 폴백(주로 main 재시작 직후, onData가 이번 실행서 타이틀을 못 본 경우) — parseAgentScreen은 내부적으로 16KB tail만 봄.
   const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen ?? "");
-  if (parsed && parsed.task) { lastTaskById.set(id, parsed.task); return parsed.task; }
-  return lastTaskById.get(id) || ""; // 라이브 추적된 현재 세션 제목(유휴 대비)
+  return (parsed && parsed.task) ? parsed.task : "";
 }
 ipcMain.handle("terminal:list", async () => {
   const ss = await termClient.list(); // 세션 목록(#764) — 레포탭 호버 카드 + 탭 이름(#803) + 세션 제목(#970)
