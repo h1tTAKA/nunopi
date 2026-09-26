@@ -23,7 +23,7 @@ function stateLabel(d: GhPrDetail, t: (k: string) => string): { text: string; cl
   return { text: d.state, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" };
 }
 
-export default function PrDetail({ root, number, reloadKey, onBack }: { root: string; number: number; reloadKey: number; onBack: () => void }) {
+export default function PrDetail({ root, number, reloadKey, host = "github", onBack }: { root: string; number: number; reloadKey: number; host?: "github" | "gitlab" | "other"; onBack: () => void }) {
   const t = useT();
   const [load, setLoad] = useState<Load>({ loading: true });
   const mountedRef = useRef(true);
@@ -63,18 +63,20 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
   };
 
   useEffect(() => {
-    const gh = window.nunopiDesktop?.github;
+    const nd = window.nunopiDesktop;
+    // #964 host별 view — gitlab이면 glabMrView(GhPrDetail 정규화).
+    const view = host === "gitlab" ? nd?.integrations?.glabMrView : nd?.github?.prView;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 미지원(web)/로딩 표시(number 변경마다 재조회)
-    if (!gh?.prView) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
+    if (!view) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
     const myId = ++reqIdRef.current;
     setLoad((p) => ({ loading: true, data: p.data })); // 데이터 유지(새로고침·코멘트 후 화면 안 비게)
     (async () => {
-      const r = await gh.prView(root, number);
+      const r = await view(root, number);
       if (!mountedRef.current || myId !== reqIdRef.current) return;
       if (r.ok) setLoad({ loading: false, data: r.data });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, number, t, cmtNonce, reloadKey]);
+  }, [root, number, t, cmtNonce, reloadKey, host]);
 
   const d = load.data;
   const sl = d ? stateLabel(d, t) : null;
@@ -98,7 +100,7 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
                 {editingBody
                   ? <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} disabled={actBusy} autoFocus className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[14px] font-semibold text-zinc-800 outline-none focus:border-mustard-500/60 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
                   : <h2 className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{d.title}</h2>}
-                {!editingBody && <button type="button" onClick={() => { setTitleDraft(d.title || ""); setBodyDraft(d.body || ""); setEditingBody(true); }} title={t("github.editBody")} aria-label={t("github.editBody")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconPencil size={14} stroke={2} aria-hidden /></button>}
+                {!editingBody && host === "github" && <button type="button" onClick={() => { setTitleDraft(d.title || ""); setBodyDraft(d.body || ""); setEditingBody(true); }} title={t("github.editBody")} aria-label={t("github.editBody")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconPencil size={14} stroke={2} aria-hidden /></button>}
                 {d.url && <a href={d.url} target="_blank" rel="noreferrer" title={t("github.openInBrowser")} aria-label={t("github.openInBrowser")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconExternalLink size={14} stroke={2} aria-hidden /></a>}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
@@ -138,8 +140,9 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
               d.body?.trim() ? <Markdown className="text-[12px] text-zinc-700 dark:text-zinc-200">{d.body}</Markdown> : <p className="text-[12px] italic text-zinc-400 dark:text-zinc-500">—</p>
             )}
             {/* 본문 리액션(#822) */}
-            <ReactionBar groups={d.reactionGroups} onReact={(c) => void window.nunopiDesktop?.github?.bodyReact?.(root, number, c).then((r) => { if (r?.ok) setCmtNonce((n) => n + 1); }).catch(() => {})} />
-            {/* 상태 액션(#822) — 닫기/열기 + draft↔ready */}
+            {host === "github" && <ReactionBar groups={d.reactionGroups} onReact={(c) => void window.nunopiDesktop?.github?.bodyReact?.(root, number, c).then((r) => { if (r?.ok) setCmtNonce((n) => n + 1); }).catch(() => {})} />}
+            {/* 상태 액션(#822) — 닫기/열기 + draft↔ready. GitLab은 조회 전용(#964)이라 숨김. */}
+            {host === "github" && (
             <div className="flex flex-wrap items-center gap-1.5">
               {/* 머지 스플릿 버튼(#822) — 본체=선택 방식 실행, ▾=방식 선택 메뉴(GitHub식). */}
               {d.state.toUpperCase() === "OPEN" && !d.isDraft && (
@@ -172,6 +175,7 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
                 : null}
               {actErr && <span className="w-full break-words text-[10px] text-rose-500">{actErr}</span>}
             </div>
+            )}
             {d.comments?.length > 0 && (
               <div className="mt-1 flex flex-col gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800/60">
                 <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("github.comments")} · {d.comments.length}</p>
@@ -180,8 +184,8 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
                 ))}
               </div>
             )}
-            {/* 코멘트 작성(#820) */}
-            <CommentComposer root={root} kind="pr" number={number} onPosted={() => setCmtNonce((n) => n + 1)} />
+            {/* 코멘트 작성(#820) — GitLab 조회 전용(#964)이라 숨김 */}
+            {host === "github" && <CommentComposer root={root} kind="pr" number={number} onPosted={() => setCmtNonce((n) => n + 1)} />}
           </div>
         )}
       </div>
