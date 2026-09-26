@@ -159,7 +159,6 @@ export default function SettingsDrawer({
   // 알림(#928)
   const nAgentDone = useSetting<boolean>(NKEYS.agentDone, NOTIF_DEFAULTS.agentDone);
   const nSuppress = useSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused);
-  const nBell = useSetting<boolean>(NKEYS.terminalBell, NOTIF_DEFAULTS.terminalBell);
   const nMaster = useSetting<boolean>(NKEYS.master, NOTIF_DEFAULTS.master);   // #939
   const nSilent = useSetting<boolean>(NKEYS.silent, NOTIF_DEFAULTS.silent);   // #939
   const wDefaultFolder = useSetting<string>(WKEYS.defaultFolder, WORKSPACE_DEFAULTS.defaultFolder); // #939
@@ -776,7 +775,6 @@ export default function SettingsDrawer({
               { key: NKEYS.master, on: nMaster, label: t("settings.notifMaster"), desc: t("settings.notifMasterDesc") },
               { key: NKEYS.agentDone, on: nAgentDone, label: t("settings.notifAgentDone"), desc: t("settings.notifAgentDoneDesc") },
               { key: NKEYS.suppressWhileFocused, on: nSuppress, label: t("settings.notifSuppress"), desc: t("settings.notifSuppressDesc") },
-              { key: NKEYS.terminalBell, on: nBell, label: t("settings.notifBell"), desc: t("settings.notifBellDesc") },
               { key: NKEYS.silent, on: nSilent, label: t("settings.notifSilent"), desc: t("settings.notifSilentDesc") },
             ]).map((row) => (
               <div key={row.key} className="flex items-center justify-between gap-3">

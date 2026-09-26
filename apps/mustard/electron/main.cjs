@@ -618,12 +618,13 @@ const liveBuffers = new Map(); // id → buffer  — 데몬 data 미러(디스�
 
 // #765 버퍼 스크레이핑 상태 드라이버 — liveBuffers를 파싱해 에이전트 상태를 상태 스토어로 POST(훅 대체).
 // 데몬 data 미러라 낡은 데몬·서버 재시작·훅 로드 타이밍과 무관하게 동작.
-const { parseAgentScreen, agentFromProcess, stripAnsi } = require("./agent-screen.cjs");
+const { parseAgentScreen, agentFromProcess, stripAnsi, recentTitle } = require("./agent-screen.cjs");
 let appBase = null;              // Next 서버 베이스 URL(boot서 설정)
 const cwdById = new Map();       // id → cwd(레포 매핑)
 const procById = new Map();      // id → foreground 프로세스명(데몬 list) — 에이전트 종료(셸 복귀) 게이트
-const lastScreen = new Map();    // id → { state, agent, at }(변화·keep-alive 판단)
+const lastScreen = new Map();    // id → { state, agent, at, task }(변화·keep-alive 판단)
 const screenTimers = new Map();  // id → 디바운스 타이머
+const lastTaskById = new Map();  // #970 id → 현재 세션 제목(onData 라이브 추적, 셸 복귀/종료 시 리셋 — 이전 세션 제목 누출 방지)
 const mapScreenState = (s) => (s === "idle" ? "done" : s); // 파서 idle → 스토어 done(present/ready)
 // 포그라운드가 셸이면 에이전트 종료로 간주(버퍼에 옛 화면이 남아도 무시). herdr도 포그라운드 프로세스로 게이트.
 const SHELLS = new Set(["zsh", "bash", "sh", "fish", "dash", "ksh", "pwsh", "powershell", "cmd", "login", "screen", "tmux"]);
@@ -779,17 +780,19 @@ async function pushScreenState(id, screen) {
   else {
     // 에이전트 없음(종료/셸/미인식) — 이전에 보고했으면 스토어에서 제거해 카드서 사라지게.
     agentSticky.delete(id);
+    lastTaskById.delete(id); // #970 셸 복귀(claude 종료) → 이전 세션 제목 폐기(재시작 시 옛 제목 누출 방지)
     if (lastScreen.has(id)) { lastScreen.delete(id); await postStatus({ cwd, sessionId: id, clear: true }); }
     return;
   }
+  // #968/#970 세션 작업 제목 — 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용(16KB parse + onData 라이브 추적 lastTaskById).
+  const task = sessionTitleFor(id, proc, screen) || undefined;
   const prev = lastScreen.get(id);
   const now = Date.now();
-  const changed = !prev || prev.state !== state || prev.agent !== agent;
-  if (!changed && prev && now - prev.at < 30000) return; // 같은 상태면 30s마다만 재POST(TTL 유지, 과POST 억제)
-  lastScreen.set(id, { state, agent, at: now });
-  // #968 OSC 타이틀 요약(parsed.task)을 세션 작업 제목으로 전송 — orca式 호버 카드 목록 행 텍스트.
-  // task는 changed 비교에 안 넣음(작업 중 매 프레임 타이틀 텍스트가 바뀌어 과POST 되지 않게) — 다음 상태변화/30s 재POST 때 반영.
-  const task = parsed && parsed.task ? parsed.task : undefined;
+  // #970 fix: task가 빈값↔제목으로 "생기거나 사라질 때"도 재POST(호버 즉시 반영). 작업 중 제목 텍스트만 바뀌는 건
+  // 제외(!!로 존재 여부만 비교) → 과POST 방지. 유휴 세션은 상태 변화가 없어 예전엔 30s 뒤에야 제목이 떴음.
+  const changed = !prev || prev.state !== state || prev.agent !== agent || (!!prev.task !== !!task);
+  if (!changed && prev && now - prev.at < 30000) return; // 같은 상태·제목유무면 30s마다만 재POST(TTL 유지, 과POST 억제)
+  lastScreen.set(id, { state, agent, at: now, task });
   await postStatus({ cwd, agent, state, sessionId: id, source: "screen", task });
 }
 function scheduleScreenParse(id) {
@@ -826,6 +829,11 @@ const termClient = createDaemonClient({
     let b = (liveBuffers.get(id) || "") + data;
     if (b.length > PTY_BUFFER_MAX) b = b.slice(-PTY_BUFFER_MAX);
     liveBuffers.set(id, b);
+    // #970 세션 제목 라이브 추적 — 데이터에 OSC 타이틀(ESC]0;/]2;) 있을 때만 최근 tail 스캔(핫패스 보호).
+    // 제목이 emit되는 순간 잡아 lastTaskById에 저장 → 유휴에도 유지, 셸 복귀 시 리셋(이전 세션 누출 방지).
+    if (data.indexOf("\x1b]0;") >= 0 || data.indexOf("\x1b]2;") >= 0) {
+      try { const tt = recentTitle(b); if (tt) lastTaskById.set(id, tt); } catch { /* ignore */ }
+    }
     let np = (narrPending.get(id) || "") + data; // #870 미내레이션 새 출력 누적(상한 버퍼와 별개 — 델타 유실 방지)
     if (np.length > 14000) np = np.slice(-14000);
     narrPending.set(id, np);
@@ -834,7 +842,7 @@ const termClient = createDaemonClient({
   },
   onExit: (id) => {
     liveBuffers.delete(id); delete savedBuffers[id];
-    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); // #765·#803·#864·#870 정리
+    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); // #765·#803·#864·#870·#970 정리
     const tm = screenTimers.get(id); if (tm) { clearTimeout(tm); screenTimers.delete(id); }
     broadcast("terminal:exit", { id });
   },
@@ -883,7 +891,7 @@ ipcMain.handle("terminal:launchAgent", async (_e, { id, agent, dark, extraArgs }
   return { ok: true };
 });
 ipcMain.on("terminal:resize", (_e, { id, cols, rows }) => termClient.resize({ id, cols, rows }));
-ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
+ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
 // 세션의 실행 중 에이전트 id | null(#803) — 터미널 탭 자동 이름·아이콘용.
 // 프로세스명만으론 node 래퍼 CLI(codex 등: 네이티브 자식을 spawn해 foreground pgrp 리더가 "node")를 못 잡아,
 // 버퍼 스크레이핑(parseAgentScreen)을 1순위로. 셸이면 종료로 간주(null). 버퍼 미판정이면 프로세스명 폴백.
@@ -908,11 +916,18 @@ function agentForId(id, proc, screen) {
   if (agentSticky.has(id)) return agentSticky.get(id); // 배너 스크롤아웃 등 transient null → 마지막 신원 유지
   return null;
 }
-// 세션 작업 제목(#970) — OSC 타이틀 요약(parseAgentScreen task). 탭 라벨·호버 이름용. 셸이면 "".
-// agent 판정과 동일 소스(liveBuffers 우선, 데몬 screen 폴백). 배너 스크롤아웃 등 미판정 시 "".
+// 세션 작업 제목(#970) — OSC 타이틀 요약. 탭 라벨·호버 이름용. 셸이면 "".
+// ① parseAgentScreen(16KB tail) task 우선(활성 세션). ② 없으면 lastTaskById(onData 라이브 추적으로 저장된
+// 현재 세션 제목 — 유휴에도 유지). 전체버퍼 스캔(extractTask)은 안 씀 — ctrl+c 후 재시작 시 이전 세션 scrollback의
+// 옛 타이틀을 주워 오는 세션경계 오염 때문(#970 fix). 셸 복귀/종료 시 lastTaskById를 지워 이전 세션 제목이 안 샘.
 function sessionTitleFor(id, proc, screen) {
   if (proc !== undefined && isShellProc(proc)) return "";
-  const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen);
+  // 라이브 추적값(onData가 잡아 셸 복귀 시 리셋 — 현재 세션 것만) 우선. ctrl+c 재시작 직후 옛 타이틀이 16KB 내
+  // 남아 parseAgentScreen이 그걸 주워오는 창(리뷰 🟡)을 막음 — 새 세션 제목이 onData로 잡히면 그게 권위.
+  const live = lastTaskById.get(id);
+  if (live) return live;
+  // 폴백(주로 main 재시작 직후, onData가 이번 실행서 타이틀을 못 본 경우) — parseAgentScreen은 내부적으로 16KB tail만 봄.
+  const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen ?? "");
   return (parsed && parsed.task) ? parsed.task : "";
 }
 ipcMain.handle("terminal:list", async () => {

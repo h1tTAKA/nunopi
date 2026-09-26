@@ -3,7 +3,7 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, type TerminalFontWeight, NKEYS, desktopNotify } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, type TerminalFontWeight } from "@mustard/core";
 
 // 터미널 설정(#926) — 스토어서 읽어 xterm 옵션 구성. copyOnSelect/rightClickPaste는 핸들러서 별도.
 function termOptionsFromSettings() {
@@ -78,7 +78,6 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     let offTheme: (() => void) | null = null;
     let offSettings: (() => void) | null = null;
     let selDisp: { dispose(): void } | null = null;
-    let bellDisp: { dispose(): void } | null = null;
     let onCtx: ((e: MouseEvent) => void) | null = null;
     let onEnter: (() => void) | null = null;
     let fallback: ReturnType<typeof setTimeout> | null = null;
@@ -122,8 +121,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       // 마우스 포커스(#941) — 설정 켜지면 호버 시 터미널 포커스.
       onEnter = () => { if (getSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse)) term?.focus(); };
       host.addEventListener("mouseenter", onEnter);
-      // 터미널 벨(#928) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
-      bellDisp = term.onBell(() => { if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: false }); });
+      // #973 터미널 벨 데스크톱 알림 제거 — 알림은 에이전트 ask/완료만(WorkspaceTabs). 터미널 벨 알림은 스팸이라 폐지.
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
       const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
       mo = new MutationObserver(applyTermTheme);
@@ -210,7 +208,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       fallback = setTimeout(() => { if (!ensured && !disposed && term) { ensured = true; void firstEnsure(); } }, 1500);
     })();
 
-    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); bellDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); if (onEnter) host.removeEventListener("mouseenter", onEnter); term?.dispose(); term = null; };
+    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); if (onEnter) host.removeEventListener("mouseenter", onEnter); term?.dispose(); term = null; };
   }, [id, cwd]);
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
