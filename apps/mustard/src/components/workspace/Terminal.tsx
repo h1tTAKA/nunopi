@@ -123,9 +123,14 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       onEnter = () => { if (getSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse)) term?.focus(); };
       host.addEventListener("mouseenter", onEnter);
       // 터미널 벨(#928/#973) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
-      // replaying: 복원 스크롤백 재생 중엔 벨 무시 — 옛 버퍼의 BEL 바이트가 재생돼 실행 직후 "띠링" 스팸 나던 문제(#973).
+      // replaying: 복원 스크롤백 재생 중엔 벨 무시. bellWarmUntil: 마운트 후 4s는 벨 무시 —
+      // 실행/복원 직후 셸 re-attach·prompt·라이브 출력의 BEL이 알림으로 새던 문제(#973). replay든 라이브든 커버.
       let replaying = true;
-      bellDisp = term.onBell(() => { if (replaying) return; if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: true }); }); // #973 창 포커스(보는 중)면 알림 안 함 — 자리 비울 때만. 실행 직후 포커스 상태의 벨 스팸 방지.
+      const bellWarmUntil = Date.now() + 4000;
+      bellDisp = term.onBell(() => {
+        if (replaying || Date.now() < bellWarmUntil) return; // 재생 중 또는 실행 직후 워밍업 → 무시
+        if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: true }); // 보는 중(창 포커스)이면 알림 X — 자리 비울 때만
+      });
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
       const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
       mo = new MutationObserver(applyTermTheme);
