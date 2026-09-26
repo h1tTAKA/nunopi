@@ -87,6 +87,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
   // 탭별 실행 중 에이전트(#803) — main이 버퍼 파싱으로 판정한 agent id(node 래퍼 CLI도 잡음). 탭 이름·아이콘용.
   // pty는 push 이벤트가 없어(에이전트 실행/종료=프로세스 교체) 2s 폴링. list()는 전 세션 반환 → tab.id로 조회.
   const [agentById, setAgentById] = useState<Record<string, AgentId>>({});
+  const [sessionTitleById, setSessionTitleById] = useState<Record<string, string>>({}); // #970 세션 제목(OSC 타이틀)
   useEffect(() => {
     const api = window.nunopiDesktop?.terminal;
     if (!api?.list) return;
@@ -95,7 +96,10 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
       try {
         const ls = await api.list();
         // s.agent는 string|null(.cjs 경계라 타입 강제 불가) — AGENT_META 키로 검증한 값만 수용(미지 문자열→라벨/로고 조회 크래시 방지).
-        if (alive) setAgentById(Object.fromEntries(ls.filter((s) => s.agent && s.agent in AGENT_META).map((s) => [s.id, s.agent as AgentId])));
+        if (!alive) return;
+        setAgentById(Object.fromEntries(ls.filter((s) => s.agent && s.agent in AGENT_META).map((s) => [s.id, s.agent as AgentId])));
+        // #970 세션 제목 — 빈 문자열은 제외(폴백=에이전트명 유지). 미판정 틱에 제목이 사라지지 않게 이전 것 보존.
+        setSessionTitleById((prev) => { const next = { ...prev }; for (const s of ls) if (s.sessionTitle) next[s.id] = s.sessionTitle; return next; });
       } catch { /* ignore */ }
     };
     void tick();
@@ -165,9 +169,10 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
       <div className="nunopi-scroll flex min-w-0 flex-1 items-stretch overflow-x-auto">
         {tabs.map((tab) => {
           const on = tab.id === activeId;
-          // 아이콘=에이전트 로고(실행 중)/터미널. 제목 우선순위(#864): 유저 리네임 > 에이전트 라벨 > "터미널 N".
+          // 아이콘=에이전트 로고(실행 중)/터미널. 제목 우선순위(#970): 유저 리네임 > 세션 제목(OSC 타이틀) > 에이전트 라벨 > "터미널 N".
           const agent = agentById[tab.id] ?? null;
-          const label = tab.customTitle || (agent ? AGENT_META[agent].label : tab.title);
+          const sessionTitle = sessionTitleById[tab.id];
+          const label = tab.customTitle || sessionTitle || (agent ? AGENT_META[agent].label : tab.title);
           const editing = editingId === tab.id;
           return (
             <div key={tab.id} ref={on ? scrollTabIntoView : undefined}
@@ -193,7 +198,7 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
                   className="w-[130px] rounded border border-mustard-400 bg-white px-1 py-0 text-[12px] text-zinc-800 outline-none dark:bg-zinc-900 dark:text-zinc-100" />
               ) : (
                 <span className="max-w-[200px] truncate whitespace-nowrap" title={label}
-                  onDoubleClick={(e) => { e.stopPropagation(); setEditValue(tab.customTitle || (agent ? AGENT_META[agent].label : "")); setEditingId(tab.id); }}>{label}</span>
+                  onDoubleClick={(e) => { e.stopPropagation(); setEditValue(tab.customTitle || sessionTitle || (agent ? AGENT_META[agent].label : "")); setEditingId(tab.id); }}>{label}</span>
               )}
               {tabs.length > 1 && (
                 <button type="button" onClick={(e) => { e.stopPropagation(); void closeTab(tab.id); }}
