@@ -787,9 +787,11 @@ async function pushScreenState(id, screen) {
   const changed = !prev || prev.state !== state || prev.agent !== agent;
   if (!changed && prev && now - prev.at < 30000) return; // 같은 상태면 30s마다만 재POST(TTL 유지, 과POST 억제)
   lastScreen.set(id, { state, agent, at: now });
-  // #968 OSC 타이틀 요약(parsed.task)을 세션 작업 제목으로 전송 — orca式 호버 카드 목록 행 텍스트.
-  // task는 changed 비교에 안 넣음(작업 중 매 프레임 타이틀 텍스트가 바뀌어 과POST 되지 않게) — 다음 상태변화/30s 재POST 때 반영.
-  const task = parsed && parsed.task ? parsed.task : undefined;
+  // #968 OSC 타이틀 요약을 세션 작업 제목으로 전송 — 호버 카드 목록 행 텍스트.
+  // #970 hotfix: 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용 — 16KB parse 실패 시 extractTask
+  // 넓은 스캔 + lastTaskById 유지. 예전엔 여기만 parsed.task(16KB)라 유휴 세션 호버가 "Claude" 폴백됐음.
+  // task는 changed 비교에 안 넣음(작업 중 매 프레임 타이틀 변화로 과POST 방지) — 다음 상태변화/30s 재POST 때 반영.
+  const task = sessionTitleFor(id, proc, screen) || undefined;
   await postStatus({ cwd, agent, state, sessionId: id, source: "screen", task });
 }
 function scheduleScreenParse(id) {
