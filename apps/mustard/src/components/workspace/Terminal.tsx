@@ -189,7 +189,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
           if (disposed || !term) return;
           if (!r.ok) { replaying = false; term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
           // #973 재생 완료 콜백서 replaying 해제 — 이후 라이브 벨만 알림. 버퍼 없으면 즉시 해제.
-          if (r.buffer) { term.write(stripTermQueries(r.buffer), () => { replaying = false; }); setTimeout(() => { replaying = false; }, 2000); } // +백스톱(콜백 미발화 시 벨 먹통 방지, 리뷰 🟡)
+          if (r.buffer) { term.write(stripTermQueries(r.buffer), () => { replaying = false; }); setTimeout(() => { replaying = false; }, 15000); } // 정상 replay는 write 콜백이 해제(즉시); 백스톱은 콜백 미발화(먹통)에만 — 2s는 큰 버퍼 파싱 전 조기 해제로 벨 누출(#973)
           else replaying = false;
           offData = nd.terminal.onData(({ id: i, data }) => { if (i === id && term) term.write(data); });
           // 셸 종료 시 빈 화면 방치 대신 안내(+로 새 터미널).
