@@ -346,10 +346,19 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   function killRepoTerminals(repoPath: string) {
     const nd = desktop;
     if (!nd?.terminal?.list || !nd.terminal.kill) return;
-    const root = repoPath.replace(/\/+$/, "");
-    const inRepo = (cwd: string) => { const c = cwd.replace(/\/+$/, ""); return c === root || c.startsWith(root + "/"); };
+    const norm = (p: string) => p.replace(/\/+$/, "");
+    const root = norm(repoPath);
+    const inRepo = (root2: string, cwd: string) => cwd === root2 || cwd.startsWith(root2 + "/");
+    // 다른 열린 레포 탭 경로들(nested repo 대비) — 세션의 "가장 구체적(긴) 매칭 repo"가 닫는 repo일 때만 kill.
+    // 예: repoB가 repoA 하위인데 둘 다 열림 → repoA 닫아도 repoB 세션은 repoB가 더 긴 매칭이라 보존.
+    const openRepoPaths = tabs.filter((x): x is { type: "repo"; path: string } => x.type === "repo").map((x) => norm(x.path));
     nd.terminal.list().then((sessions) => {
-      for (const s of sessions) if (s.cwd && inRepo(s.cwd)) nd.terminal.kill({ id: s.id });
+      for (const s of sessions) {
+        const c = s.cwd ? norm(s.cwd) : "";
+        if (!c || !inRepo(root, c)) continue;
+        const best = openRepoPaths.filter((p) => inRepo(p, c)).sort((a, b) => b.length - a.length)[0]; // 최장 매칭
+        if (best === root) nd.terminal.kill({ id: s.id }); // 이 세션의 주인이 닫는 repo일 때만
+      }
     }).catch(() => { /* 데몬 미응답 — 무시(다음 idle reap이 정리) */ });
   }
 
