@@ -14,6 +14,7 @@ interface Worktree { path: string; branch: string | null; head: string; detached
 type AgentState = "working" | "waiting" | "blocked" | "done";
 interface AgentStatus { sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; since?: number; }
 interface Port { port: number; pid: number; cmd: string } // #880 이 레포가 띄운 dev 서버 포트
+interface SubInfo { id: string; agentType: string; description: string; depth: number; running: boolean; updatedAt: number } // #977 /api/agent/subagents
 
 const basename = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 const norm = (p: string) => p.replace(/\/+$/, "");
@@ -82,7 +83,29 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
   const seed = snapCache.get(path);
   const [statuses, setStatuses] = useState<AgentStatus[]>(seed?.statuses ?? []); // 버퍼 스크레이핑 상태
   const [worktrees, setWorktrees] = useState<Worktree[] | null>(seed?.worktrees ?? null); // null=로딩
-  const [ports, setPorts] = useState<Port[]>(seed?.ports ?? []); // #880 dev 서버 포트
+  const [ports, setPorts] = useState<Port[]>(seed?.ports ?? []); // #880 dev 서버
+  // #977 서브에이전트 트리 — claude 세션(sessionId)별 서브 목록. 카드 열린 동안 3s 폴링.
+  const [subs, setSubs] = useState<Record<string, SubInfo[]>>({});
+  const claudeKey = statuses.filter((s) => s.agent === "claude").map((s) => `${s.sessionId}\u0001${s.task ?? ""}`).join("\u0002");
+  useEffect(() => {
+    const rows = claudeKey ? claudeKey.split("\u0002").map((r) => r.split("\u0001")) : [];
+    if (!rows.length) return;
+    let alive = true;
+    let seq = 0; // 응답 순서 가드 — 늦게 온 옛 폴링이 최신 결과 덮지 않게(리뷰 🟡)
+    const load = () => {
+      const my = ++seq;
+      Promise.all(rows.map(async ([sid, task]) => {
+        try {
+          const r = await fetch(`/api/agent/subagents?cwd=${encodeURIComponent(path)}&title=${encodeURIComponent(task)}`);
+          const j = await r.json();
+          return [sid, j?.ok ? (j.subagents as SubInfo[]) : []] as const;
+        } catch { return [sid, [] as SubInfo[]] as const; }
+      })).then((es) => { if (alive && my === seq) setSubs(Object.fromEntries(es)); });
+    };
+    load();
+    const iv = setInterval(load, 3000);
+    return () => { alive = false; clearInterval(iv); };
+  }, [path, claudeKey]);
 
   // 에이전트 상태 — /api/agent/status. SSE 푸시(즉시) + 폴백 폴링(1.5s).
   useEffect(() => {
@@ -170,6 +193,15 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
                   {age && <span className="shrink-0 tabular-nums text-[10px] text-zinc-300 dark:text-zinc-600">{age}</span>}
                 </div>
                 {sub && <div className="ml-[38px] truncate text-[10px] text-zinc-400 dark:text-zinc-500" title={sub}>{sub}</div>}
+                {/* #977 서브에이전트 트리 — spawnDepth만큼 들여쓰기. 실행중=스피너, 완료=체크 */}
+                {(subs[h.sessionId] ?? []).map((sa) => (
+                  <div key={sa.id} style={{ paddingLeft: 22 + sa.depth * 12 }} className="mt-0.5 flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                    <span className={`flex shrink-0 items-center ${sa.running ? "text-amber-500" : "text-emerald-500"}`}>{stateIcon(sa.running ? "working" : "done")}</span>
+                    <span className="min-w-0 flex-1 truncate" title={`${sa.description} (${sa.agentType})`}>{sa.description || sa.agentType}</span>
+                    {sa.agentType && <span className="shrink-0 truncate text-[9px] text-zinc-300 dark:text-zinc-600" style={{ maxWidth: 80 }}>{sa.agentType.split(":").pop()}</span>}
+                    <span className="shrink-0 tabular-nums text-[10px] text-zinc-300 dark:text-zinc-600">{relMs(sa.updatedAt)}</span>
+                  </div>
+                ))}
               </div>
             );
           })}
