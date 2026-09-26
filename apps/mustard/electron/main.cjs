@@ -787,8 +787,10 @@ async function pushScreenState(id, screen) {
   const changed = !prev || prev.state !== state || prev.agent !== agent;
   if (!changed && prev && now - prev.at < 30000) return; // 같은 상태면 30s마다만 재POST(TTL 유지, 과POST 억제)
   lastScreen.set(id, { state, agent, at: now });
-  // 서브라인은 안 붙인다 — OSC 타이틀은 세션 이름(첫 프롬프트 요약)이지 현재 활동이 아니라 오해 소지. 활동은 워크트리 커밋라인이 담당.
-  await postStatus({ cwd, agent, state, sessionId: id, source: "screen" });
+  // #968 OSC 타이틀 요약(parsed.task)을 세션 작업 제목으로 전송 — orca式 호버 카드 목록 행 텍스트.
+  // task는 changed 비교에 안 넣음(작업 중 매 프레임 타이틀 텍스트가 바뀌어 과POST 되지 않게) — 다음 상태변화/30s 재POST 때 반영.
+  const task = parsed && parsed.task ? parsed.task : undefined;
+  await postStatus({ cwd, agent, state, sessionId: id, source: "screen", task });
 }
 function scheduleScreenParse(id) {
   if (screenTimers.has(id)) return; // 코얼레스(버스트 억제)

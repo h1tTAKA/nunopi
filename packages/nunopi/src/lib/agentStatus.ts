@@ -12,6 +12,7 @@ export interface Entry {
   tool?: string;
   toolInput?: string;
   prompt?: string;
+  task?: string; // #968 세션 작업 제목(OSC 타이틀 요약) — orca式 목록 행 텍스트
   updatedAt: number;
   stateStartedAt: number;
 }
@@ -34,7 +35,7 @@ export function prune(now: number): void {
 }
 
 // 상태 upsert — state 바뀔 때만 stateStartedAt 리셋. 저장 후 cwd 반환(호출부가 emit).
-export function upsert(fields: { cwd: string; sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string }, now: number): void {
+export function upsert(fields: { cwd: string; sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string }, now: number): void {
   const key = keyOf(fields.cwd, fields.sessionId);
   const prev = store.get(key);
   store.set(key, {
@@ -45,24 +46,25 @@ export function upsert(fields: { cwd: string; sessionId: string; agent: string; 
     tool: fields.state === "working" ? fields.tool : undefined,
     toolInput: fields.state === "working" ? fields.toolInput : undefined,
     prompt: fields.prompt ?? prev?.prompt,
+    task: fields.task ?? prev?.task, // #968 제목은 state 무관 유지(빈 값이면 이전 것 보존)
     updatedAt: now,
     stateStartedAt: prev && prev.state === fields.state ? prev.stateStartedAt : now,
   });
 }
 
-// 레포 root의 상태 — 에이전트 타입별 최신 1개(sessionId 회전으로 중복 뜨는 것 방지).
-export function query(root: string, now: number): Array<{ sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; since: number; updatedAt: number }> {
+// 레포 root의 상태 — #968 세션별 전부(orca式 목록). 예전엔 에이전트 타입별 1개로 합쳤으나
+// 같은 repo에 세션 여럿(claude 여러 개)이면 다 보여야 해서 sessionId별로 전부 반환.
+// 정렬: 상태 우선순위(working>waiting>blocked>done) 후 최근 갱신 순 — 바쁜 세션이 위로.
+const STATE_ORDER: Record<AgentState, number> = { working: 0, waiting: 1, blocked: 2, done: 3 };
+export function query(root: string, now: number): Array<{ sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; since: number; updatedAt: number }> {
   prune(now);
   const r = normPath(root);
   if (!r) return [];
   const inRepo = (cwd: string) => cwd === r || cwd.startsWith(r + "/");
-  const latest = new Map<string, Entry>();
-  for (const e of store.values()) {
-    if (!inRepo(e.cwd)) continue;
-    const cur = latest.get(e.agent);
-    if (!cur || e.updatedAt > cur.updatedAt) latest.set(e.agent, e);
-  }
-  return [...latest.values()].map((e) => ({ sessionId: e.sessionId, agent: e.agent, state: e.state, tool: e.tool, toolInput: e.toolInput, prompt: e.prompt, since: e.stateStartedAt, updatedAt: e.updatedAt }));
+  return [...store.values()]
+    .filter((e) => inRepo(e.cwd))
+    .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.updatedAt - a.updatedAt)
+    .map((e) => ({ sessionId: e.sessionId, agent: e.agent, state: e.state, tool: e.tool, toolInput: e.toolInput, prompt: e.prompt, task: e.task, since: e.stateStartedAt, updatedAt: e.updatedAt }));
 }
 
 // 세션 상태 제거(#765) — 에이전트가 종료(포그라운드가 셸로 복귀)하면 카드에서 즉시 사라지게.

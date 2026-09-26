@@ -60,6 +60,7 @@ export async function POST(request: Request): Promise<Response> {
     tool: typeof body.tool === "string" ? body.tool : undefined,
     toolInput: shortToolInput(body.toolInput),
     prompt: typeof body.prompt === "string" ? body.prompt.slice(0, 200) : undefined,
+    task: typeof body.task === "string" ? body.task.slice(0, 120) : undefined, // #968 세션 작업 제목
   }, now);
   prune(now);
   emit(cwd); // SSE 구독자에게 즉시 푸시(폴링 대기 없이)
