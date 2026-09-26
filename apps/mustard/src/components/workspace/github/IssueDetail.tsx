@@ -80,7 +80,7 @@ export default function IssueDetail({ root, number, reloadKey, host = "github", 
                 {editingBody
                   ? <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} disabled={actBusy} autoFocus className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[14px] font-semibold text-zinc-800 outline-none focus:border-mustard-500/60 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100" />
                   : <h2 className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">{d.title}</h2>}
-                {!editingBody && <button type="button" onClick={() => { setTitleDraft(d.title || ""); setBodyDraft(d.body || ""); setEditingBody(true); }} title={t("github.editBody")} aria-label={t("github.editBody")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconPencil size={14} stroke={2} aria-hidden /></button>}
+                {!editingBody && host === "github" && <button type="button" onClick={() => { setTitleDraft(d.title || ""); setBodyDraft(d.body || ""); setEditingBody(true); }} title={t("github.editBody")} aria-label={t("github.editBody")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconPencil size={14} stroke={2} aria-hidden /></button>}
                 {d.url && <a href={d.url} target="_blank" rel="noreferrer" title={t("github.openInBrowser")} aria-label={t("github.openInBrowser")} className="mt-0.5 shrink-0 text-zinc-400 transition hover:text-zinc-600 dark:hover:text-zinc-200"><IconExternalLink size={14} stroke={2} aria-hidden /></a>}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400 dark:text-zinc-500">
@@ -115,14 +115,16 @@ export default function IssueDetail({ root, number, reloadKey, host = "github", 
               d.body?.trim() ? <Markdown className="text-[12px] text-zinc-700 dark:text-zinc-200">{d.body}</Markdown> : <p className="text-[12px] italic text-zinc-400 dark:text-zinc-500">—</p>
             )}
             {/* 본문 리액션(#822) */}
-            <ReactionBar groups={d.reactionGroups} onReact={(c) => void window.nunopiDesktop?.github?.bodyReact?.(root, number, c).then((r) => { if (r?.ok) setCmtNonce((n) => n + 1); }).catch(() => {})} />
-            {/* 상태 액션(#822) — 닫기/다시 열기 */}
+            {host === "github" && <ReactionBar groups={d.reactionGroups} onReact={(c) => void window.nunopiDesktop?.github?.bodyReact?.(root, number, c).then((r) => { if (r?.ok) setCmtNonce((n) => n + 1); }).catch(() => {})} />}
+            {/* 상태 액션(#822) — 닫기/다시 열기. GitLab은 조회 전용(#964)이라 숨김. */}
+            {host === "github" && (
             <div className="flex flex-wrap items-center gap-1.5">
               {d.state.toUpperCase() === "OPEN"
                 ? <button type="button" onClick={() => void confirmState("close", t("github.close"), <IconCircleCheck size={15} stroke={2} aria-hidden />)} disabled={actBusy} className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{actBusy ? <IconLoader2 size={13} className="animate-spin" aria-hidden /> : <IconCircleCheck size={13} stroke={2} className="text-purple-500" aria-hidden />}{t("github.close")}</button>
                 : <button type="button" onClick={() => void confirmState("reopen", t("github.reopen"), <IconCircleDot size={15} stroke={2} aria-hidden />)} disabled={actBusy} className="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">{actBusy ? <IconLoader2 size={13} className="animate-spin" aria-hidden /> : <IconCircleDot size={13} stroke={2} className="text-emerald-500" aria-hidden />}{t("github.reopen")}</button>}
               {actErr && <span className="break-words text-[10px] text-rose-500">{actErr}</span>}
             </div>
+            )}
             {d.comments?.length > 0 && (
               <div className="mt-1 flex flex-col gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800/60">
                 <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("github.comments")} · {d.comments.length}</p>
@@ -131,8 +133,8 @@ export default function IssueDetail({ root, number, reloadKey, host = "github", 
                 ))}
               </div>
             )}
-            {/* 코멘트 작성(#820) — 성공 시 상세 재조회 */}
-            <CommentComposer root={root} kind="issue" number={number} onPosted={() => setCmtNonce((n) => n + 1)} />
+            {/* 코멘트 작성(#820) — GitLab 조회 전용(#964)이라 숨김 */}
+            {host === "github" && <CommentComposer root={root} kind="issue" number={number} onPosted={() => setCmtNonce((n) => n + 1)} />}
           </div>
         )}
       </div>
