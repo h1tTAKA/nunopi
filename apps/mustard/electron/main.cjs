@@ -618,12 +618,13 @@ const liveBuffers = new Map(); // id → buffer  — 데몬 data 미러(디스�
 
 // #765 버퍼 스크레이핑 상태 드라이버 — liveBuffers를 파싱해 에이전트 상태를 상태 스토어로 POST(훅 대체).
 // 데몬 data 미러라 낡은 데몬·서버 재시작·훅 로드 타이밍과 무관하게 동작.
-const { parseAgentScreen, agentFromProcess, stripAnsi, extractTask } = require("./agent-screen.cjs");
+const { parseAgentScreen, agentFromProcess, stripAnsi, recentTitle } = require("./agent-screen.cjs");
 let appBase = null;              // Next 서버 베이스 URL(boot서 설정)
 const cwdById = new Map();       // id → cwd(레포 매핑)
 const procById = new Map();      // id → foreground 프로세스명(데몬 list) — 에이전트 종료(셸 복귀) 게이트
-const lastScreen = new Map();    // id → { state, agent, at }(변화·keep-alive 판단)
+const lastScreen = new Map();    // id → { state, agent, at, task }(변화·keep-alive 판단)
 const screenTimers = new Map();  // id → 디바운스 타이머
+const lastTaskById = new Map();  // #970 id → 현재 세션 제목(onData 라이브 추적, 셸 복귀/종료 시 리셋 — 이전 세션 제목 누출 방지)
 const mapScreenState = (s) => (s === "idle" ? "done" : s); // 파서 idle → 스토어 done(present/ready)
 // 포그라운드가 셸이면 에이전트 종료로 간주(버퍼에 옛 화면이 남아도 무시). herdr도 포그라운드 프로세스로 게이트.
 const SHELLS = new Set(["zsh", "bash", "sh", "fish", "dash", "ksh", "pwsh", "powershell", "cmd", "login", "screen", "tmux"]);
@@ -779,10 +780,11 @@ async function pushScreenState(id, screen) {
   else {
     // 에이전트 없음(종료/셸/미인식) — 이전에 보고했으면 스토어에서 제거해 카드서 사라지게.
     agentSticky.delete(id);
+    lastTaskById.delete(id); // #970 셸 복귀(claude 종료) → 이전 세션 제목 폐기(재시작 시 옛 제목 누출 방지)
     if (lastScreen.has(id)) { lastScreen.delete(id); await postStatus({ cwd, sessionId: id, clear: true }); }
     return;
   }
-  // #968/#970 세션 작업 제목 — 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용(extractTask 넓은 스캔 + lastTaskById 유지).
+  // #968/#970 세션 작업 제목 — 탭 라벨(terminal.list)과 동일하게 sessionTitleFor 재사용(16KB parse + onData 라이브 추적 lastTaskById).
   const task = sessionTitleFor(id, proc, screen) || undefined;
   const prev = lastScreen.get(id);
   const now = Date.now();
@@ -827,6 +829,11 @@ const termClient = createDaemonClient({
     let b = (liveBuffers.get(id) || "") + data;
     if (b.length > PTY_BUFFER_MAX) b = b.slice(-PTY_BUFFER_MAX);
     liveBuffers.set(id, b);
+    // #970 세션 제목 라이브 추적 — 데이터에 OSC 타이틀(ESC]0;/]2;) 있을 때만 최근 tail 스캔(핫패스 보호).
+    // 제목이 emit되는 순간 잡아 lastTaskById에 저장 → 유휴에도 유지, 셸 복귀 시 리셋(이전 세션 누출 방지).
+    if (data.indexOf("\x1b]0;") >= 0 || data.indexOf("\x1b]2;") >= 0) {
+      try { const tt = recentTitle(b); if (tt) lastTaskById.set(id, tt); } catch { /* ignore */ }
+    }
     let np = (narrPending.get(id) || "") + data; // #870 미내레이션 새 출력 누적(상한 버퍼와 별개 — 델타 유실 방지)
     if (np.length > 14000) np = np.slice(-14000);
     narrPending.set(id, np);
@@ -910,18 +917,14 @@ function agentForId(id, proc, screen) {
   return null;
 }
 // 세션 작업 제목(#970) — OSC 타이틀 요약. 탭 라벨·호버 이름용. 셸이면 "".
-// ① parseAgentScreen(16KB tail) task 우선(활성 세션은 여기서 잡힘).
-// ② 못 잡으면 extractTask(전체 버퍼) 넓은 스캔 — 유휴/resume 세션은 타이틀이 tail 밖이라 여기서 잡음(#970 hotfix).
-// ③ 그래도 없으면 마지막으로 본 제목 유지(lastTaskById) — 타이틀이 200KB 밖으로 밀려도 안 사라지게.
-const lastTaskById = new Map(); // id → 마지막으로 확보한 세션 제목
+// ① parseAgentScreen(16KB tail) task 우선(활성 세션). ② 없으면 lastTaskById(onData 라이브 추적으로 저장된
+// 현재 세션 제목 — 유휴에도 유지). 전체버퍼 스캔(extractTask)은 안 씀 — ctrl+c 후 재시작 시 이전 세션 scrollback의
+// 옛 타이틀을 주워 오는 세션경계 오염 때문(#970 fix). 셸 복귀/종료 시 lastTaskById를 지워 이전 세션 제목이 안 샘.
 function sessionTitleFor(id, proc, screen) {
   if (proc !== undefined && isShellProc(proc)) return "";
-  const buf = liveBuffers.get(id) ?? screen ?? "";
-  const parsed = parseAgentScreen(buf);
-  let task = (parsed && parsed.task) ? parsed.task : "";
-  if (!task) task = extractTask(buf); // 넓은 스캔(유휴 세션)
-  if (task) { lastTaskById.set(id, task); return task; }
-  return lastTaskById.get(id) || ""; // 확보한 적 있으면 유지
+  const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen ?? "");
+  if (parsed && parsed.task) { lastTaskById.set(id, parsed.task); return parsed.task; }
+  return lastTaskById.get(id) || ""; // 라이브 추적된 현재 세션 제목(유휴 대비)
 }
 ipcMain.handle("terminal:list", async () => {
   const ss = await termClient.list(); // 세션 목록(#764) — 레포탭 호버 카드 + 탭 이름(#803) + 세션 제목(#970)
