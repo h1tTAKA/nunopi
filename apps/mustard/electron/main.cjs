@@ -618,7 +618,7 @@ const liveBuffers = new Map(); // id → buffer  — 데몬 data 미러(디스�
 
 // #765 버퍼 스크레이핑 상태 드라이버 — liveBuffers를 파싱해 에이전트 상태를 상태 스토어로 POST(훅 대체).
 // 데몬 data 미러라 낡은 데몬·서버 재시작·훅 로드 타이밍과 무관하게 동작.
-const { parseAgentScreen, agentFromProcess, stripAnsi } = require("./agent-screen.cjs");
+const { parseAgentScreen, agentFromProcess, stripAnsi, extractTask } = require("./agent-screen.cjs");
 let appBase = null;              // Next 서버 베이스 URL(boot서 설정)
 const cwdById = new Map();       // id → cwd(레포 매핑)
 const procById = new Map();      // id → foreground 프로세스명(데몬 list) — 에이전트 종료(셸 복귀) 게이트
@@ -834,7 +834,7 @@ const termClient = createDaemonClient({
   },
   onExit: (id) => {
     liveBuffers.delete(id); delete savedBuffers[id];
-    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); // #765·#803·#864·#870 정리
+    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); // #765·#803·#864·#870·#970 정리
     const tm = screenTimers.get(id); if (tm) { clearTimeout(tm); screenTimers.delete(id); }
     broadcast("terminal:exit", { id });
   },
@@ -883,7 +883,7 @@ ipcMain.handle("terminal:launchAgent", async (_e, { id, agent, dark, extraArgs }
   return { ok: true };
 });
 ipcMain.on("terminal:resize", (_e, { id, cols, rows }) => termClient.resize({ id, cols, rows }));
-ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
+ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
 // 세션의 실행 중 에이전트 id | null(#803) — 터미널 탭 자동 이름·아이콘용.
 // 프로세스명만으론 node 래퍼 CLI(codex 등: 네이티브 자식을 spawn해 foreground pgrp 리더가 "node")를 못 잡아,
 // 버퍼 스크레이핑(parseAgentScreen)을 1순위로. 셸이면 종료로 간주(null). 버퍼 미판정이면 프로세스명 폴백.
@@ -908,12 +908,19 @@ function agentForId(id, proc, screen) {
   if (agentSticky.has(id)) return agentSticky.get(id); // 배너 스크롤아웃 등 transient null → 마지막 신원 유지
   return null;
 }
-// 세션 작업 제목(#970) — OSC 타이틀 요약(parseAgentScreen task). 탭 라벨·호버 이름용. 셸이면 "".
-// agent 판정과 동일 소스(liveBuffers 우선, 데몬 screen 폴백). 배너 스크롤아웃 등 미판정 시 "".
+// 세션 작업 제목(#970) — OSC 타이틀 요약. 탭 라벨·호버 이름용. 셸이면 "".
+// ① parseAgentScreen(16KB tail) task 우선(활성 세션은 여기서 잡힘).
+// ② 못 잡으면 extractTask(전체 버퍼) 넓은 스캔 — 유휴/resume 세션은 타이틀이 tail 밖이라 여기서 잡음(#970 hotfix).
+// ③ 그래도 없으면 마지막으로 본 제목 유지(lastTaskById) — 타이틀이 200KB 밖으로 밀려도 안 사라지게.
+const lastTaskById = new Map(); // id → 마지막으로 확보한 세션 제목
 function sessionTitleFor(id, proc, screen) {
   if (proc !== undefined && isShellProc(proc)) return "";
-  const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen);
-  return (parsed && parsed.task) ? parsed.task : "";
+  const buf = liveBuffers.get(id) ?? screen ?? "";
+  const parsed = parseAgentScreen(buf);
+  let task = (parsed && parsed.task) ? parsed.task : "";
+  if (!task) task = extractTask(buf); // 넓은 스캔(유휴 세션)
+  if (task) { lastTaskById.set(id, task); return task; }
+  return lastTaskById.get(id) || ""; // 확보한 적 있으면 유지
 }
 ipcMain.handle("terminal:list", async () => {
   const ss = await termClient.list(); // 세션 목록(#764) — 레포탭 호버 카드 + 탭 이름(#803) + 세션 제목(#970)

@@ -144,4 +144,11 @@ function parseAgentScreen(buffer) {
   return null; // 셸 등
 }
 
-module.exports = { parseAgentScreen, agentFromProcess, stripAnsi, recentScreen, lastTitle };
+// 세션 작업 제목(#970) — 전체 버퍼서 마지막 OSC 타이틀 → 작업 텍스트. parseAgentScreen의 16KB tail이
+// 못 잡는 유휴/resume 세션(타이틀이 오래전 세팅돼 tail 밖으로 밀림) 대비 넓게 스캔. 타이틀 없으면 "".
+// (호출부가 16KB parse 먼저 시도 → 실패 시에만 이걸 써서 넓은 스캔은 유휴 세션에만.)
+function extractTask(buffer) {
+  return titleTask(lastTitle(String(buffer || ""))) || "";
+}
+
+module.exports = { parseAgentScreen, agentFromProcess, stripAnsi, recentScreen, lastTitle, extractTask };
