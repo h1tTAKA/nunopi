@@ -346,7 +346,7 @@ function clearGhToken() { try { rmSync(ghTokenFile()); } catch { /* 없으면 �
 function ghEnv() { const tok = loadGhToken(); return tok ? { ...process.env, GH_TOKEN: tok } : undefined; }
 
 // 연동 확장(#960) — 호스트별 토큰(safeStorage). gh(github)는 위 전용 함수, 여기선 bitbucket/azure.
-const TOKEN_HOSTS = ["bitbucket", "azure"];
+const TOKEN_HOSTS = ["bitbucket", "azure", "vercel", "supabase"];
 const glabExe = () => loadSavedRuntimePaths().glab || "glab";
 function hostTokenFile(host) { return join(app.getPath("userData"), `token-${host}.json`); }
 function loadHostToken(host) {

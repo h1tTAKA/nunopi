@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure, IconBrandVercel, IconBrandSupabase } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
@@ -166,6 +166,10 @@ export default function SettingsDrawer({
   const [btHasToken, setBtHasToken] = useState(false);
   const [azToken, setAzToken] = useState("");
   const [azHasToken, setAzHasToken] = useState(false);
+  const [vcToken, setVcToken] = useState("");
+  const [vcHasToken, setVcHasToken] = useState(false);
+  const [sbToken, setSbToken] = useState("");
+  const [sbHasToken, setSbHasToken] = useState(false);
   const refreshGh = useCallback(async () => {
     const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
     const gh = nd?.github; const int = nd?.integrations;
@@ -181,6 +185,8 @@ export default function SettingsDrawer({
     if (int?.tokenStatus) {
       try { setBtHasToken((await int.tokenStatus("bitbucket")).hasToken); } catch { /* ignore */ }
       try { setAzHasToken((await int.tokenStatus("azure")).hasToken); } catch { /* ignore */ }
+      try { setVcHasToken((await int.tokenStatus("vercel")).hasToken); } catch { /* ignore */ }
+      try { setSbHasToken((await int.tokenStatus("supabase")).hasToken); } catch { /* ignore */ }
     }
   }, []);
   useEffect(() => { if (isOpen) void refreshGh(); }, [isOpen, refreshGh]);
@@ -269,14 +275,14 @@ export default function SettingsDrawer({
     await gh.clearToken(); toast(t("settings.ghPatCleared"), "success"); void refreshGh();
   };
   // 연동 확장(#960) — host별 토큰 저장/삭제.
-  const saveHostToken = async (host: "bitbucket" | "azure", token: string, reset: () => void) => {
+  const saveHostToken = async (host: "bitbucket" | "azure" | "vercel" | "supabase", token: string, reset: () => void) => {
     const int = typeof window !== "undefined" ? window.nunopiDesktop?.integrations : undefined;
     if (!int?.setToken || !token.trim()) return;
     const r = await int.setToken(host, token.trim());
     if (r.ok) { toast(t("settings.ghPatSaved"), "success"); reset(); void refreshGh(); }
     else toast(t("settings.ghPatFailed") + (r.detail ? ` (${r.detail})` : ""), "error");
   };
-  const clearHostToken = async (host: "bitbucket" | "azure") => {
+  const clearHostToken = async (host: "bitbucket" | "azure" | "vercel" | "supabase") => {
     const int = typeof window !== "undefined" ? window.nunopiDesktop?.integrations : undefined;
     if (!int?.clearToken) return;
     await int.clearToken(host); toast(t("settings.ghPatCleared"), "success"); void refreshGh();
@@ -923,6 +929,8 @@ export default function SettingsDrawer({
             {([
               { host: "bitbucket" as const, label: "Bitbucket", token: btToken, setToken: setBtToken, has: btHasToken, Icon: IconBrandBitbucket },
               { host: "azure" as const, label: "Azure DevOps", token: azToken, setToken: setAzToken, has: azHasToken, Icon: IconBrandAzure },
+              { host: "vercel" as const, label: "Vercel", token: vcToken, setToken: setVcToken, has: vcHasToken, Icon: IconBrandVercel },
+              { host: "supabase" as const, label: "Supabase", token: sbToken, setToken: setSbToken, has: sbHasToken, Icon: IconBrandSupabase },
             ]).map((c) => (
               <div key={c.host} className="space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
                 <div className="flex items-center gap-2">
