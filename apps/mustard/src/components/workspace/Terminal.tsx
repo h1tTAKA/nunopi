@@ -3,7 +3,7 @@
 // pty는 앱과 분리된 데몬이 소유해 앱 종료에도 생존, 재마운트/재실행 시 scrollback 재생 + live reattach.
 import { useEffect, useRef } from "react";
 import "@xterm/xterm/css/xterm.css";
-import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, type TerminalFontWeight, NKEYS, desktopNotify } from "@mustard/core";
+import { useT, getTerminalThemePref, isTerminalDark, TERMINAL_THEME_EVENT, getSetting, subscribeSettings, TKEYS, TERMINAL_DEFAULTS, type TerminalFontWeight } from "@mustard/core";
 
 // 터미널 설정(#926) — 스토어서 읽어 xterm 옵션 구성. copyOnSelect/rightClickPaste는 핸들러서 별도.
 function termOptionsFromSettings() {
@@ -78,7 +78,6 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
     let offTheme: (() => void) | null = null;
     let offSettings: (() => void) | null = null;
     let selDisp: { dispose(): void } | null = null;
-    let bellDisp: { dispose(): void } | null = null;
     let onCtx: ((e: MouseEvent) => void) | null = null;
     let onEnter: (() => void) | null = null;
     let fallback: ReturnType<typeof setTimeout> | null = null;
@@ -122,15 +121,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       // 마우스 포커스(#941) — 설정 켜지면 호버 시 터미널 포커스.
       onEnter = () => { if (getSetting<boolean>(TKEYS.focusFollowsMouse, TERMINAL_DEFAULTS.focusFollowsMouse)) term?.focus(); };
       host.addEventListener("mouseenter", onEnter);
-      // 터미널 벨(#928/#973) — \x07 시 설정 켜져 있으면 데스크톱 알림(포커스여도).
-      // replaying: 복원 스크롤백 재생 중엔 벨 무시. bellWarmUntil: 마운트 후 4s는 벨 무시 —
-      // 실행/복원 직후 셸 re-attach·prompt·라이브 출력의 BEL이 알림으로 새던 문제(#973). replay든 라이브든 커버.
-      let replaying = true;
-      const bellWarmUntil = Date.now() + 4000;
-      bellDisp = term.onBell(() => {
-        if (replaying || Date.now() < bellWarmUntil) return; // 재생 중 또는 실행 직후 워밍업 → 무시
-        if (getSetting<boolean>(NKEYS.terminalBell, false)) void desktopNotify({ title: "🔔 Terminal", body: cwd.split(/[\\/]/).filter(Boolean).pop() || "", suppressWhileFocused: true }); // 보는 중(창 포커스)이면 알림 X — 자리 비울 때만
-      });
+      // #973 터미널 벨 데스크톱 알림 제거 — 알림은 에이전트 ask/완료만(WorkspaceTabs). 터미널 벨 알림은 스팸이라 폐지.
       // 테마 라이브 전환(#914) — 터미널 설정(dark/light/auto) 변경 또는 auto일 때 앱 .dark 변경 시 색 갱신.
       const applyTermTheme = () => { const th = buildTermTheme(); if (term) term.options.theme = th; if (host) host.style.background = th.background; };
       mo = new MutationObserver(applyTermTheme);
@@ -192,16 +183,13 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
         try {
           const r = await nd.terminal.ensure({ id, cwd, cols: term.cols, rows: term.rows, dark: isTerminalDark(getTerminalThemePref()) });
           if (disposed || !term) return;
-          if (!r.ok) { replaying = false; term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
-          // #973 재생 완료 콜백서 replaying 해제 — 이후 라이브 벨만 알림. 버퍼 없으면 즉시 해제.
-          if (r.buffer) { term.write(stripTermQueries(r.buffer), () => { replaying = false; }); setTimeout(() => { replaying = false; }, 15000); } // 정상 replay는 write 콜백이 해제(즉시); 백스톱은 콜백 미발화(먹통)에만 — 2s는 큰 버퍼 파싱 전 조기 해제로 벨 누출(#973)
-          else replaying = false;
+          if (!r.ok) { term.write(`\r\n[터미널 시작 실패${r.reason ? `: ${r.reason}` : ""} — node-pty 재빌드가 필요할 수 있어요]\r\n`); return; }
+          if (r.buffer) term.write(stripTermQueries(r.buffer)); // 정확한 cols 확보 후 재생(줄바꿈 안 굳음). 질의 시퀀스 제거(에코 방지 #807)
           offData = nd.terminal.onData(({ id: i, data }) => { if (i === id && term) term.write(data); });
           // 셸 종료 시 빈 화면 방치 대신 안내(+로 새 터미널).
           offExit = nd.terminal.onExit(({ id: i }) => { if (i === id && term) term.write(`\r\n\x1b[2m${tRef.current("workspace.terminalExited")}\x1b[0m\r\n`); });
           term.onData((d) => nd.terminal.input({ id, data: d }));
         } catch {
-          replaying = false; // #973 연결 실패해도 벨 게이트 해제(먹통 방지)
           // 핸들러 미등록(옛 메인) 등 — 크래시 대신 안내.
           if (term && !disposed) term.write("\r\n[터미널 연결 실패 — electron:dev를 완전히 껐다 재시작해 주세요]\r\n");
         }
@@ -220,7 +208,7 @@ export default function Terminal({ id, cwd }: { id: string; cwd: string }) {
       fallback = setTimeout(() => { if (!ensured && !disposed && term) { ensured = true; void firstEnsure(); } }, 1500);
     })();
 
-    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); bellDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); if (onEnter) host.removeEventListener("mouseenter", onEnter); term?.dispose(); term = null; };
+    return () => { disposed = true; if (fallback) clearTimeout(fallback); if (onPaste) host.removeEventListener("paste", onPaste, true); offData?.(); offExit?.(); ro?.disconnect(); mo?.disconnect(); offTheme?.(); offSettings?.(); selDisp?.dispose(); if (onCtx) host.removeEventListener("contextmenu", onCtx); if (onEnter) host.removeEventListener("mouseenter", onEnter); term?.dispose(); term = null; };
   }, [id, cwd]);
 
   // 초기 배경도 현재 터미널 테마에 맞춰(라이트 앱 첫 프레임 다크 깜빡임 방지). 클라이언트 전용 pane이라 안전.
