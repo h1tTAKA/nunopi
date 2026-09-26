@@ -11,7 +11,7 @@
     "rebuild:native": "electron-rebuild -f -w node-pty",
     "predev:electron": "lsof -ti tcp:3000 | xargs kill -9 2>/dev/null || true",
     "electron:dev": "npm run predev:electron; concurrently -k \"next dev\" \"wait-on http://localhost:3000 && ELECTRON_START_URL=http://localhost:3000 electron electron/main.cjs\"",
-    "electron:build": "next build && node scripts/copy-standalone-assets.mjs",
+    "electron:build": "node scripts/clean-build.mjs && next build && node scripts/copy-standalone-assets.mjs",
     "electron:prod": "npm run electron:build && electron electron/main.cjs",
     "electron:dist:dir": "npm run electron:build && node scripts/package-app.mjs --dir --config electron-builder.yml",
     "electron:dist": "npm run electron:build && node scripts/package-app.mjs --config electron-builder.yml",

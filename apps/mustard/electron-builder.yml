@@ -27,6 +27,8 @@ extraResources:
       - "**/*"        # node_modules 포함 강제(기본 pruning 무력화)
       - ".next/**"    # dotdir(.next/서버청크·static) 명시 포함
       - "!**/*.map"
+      - "!**/obj.target/**"  # 네이티브 빌드 중간산출물 — codesign이 .o에서 죽음(#975)
+      - "!**/*.o"
   # 터미널 데몬(#682) — ELECTRON_RUN_AS_NODE 자식으로 fork되므로 asar 밖이라야 실행 가능
   # (RUN_AS_NODE는 asar 미지원 → asar 안 스크립트는 require 불가). resources/electron/에 동봉.
   - from: electron/terminal-daemon.cjs
@@ -39,6 +41,8 @@ extraResources:
     filter:
       - "**/*"
       - "!**/*.map"
+      - "!**/obj.target/**"  # 컴파일 중간산출물 — 런타임은 build/Release/*.node만 필요, .o는 codesign 실패 유발(#975)
+      - "!**/*.o"
 
 # 네이티브 모듈(better-sqlite3)을 electron ABI로 rebuild.
 npmRebuild: false  # 네이티브는 package-app.mjs가 electron ABI로 선빌드(#684). electron-builder가 127로 덮지 않게.
