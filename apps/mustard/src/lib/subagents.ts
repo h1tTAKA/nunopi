@@ -48,13 +48,16 @@ async function pickSession(dir: string, title: string): Promise<string | null> {
   const cands = (await Promise.all(names.map(async (n) => {
     try { const st = await fs.stat(join(dir, n)); return { n, m: st.mtimeMs }; } catch { return null; }
   }))).filter((x): x is { n: string; m: number } => !!x && now - x.m < 24 * 3600 * 1000).sort((a, b) => b.m - a.m);
-  if (!cands.length) return null;
-  if (title) {
-    for (const c of cands) {
-      try { if (lastAiTitle(await readTail(join(dir, c.n), 256 * 1024)) === title) return c.n.slice(0, -6); } catch { /* skip */ }
-    }
+  const want = title.trim();
+  if (!cands.length || !want) return null;
+  for (const c of cands) {
+    try {
+      const t = lastAiTitle(await readTail(join(dir, c.n), 256 * 1024)).trim();
+      // 정확 또는 접두 일치(OSC 타이틀이 잘렸을 수 있음). 최신 폴백은 안 함 — 같은 cwd 다른 세션 서브를 잘못 보여주는 것보다 안 보여주는 게 낫다(리뷰 🟡).
+      if (t && (t === want || t.startsWith(want) || want.startsWith(t))) return c.n.slice(0, -6);
+    } catch { /* skip */ }
   }
-  return cands[0].n.slice(0, -6);
+  return null;
 }
 
 export async function listSubagents(cwd: string, title: string): Promise<SubagentInfo[]> {

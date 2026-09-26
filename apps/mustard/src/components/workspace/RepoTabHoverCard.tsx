@@ -91,14 +91,16 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
     const rows = claudeKey ? claudeKey.split("\u0002").map((r) => r.split("\u0001")) : [];
     if (!rows.length) return;
     let alive = true;
+    let seq = 0; // 응답 순서 가드 — 늦게 온 옛 폴링이 최신 결과 덮지 않게(리뷰 🟡)
     const load = () => {
+      const my = ++seq;
       Promise.all(rows.map(async ([sid, task]) => {
         try {
           const r = await fetch(`/api/agent/subagents?cwd=${encodeURIComponent(path)}&title=${encodeURIComponent(task)}`);
           const j = await r.json();
           return [sid, j?.ok ? (j.subagents as SubInfo[]) : []] as const;
         } catch { return [sid, [] as SubInfo[]] as const; }
-      })).then((es) => { if (alive) setSubs(Object.fromEntries(es)); });
+      })).then((es) => { if (alive && my === seq) setSubs(Object.fromEntries(es)); });
     };
     load();
     const iv = setInterval(load, 3000);
