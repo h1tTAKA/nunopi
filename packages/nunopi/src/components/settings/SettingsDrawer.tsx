@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2 } from "@tabler/icons-react";
+import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
@@ -43,6 +43,19 @@ interface SettingsDrawerProps {
   // apps/mustard는 isNunopiEnabled/setNunopiEnabled 주입(변경 시 reload로 게이트 반영). apps/nunopi 스탠드얼론은 미주입.
   nunopiEnabled?: boolean;
   onNunopiEnabledChange?: (on: boolean) => void;
+}
+
+// 연동(#960) 브랜드 로고 — tabler 부실해 공식 로고 SVG 인라인(CSP상 외부 로드 불가). tabler 아이콘과 동일 시그니처(size/className).
+function VercelLogo({ size = 18, className = "" }: { size?: number; className?: string; stroke?: number }) {
+  return <svg width={size} height={size} viewBox="0 0 1155 1000" className={className} aria-hidden><path d="M577.3 0 1155 1000H0z" fill="currentColor" /></svg>;
+}
+function SupabaseLogo({ size = 18, className = "" }: { size?: number; className?: string; stroke?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 109 113" className={className} fill="none" aria-hidden>
+      <path d="M63.7 110.3c-2.8 3.5-8.5 1.6-8.6-2.9L53.8 40h30.4c8.2 0 12.8 9.5 7.7 15.9l-28.2 54.4z" fill="#3ECF8E" />
+      <path d="M45.3 2.6c2.8-3.5 8.5-1.6 8.6 2.9l.6 67.4H24.7c-8.2 0-12.8-9.5-7.7-15.9L45.3 2.6z" fill="#3ECF8E" fillOpacity="0.5" />
+    </svg>
+  );
 }
 
 // 제외 그룹 1개(코드 토큰 / IT 용어) — 칩 + ✕ 해제.
@@ -160,15 +173,34 @@ export default function SettingsDrawer({
   const [ghChecking, setGhChecking] = useState(false);
   const [ghHasToken, setGhHasToken] = useState(false);
   const [ghToken, setGhToken] = useState("");
+  // 연동 확장(#960) — GitLab glab 상태 + bitbucket/azure 토큰.
+  const [glabAuth, setGlabAuth] = useState<{ state: string; detail?: string } | null>(null);
+  const [btToken, setBtToken] = useState("");
+  const [btHasToken, setBtHasToken] = useState(false);
+  const [azToken, setAzToken] = useState("");
+  const [azHasToken, setAzHasToken] = useState(false);
+  const [vcToken, setVcToken] = useState("");
+  const [vcHasToken, setVcHasToken] = useState(false);
+  const [sbToken, setSbToken] = useState("");
+  const [sbHasToken, setSbHasToken] = useState(false);
   const refreshGh = useCallback(async () => {
-    const gh = typeof window !== "undefined" ? window.nunopiDesktop?.github : undefined;
-    if (!gh?.auth) return;
-    setGhChecking(true);
-    try {
-      const a = await gh.auth(""); setGhAuth(a);
-      if (gh.tokenStatus) { const ts = await gh.tokenStatus(); setGhHasToken(ts.hasToken); }
-    } catch { setGhAuth({ state: "error" }); }
-    finally { setGhChecking(false); }
+    const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
+    const gh = nd?.github; const int = nd?.integrations;
+    if (gh?.auth) {
+      setGhChecking(true);
+      try {
+        const a = await gh.auth(""); setGhAuth(a);
+        if (gh.tokenStatus) { const ts = await gh.tokenStatus(); setGhHasToken(ts.hasToken); }
+      } catch { setGhAuth({ state: "error" }); }
+      finally { setGhChecking(false); }
+    }
+    if (int?.glabStatus) { try { setGlabAuth(await int.glabStatus()); } catch { setGlabAuth({ state: "error" }); } }
+    if (int?.tokenStatus) {
+      try { setBtHasToken((await int.tokenStatus("bitbucket")).hasToken); } catch { /* ignore */ }
+      try { setAzHasToken((await int.tokenStatus("azure")).hasToken); } catch { /* ignore */ }
+      try { setVcHasToken((await int.tokenStatus("vercel")).hasToken); } catch { /* ignore */ }
+      try { setSbHasToken((await int.tokenStatus("supabase")).hasToken); } catch { /* ignore */ }
+    }
   }, []);
   useEffect(() => { if (isOpen) void refreshGh(); }, [isOpen, refreshGh]);
   // 확인 다이얼로그(#929)
@@ -254,6 +286,19 @@ export default function SettingsDrawer({
     const gh = typeof window !== "undefined" ? window.nunopiDesktop?.github : undefined;
     if (!gh?.clearToken) return;
     await gh.clearToken(); toast(t("settings.ghPatCleared"), "success"); void refreshGh();
+  };
+  // 연동 확장(#960) — host별 토큰 저장/삭제.
+  const saveHostToken = async (host: "bitbucket" | "azure" | "vercel" | "supabase", token: string, reset: () => void) => {
+    const int = typeof window !== "undefined" ? window.nunopiDesktop?.integrations : undefined;
+    if (!int?.setToken || !token.trim()) return;
+    const r = await int.setToken(host, token.trim());
+    if (r.ok) { toast(t("settings.ghPatSaved"), "success"); reset(); void refreshGh(); }
+    else toast(t("settings.ghPatFailed") + (r.detail ? ` (${r.detail})` : ""), "error");
+  };
+  const clearHostToken = async (host: "bitbucket" | "azure" | "vercel" | "supabase") => {
+    const int = typeof window !== "undefined" ? window.nunopiDesktop?.integrations : undefined;
+    if (!int?.clearToken) return;
+    await int.clearToken(host); toast(t("settings.ghPatCleared"), "success"); void refreshGh();
   };
   // 워크스페이스 기본 폴더 선택(#939) — OS 폴더 창서 고른 경로 저장.
   const pickDefaultFolder = async () => {
@@ -876,7 +921,50 @@ export default function SettingsDrawer({
                 </div>
               </div>
             </div>
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("settings.integrationsMore")}</p>
+            {/* GitLab 카드(#960) — glab CLI 감지 */}
+            <div className="space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+              <div className="flex items-center gap-2">
+                <IconBrandGitlab size={18} stroke={1.75} className="shrink-0 text-orange-500" aria-hidden />
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">GitLab</span>
+                {(() => {
+                  const st = glabAuth?.state;
+                  const badge = st === "ok" ? { txt: t("settings.ghConnected"), cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" }
+                    : st === "not-authed" ? { txt: t("settings.ghNotAuthed"), cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" }
+                    : st === "not-installed" ? { txt: t("settings.glabNotInstalled"), cls: "bg-zinc-500/15 text-zinc-500 dark:text-zinc-400" }
+                    : st ? { txt: t("settings.ghError"), cls: "bg-rose-500/15 text-rose-600 dark:text-rose-400" }
+                    : { txt: "…", cls: "bg-zinc-500/15 text-zinc-500" };
+                  return <span className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.cls}`}>{badge.txt}</span>;
+                })()}
+              </div>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500">{glabAuth?.state === "not-installed" ? t("settings.glabInstallHint") : (glabAuth?.detail || t("settings.glabDesc"))}</p>
+            </div>
+            {/* Bitbucket / Azure 토큰 카드(#960) */}
+            {([
+              { host: "bitbucket" as const, label: "Bitbucket", token: btToken, setToken: setBtToken, has: btHasToken, Icon: IconBrandBitbucket, iconClass: "text-sky-500" },
+              { host: "azure" as const, label: "Azure DevOps", token: azToken, setToken: setAzToken, has: azHasToken, Icon: IconBrandAzure, iconClass: "text-sky-500" },
+              { host: "vercel" as const, label: "Vercel", token: vcToken, setToken: setVcToken, has: vcHasToken, Icon: VercelLogo, iconClass: "text-zinc-900 dark:text-zinc-50" },
+              { host: "supabase" as const, label: "Supabase", token: sbToken, setToken: setSbToken, has: sbHasToken, Icon: SupabaseLogo, iconClass: "" },
+            ]).map((c) => (
+              <div key={c.host} className="space-y-2 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
+                <div className="flex items-center gap-2">
+                  <c.Icon size={18} stroke={1.75} className={`shrink-0 ${c.iconClass}`} aria-hidden />
+                  <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{c.label}</span>
+                  {c.has ? <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">{t("settings.ghConnected")}</span> : <span className="ml-auto rounded-full bg-zinc-500/15 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">{t("settings.hostNotConfigured")}</span>}
+                </div>
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("settings.hostTokenHint")}</p>
+                <div className="flex items-center gap-2">
+                  <input type="password" value={c.token} onChange={(e) => c.setToken(e.target.value)} placeholder={c.has ? "••••••••" : t("settings.hostTokenPlaceholder")}
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 font-mono text-[13px] text-zinc-900 outline-none focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50" />
+                  <button type="button" onClick={() => void saveHostToken(c.host, c.token, () => c.setToken(""))} disabled={!c.token.trim()}
+                    className="shrink-0 rounded-lg bg-mustard-500 px-3 py-1.5 text-[13px] font-medium text-white transition hover:bg-mustard-600 disabled:opacity-50">{t("settings.ghPatSave")}</button>
+                  {c.has ? (
+                    <button type="button" onClick={() => void clearHostToken(c.host)}
+                      className="shrink-0 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[13px] text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800">{t("settings.clear")}</button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">{t("settings.integrationsMore2")}</p>
           </section>
           )}
 
