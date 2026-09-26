@@ -24,6 +24,18 @@ export type Tab =
   | { type: ModeKind; id: string };
 // keep-alive·활성 판별 공통 키 — 레포=경로, 모드=id. localStorage active 키로도 씀.
 const tabKey = (t: Tab): string => (t.type === "repo" ? `repo:${t.path}` : `${t.type}:${t.id}`);
+// #968 그 레포서 현재 열린 터미널 탭 세션 id 집합(TerminalPane이 localStorage에 영속) — 데몬 생존 유령(닫힌 탭 pty)
+// 제외용. 호버 카드(RepoTabHoverCard)와 동일 필터라 탭 도트도 실제 열린 세션만 집계. 키 없으면 null(폴백=필터 안 함).
+function openTermIds(repoPath: string): Set<string> | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(`nunopi:ws-terms:${repoPath}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { tabs?: Array<{ id?: unknown }> };
+    if (!Array.isArray(p.tabs)) return null;
+    return new Set(p.tabs.map((tb) => tb?.id).filter((x): x is string => typeof x === "string"));
+  } catch { return null; }
+}
 const isMode = (k: unknown): k is ModeKind => k === "ask" || k === "code" || k === "text" || k === "memorize";
 // 저장된 원소 하나를 Tab으로 — 구 문자열(순수 경로)이면 레포 탭으로 이관, 신규 객체는 검증 후 통과, 그 외 버림.
 function migrateTab(x: unknown): Tab | null {
@@ -131,7 +143,13 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     // 각 레포의 에이전트 상태(버퍼 스크레이핑, /api/agent/status)로 종합 도트. 프로세스명 휴리스틱은 제거(#765).
     const poll = () => {
       Promise.all(repoPaths.map(async (p) => {
-        try { const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json(); return [p, aggregate(j?.ok ? (j.statuses ?? []).map((s: { state: string }) => s.state) : [])] as const; }
+        try {
+          const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json();
+          const raw: { sessionId: string; state: string }[] = j?.ok ? (j.statuses ?? []) : [];
+          const openIds = openTermIds(p); // #968 유령 제외 — 열린 터미널 탭 세션만 집계(호버와 일관)
+          const shown = openIds ? raw.filter((s) => openIds.has(s.sessionId)) : raw;
+          return [p, aggregate(shown.map((s) => s.state))] as const;
+        }
         catch { return [p, null] as const; }
       })).then((entries) => {
         if (!alive) return;
