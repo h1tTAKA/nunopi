@@ -95,6 +95,8 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   const [mounted, setMounted] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const activeKeyRef = useRef<string | null>(null); // #973 poll 클로저서 최신 활성 탭 읽기(알림 게이트용)
+  useEffect(() => { activeKeyRef.current = activeKey; }, [activeKey]);
   // 한 번이라도 활성화된 탭 키 — 이 집합만 실제 마운트(keep-alive). 안 연 탭은 마운트 안 함.
   const [visited, setVisited] = useState<Set<string>>(new Set());
   const [picking, setPicking] = useState(false);
@@ -155,11 +157,18 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
         if (!alive) return;
         // #876 전이 감지 — 레포가 working → 完了/대기/blocked로 바뀐 순간에만 데스크톱 알림(자리비움 게이트는 notify IPC가 처리).
         // 이 콜백은 read(prev[p])~write(prev=…) 사이 await가 없어 원자적 — 동시 폴 2개여도 직렬 실행돼 한 전이가 두 번 안 울림.
+        // #973 "보고 있는 레포"면 알림 스킵 — 창 포커스 AND 그 레포가 활성 탭일 때(작업 지켜보는 중).
+        // 배경 레포(다른 탭) 또는 창 비포커스(다른 앱/화면)면 알림 O. 예전엔 창 포커스만 봐서 배경 레포 완료를 놓쳤음.
+        const focused = typeof document !== "undefined" && document.hasFocus();
+        const activeRepoPath = (() => { const at = tabs.find((x) => tabKey(x) === activeKeyRef.current); return at && at.type === "repo" ? at.path : null; })();
+        const gateOn = getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused); // 설정=보는 중 억제
         for (const [p, st] of entries) {
           if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
+            const watching = focused && p === activeRepoPath; // 지금 이 레포를 보고 있음
+            if (gateOn && watching) continue;                 // 보는 중이면 스킵
             const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
             const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
-            void desktopNotify({ title, body: name, suppressWhileFocused: getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) }); // focused 억제는 설정 따라(#928), 마스터/silent는 desktopNotify서(#939)
+            void desktopNotify({ title, body: name, suppressWhileFocused: false }); // 게이트는 여기서(watching) 처리 — IPC 포커스 억제 끔(배경 레포는 포커스여도 알림)
           }
         }
         prevRepoStatus.current = Object.fromEntries(entries);                      // 다음 비교 기준(중복 알림 방지)
