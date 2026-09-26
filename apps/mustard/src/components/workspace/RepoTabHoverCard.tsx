@@ -28,6 +28,19 @@ function rel(iso: string): string {
   return `${Math.floor(s / 86400)}d`;
 }
 const asAgentId = (s: string): AgentId => (Object.prototype.hasOwnProperty.call(AGENT_META, s) ? (s as AgentId) : "other");
+// 그 레포에서 현재 열린 터미널 탭 세션 id 집합(#968) — TerminalPane이 localStorage `nunopi:ws-terms:{cwd}`에
+// {tabs:[{id}]} 로 영속. 이 id가 곧 세션 id(= 상태 스토어 sessionId). 데몬 생존 유령(닫힌 탭 pty)을 호버서 제외하려고
+// "열린 탭에 있는 세션"만 남긴다. 키 없으면 null(폴백 = 필터 안 함).
+function openTermIds(repoPath: string): Set<string> | null {
+  try {
+    if (typeof localStorage === "undefined") return null;
+    const raw = localStorage.getItem(`nunopi:ws-terms:${repoPath}`);
+    if (!raw) return null;
+    const p = JSON.parse(raw) as { tabs?: Array<{ id?: unknown }> };
+    if (!Array.isArray(p.tabs)) return null;
+    return new Set(p.tabs.map((tb) => tb?.id).filter((x): x is string => typeof x === "string"));
+  } catch { return null; }
+}
 // 상대시각(ms 타임스탬프판) — since(stateStartedAt)용. "3s"/"5m"/"2h"/"4d".
 function relMs(ms?: number): string {
   if (!ms || !Number.isFinite(ms)) return "";
@@ -77,7 +90,12 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
     const inRepo = (cwd: string) => { const a = norm(cwd), b = norm(path); return a === b || a.startsWith(b + "/"); };
     const load = () => {
       fetch(`/api/agent/status?root=${encodeURIComponent(path)}`).then((r) => r.json()).then((j) => {
-        if (!alive) return; const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : []; setStatuses(ss); cacheMerge(path, { statuses: ss });
+        if (!alive) return;
+        const ss: AgentStatus[] = j?.ok ? (j.statuses ?? []) : [];
+        // #968 유령 제외 — 그 레포서 현재 열린 터미널 탭 세션만. 키 없으면(폴백) 전부.
+        const openIds = openTermIds(path);
+        const shown = openIds ? ss.filter((s) => openIds.has(s.sessionId)) : ss;
+        setStatuses(shown); cacheMerge(path, { statuses: shown });
       }).catch(() => { /* ignore */ });
     };
     void load();
