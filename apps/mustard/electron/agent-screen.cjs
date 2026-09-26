@@ -118,7 +118,9 @@ function parseAgentScreen(buffer) {
 
   // ── Claude ──────────────────────────────
   const claudeTitle = isSpinnerGlyph(tc) || isClaudeIdleGlyph(tc); // claude가 세팅한 상태 글리프 타이틀
-  const isClaude = claudeTitle || CLAUDE_CHROME.test(wide) || CLAUDE_WORKING.test(compact) || CLAUDE_WAITING.test(bottom) || CLAUDE_BG.test(compact);
+  // CLAUDE_BG는 isClaude 게이트에 넣지 않는다(#966 리뷰) — "running in the background" 등은 일반 셸 출력에도 나올 수 있어
+  // 그것만으로 claude 판정하면 오탐. claude 확정(title/chrome/working/waiting) 후 블록 안에서만 BG를 상태 신호로 쓴다.
+  const isClaude = claudeTitle || CLAUDE_CHROME.test(wide) || CLAUDE_WORKING.test(compact) || CLAUDE_WAITING.test(bottom);
   if (isClaude) {
     if (isSpinnerGlyph(tc)) return { agent: "claude", state: "working", task };             // 스피너 타이틀 = 지금 작업 중(최우선)
     // 백그라운드 셸 실행 중(#966) — idle-글리프(✳)·stale 권한 프롬프트 잔재보다 우선. 셸이 도는 한 "작업 중".

@@ -60,4 +60,8 @@ assert.strictEqual(st(bgManage), "claude/working", "bg 전환 오판: " + st(bgM
 const bgOverStaleWaiting = title(`${idleGlyph} task`) + `─────\nDoyouwanttoproceed?❯1.Yes2.No Esctocancel\n✻ Brewed for 1m · 2 shells still running\n❯ `;
 assert.strictEqual(st(bgOverStaleWaiting), "claude/working", "bg>stale waiting 실패: " + st(bgOverStaleWaiting));
 
+// #966 오탐 방지: claude chrome/title 없이 "running in the background" 문구만 있는 일반 셸 → null(claude 아님).
+const shellBgText = `hong@mac % ./deploy.sh\nStarting server, running in the background now.\nhong@mac % `;
+assert.strictEqual(st(shellBgText), null, "일반 셸의 bg 문구를 claude로 오판: " + st(shellBgText));
+
 console.log("PASS — all assertions");
