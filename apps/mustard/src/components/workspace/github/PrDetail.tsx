@@ -23,7 +23,7 @@ function stateLabel(d: GhPrDetail, t: (k: string) => string): { text: string; cl
   return { text: d.state, cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" };
 }
 
-export default function PrDetail({ root, number, reloadKey, onBack }: { root: string; number: number; reloadKey: number; onBack: () => void }) {
+export default function PrDetail({ root, number, reloadKey, host = "github", onBack }: { root: string; number: number; reloadKey: number; host?: "github" | "gitlab" | "other"; onBack: () => void }) {
   const t = useT();
   const [load, setLoad] = useState<Load>({ loading: true });
   const mountedRef = useRef(true);
@@ -63,18 +63,20 @@ export default function PrDetail({ root, number, reloadKey, onBack }: { root: st
   };
 
   useEffect(() => {
-    const gh = window.nunopiDesktop?.github;
+    const nd = window.nunopiDesktop;
+    // #964 host별 view — gitlab이면 glabMrView(GhPrDetail 정규화).
+    const view = host === "gitlab" ? nd?.integrations?.glabMrView : nd?.github?.prView;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 미지원(web)/로딩 표시(number 변경마다 재조회)
-    if (!gh?.prView) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
+    if (!view) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
     const myId = ++reqIdRef.current;
     setLoad((p) => ({ loading: true, data: p.data })); // 데이터 유지(새로고침·코멘트 후 화면 안 비게)
     (async () => {
-      const r = await gh.prView(root, number);
+      const r = await view(root, number);
       if (!mountedRef.current || myId !== reqIdRef.current) return;
       if (r.ok) setLoad({ loading: false, data: r.data });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, number, t, cmtNonce, reloadKey]);
+  }, [root, number, t, cmtNonce, reloadKey, host]);
 
   const d = load.data;
   const sl = d ? stateLabel(d, t) : null;

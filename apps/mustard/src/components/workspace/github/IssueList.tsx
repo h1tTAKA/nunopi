@@ -16,7 +16,7 @@ function StateDot({ state }: { state: string }) {
   return <span className={`mt-1 inline-block h-2 w-2 shrink-0 rounded-full ${open ? "bg-emerald-500" : "bg-purple-500"}`} aria-hidden />;
 }
 
-export default function IssueList({ root, reloadKey, onOpen }: { root: string; reloadKey: number; onOpen: (n: number) => void }) {
+export default function IssueList({ root, reloadKey, host = "github", onOpen }: { root: string; reloadKey: number; host?: "github" | "gitlab" | "other"; onOpen: (n: number) => void }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>("open");
   const [limit, setLimit] = useState(50); // 더 보기 페이지네이션(#813)
@@ -42,19 +42,21 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
   }, []);
 
   useEffect(() => {
-    const gh = window.nunopiDesktop?.github;
+    const nd = window.nunopiDesktop;
+    // #964 host별 — gitlab이면 glabIssueList(GhIssue 정규화), else github.issueList.
+    const list = host === "gitlab" ? nd?.integrations?.glabIssueList : nd?.github?.issueList;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 미지원(web)/로딩 표시(root/filter/reload 변경마다 재조회)
-    if (!gh?.issueList) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
+    if (!list) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
     const myId = ++reqIdRef.current; // 이 fetch의 세대
     setLoad((p) => ({ loading: true, rows: p.rows, hasMore: p.hasMore })); // 기존 rows·hasMore 유지(append 중 리스트·스피너 안 사라지게)
     (async () => {
-      const r = await gh.issueList(root, filter, limit);
+      const r = await list(root, filter, limit);
       if (!mountedRef.current || myId !== reqIdRef.current) return; // 언마운트/stale 결과 드롭
       // hasMore: 요청한 limit만큼 꽉 채워 왔으면 더 있을 수 있음(rows.length는 로딩 중 옛값이라 조건에 못 씀).
       if (r.ok) setLoad({ loading: false, rows: r.data, hasMore: r.data.length >= limit && limit < 1000 });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, filter, limit, reloadKey, localReload, t]);
+  }, [root, filter, limit, reloadKey, localReload, host, t]);
 
   // 무한 스크롤(#813) — 하단 sentinel이 보이면 limit +50. 로딩 중/더 없음이면 스킵(최신 상태는 ref로 읽음).
   // sentinel은 rows 로드 후에야 렌더되므로 콜백 ref로 부착(마운트 시엔 없어서 useEffect론 못 잡음).
@@ -86,10 +88,12 @@ export default function IssueList({ root, reloadKey, onOpen }: { root: string; r
             {t(f === "open" ? "github.filterOpen" : f === "closed" ? "github.filterClosed" : "github.filterAll")}
           </button>
         ))}
+        {host === "github" ? (
         <button type="button" onClick={() => setComposing(true)} title={t("github.createIssue")} aria-label={t("github.createIssue")}
           className="ml-auto rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
           <IconPlus size={14} aria-hidden />
         </button>
+        ) : null}
       </div>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {load.loading && !load.rows?.length ? (

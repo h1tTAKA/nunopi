@@ -14,7 +14,7 @@ import ReactionBar from "@/components/workspace/github/ReactionBar";
 
 type Load = { loading: boolean; data?: GhIssueDetail; error?: string };
 
-export default function IssueDetail({ root, number, reloadKey, onBack }: { root: string; number: number; reloadKey: number; onBack: () => void }) {
+export default function IssueDetail({ root, number, reloadKey, host = "github", onBack }: { root: string; number: number; reloadKey: number; host?: "github" | "gitlab" | "other"; onBack: () => void }) {
   const t = useT();
   const [load, setLoad] = useState<Load>({ loading: true });
   const mountedRef = useRef(true);
@@ -44,18 +44,20 @@ export default function IssueDetail({ root, number, reloadKey, onBack }: { root:
   };
 
   useEffect(() => {
-    const gh = window.nunopiDesktop?.github;
+    const nd = window.nunopiDesktop;
+    // #964 host별 view — gitlab이면 glabIssueView(GhIssueDetail 정규화).
+    const view = host === "gitlab" ? nd?.integrations?.glabIssueView : nd?.github?.issueView;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 미지원(web)/로딩 표시(number 변경마다 재조회)
-    if (!gh?.issueView) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
+    if (!view) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
     const myId = ++reqIdRef.current;
     setLoad((p) => ({ loading: true, data: p.data })); // 데이터 유지(새로고침·코멘트 후 화면 안 비게)
     (async () => {
-      const r = await gh.issueView(root, number);
+      const r = await view(root, number);
       if (!mountedRef.current || myId !== reqIdRef.current) return; // 언마운트/stale 결과 드롭
       if (r.ok) setLoad({ loading: false, data: r.data });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, number, t, cmtNonce, reloadKey]);
+  }, [root, number, t, cmtNonce, reloadKey, host]);
 
   const d = load.data;
   return (

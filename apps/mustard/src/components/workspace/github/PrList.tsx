@@ -20,7 +20,7 @@ function prColor(pr: GhPr): string {
   return "bg-emerald-500"; // OPEN
 }
 
-export default function PrList({ root, reloadKey, onOpen }: { root: string; reloadKey: number; onOpen: (n: number) => void }) {
+export default function PrList({ root, reloadKey, host = "github", onOpen }: { root: string; reloadKey: number; host?: "github" | "gitlab" | "other"; onOpen: (n: number) => void }) {
   const t = useT();
   const [filter, setFilter] = useState<Filter>("open");
   const [limit, setLimit] = useState(50);
@@ -45,18 +45,20 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
   }, []);
 
   useEffect(() => {
-    const gh = window.nunopiDesktop?.github;
+    const nd = window.nunopiDesktop;
+    // #964 host별 — gitlab이면 glabMrList(GhPr 정규화), else github.prList.
+    const list = host === "gitlab" ? nd?.integrations?.glabMrList : nd?.github?.prList;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- 미지원(web)/로딩 표시(root/filter/limit/reload 변경마다 재조회)
-    if (!gh?.prList) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
+    if (!list) { setLoad({ loading: false, error: t("github.desktopOnly") }); return; }
     const myId = ++reqIdRef.current;
     setLoad((p) => ({ loading: true, rows: p.rows, hasMore: p.hasMore }));
     (async () => {
-      const r = await gh.prList(root, filter, limit);
+      const r = await list(root, filter, limit);
       if (!mountedRef.current || myId !== reqIdRef.current) return;
       if (r.ok) setLoad({ loading: false, rows: r.data, hasMore: r.data.length >= limit && limit < 1000 });
       else setLoad({ loading: false, error: r.detail || t("github.error") });
     })();
-  }, [root, filter, limit, reloadKey, localReload, t]);
+  }, [root, filter, limit, reloadKey, localReload, host, t]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -85,10 +87,12 @@ export default function PrList({ root, reloadKey, onOpen }: { root: string; relo
             {t(f === "open" ? "github.filterOpen" : f === "closed" ? "github.filterClosed" : "github.filterAll")}
           </button>
         ))}
-        <button type="button" onClick={() => setComposing(true)} title={t("github.createPr")} aria-label={t("github.createPr")}
-          className="ml-auto rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-          <IconPlus size={14} aria-hidden />
-        </button>
+        {host === "github" ? (
+          <button type="button" onClick={() => setComposing(true)} title={t("github.createPr")} aria-label={t("github.createPr")}
+            className="ml-auto rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+            <IconPlus size={14} aria-hidden />
+          </button>
+        ) : null}
       </div>
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
         {load.loading && !load.rows?.length ? (

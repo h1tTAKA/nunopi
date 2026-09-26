@@ -3,7 +3,7 @@
 // 이번 서브는 골격: gh 연결 상태(서브1 #810 authDiagnose) 진단 + owner/repo 표시 + 안내.
 // 실제 이슈·PR·CI는 서브3~5(#812/#813/#814)가 이 자리에 채운다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconBrandGithub, IconLoader2, IconRefresh, IconAlertTriangle } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandGitlab, IconLoader2, IconRefresh, IconAlertTriangle } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 import IssueList from "@/components/workspace/github/IssueList";
 import IssueDetail from "@/components/workspace/github/IssueDetail";
@@ -19,6 +19,7 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
   const t = useT();
   const [probe, setProbe] = useState<Probe>({ loading: true });
   const [owner, setOwner] = useState<string | null>(null);
+  const [host, setHost] = useState<"github" | "gitlab" | "other">("github"); // #964 origin 호스트
   const [open, setOpen] = useState<OpenItem | null>(null); // 상세 열림. null=반반 목록(#824).
   const [reload, setReload] = useState(0); // 헤더 새로고침 → 목록 재조회 트리거.
   // 토큰(PAT) 폴백(#826) — 미인증 시 토큰 연결. hasToken=저장됨(값 비노출), tokenVal=입력중, tokenBusy=저장중.
@@ -55,17 +56,27 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
-  const run = useCallback(async () => {
-    const gh = window.nunopiDesktop?.github;
-    if (!gh?.auth || !root) { setProbe({ loading: false, state: "error", detail: t("github.desktopOnly") }); return; }
+  // #964 host별 진단 — gitlab이면 glabStatus, else gh auth.
+  const run = useCallback(async (h: "github" | "gitlab" | "other" = "github") => {
+    const nd = window.nunopiDesktop;
+    if (!root) { setProbe({ loading: false, state: "error", detail: t("github.desktopOnly") }); return; }
     setProbe({ loading: true });
     try {
-      const r = await gh.auth(root);
-      if (mountedRef.current) setProbe({ loading: false, state: r.state, detail: r.detail }); // 언마운트 후 setState 방지(리뷰 🔴)
+      if (h === "gitlab") {
+        const int = nd?.integrations;
+        if (!int?.glabStatus) { if (mountedRef.current) setProbe({ loading: false, state: "error", detail: t("github.desktopOnly") }); return; }
+        const r = await int.glabStatus(root);
+        if (mountedRef.current) setProbe({ loading: false, state: r.state, detail: r.detail });
+      } else {
+        const gh = nd?.github;
+        if (!gh?.auth) { if (mountedRef.current) setProbe({ loading: false, state: "error", detail: t("github.desktopOnly") }); return; }
+        const r = await gh.auth(root);
+        if (mountedRef.current) setProbe({ loading: false, state: r.state, detail: r.detail });
+      }
     } catch (e) {
       if (mountedRef.current) setProbe({ loading: false, state: "error", detail: String((e as Error)?.message || e) });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- t 제외: 로케일 전환 시 gh 재진단 유발 방지(에러 문자열만 영향, JSX 라벨은 live t로 리렌더)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t 제외: 로케일 전환 시 재진단 방지
   }, [root]);
 
   // 토큰 존재 여부 로드(#826) — 마운트 시 1회.
@@ -82,30 +93,31 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
     try {
       const r = await window.nunopiDesktop?.github?.setToken?.(tok);
       if (!mountedRef.current) return;
-      if (r?.ok) { setHasToken(true); setTokenVal(""); void run(); }
+      if (r?.ok) { setHasToken(true); setTokenVal(""); void run(host); }
       else setTokenErr(r?.detail || t("github.error"));
     } catch (e) { if (mountedRef.current) setTokenErr(String((e as Error)?.message || e)); }
     finally { if (mountedRef.current) setTokenBusy(false); }
-  }, [tokenVal, tokenBusy, run, t]);
+  }, [tokenVal, tokenBusy, run, host, t]);
   // 토큰 해제 → 재진단(#826).
   const clearToken = useCallback(async () => {
     setTokenBusy(true); setTokenErr(null);
-    try { await window.nunopiDesktop?.github?.clearToken?.(); if (mountedRef.current) { setHasToken(false); void run(); } }
+    try { await window.nunopiDesktop?.github?.clearToken?.(); if (mountedRef.current) { setHasToken(false); void run(host); } }
     catch (e) { if (mountedRef.current) setTokenErr(String((e as Error)?.message || e)); }
     finally { if (mountedRef.current) setTokenBusy(false); }
-  }, [run]);
+  }, [run, host]);
 
-  // owner는 git-remote route(#777) 재사용, gh 인증은 서브1 브릿지. root 바뀌면 재진단.
+  // owner·host는 git-remote route(#777/#964)로 판정 후, 그 host에 맞게 진단. root 바뀌면 재실행.
   useEffect(() => {
     let alive = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- run이 진단 중 로딩 표시로 setState(마운트/root 변경 시 재진단)
-    void run();
     (async () => {
+      let h: "github" | "gitlab" | "other" = "github";
       try {
         const rs = await fetch("/api/repo/git-remote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root }) });
         const d = await rs.json();
-        if (alive) setOwner(rs.ok ? (d.owner ?? null) : null);
-      } catch { if (alive) setOwner(null); }
+        if (alive) { setOwner(rs.ok ? (d.owner ?? null) : null); h = (rs.ok && d.host) || "github"; setHost(h); }
+      } catch { if (alive) { setOwner(null); setHost("github"); } }
+      // host 판정 후 진단(gitlab이면 glab). other는 github로 폴백(기존 동작).
+      if (alive) void run(h === "gitlab" ? "gitlab" : "github");
     })();
     return () => { alive = false; };
   }, [root, run]);
@@ -114,12 +126,14 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
     <div className="flex h-full min-h-0 flex-col">
       {/* 헤더 — 레포 식별 + 새로고침 */}
       <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-1.5 dark:border-zinc-800">
-        <IconBrandGithub size={14} stroke={2} className="shrink-0 text-zinc-700 dark:text-zinc-200" aria-hidden />
+        {host === "gitlab"
+          ? <IconBrandGitlab size={14} stroke={2} className="shrink-0 text-orange-500" aria-hidden />
+          : <IconBrandGithub size={14} stroke={2} className="shrink-0 text-zinc-700 dark:text-zinc-200" aria-hidden />}
         <span className="min-w-0 truncate text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">
-          {owner ? `${owner}/${repo ?? ""}` : (repo ?? "GitHub")}
+          {owner ? `${owner}/${repo ?? ""}` : (repo ?? (host === "gitlab" ? "GitLab" : "GitHub"))}
         </span>
         {/* 유일한 새로고침(#820) — 목록·상세·상태 다 갱신(reload를 자식에 전달). */}
-        <button type="button" onClick={() => { setReload((n) => n + 1); void run(); }} disabled={probe.loading}
+        <button type="button" onClick={() => { setReload((n) => n + 1); void run(host); }} disabled={probe.loading}
           className="ml-auto shrink-0 rounded p-1 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 disabled:opacity-40 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           title={t("github.refresh")} aria-label={t("github.refresh")}>
           <IconRefresh size={13} stroke={2} className={probe.loading ? "animate-spin" : ""} aria-hidden />
@@ -139,7 +153,7 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
               <div className="flex shrink-0 items-center gap-1.5 bg-zinc-50 px-3 py-1 text-[11px] font-semibold text-zinc-500 dark:bg-zinc-900/40 dark:text-zinc-400">
                 {t("github.issues")}
               </div>
-              <div className="min-h-0 flex-1"><IssueList root={root} reloadKey={reload} onOpen={(n) => setOpen({ kind: "issue", number: n })} /></div>
+              <div className="min-h-0 flex-1"><IssueList root={root} reloadKey={reload} host={host} onOpen={(n) => setOpen({ kind: "issue", number: n })} /></div>
             </section>
             {/* 드래그 핸들 — 가운데 선. 잡고 위아래로 끌면 비율 변경. */}
             <div role="separator" aria-orientation="horizontal" onMouseDown={onDragDivider}
@@ -151,15 +165,15 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
                 {t("github.prs")}
                 {ciDot && <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${ciDot === "running" ? "animate-pulse bg-amber-400" : ciDot === "failure" ? "bg-rose-500" : "bg-emerald-500"}`} />}
               </div>
-              <div className="min-h-0 flex-1"><PrList root={root} reloadKey={reload} onOpen={(n) => setOpen({ kind: "pr", number: n })} /></div>
+              <div className="min-h-0 flex-1"><PrList root={root} reloadKey={reload} host={host} onOpen={(n) => setOpen({ kind: "pr", number: n })} /></div>
             </section>
           </div>
         ) : (
           /* 상세 — 전체 차지(#824). 뒤로가기로 반반 목록 복귀. */
           <div className="min-h-0 flex-1">
             {open.kind === "issue"
-              ? <IssueDetail key={`issue-${open.number}`} root={root} number={open.number} reloadKey={reload} onBack={() => setOpen(null)} />
-              : <PrDetail key={`pr-${open.number}`} root={root} number={open.number} reloadKey={reload} onBack={() => setOpen(null)} />}
+              ? <IssueDetail key={`issue-${open.number}`} root={root} number={open.number} reloadKey={reload} host={host} onBack={() => setOpen(null)} />
+              : <PrDetail key={`pr-${open.number}`} root={root} number={open.number} reloadKey={reload} host={host} onBack={() => setOpen(null)} />}
           </div>
         )
       ) : (
@@ -177,13 +191,13 @@ export default function GithubPanel({ root, ciDot }: { root: string; ciDot?: CiD
                 {probe.detail && <p className="mt-1 break-words text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">{probe.detail}</p>}
               </div>
             </div>
-            <button type="button" onClick={run}
+            <button type="button" onClick={() => void run(host)}
               className="self-start rounded-md border border-zinc-200 px-2.5 py-1 text-[11px] font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">
               {t("github.retry")}
             </button>
             {/* 토큰(PAT) 폴백(#826) — gh 미설치가 아니면 토큰으로 연결. 이 에러 화면에 있다는 건 아직 인증 안 됐다는 뜻
                 → 항상 입력 노출(교체 가능). 저장된 토큰이 있는데 여기 왔으면 그 토큰이 인증 실패한 것. */}
-            {probe.state !== "not-installed" && (
+            {host === "github" && probe.state !== "not-installed" && (
               <div className="mt-1 flex flex-col gap-1.5 border-t border-zinc-100 pt-3 dark:border-zinc-800/60">
                 {hasToken && (
                   <div className="flex items-center gap-2 text-[11px]">
