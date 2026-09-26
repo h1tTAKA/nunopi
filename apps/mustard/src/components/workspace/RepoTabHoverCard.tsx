@@ -144,7 +144,7 @@ export default function RepoTabHoverCard({ path, left, top, onMouseEnter, onMous
             const sub = h.state === "working" && h.tool ? (h.toolInput ? `${h.tool}: ${h.toolInput}` : h.tool) : "";
             const age = relMs(h.since);
             return (
-              <div key={`s${i}`}>
+              <div key={h.sessionId || `s${i}`}>
                 <div className="flex items-center gap-2 text-[12px] text-zinc-700 dark:text-zinc-200">
                   <span className={`flex shrink-0 items-center ${STATE_TEXT[h.state]}`}>{stateIcon(h.state)}</span>
                   <AgentLogo agent={id} size={14} />
