@@ -908,10 +908,17 @@ function agentForId(id, proc, screen) {
   if (agentSticky.has(id)) return agentSticky.get(id); // 배너 스크롤아웃 등 transient null → 마지막 신원 유지
   return null;
 }
+// 세션 작업 제목(#970) — OSC 타이틀 요약(parseAgentScreen task). 탭 라벨·호버 이름용. 셸이면 "".
+// agent 판정과 동일 소스(liveBuffers 우선, 데몬 screen 폴백). 배너 스크롤아웃 등 미판정 시 "".
+function sessionTitleFor(id, proc, screen) {
+  if (proc !== undefined && isShellProc(proc)) return "";
+  const parsed = parseAgentScreen(liveBuffers.get(id) ?? screen);
+  return (parsed && parsed.task) ? parsed.task : "";
+}
 ipcMain.handle("terminal:list", async () => {
-  const ss = await termClient.list(); // 세션 목록(#764) — 레포탭 호버 카드 + 탭 이름(#803)
+  const ss = await termClient.list(); // 세션 목록(#764) — 레포탭 호버 카드 + 탭 이름(#803) + 세션 제목(#970)
   // 비활성 탭도 검출: 데몬 screen(buffer tail)을 힌트로 agentForId에 전달(#836/#840). screen은 검출용, 렌더러 미전송(누출 방지).
-  return ss.map(({ screen, ...s }) => ({ ...s, agent: agentForId(s.id, s.process, screen) }));
+  return ss.map(({ screen, ...s }) => ({ ...s, agent: agentForId(s.id, s.process, screen), sessionTitle: sessionTitleFor(s.id, s.process, screen) }));
 });
 
 // ── 포트 패널(#880) — 워크스페이스가 띄운 dev 서버 리스닝 포트 감지. lsof(포트+PID)+세션PID+ps(ppid) 귀속.
