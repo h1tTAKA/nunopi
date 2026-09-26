@@ -61,6 +61,10 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
   // 연동 확장(#960) — GitLab glab 감지 + bitbucket/azure 토큰.
   integrations: {
     glabStatus: (cwd) => ipcRenderer.invoke("integrations:glab-status", { cwd }),
+    glabMrList: (cwd, state, limit) => ipcRenderer.invoke("integrations:glab-mr-list", { cwd, state, limit }),  // #964 GhPr[] 정규화
+    glabMrView: (cwd, number) => ipcRenderer.invoke("integrations:glab-mr-view", { cwd, number }),
+    glabIssueList: (cwd, state, limit) => ipcRenderer.invoke("integrations:glab-issue-list", { cwd, state, limit }),
+    glabIssueView: (cwd, number) => ipcRenderer.invoke("integrations:glab-issue-view", { cwd, number }),
     setToken: (host, token) => ipcRenderer.invoke("integrations:set-token", { host, token }),
     tokenStatus: (host) => ipcRenderer.invoke("integrations:token-status", { host }),
     clearToken: (host) => ipcRenderer.invoke("integrations:clear-token", { host }),

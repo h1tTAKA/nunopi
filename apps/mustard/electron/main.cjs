@@ -377,6 +377,41 @@ ipcMain.handle("github:clear-token", () => { clearGhToken(); return { ok: true }
 
 // 연동 확장(#960) — GitLab glab 감지(authDiagnose 재사용) + bitbucket/azure 토큰.
 ipcMain.handle("integrations:glab-status", (_e, { cwd } = {}) => githubBridge.authDiagnose({ gh: glabExe(), cwd: cwd || undefined, env: undefined }));
+
+// GitLab 조회(#964) — glab JSON을 GitHub 형태(GhPr/GhIssue)로 정규화해 UI 재사용.
+function glState(s) { const v = String(s || "").toLowerCase(); return v === "merged" ? "MERGED" : v === "closed" ? "CLOSED" : "OPEN"; } // opened/locked → OPEN
+function glActor(a) { return { login: a?.username || a?.name || "", name: a?.name }; }
+function glLabels(ls) { return (Array.isArray(ls) ? ls : []).map((l) => ({ name: typeof l === "string" ? l : (l?.name || ""), color: (l && l.color) || "" })); }
+function mapGlMr(m) { return { number: m.iid, title: m.title || "", state: glState(m.state), isDraft: !!(m.draft || m.work_in_progress), author: glActor(m.author), createdAt: m.created_at || "", updatedAt: m.updated_at || "", statusCheckRollup: [] }; }
+function mapGlIssue(i) { return { number: i.iid, title: i.title || "", state: glState(i.state), labels: glLabels(i.labels), author: glActor(i.author), createdAt: i.created_at || "", updatedAt: i.updated_at || "" }; }
+async function glJsonList(cwd, args, mapper) {
+  const r = await githubBridge.ghJson({ gh: glabExe(), cwd: cwd || undefined, env: undefined, args });
+  if (!r.ok) return r;
+  return { ok: true, data: (Array.isArray(r.data) ? r.data : []).map(mapper) };
+}
+async function glJsonOne(cwd, args, mapper) {
+  const r = await githubBridge.ghJson({ gh: glabExe(), cwd: cwd || undefined, env: undefined, args });
+  if (!r.ok) return r;
+  return { ok: true, data: mapper(r.data) };
+}
+// glab state 인자: opened/closed/merged/all(gh와 다름). gh 필터(open/closed/all) → glab 매핑.
+function glStateArg(state) { return state === "closed" ? "closed" : state === "all" ? "all" : "opened"; }
+ipcMain.handle("integrations:glab-mr-list", (_e, { cwd, state, limit }) => {
+  const lim = Math.min(Math.max(Number(limit) || 50, 1), 1000);
+  return glJsonList(cwd, ["mr", "list", "--output", "json", "--state", glStateArg(state), "--per-page", String(lim)], mapGlMr);
+});
+ipcMain.handle("integrations:glab-mr-view", (_e, { cwd, number }) => {
+  const n = Number(number); if (!Number.isInteger(n) || n <= 0) return { ok: false, kind: "error", detail: "invalid mr number" };
+  return glJsonOne(cwd, ["mr", "view", String(n), "--output", "json"], (m) => ({ ...mapGlMr(m), assignees: (m.assignees || []).map(glActor), body: m.description || "", comments: [], mergeStateStatus: "", url: m.web_url || "", reactionGroups: [] }));
+});
+ipcMain.handle("integrations:glab-issue-list", (_e, { cwd, state, limit }) => {
+  const lim = Math.min(Math.max(Number(limit) || 50, 1), 1000);
+  return glJsonList(cwd, ["issue", "list", "--output", "json", "--state", glStateArg(state), "--per-page", String(lim)], mapGlIssue);
+});
+ipcMain.handle("integrations:glab-issue-view", (_e, { cwd, number }) => {
+  const n = Number(number); if (!Number.isInteger(n) || n <= 0) return { ok: false, kind: "error", detail: "invalid issue number" };
+  return glJsonOne(cwd, ["issue", "view", String(n), "--output", "json"], (i) => ({ ...mapGlIssue(i), assignees: (i.assignees || []).map(glActor), milestone: i.milestone ? { title: i.milestone.title } : null, body: i.description || "", comments: [], url: i.web_url || "", reactionGroups: [] }));
+});
 ipcMain.handle("integrations:set-token", (_e, { host, token }) => {
   if (!TOKEN_HOSTS.includes(host)) return { ok: false, detail: "invalid host" };
   if (typeof token !== "string" || !token.trim()) return { ok: false, detail: "빈 토큰" };

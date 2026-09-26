@@ -79,6 +79,11 @@ interface NunopiDesktopApi {
   // 연동 확장(#960) — GitLab glab 감지 + bitbucket/azure 토큰(safeStorage).
   integrations?: {
     glabStatus(cwd?: string): Promise<{ state: "ok" | "not-installed" | "not-authed" | "rate-limited" | "error"; detail?: string }>;
+    // GitLab 조회(#964) — glab JSON을 GhPr/GhIssue로 정규화 반환(UI 재사용). cwd=레포 경로.
+    glabMrList(cwd: string, state?: "open" | "closed" | "all", limit?: number): Promise<GhResult<GhPr[]>>;
+    glabMrView(cwd: string, number: number): Promise<GhResult<GhPrDetail>>;
+    glabIssueList(cwd: string, state?: "open" | "closed" | "all", limit?: number): Promise<GhResult<GhIssue[]>>;
+    glabIssueView(cwd: string, number: number): Promise<GhResult<GhIssueDetail>>;
     setToken(host: "bitbucket" | "azure" | "vercel" | "supabase", token: string): Promise<{ ok: boolean; detail?: string }>;
     tokenStatus(host: "bitbucket" | "azure" | "vercel" | "supabase"): Promise<{ hasToken: boolean }>;
     clearToken(host: "bitbucket" | "azure" | "vercel" | "supabase"): Promise<{ ok: boolean }>;
