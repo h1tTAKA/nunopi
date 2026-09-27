@@ -70,9 +70,9 @@ const CLAUDE_CHROME = /esctointerrupt|\?forshortcuts|claudecode|bypasspermission
 // 백그라운드 셸 실행 중(#966) — claude가 ctrl+b로 bash를 백그라운드로 돌리면 TUI는 idle 프롬프트로 복귀하지만
 // 상태줄에 "· N shell(s) still running" 접미 또는 "Running in the background (↓ to manage)"를 남긴다.
 // 이 신호가 최신 compact tail에 있으면 셸이 아직 돌고 있으니 "작업 중"으로 봐야 한다(idle→done 오표시 방지).
-// #979 백그라운드 에이전트 대기도 작업중 — 메인이 서브를 기다리며 idle(✳)이 되면 done→알림 오발. 실측 신호:
-//   "✻ Waiting for 2 backround agents to finish"(claude 표기 오타 backround 포함) · 푸터 목록 "◯ general-purpose …"(◯=도는 서브).
-const CLAUDE_BG = /\d+shells?stillrunning|runninginthebackground|waitingfor\d+backg?roundagents?|◯[a-z][a-z0-9:_-]*/i;
+const CLAUDE_BG = /\d+shells?stillrunning|runninginthebackground/i;
+// #979 백그라운드 '에이전트' 대기는 화면 신호로 안 잡음 — 푸터 ◯ 목록·Waiting 문구가 끝난 뒤에도 스크롤백 잔재로 남아
+// 메인이 영원히 working으로 보였음. 대신 status route가 트랜스크립트(서브 jsonl+부모 종료 알림)로 판정.
 
 // codex(보조 — 유저 주력은 claude). 출처: herdr codex.toml.
 const CODEX_WAITING = /actionrequired|allowcommand\?|pressentertoconfirmoresctocancel|doyoutrustthecontentsofthisdirectory|\[y\/n\]|yes\(y\)/i;
