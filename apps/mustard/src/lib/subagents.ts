@@ -38,6 +38,22 @@ export function isDone(tail: string): boolean {
   return false;
 }
 
+// #979 부모 트랜스크립트 tail서 끝난 서브(백그라운드) toolUseId — queue-operation의 <task-notification>에
+// <tool-use-id>…</tool-use-id> + <status>completed|failed|killed</status>. 중지(killed)된 서브는 end_turn이 없어 이게 유일한 종료 신호.
+export function endedToolUseIds(tail: string): Set<string> {
+  const out = new Set<string>();
+  for (const l of tail.split("\n")) {
+    if (!l.includes("task-notification")) continue;
+    try {
+      const d = JSON.parse(l);
+      const c = typeof d.content === "string" ? d.content : "";
+      const id = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(c)?.[1];
+      if (id && /<status>(completed|failed|killed)<\/status>/.test(c)) out.add(id);
+    } catch { /* 잘린 줄 */ }
+  }
+  return out;
+}
+
 async function readTail(path: string, bytes: number): Promise<string> {
   const fh = await fs.open(path, "r");
   try {
@@ -50,7 +66,7 @@ async function readTail(path: string, bytes: number): Promise<string> {
 }
 
 // 세션 선택 — 최근 24h 수정된 jsonl 중 ai-title == title, 없으면 최신.
-async function pickSession(dir: string, title: string): Promise<string | null> {
+async function pickSession(dir: string, title: string): Promise<{ sid: string; tail: string } | null> {
   let names: string[];
   try { names = (await fs.readdir(dir)).filter((n) => n.endsWith(".jsonl")); } catch { return null; }
   const now = Date.now();
@@ -61,9 +77,10 @@ async function pickSession(dir: string, title: string): Promise<string | null> {
   if (!cands.length || !want) return null;
   for (const c of cands) {
     try {
-      const t = lastAiTitle(await readTail(join(dir, c.n), 256 * 1024)).trim();
+      const tail = await readTail(join(dir, c.n), 512 * 1024);
+      const t = lastAiTitle(tail).trim();
       // 정확 또는 접두 일치(OSC 타이틀이 잘렸을 수 있음). 최신 폴백은 안 함 — 같은 cwd 다른 세션 서브를 잘못 보여주는 것보다 안 보여주는 게 낫다(리뷰 🟡).
-      if (t && (t === want || t.startsWith(want) || want.startsWith(t))) return c.n.slice(0, -6);
+      if (t && (t === want || t.startsWith(want) || want.startsWith(t))) return { sid: c.n.slice(0, -6), tail };
     } catch { /* skip */ }
   }
   return null;
@@ -71,9 +88,10 @@ async function pickSession(dir: string, title: string): Promise<string | null> {
 
 export async function listSubagents(cwd: string, title: string): Promise<SubagentInfo[]> {
   const dir = projectDirFor(cwd);
-  const sid = await pickSession(dir, title);
-  if (!sid) return [];
-  const sub = join(dir, sid, "subagents");
+  const picked = await pickSession(dir, title);
+  if (!picked) return [];
+  const ended = endedToolUseIds(picked.tail);
+  const sub = join(dir, picked.sid, "subagents");
   let metas: string[];
   try { metas = (await fs.readdir(sub)).filter((n) => n.endsWith(".meta.json")); } catch { return []; }
   const now = Date.now();
@@ -88,9 +106,9 @@ export async function listSubagents(cwd: string, title: string): Promise<Subagen
       const age = now - st.mtimeMs;
       if (age > (hasJl ? STALE_MS : META_ONLY_MS)) return null; // 오래 조용한 건 읽기 전에 컷(실행중이면 계속 기록해 여기 안 걸림)
       const last = hasJl ? await readTail(jl, 64 * 1024) : "";
-      const done = hasJl && isDone(last);
-      if (done && age > DONE_LINGER_MS) return null; // 완료는 잠깐만 표시 후 숨김
       const meta = JSON.parse(await fs.readFile(join(sub, m), "utf8"));
+      const done = (hasJl && isDone(last)) || ended.has(String(meta.toolUseId ?? "")); // end_turn 또는 부모 알림(완료·실패·중지)
+      if (done && age > DONE_LINGER_MS) return null; // 완료는 잠깐만 표시 후 숨김
       return {
         id: id.replace(/^agent-/, ""),
         agentType: String(meta.agentType ?? ""),
