@@ -9,6 +9,7 @@ export interface SubagentInfo { id: string; agentType: string; description: stri
 const RECENT_DONE_MS = 10 * 60 * 1000; // 종료 후 이 시간까지만 표시
 const STALE_MS = 5 * 60 * 1000;        // 미완료인데 이만큼 갱신 없으면 중단(스테일)으로 간주
 const MAX_ITEMS = 20;
+const META_ONLY_MS = 30 * 60 * 1000;   // jsonl 없는(meta만) 서브 표시 창 — 백그라운드 장기 작업 대비
 
 // Claude Code 프로젝트 폴더명 — cwd의 영숫자 외 문자를 "-"로(예: /Users/a/b c → -Users-a-b-c).
 export const projectDirFor = (cwd: string) => join(homedir(), ".claude", "projects", cwd.replace(/\/+$/, "").replace(/[^a-zA-Z0-9]/g, "-"));
@@ -73,17 +74,19 @@ export async function listSubagents(cwd: string, title: string): Promise<Subagen
     const id = m.slice(0, -".meta.json".length);
     const jl = join(sub, id + ".jsonl");
     try {
-      const st = await fs.stat(jl);
+      // #979 jsonl이 없고 meta만 있는 경우(트랜스크립트 저장 꺼진 세션·생성 직후) — meta 시각으로 대체, 완료 판정 불가라 last="".
+      const hasJl = await fs.stat(jl).then(() => true, () => false);
+      const st = await fs.stat(hasJl ? jl : join(sub, m));
       const age = now - st.mtimeMs;
-      if (age > RECENT_DONE_MS) return null; // 오래된 건 읽기 전에 컷
-      const last = (await readTail(jl, 64 * 1024)).trimEnd().split("\n").pop() ?? "";
+      if (age > (hasJl ? RECENT_DONE_MS : META_ONLY_MS)) return null; // 오래된 건 읽기 전에 컷
+      const last = hasJl ? (await readTail(jl, 64 * 1024)).trimEnd().split("\n").pop() ?? "" : "";
       const meta = JSON.parse(await fs.readFile(join(sub, m), "utf8"));
       return {
         id: id.replace(/^agent-/, ""),
         agentType: String(meta.agentType ?? ""),
         description: String(meta.description ?? ""),
         depth: Number(meta.spawnDepth) || 1,
-        running: !isDone(last) && age < STALE_MS,
+        running: hasJl ? !isDone(last) && age < STALE_MS : age < META_ONLY_MS, // meta만이면 갱신 신호가 없어 표시 창 내 실행중 간주
         startedAt: st.birthtimeMs || st.mtimeMs,
         updatedAt: st.mtimeMs,
       };
