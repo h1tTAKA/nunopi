@@ -64,4 +64,13 @@ assert.strictEqual(st(bgOverStaleWaiting), "claude/working", "bg>stale waiting �
 const shellBgText = `hong@mac % ./deploy.sh\nStarting server, running in the background now.\nhong@mac % `;
 assert.strictEqual(st(shellBgText), null, "일반 셸의 bg 문구를 claude로 오판: " + st(shellBgText));
 
+// #979 백그라운드 에이전트 대기 — idle 글리프(✳)여도 "Waiting for N backround agents" / 푸터 ◯ 목록이면 working.
+const bgAgentsWait = title(`${idleGlyph} 게임 개발`) + `✻ Waiting for 2 backround agents to finish\n──────\n❯ \n⏵⏵ auto mode on · ← for agents`;
+assert.strictEqual(st(bgAgentsWait), "claude/working", "bg 에이전트 대기 오판: " + st(bgAgentsWait));
+const bgAgentsFooter = title(`${idleGlyph} task`) + `──────\n❯ \n? for shortcuts\n⏺ main\n◯ general-purpose Audit B merged work wiring  24s · ↓ 45.3k tokens`;
+assert.strictEqual(st(bgAgentsFooter), "claude/working", "bg 에이전트 푸터 오판: " + st(bgAgentsFooter));
+// 에이전트 다 끝나 푸터 목록 없으면 idle 유지(회귀)
+const agentsDone = title(`${idleGlyph} task`) + `──────\n❯ \n? for shortcuts\n⏺ main`;
+assert.strictEqual(st(agentsDone), "claude/idle", "에이전트 종료 후 idle 오판: " + st(agentsDone));
+
 console.log("PASS — all assertions");
