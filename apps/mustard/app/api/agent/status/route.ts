@@ -2,6 +2,7 @@
 // 레포탭/호버 카드가 GET(폴백)·SSE(실시간)로 읽는다. 저장·푸시 로직은 @mustard/nunopi/agent(agentStatus) 싱글턴.
 import { upsert, query, emit, remove, normPath, prune, type AgentState } from "@mustard/nunopi/agent";
 import { emitEdit } from "@/lib/mcpActivity";
+import { listSubagents } from "@/lib/subagents";
 
 export const runtime = "nodejs";
 
@@ -50,8 +51,16 @@ export async function POST(request: Request): Promise<Response> {
   const explicit = typeof body.state === "string" && (VALID as string[]).includes(body.state) ? (body.state as AgentState) : null;
   if (!cwd || (!event && !explicit)) return Response.json({ error: "cwd and (event or state) required" }, { status: 400 });
   const now = Date.now();
-  const state = explicit ?? deriveState(event);
+  let state = explicit ?? deriveState(event);
   if (state === null) { prune(now); return Response.json({ ok: true, ignored: event }); }
+  // #979 메인 claude가 백그라운드 서브에이전트를 기다리며 idle이면 화면상 done이지만 실제론 작업 중 —
+  // 트랜스크립트(subagents/*.jsonl)에 실행 중 서브가 있으면 working 유지(가짜 완료 알림 방지). 화면 스크레이핑은
+  // 대기 문구가 스피너 redraw에 밀려 창 밖이라 불안정 → 서브 데이터가 권위.
+  const agentName = typeof body.agent === "string" && body.agent ? body.agent : "claude";
+  const taskTitle = typeof body.task === "string" ? body.task : "";
+  if (state === "done" && agentName === "claude" && taskTitle) {
+    try { if ((await listSubagents(cwd, taskTitle)).some((s) => s.running)) state = "working"; } catch { /* 판정 실패 시 원 상태 */ }
+  }
   upsert({
     cwd,
     sessionId: typeof body.sessionId === "string" ? body.sessionId : "",

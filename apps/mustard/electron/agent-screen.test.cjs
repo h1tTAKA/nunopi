@@ -64,4 +64,8 @@ assert.strictEqual(st(bgOverStaleWaiting), "claude/working", "bg>stale waiting �
 const shellBgText = `hong@mac % ./deploy.sh\nStarting server, running in the background now.\nhong@mac % `;
 assert.strictEqual(st(shellBgText), null, "일반 셸의 bg 문구를 claude로 오판: " + st(shellBgText));
 
+// #979 회귀: 서브 끝난 뒤 푸터 ◯ 잔재·"done" 표시 + idle 글리프 → idle(화면 신호로 bg 에이전트 안 잡음)
+const staleFooter = title(`${idleGlyph} task`) + `◯ general-purpose Scan repo for silent… 30s · ↓ 57.3k tokens\n✻ Brewed for 58s · done 12:19 PM\n❯ 이슈 3개 올리고`;
+assert.strictEqual(st(staleFooter), "claude/idle", "끝난 서브 푸터 잔재로 working 오판: " + st(staleFooter));
+
 console.log("PASS — all assertions");
