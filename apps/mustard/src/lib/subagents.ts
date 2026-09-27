@@ -25,9 +25,17 @@ export function lastAiTitle(tail: string): string {
   return "";
 }
 
-// 서브 jsonl 마지막 레코드가 assistant + end_turn이면 완료.
-export function isDone(lastLine: string): boolean {
-  try { const d = JSON.parse(lastLine); return d.type === "assistant" && d.message?.stop_reason === "end_turn"; } catch { return false; }
+// 서브 jsonl tail서 마지막 "대화" 레코드(user/assistant)가 assistant + end_turn이면 완료.
+// #979 끝난 뒤에도 attachment 등 비대화 레코드가 뒤에 붙어서, 단순 마지막 줄로 보면 영원히 실행중으로 보였음.
+export function isDone(tail: string): boolean {
+  const lines = tail.trimEnd().split("\n");
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let d: { type?: string; message?: { stop_reason?: string } };
+    try { d = JSON.parse(lines[i]); } catch { continue; } // 잘린 첫 줄 등
+    if (d.type !== "user" && d.type !== "assistant") continue; // attachment·system 등 건너뜀
+    return d.type === "assistant" && d.message?.stop_reason === "end_turn";
+  }
+  return false;
 }
 
 async function readTail(path: string, bytes: number): Promise<string> {
@@ -79,7 +87,7 @@ export async function listSubagents(cwd: string, title: string): Promise<Subagen
       const st = await fs.stat(hasJl ? jl : join(sub, m));
       const age = now - st.mtimeMs;
       if (age > (hasJl ? RECENT_DONE_MS : META_ONLY_MS)) return null; // 오래된 건 읽기 전에 컷
-      const last = hasJl ? (await readTail(jl, 64 * 1024)).trimEnd().split("\n").pop() ?? "" : "";
+      const last = hasJl ? await readTail(jl, 64 * 1024) : "";
       const meta = JSON.parse(await fs.readFile(join(sub, m), "utf8"));
       return {
         id: id.replace(/^agent-/, ""),
