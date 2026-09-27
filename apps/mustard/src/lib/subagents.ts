@@ -6,7 +6,7 @@ import { join } from "node:path";
 
 export interface SubagentInfo { id: string; agentType: string; description: string; depth: number; running: boolean; startedAt: number; updatedAt: number }
 
-const RECENT_DONE_MS = 10 * 60 * 1000; // 종료 후 이 시간까지만 표시
+const DONE_LINGER_MS = 10 * 1000;      // 완료 후 이만큼만 체크로 보였다 사라짐(orca式)
 const STALE_MS = 5 * 60 * 1000;        // 미완료인데 이만큼 갱신 없으면 중단(스테일)으로 간주
 const MAX_ITEMS = 20;
 const META_ONLY_MS = 2 * 60 * 1000;    // jsonl 없는(meta만) 서브 표시 창 — #979 env 수정 후엔 생성 직후 찰나뿐. 길면 죽은 세션 잔상이 스피너로 남음
@@ -86,15 +86,17 @@ export async function listSubagents(cwd: string, title: string): Promise<Subagen
       const hasJl = await fs.stat(jl).then(() => true, () => false);
       const st = await fs.stat(hasJl ? jl : join(sub, m));
       const age = now - st.mtimeMs;
-      if (age > (hasJl ? RECENT_DONE_MS : META_ONLY_MS)) return null; // 오래된 건 읽기 전에 컷
+      if (age > (hasJl ? STALE_MS : META_ONLY_MS)) return null; // 오래 조용한 건 읽기 전에 컷(실행중이면 계속 기록해 여기 안 걸림)
       const last = hasJl ? await readTail(jl, 64 * 1024) : "";
+      const done = hasJl && isDone(last);
+      if (done && age > DONE_LINGER_MS) return null; // 완료는 잠깐만 표시 후 숨김
       const meta = JSON.parse(await fs.readFile(join(sub, m), "utf8"));
       return {
         id: id.replace(/^agent-/, ""),
         agentType: String(meta.agentType ?? ""),
         description: String(meta.description ?? ""),
         depth: Number(meta.spawnDepth) || 1,
-        running: hasJl ? !isDone(last) && age < STALE_MS : age < META_ONLY_MS, // meta만이면 갱신 신호가 없어 표시 창 내 실행중 간주
+        running: !done, // meta만(jsonl 없음)은 완료 판정 불가 → META_ONLY_MS 창 동안 실행중 간주
         startedAt: st.birthtimeMs || st.mtimeMs,
         updatedAt: st.mtimeMs,
       };
