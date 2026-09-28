@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { XIcon } from "../learning/icons";
@@ -258,17 +258,18 @@ export default function SettingsDrawer({
   }
 
   // orca식 풀페이지 설정(#925) — 좌측 섹션 사이드바(스크롤 앵커) + 우측 내용. variant는 이제 무시(항상 풀페이지).
-  const SECTIONS: { id: string; label: string; Icon: typeof IconPalette; show: boolean }[] = [
-    { id: "set-appearance", label: t("settings.screen"), Icon: IconPalette, show: true },
-    { id: "set-language", label: t("settings.language"), Icon: IconLanguage, show: true },
-    { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true },
-    { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true },
-    { id: "set-notifications", label: t("settings.notifications"), Icon: IconBell, show: true },
-    { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true },
-    { id: "set-workspace", label: t("settings.workspaceSection"), Icon: IconFolder, show: true },
-    { id: "set-git", label: t("settings.gitSection"), Icon: IconGitBranch, show: true },
-    { id: "set-integrations", label: t("settings.integrations"), Icon: IconPlug, show: true },
-    { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange },
+  // 좌측 nav 그룹(#983) — 순서 = 그룹 순서. 그룹 첫 항목 위에 헤더.
+  const SECTIONS: { id: string; label: string; Icon: typeof IconPalette; show: boolean; group: string }[] = [
+    { id: "set-appearance", label: t("settings.screen"), Icon: IconPalette, show: true, group: t("settings.groupGeneral") },
+    { id: "set-language", label: t("settings.language"), Icon: IconLanguage, show: true, group: t("settings.groupGeneral") },
+    { id: "set-notifications", label: t("settings.notifications"), Icon: IconBell, show: true, group: t("settings.groupGeneral") },
+    { id: "set-confirm", label: t("settings.confirmations"), Icon: IconShieldHalf, show: true, group: t("settings.groupGeneral") },
+    { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true, group: t("settings.groupEnvironment") },
+    { id: "set-workspace", label: t("settings.workspaceSection"), Icon: IconFolder, show: true, group: t("settings.groupEnvironment") },
+    { id: "set-git", label: t("settings.gitSection"), Icon: IconGitBranch, show: true, group: t("settings.groupEnvironment") },
+    { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true, group: t("settings.groupAgents") },
+    { id: "set-integrations", label: t("settings.integrations"), Icon: IconPlug, show: true, group: t("settings.groupAgents") },
+    { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange, group: t("settings.groupAgents") },
   ];
   // 외관(#937) — 즉시 적용(저장 + 실제 반영).
   const setZoom = (v: number) => { const z = Math.min(1.4, Math.max(0.8, Math.round(v * 10) / 10)); setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
@@ -314,13 +315,19 @@ export default function SettingsDrawer({
         <button type="button" onClick={onClose} className="mb-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
           <IconArrowLeft size={16} stroke={2} aria-hidden /> {t("settings.backToApp")}
         </button>
-        {SECTIONS.filter((s) => s.show).map((s) => {
+        {SECTIONS.filter((s) => s.show).map((s, i, arr) => {
           const on = activeSection === s.id;
+          const header = i === 0 || arr[i - 1].group !== s.group;
           return (
-            <button key={s.id} type="button" aria-current={on} onClick={() => setActiveSection(s.id)}
+            <Fragment key={s.id}>
+            {header && (
+              <div className={`px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500 ${i === 0 ? "pt-1" : "pt-4"}`}>{s.group}</div>
+            )}
+            <button type="button" aria-current={on} onClick={() => setActiveSection(s.id)}
               className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-medium transition ${on ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-50" : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-50"}`}>
               <s.Icon size={16} stroke={1.75} className={`shrink-0 ${on ? "text-mustard-500" : "text-zinc-400 dark:text-zinc-500"}`} aria-hidden /> {s.label}
             </button>
+            </Fragment>
           );
         })}
       </nav>
