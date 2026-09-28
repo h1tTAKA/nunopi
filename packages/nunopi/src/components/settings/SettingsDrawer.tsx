@@ -340,7 +340,9 @@ export default function SettingsDrawer({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+        {/* 내용 폭 제한(#983) — 넓은 창서 카드가 끝까지 늘어나지 않게 가운데 정렬. */}
+        <div className="mx-auto w-full max-w-3xl space-y-4">
           {/* 화면 카드 */}
           {activeSection === "set-appearance" && (
           <section id="set-appearance" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
@@ -1007,6 +1009,7 @@ export default function SettingsDrawer({
           <p className="text-xs text-zinc-400 dark:text-zinc-500">
             {t("settings.storageNote")}
           </p>
+        </div>
         </div>
 
       </div>
