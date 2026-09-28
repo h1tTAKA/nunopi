@@ -1,6 +1,8 @@
 // 일렉트론 셸 — nunopi(Next 앱)를 데스크톱 창으로 감싼다.
 // dev: ELECTRON_START_URL(예: http://localhost:3000) 로드(next dev 병행, HMR).
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
+// #981 다른 require·spawn보다 먼저 — 이후 모든 자식(데몬·서버·SNA)이 정리된 env를 상속.
+require("./claude-env.cjs").stripParentClaudeEnv(process.env);
 const { app, BrowserWindow, shell, ipcMain, Notification, dialog, clipboard, safeStorage } = require("electron");
 const { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, cpSync } = require("node:fs");
 const {
