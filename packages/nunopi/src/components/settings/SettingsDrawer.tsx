@@ -343,12 +343,13 @@ export default function SettingsDrawer({
         <div className="flex-1 overflow-y-auto px-6 py-5">
         {/* 내용 폭 제한(#983) — 넓은 창서 카드가 끝까지 늘어나지 않게 가운데 정렬. */}
         <div className="mx-auto w-full max-w-3xl space-y-4">
+          {/* 섹션 제목(#983) — 카드 밖 페이지 제목. 카드 안 중복 h3는 제거(하위 카드 제목은 유지). */}
+          <h2 className="pb-1 text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+            {SECTIONS.find((s) => s.id === activeSection)?.label}
+          </h2>
           {/* 화면 카드 */}
           {activeSection === "set-appearance" && (
           <section id="set-appearance" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              {t("settings.screen")}
-            </h3>
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.theme")}</span>
               <div role="radiogroup" aria-label={t("settings.theme")} className="grid grid-cols-2 gap-1.5">
@@ -414,9 +415,6 @@ export default function SettingsDrawer({
           {/* 언어 카드 */}
           {activeSection === "set-language" && (
           <section id="set-language" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              {t("settings.language")}
-            </h3>
             <div className="relative">
               <select
                 value={locale}
@@ -438,7 +436,6 @@ export default function SettingsDrawer({
           {/* 터미널 설정 카드(#926) — 폰트·커서·스크롤백·클립보드·GPU */}
           {activeSection === "set-terminal" && (
           <section id="set-terminal" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.terminalSection")}</h3>
             {/* 터미널 테마(#914) — 앱 테마와 분리(CLI TUI가 다크 전제라 기본 auto). */}
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.terminalTheme")}</span>
@@ -555,9 +552,6 @@ export default function SettingsDrawer({
           {/* 프로바이더 카드 — OpenAI-Compatible / Claude / Codex 소제목+구분선으로 */}
           {activeSection === "set-agents" && (
           <section id="set-agents" className="scroll-mt-4 space-y-5 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              {t("settings.provider")}
-            </h3>
 
             {/* 에이전트 런치(#927) — 기본 에이전트 + per-agent 추가 인자 */}
             <div className="space-y-4">
@@ -772,7 +766,6 @@ export default function SettingsDrawer({
           {/* 알림(#928) */}
           {activeSection === "set-notifications" && (
           <section id="set-notifications" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.notifications")}</h3>
             {([
               { key: NKEYS.master, on: nMaster, label: t("settings.notifMaster"), desc: t("settings.notifMasterDesc") },
               { key: NKEYS.agentDone, on: nAgentDone, label: t("settings.notifAgentDone"), desc: t("settings.notifAgentDoneDesc") },
@@ -801,7 +794,6 @@ export default function SettingsDrawer({
           {/* 확인 다이얼로그(#929) — 파괴적 액션 confirm 켜고 끄기. */}
           {activeSection === "set-confirm" && (
           <section id="set-confirm" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.confirmations")}</h3>
             {([
               { key: CKEYS.skipDelete, on: cSkipDelete, label: t("settings.confirmSkipDelete"), desc: t("settings.confirmSkipDeleteDesc") },
               { key: CKEYS.skipCloseTab, on: cSkipCloseTab, label: t("settings.confirmSkipCloseTab"), desc: t("settings.confirmSkipCloseTabDesc") },
@@ -825,7 +817,6 @@ export default function SettingsDrawer({
           {/* 워크스페이스/일반(#939) — 기본 폴더 등. */}
           {activeSection === "set-workspace" && (
           <section id="set-workspace" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.workspaceSection")}</h3>
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.defaultFolder")}</span>
               <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.defaultFolderDesc")}</p>
@@ -847,7 +838,6 @@ export default function SettingsDrawer({
           {/* git/소스컨트롤(#954) — PR 기본값·자동 fetch·브랜치 prefix. */}
           {activeSection === "set-git" && (
           <section id="set-git" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.gitSection")}</h3>
             {/* PR base 기본값 */}
             <div className="space-y-1.5">
               <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("settings.gitPrBase")}</span>
@@ -883,7 +873,6 @@ export default function SettingsDrawer({
           {/* 연동(#958) — 소스 호스트 연결. 현재 GitHub(gh CLI + PAT). */}
           {activeSection === "set-integrations" && (
           <section id="set-integrations" className="scroll-mt-4 space-y-4 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.integrations")}</h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.integrationsDesc")}</p>
             {/* GitHub 카드 */}
             <div className="space-y-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-700">
@@ -971,7 +960,6 @@ export default function SettingsDrawer({
           {/* nunopi 학습 모듈 설치/사용(#924) — 온보딩 외 설정서도 토글. */}
           {activeSection === "set-nunopi" && (
           <section id="set-nunopi" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">{t("settings.nunopiModule")}</h3>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
