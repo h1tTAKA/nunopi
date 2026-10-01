@@ -124,7 +124,17 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   // 탭별 종합 상태(#764) — 호버 없이도 돌아가는중/완료/대기를 도트로. 레포 탭만 대상. 워크스페이스 활성 동안 폴링.
   const [repoStatus, setRepoStatus] = useState<Record<string, TabState | null>>({});
-  const prevRepoStatus = useRef<Record<string, TabState | null>>({}); // #876 전이 감지용(working→완료/대기 판정)
+  const prevRepoStatus = useRef<Record<string, TabState | null>>({}); // 탭 도트(레포 종합)
+  // #989 알림은 세션 단위 전이(orca 방식). key = repo\0sessionId. latest는 대기 타이머가 재확인할 최신값.
+  const prevSession = useRef<Record<string, string>>({});
+  const latestSession = useRef<Record<string, string>>({});
+  const pendingNotify = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const lastNotifyAt = useRef<Record<string, number>>({}); // 레포별 마지막 알림 시각(5s 쿨다운)
+  // 대기 타이머는 effect 재실행(탭 변경)을 넘어 살아야 함 — 재실행 때 취소하면 이미 소비된 전이 알림이 사라짐.
+  // 그래서 탭은 ref로 읽고, 타이머는 언마운트 때만 정리.
+  const tabsRef = useRef<Tab[]>([]);
+  useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+  useEffect(() => () => { for (const h of Object.values(pendingNotify.current)) clearTimeout(h); }, []);
   const notifyWarmupUntil = useRef(0); // #973 실행 후 워밍업 종료 시각 — 복원 버퍼 정착 전 flicker 전이 알림 억제
   const [notifyOn, setNotifyOn] = useState(true);                     // #876 알림 on/off(벨 토글, localStorage 영속)
   const notifyOnRef = useRef(true);                                   // poll .then 클로저서 최신값 읽기(effect 재실행 회피)
@@ -154,30 +164,49 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
           const raw: { sessionId: string; state: string }[] = j?.ok ? (j.statuses ?? []) : [];
           const openIds = openTermIds(p); // #968 유령 제외 — 열린 터미널 탭 세션만 집계(호버와 일관)
           const shown = openIds ? raw.filter((s) => openIds.has(s.sessionId)) : raw;
-          return [p, aggregate(shown.map((s) => s.state))] as const;
+          return [p, aggregate(shown.map((s) => s.state)), shown] as const;
         }
-        catch { return [p, null] as const; }
-      })).then((entries) => {
+        catch { return [p, null, null] as const; }
+      })).then((results) => {
         if (!alive) return;
+        const entries = results.map(([p, st]) => [p, st] as const);
         // #876 전이 감지 — 레포가 working → 完了/대기/blocked로 바뀐 순간에만 데스크톱 알림(자리비움 게이트는 notify IPC가 처리).
         // 이 콜백은 read(prev[p])~write(prev=…) 사이 await가 없어 원자적 — 동시 폴 2개여도 직렬 실행돼 한 전이가 두 번 안 울림.
         // #973 "보고 있는 레포"면 알림 스킵 — 창 포커스 AND 그 레포가 활성 탭일 때(작업 지켜보는 중).
         // 배경 레포(다른 탭) 또는 창 비포커스(다른 앱/화면)면 알림 O. 예전엔 창 포커스만 봐서 배경 레포 완료를 놓쳤음.
-        const focused = typeof document !== "undefined" && document.hasFocus();
-        const activeRepoPath = (() => { const at = tabs.find((x) => tabKey(x) === activeKeyRef.current); return at && at.type === "repo" ? at.path : null; })();
-        const gateOn = getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused); // 설정=보는 중 억제
         const warming = Date.now() < notifyWarmupUntil.current; // #973 실행 직후 유예(복원 버퍼 정착 중)
-        for (const [p, st] of entries) {
-          if (notifyOnRef.current && prevRepoStatus.current[p] === "working" && st && st !== "working") {
-            if (warming) continue;                            // 워밍업 중이면 알림 스킵(baseline은 아래서 갱신)
-            const watching = focused && p === activeRepoPath; // 지금 이 레포를 보고 있음
-            if (gateOn && watching) continue;                 // 보는 중이면 스킵
-            const name = p.split(/[\\/]/).filter(Boolean).pop() || p;             // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
-            const title = st === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
-            void desktopNotify({ title, body: name, suppressWhileFocused: false }); // 게이트는 여기서(watching) 처리 — IPC 포커스 억제 끔(배경 레포는 포커스여도 알림)
+        // #989 세션 단위 전이 → 1.5s 조용히 기다렸다 재확인(그 사이 다시 working이면 취소) → 게이트·쿨다운 후 알림.
+        // orca: hook done 1.5s quiet window + 워크트리별 5s 쿨다운. 깜빡임(working→done→working)이 알림까지 못 가게.
+        const seen = new Set<string>();
+        for (const [p, , shown] of results) {
+          for (const s of shown ?? []) {
+            const k = `${p}\0${s.sessionId}`;
+            seen.add(k);
+            latestSession.current[k] = s.state;
+            const prev = prevSession.current[k];
+            prevSession.current[k] = s.state;
+            if (s.state === "working") { clearTimeout(pendingNotify.current[k]); delete pendingNotify.current[k]; continue; }
+            if (prev !== "working" || warming || !notifyOnRef.current || pendingNotify.current[k]) continue;
+            const fired = s.state;
+            pendingNotify.current[k] = setTimeout(() => {
+              delete pendingNotify.current[k];
+              if (latestSession.current[k] !== fired || !notifyOnRef.current) return; // 그새 바뀜 → 취소
+              const focused = typeof document !== "undefined" && document.hasFocus();
+              const at = tabsRef.current.find((x) => tabKey(x) === activeKeyRef.current);
+              const watching = focused && !!at && at.type === "repo" && at.path === p; // 지금 이 레포를 보고 있음
+              if (getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) && watching) return;
+              const now = Date.now();
+              if (now - (lastNotifyAt.current[p] ?? 0) < 5000) return; // 레포별 5s 쿨다운(세션 여러 개 동시 완료 등)
+              lastNotifyAt.current[p] = now;
+              const name = p.split(/[\\/]/).filter(Boolean).pop() || p; // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
+              const title = fired === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
+              // 게이트는 여기서(watching) 처리 — IPC 포커스 억제 끔(배경 레포는 포커스여도 알림). target = 클릭 시 이동(#989).
+              void desktopNotify({ title, body: name, suppressWhileFocused: false, target: { repoPath: p, sessionId: s.sessionId } });
+            }, 1500);
           }
         }
-        prevRepoStatus.current = Object.fromEntries(entries);                      // 다음 비교 기준(중복 알림 방지)
+        for (const k of Object.keys(prevSession.current)) if (!seen.has(k)) { delete prevSession.current[k]; delete latestSession.current[k]; } // 닫힌 세션 정리
+        prevRepoStatus.current = Object.fromEntries(entries);
         setRepoStatus(prevRepoStatus.current);
       });
     };

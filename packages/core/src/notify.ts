@@ -4,7 +4,8 @@
 // 호출부는 window.nunopiDesktop.notify 대신 이걸 쓴다(테스트 버튼은 마스터 우회 위해 직접 호출 유지).
 import { getSetting, NKEYS, NOTIF_DEFAULTS } from "./settings";
 
-export type NotifyPayload = { title: string; body?: string; suppressWhileFocused?: boolean; silent?: boolean };
+// target(#989): 클릭 시 이동할 레포·터미널 세션.
+export type NotifyPayload = { title: string; body?: string; suppressWhileFocused?: boolean; silent?: boolean; target?: { repoPath: string; sessionId?: string } };
 type NotifyResult = { ok: boolean; reason?: string };
 type DesktopNotify = { nunopiDesktop?: { notify?: (p: NotifyPayload) => Promise<NotifyResult> } };
 
