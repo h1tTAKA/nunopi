@@ -4,12 +4,12 @@ const { mergeHooks, parseVersion, MARKER } = require("./claude-hooks.cjs");
 const EP = "/tmp/ep";
 const ours = (s, ev) => (s.hooks[ev] || []).flatMap((g) => g.hooks).filter((h) => h.command.includes(MARKER));
 
-// 기존 설정·다른 훅 보존 + 최신 버전이면 5개 이벤트
+// 기존 설정·다른 훅 보존 + 최신 버전이면 6개 이벤트
 const user = { permissions: { allow: ["Bash(ls)"] }, hooks: { Stop: [{ hooks: [{ type: "command", command: "say done" }] }] } };
 const a = mergeHooks(user, EP, "2.1.286");
 assert.deepStrictEqual(a.permissions, user.permissions, "다른 키 보존");
 assert.strictEqual(a.hooks.Stop[0].hooks[0].command, "say done", "유저 훅 보존");
-for (const ev of ["UserPromptSubmit", "PostToolUse", "Stop", "PermissionRequest", "StopFailure"]) assert.strictEqual(ours(a, ev).length, 1, `${ev} 1개`);
+for (const ev of ["UserPromptSubmit", "PostToolUse", "Stop", "PermissionRequest", "StopFailure", "PostCompact"]) assert.strictEqual(ours(a, ev).length, 1, `${ev} 1개`);
 assert.strictEqual(a.hooks.PostToolUse.at(-1).matcher, "", "PostToolUse matcher");
 
 // 멱등 — 다시 돌려도 우리 훅 중복 안 생김
@@ -20,6 +20,7 @@ assert.deepStrictEqual(b, a, "멱등");
 const old = mergeHooks(a, EP, "2.0.0");
 assert.strictEqual(ours(old, "PermissionRequest").length, 0, "2.0.0 PermissionRequest 제외");
 assert.strictEqual(ours(old, "StopFailure").length, 0, "2.0.0 StopFailure 제외");
+assert.strictEqual(ours(old, "PostCompact").length, 0, "2.0.0 PostCompact 제외");
 assert.ok(!old.hooks.PermissionRequest, "빈 이벤트 키 제거");
 const unk = mergeHooks({}, EP, null);
 assert.deepStrictEqual(Object.keys(unk.hooks).sort(), ["PostToolUse", "Stop", "UserPromptSubmit"], "미확인 버전 3개");

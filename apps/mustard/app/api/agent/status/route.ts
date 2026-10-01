@@ -1,13 +1,11 @@
 // 에이전트 상태 수신·조회(#764) — Claude Code 등 CLI 훅이 이벤트를 POST하면 저장 + SSE 푸시,
 // 레포탭/호버 카드가 GET(폴백)·SSE(실시간)로 읽는다. 저장·푸시 로직은 @mustard/nunopi/agent(agentStatus) 싱글턴.
-import { upsert, query, emit, remove, normPath, prune, type AgentState } from "@mustard/nunopi/agent";
+import { upsert, query, emit, remove, normPath, prune, get, HOOK_FRESH_MS, type AgentState } from "@mustard/nunopi/agent";
+import { EDIT_TOOLS, shortToolInput } from "@/lib/agentHookEvent";
 import { emitEdit } from "@/lib/mcpActivity";
 import { listSubagents } from "@/lib/subagents";
 
 export const runtime = "nodejs";
-
-// 코드 편집·실행 툴만 학습 신호로(#857). Read/Grep/Glob 등 탐색은 노이즈라 제외(그래프 툴이 커버).
-const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "Update", "Bash"]);
 
 // Claude 훅 이벤트 → 상태. 모르는 이벤트(SubagentStop 등)는 null(상태 변경 안 함).
 function deriveState(event: string): AgentState | null {
@@ -19,19 +17,6 @@ function deriveState(event: string): AgentState | null {
     case "Stop": return "done";
     default: return null;
   }
-}
-
-// tool_input을 짧은 한 줄로 — Bash=command, Edit/Write/Read=file_path 등.
-function shortToolInput(input: unknown): string | undefined {
-  if (input == null) return undefined;
-  if (typeof input === "string") return input.slice(0, 120);
-  if (typeof input === "object") {
-    const o = input as Record<string, unknown>;
-    const cand = o.command ?? o.file_path ?? o.path ?? o.pattern ?? o.url ?? o.description;
-    if (typeof cand === "string") return cand.slice(0, 120);
-    try { return JSON.stringify(o).slice(0, 120); } catch { return undefined; }
-  }
-  return String(input).slice(0, 120);
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -58,6 +43,15 @@ export async function POST(request: Request): Promise<Response> {
   // 대기 문구가 스피너 redraw에 밀려 창 밖이라 불안정 → 서브 데이터가 권위.
   const agentName = typeof body.agent === "string" && body.agent ? body.agent : "claude";
   const taskTitle = typeof body.task === "string" ? body.task : "";
+  // #989 훅 권위(orca) — 이 세션에 신선한 Claude 훅이 있으면 화면 상태로 덮지 않는다(제목 등만 갱신).
+  // 예외: 화면 waiting(권한/선택 박스는 화면이 정확 — AskUserQuestion 등 훅 미등록 경로),
+  //       훅 working인데 60s 넘게 훅이 조용하고 화면이 done(esc 중단은 Stop 훅이 안 옴 → 영구 working 방지).
+  const sid = typeof body.sessionId === "string" ? body.sessionId : "";
+  const prevEntry = !event ? get(cwd, sid) : undefined;
+  if (prevEntry?.hookAt && now - prevEntry.hookAt < HOOK_FRESH_MS && state !== "waiting") {
+    const interrupted = prevEntry.state === "working" && state === "done" && now - prevEntry.hookAt > 60_000;
+    if (!interrupted) state = prevEntry.state;
+  }
   if (state === "done" && agentName === "claude" && taskTitle) {
     try { if ((await listSubagents(cwd, taskTitle)).some((s) => s.running)) state = "working"; } catch { /* 판정 실패 시 원 상태 */ }
   }

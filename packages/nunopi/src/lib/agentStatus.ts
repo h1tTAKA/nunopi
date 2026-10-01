@@ -15,7 +15,11 @@ export interface Entry {
   task?: string; // #968 세션 작업 제목(OSC 타이틀 요약) — orca式 목록 행 텍스트
   updatedAt: number;
   stateStartedAt: number;
+  hookAt?: number;   // #989 마지막 Claude 훅 수신 시각 — 있으면(신선하면) 화면 판정보다 훅이 권위
+  silent?: boolean;  // #989 알림 없는 done(수동 /compact 종료 = 세션 경계, orca sessionBoundary)
 }
+
+export const HOOK_FRESH_MS = 30 * 60 * 1000; // orca AGENT_STATUS_STALE_AFTER_MS
 
 const TTL_MS = 10 * 60 * 1000;      // 갱신 없으면 폐기(유령 방지)
 const DONE_TTL_MS = 3 * 60 * 1000;  // done(유휴)은 몇 분 유지 — 살아있는데 순삭 방지
@@ -35,7 +39,7 @@ export function prune(now: number): void {
 }
 
 // 상태 upsert — state 바뀔 때만 stateStartedAt 리셋. 저장 후 cwd 반환(호출부가 emit).
-export function upsert(fields: { cwd: string; sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string }, now: number): void {
+export function upsert(fields: { cwd: string; sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; hook?: boolean; silent?: boolean }, now: number): void {
   const key = keyOf(fields.cwd, fields.sessionId);
   const prev = store.get(key);
   store.set(key, {
@@ -49,14 +53,25 @@ export function upsert(fields: { cwd: string; sessionId: string; agent: string; 
     task: fields.task ?? prev?.task, // #968 제목은 state 무관 유지(빈 값이면 이전 것 보존)
     updatedAt: now,
     stateStartedAt: prev && prev.state === fields.state ? prev.stateStartedAt : now,
+    hookAt: fields.hook ? now : prev?.hookAt,
+    silent: fields.state === "done" ? (fields.silent ?? (prev?.state === "done" ? prev.silent : false)) : false, // 같은 done 유지 중엔 보존
   });
+}
+
+export function get(cwd: string, sessionId: string): Entry | undefined {
+  return store.get(keyOf(cwd, sessionId));
+}
+// #989 훅은 터미널 id만 앎 → 화면 보고가 저장한 같은 세션 행의 cwd를 찾는다(레포 루트 기준 키 일치).
+export function findBySession(sessionId: string): Entry | undefined {
+  for (const e of store.values()) if (e.sessionId === sessionId) return e;
+  return undefined;
 }
 
 // 레포 root의 상태 — #968 세션별 전부(orca式 목록). 예전엔 에이전트 타입별 1개로 합쳤으나
 // 같은 repo에 세션 여럿(claude 여러 개)이면 다 보여야 해서 sessionId별로 전부 반환.
 // 정렬: 상태 우선순위(working>waiting>blocked>done) 후 최근 갱신 순 — 바쁜 세션이 위로.
 const STATE_ORDER: Record<AgentState, number> = { working: 0, waiting: 1, blocked: 2, done: 3 };
-export function query(root: string, now: number): Array<{ sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; since: number; updatedAt: number }> {
+export function query(root: string, now: number): Array<{ sessionId: string; agent: string; state: AgentState; tool?: string; toolInput?: string; prompt?: string; task?: string; since: number; updatedAt: number; silent?: boolean }> {
   prune(now);
   const r = normPath(root);
   if (!r) return [];
@@ -64,7 +79,7 @@ export function query(root: string, now: number): Array<{ sessionId: string; age
   return [...store.values()]
     .filter((e) => inRepo(e.cwd))
     .sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.updatedAt - a.updatedAt)
-    .map((e) => ({ sessionId: e.sessionId, agent: e.agent, state: e.state, tool: e.tool, toolInput: e.toolInput, prompt: e.prompt, task: e.task, since: e.stateStartedAt, updatedAt: e.updatedAt }));
+    .map((e) => ({ sessionId: e.sessionId, agent: e.agent, state: e.state, tool: e.tool, toolInput: e.toolInput, prompt: e.prompt, task: e.task, since: e.stateStartedAt, updatedAt: e.updatedAt, silent: e.silent || undefined }));
 }
 
 // 세션 상태 제거(#765) — 에이전트가 종료(포그라운드가 셸로 복귀)하면 카드에서 즉시 사라지게.

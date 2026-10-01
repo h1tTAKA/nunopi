@@ -162,7 +162,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
       Promise.all(repoPaths.map(async (p) => {
         try {
           const r = await fetch(`/api/agent/status?root=${encodeURIComponent(p)}`); const j = await r.json();
-          const raw: { sessionId: string; state: string }[] = j?.ok ? (j.statuses ?? []) : [];
+          const raw: { sessionId: string; state: string; silent?: boolean }[] = j?.ok ? (j.statuses ?? []) : [];
           const openIds = openTermIds(p); // #968 유령 제외 — 열린 터미널 탭 세션만 집계(호버와 일관)
           const shown = openIds ? raw.filter((s) => openIds.has(s.sessionId)) : raw;
           return [p, aggregate(shown.map((s) => s.state)), shown] as const;
@@ -183,12 +183,12 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
           for (const s of shown ?? []) {
             const k = `${p}\0${s.sessionId}`;
             seen.add(k);
-            latestSession.current[k] = s.state;
+            latestSession.current[k] = s.silent ? `${s.state}:silent` : s.state; // #989 수동 compact 종료 = 알림 없는 done
             const prev = prevSession.current[k];
             prevSession.current[k] = s.state;
             if (s.state === "working") { clearTimeout(pendingNotify.current[k]); delete pendingNotify.current[k]; continue; }
-            if (prev !== "working" || warming || !notifyOnRef.current || pendingNotify.current[k]) continue;
-            const fired = s.state;
+            if (prev !== "working" || warming || !notifyOnRef.current || pendingNotify.current[k] || s.silent) continue;
+            const fired = latestSession.current[k];
             pendingNotify.current[k] = setTimeout(() => {
               delete pendingNotify.current[k];
               if (latestSession.current[k] !== fired || !notifyOnRef.current) return; // 그새 바뀜 → 취소
@@ -200,7 +200,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
               if (now - (lastNotifyAt.current[p] ?? 0) < 5000) return; // 레포별 5s 쿨다운(세션 여러 개 동시 완료 등)
               lastNotifyAt.current[p] = now;
               const name = p.split(/[\\/]/).filter(Boolean).pop() || p; // 레포 폴더명(win 백슬래시·posix 슬래시 둘 다)
-              const title = fired === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
+              const title = s.state === "done" ? `✅ ${t("notify.done")}` : `⏸ ${t("notify.waiting")}`;
               // 게이트는 여기서(watching) 처리 — IPC 포커스 억제 끔(배경 레포는 포커스여도 알림). target = 클릭 시 이동(#989).
               void desktopNotify({ title, body: name, suppressWhileFocused: false, target: { repoPath: p, sessionId: s.sessionId } });
             }, 1500);
