@@ -1,4 +1,4 @@
-import type { AgentProviderKind } from "@mustard/core";
+import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "./agent/catalog";
 
 // 학습모듈 모드별 provider(#985). 모드 값이 없으면 default, default도 없으면 claude-agent.
@@ -48,4 +48,46 @@ export function saveModeProviders(map: ModeProviders): void {
 
 export function resolveModeProvider(map: ModeProviders, mode: LearnProviderMode | "default"): AgentProviderKind {
   return map[mode] ?? map.default ?? DEFAULT_LEARN_PROVIDER;
+}
+
+// ── 모드별 모델(#987). 모델은 "행"에 붙는다: 그 행이 provider를 직접 골랐으면 그 행 모델,
+// 기본을 따라가면 기본 행 모델(provider가 기본이니 모델도 기본 것). 미지정 = 어댑터 기본 모델.
+export type ModeModels = Partial<Record<LearnProviderMode | "default", string>>;
+const MODELS_KEY = "nunopi:mode-models";
+
+export function loadModeModels(): ModeModels {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(MODELS_KEY) ?? "{}") as unknown;
+    const out: ModeModels = {};
+    if (parsed && typeof parsed === "object") {
+      for (const k of ["default", ...LEARN_PROVIDER_MODES] as const) {
+        const v = (parsed as Record<string, unknown>)[k];
+        if (typeof v === "string" && v.trim()) out[k] = v.trim();
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveModeModels(map: ModeModels): void {
+  try {
+    localStorage.setItem(MODELS_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function resolveModeModel(providers: ModeProviders, models: ModeModels, mode: LearnProviderMode | "default"): string | undefined {
+  return mode !== "default" && providers[mode] ? models[mode] : models.default;
+}
+
+// 요청마다 실리는 providerSettings에 모델을 끼워 넣는다(analyze route → snaAgentProvider가 읽음).
+type ModelSlot = "claude-agent" | "codex-agent" | "opencode-agent";
+const MODEL_SLOTS: readonly AgentProviderKind[] = ["claude-agent", "codex-agent", "opencode-agent"];
+export function withModel(ps: ProviderSettings, provider: AgentProviderKind, model: string | undefined): ProviderSettings {
+  if (!model || !MODEL_SLOTS.includes(provider)) return ps;
+  const slot = provider as ModelSlot;
+  return { ...ps, [slot]: { ...ps[slot], model } };
 }
