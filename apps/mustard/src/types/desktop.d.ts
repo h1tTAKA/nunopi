@@ -25,7 +25,9 @@ interface NunopiDesktopApi {
   setRuntimePaths(paths: { claudeCode?: string; codex?: string; opencode?: string }): Promise<{ ok: boolean; saved: Record<string, string> }>;
   relaunch(): Promise<void>;
   // 데스크톱 네이티브 알림. 창 포커스 중이면 스킵(reason:"focused").
-  notify(payload: { title: string; body?: string; suppressWhileFocused?: boolean; silent?: boolean }): Promise<{ ok: boolean; reason?: string }>;
+  notify(payload: { title: string; body?: string; suppressWhileFocused?: boolean; silent?: boolean; target?: { repoPath: string; sessionId?: string } }): Promise<{ ok: boolean; reason?: string }>;
+  // #989 알림 클릭 시 이동 대상. 해제 함수 반환.
+  onNotifyActivate?(cb: (p: { repoPath: string; sessionId?: string }) => void): () => void;
   // 레포 폴더 선택(OS 네이티브 창). 취소 시 { canceled: true }. defaultPath=시작 경로(#939).
   pickRepoFolder(opts?: { defaultPath?: string }): Promise<{ canceled: boolean; path?: string }>;
   // 클립보드 이미지를 임시 PNG로 저장하고 경로 반환(#799) — 터미널 Cmd+V 이미지 붙여넣기. 이미지 없으면 ok:false.

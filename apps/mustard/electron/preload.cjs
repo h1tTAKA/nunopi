@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld("nunopiDesktop", {
   setRuntimePaths: (paths) => ipcRenderer.invoke("runtime-paths:set", paths),
   relaunch: () => ipcRenderer.invoke("app:relaunch"),
   notify: (payload) => ipcRenderer.invoke("notify", payload),
+  // #989 알림 클릭 → {repoPath, sessionId}. 해제 함수 반환.
+  onNotifyActivate: (cb) => { const h = (_e, p) => cb(p); ipcRenderer.on("notify:activate", h); return () => ipcRenderer.removeListener("notify:activate", h); },
   pickRepoFolder: (opts) => ipcRenderer.invoke("repo:pickFolder", opts),
   // 클립보드 이미지를 임시 PNG로 저장하고 경로 반환(#799) — 터미널 Cmd+V 이미지 붙여넣기용. 이미지 없으면 ok:false.
   saveClipboardImage: () => ipcRenderer.invoke("clipboard:save-image"),

@@ -11,6 +11,7 @@ import WorkspaceModePane from "@/components/workspace/WorkspaceModePane";
 import RepoAvatar from "@/components/workspace/RepoAvatar";
 import WorkspaceAddMenu, { type AddKind } from "@/components/workspace/WorkspaceAddMenu";
 import RepoTabHoverCard from "@/components/workspace/RepoTabHoverCard";
+import { requestTerminalFocus } from "@/components/workspace/TerminalPane";
 import MustardMark from "@/components/brand/MustardMark";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 const TABS_KEY = "nunopi:ws-tabs";       // 열린 탭 배열(#731, #769에서 태그드 유니온으로 확장)
@@ -274,6 +275,17 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
+
+  // #989 알림 클릭 → 그 레포 탭 활성(닫혀 있으면 다시 열기) + 그 터미널 탭 포커스.
+  useEffect(() => {
+    if (!mounted || !desktop?.onNotifyActivate) return;
+    return desktop.onNotifyActivate(({ repoPath, sessionId }) => {
+      const key = tabKey({ type: "repo", path: repoPath });
+      setTabs((prev) => (prev.some((x) => tabKey(x) === key) ? prev : [...prev, { type: "repo", path: repoPath }]));
+      activate(key);
+      if (sessionId) requestTerminalFocus(repoPath, sessionId);
+    });
+  }, [mounted, desktop]);
 
   function activate(key: string) {
     setVisited((prev) => (prev.has(key) ? prev : new Set(prev).add(key))); // keep-alive 대상 등록

@@ -195,6 +195,16 @@ export default function LearningHome() {
     }
   }
 
+  // #989 알림 클릭 → 워크스페이스로 전환(레포·터미널 탭은 WorkspaceTabs가 처리). 학습 화면에 있어도 이동.
+  useEffect(() => {
+    const nd = typeof window !== "undefined" ? window.nunopiDesktop : undefined;
+    if (!nd?.onNotifyActivate) return;
+    return nd.onNotifyActivate(() => {
+      setViewMode("workspace");
+      try { localStorage.setItem(VIEW_MODE_KEY, "workspace"); } catch { /* ignore */ } // handleViewModeChange와 같은 영속
+    });
+  }, []);
+
   function handleViewModeChange(next: ViewMode) {
     if (next === viewMode) return;
     // 암기 진입 시 직전 영역을 기억 → 돌아가기로 그 자리 복귀(#785). 암기→암기 재진입은 무시.

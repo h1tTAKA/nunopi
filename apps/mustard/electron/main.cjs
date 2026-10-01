@@ -579,13 +579,20 @@ function notifyIconPath() {
 
 // 데스크톱 네이티브 알림(분석 완료 등). 창을 보고 있으면(포커스) 스킵 — 안 보고 있을 때만 알림.
 ipcMain.handle("notify", (_e, payload) => {
-  const { title, body, suppressWhileFocused, silent } = payload ?? {};
+  const { title, body, suppressWhileFocused, silent, target } = payload ?? {};
   if (!Notification.isSupported()) return { ok: false, reason: "unsupported" };
   // #928 설정: suppressWhileFocused=false면 포커스여도 알림(기본 true=기존 동작).
   if (suppressWhileFocused !== false && win && win.isFocused()) return { ok: false, reason: "focused" };
   // #939 silent=true면 무음 알림.
   const n = new Notification({ title: title || "nunopi", body: body || "", icon: notifyIconPath(), silent: !!silent });
-  n.on("click", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  n.on("click", () => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    if (process.platform === "darwin") app.focus({ steal: true }); // orca: 다른 앱 위에 있을 때도 앞으로
+    win.show(); win.focus();
+    // #989 그 레포·터미널로 이동 — 렌더러(WorkspaceTabs·LearningHome)가 받아 탭 전환.
+    if (target && typeof target.repoPath === "string") win.webContents.send("notify:activate", { repoPath: target.repoPath, sessionId: typeof target.sessionId === "string" ? target.sessionId : undefined });
+  });
   n.show();
   return { ok: true };
 });
