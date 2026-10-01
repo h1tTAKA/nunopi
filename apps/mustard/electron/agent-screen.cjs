@@ -89,8 +89,10 @@ function agentFromProcess(name) {
 }
 
 // 버퍼 → { agent, state } | null. 알려진 에이전트 TUI가 아니면 null(셸 등).
-function parseAgentScreen(buffer) {
-  const title = lastTitle(recentRaw(buffer, 16000)); // 타이틀은 넓게(입력 에코로 밀려도 확보). 전체 200k는 perf 낭비라 16KB.
+function parseAgentScreen(buffer, titleHint = "") {
+  // 타이틀은 넓게(입력 에코로 밀려도 확보). 전체 200k는 perf 낭비라 16KB.
+  // #989 출력이 많으면 16KB tail에 타이틀이 아예 없음(실측 6/6) → 스트림 전체서 추적한 마지막 타이틀(titleHint)로 보완(orca 방식).
+  const title = lastTitle(recentRaw(buffer, 16000)) || titleHint || "";
   const tc = firstCode(title.trim());
   const wide = stripAnsi(recentRaw(buffer, 8000)).toLowerCase().replace(/\s+/g, "");    // 넓게 — chrome 감지(입력 에코 많아도 놓치지 않게)
   const compact = stripAnsi(recentRaw(buffer, 2500)).toLowerCase().replace(/\s+/g, ""); // 좁게 — 작업 마커(옛 tokens stale 방지)
