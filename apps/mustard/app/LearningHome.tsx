@@ -404,8 +404,8 @@ export default function LearningHome() {
         onThemeChange={changeTheme}
         cardFlyAnimation={cardFlyAnimation}
         onCardFlyAnimationChange={changeCardFlyAnimation}
-        memorizeProviderId={resolveModeProvider(modeProviders, "memorize")}
-        onMemorizeProviderChange={(id) => handleModeProviderChange("memorize", id)}
+        modeProviders={modeProviders}
+        onModeProviderChange={handleModeProviderChange}
         nunopiEnabled={isNunopiEnabled()}
         onNunopiEnabledChange={(on) => { setNunopiEnabled(on); location.reload(); }}
       />
