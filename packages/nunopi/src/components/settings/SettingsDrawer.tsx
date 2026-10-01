@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
-import { type LearnProviderMode, type ModeProviders, LEARN_PROVIDER_MODES, resolveModeProvider } from "../../lib/modeProviders";
+import { type LearnProviderMode, type ModeModels, type ModeProviders, LEARN_PROVIDER_MODES, resolveModeModel, resolveModeProvider } from "../../lib/modeProviders";
 import { XIcon } from "../learning/icons";
 import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
@@ -40,6 +40,9 @@ interface SettingsDrawerProps {
   // 학습모듈 모드별 provider(#985). id undefined = 기본값 따라감. 학습 전용.
   modeProviders?: ModeProviders;
   onModeProviderChange?: (mode: LearnProviderMode | "default", id: AgentProviderKind | undefined) => void;
+  // 모드별 모델(#987). model undefined = 그 provider 기본 모델.
+  modeModels?: ModeModels;
+  onModeModelChange?: (mode: LearnProviderMode | "default", model: string | undefined) => void;
   // nunopi 학습 모듈 설치/사용 토글(#924) — 온보딩 외 설정서도. 핸들러 있으면 nunopi 섹션 노출.
   // apps/mustard는 isNunopiEnabled/setNunopiEnabled 주입(변경 시 reload로 게이트 반영). apps/nunopi 스탠드얼론은 미주입.
   nunopiEnabled?: boolean;
@@ -117,6 +120,8 @@ export default function SettingsDrawer({
   onCardFlyAnimationChange,
   modeProviders = {},
   onModeProviderChange,
+  modeModels = {},
+  onModeModelChange,
   nunopiEnabled,
   onNunopiEnabledChange,
 }: SettingsDrawerProps) {
@@ -137,6 +142,23 @@ export default function SettingsDrawer({
   const [termPref, setTermPref] = useState<TerminalThemePref>(() => getTerminalThemePref());
   const changeTermPref = (p: TerminalThemePref) => { setTermPref(p); setTerminalThemePref(p); };
   const [activeSection, setActiveSection] = useState("set-appearance"); // 좌측 선택 = 우측 그 섹션만 렌더(#925). 훅은 early-return 위에.
+  // 모델 목록(#987) — nunopi 섹션 열릴 때 쓰이는 provider만 /api/agent/models로 1회 조회(세션 내 캐시).
+  type ModelList = { models: { id: string; label: string; latest?: boolean }[]; defaultModel: string } | "loading" | "error";
+  const [modelLists, setModelLists] = useState<Partial<Record<AgentProviderKind, ModelList>>>({});
+  const usedProviders = [...new Set((["default", ...LEARN_PROVIDER_MODES] as const).map((m) => resolveModeProvider(modeProviders, m)))].sort().join(",");
+  useEffect(() => {
+    if (activeSection !== "set-nunopi" || !showLearning || !onModeModelChange) return;
+    for (const p of usedProviders.split(",") as AgentProviderKind[]) {
+      if (modelLists[p]) continue;
+      setModelLists((prev) => ({ ...prev, [p]: "loading" }));
+      fetch(`/api/agent/models?providerId=${encodeURIComponent(p)}`)
+        .then((r) => r.json())
+        .then((j) => setModelLists((prev) => ({ ...prev, [p]: j?.ok ? { models: j.models, defaultModel: j.defaultModel } : "error" })))
+        .catch(() => setModelLists((prev) => ({ ...prev, [p]: "error" })));
+    }
+    // modelLists는 캐시 확인용 — 넣으면 loading 세팅마다 재실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, showLearning, onModeModelChange, usedProviders]);
   // 터미널 설정(#926) — useSetting으로 구독(변경 즉시 반영). 모든 훅은 early-return 위.
   const tFontSize = useSetting<number>(TKEYS.fontSize, TERMINAL_DEFAULTS.fontSize);
   const tFontFamily = useSetting<string>(TKEYS.fontFamily, TERMINAL_DEFAULTS.fontFamily);
@@ -966,10 +988,22 @@ export default function SettingsDrawer({
                 <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.learnProvidersHint")}</p>
                 {(["default", ...LEARN_PROVIDER_MODES] as const).map((m) => {
                   const label = m === "default" ? t("settings.learnProviderDefault") : t(`mode.${m}`);
+                  // 모델 칸(#987): 기본 따라가는 행은 비활성 + 기본 행 모델 표시. 직접 고른 행만 선택.
+                  const rowProvider = resolveModeProvider(modeProviders, m);
+                  const follows = m !== "default" && !modeProviders[m];
+                  const list = modelLists[rowProvider];
+                  const listed = typeof list === "object" ? list : undefined;
+                  const saved = follows ? undefined : modeModels[m];
+                  const modelName = (id: string | undefined) => {
+                    const hit = listed?.models.find((x) => x.id === id);
+                    return hit ? hit.label + (hit.latest ? ` (${t("settings.modelLatest")})` : "") : id ?? "";
+                  };
+                  const defaultName = modelName(listed?.defaultModel) || "…";
                   return (
                     <div key={m} className="flex items-center justify-between gap-3">
-                      <span className={`text-sm ${m === "default" ? "font-medium text-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>{label}</span>
-                      <div className="relative w-56 shrink-0">
+                      <span className={`min-w-0 text-sm ${m === "default" ? "font-medium text-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>{label}</span>
+                      <div className="flex shrink-0 gap-2">
+                      <div className="relative w-48">
                         <select
                           value={m === "default" ? resolveModeProvider(modeProviders, "default") : (modeProviders[m] ?? "")}
                           onChange={(e) => onModeProviderChange(m, (e.target.value || undefined) as AgentProviderKind | undefined)}
@@ -984,6 +1018,30 @@ export default function SettingsDrawer({
                           ))}
                         </select>
                         <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      {onModeModelChange && (
+                      <div className="relative w-52">
+                        <select
+                          value={follows ? "" : (saved ?? "")}
+                          disabled={follows}
+                          onChange={(e) => onModeModelChange(m, e.target.value || undefined)}
+                          aria-label={`${label} ${t("settings.model")}`}
+                          className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+                        >
+                          {follows ? (
+                            <option value="">{t("settings.followDefault", { name: modelName(resolveModeModel(modeProviders, modeModels, "default")) || defaultName })}</option>
+                          ) : (
+                            <option value="">{list === "loading" ? t("settings.modelLoading") : t("settings.defaultModel", { name: defaultName })}</option>
+                          )}
+                          {!follows && listed?.models.map((x) => (
+                            <option key={x.id} value={x.id}>{x.label}{x.latest ? ` (${t("settings.modelLatest")})` : ""}</option>
+                          ))}
+                          {/* 목록에 없는 저장값(목록 실패·모델 단종)도 값 유지 */}
+                          {!follows && saved && !listed?.models.some((x) => x.id === saved) && <option value={saved}>{saved}</option>}
+                        </select>
+                        <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                      )}
                       </div>
                     </div>
                   );

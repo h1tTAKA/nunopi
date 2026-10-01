@@ -422,6 +422,8 @@ export default function LearningHome() {
         onCardFlyAnimationChange={changeCardFlyAnimation}
         modeProviders={modeProviders}
         onModeProviderChange={handleModeProviderChange}
+        modeModels={modeModels}
+        onModeModelChange={updateModeModel}
         nunopiEnabled={isNunopiEnabled()}
         onNunopiEnabledChange={(on) => { setNunopiEnabled(on); location.reload(); }}
       />
