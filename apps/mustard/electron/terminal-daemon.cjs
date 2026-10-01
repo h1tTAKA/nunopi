@@ -41,6 +41,7 @@ function ensure({ id, cwd, cols, rows, dark }) {
     // 유저가 셸 rc에 둔 CLAUDE_* 설정은 로그인 셸이 다시 읽으므로 상속분만 지워도 안전.
     for (const k of Object.keys(env)) if (k === "CLAUDECODE" || k.startsWith("CLAUDE_")) delete env[k];
     delete env.NUNOPI_TERM_SOCK; delete env.NUNOPI_TERM_TOKEN; delete env.NUNOPI_TERM_SHELL; // 데몬 내부 env 누출 방지
+    env.MUSTARD_TERM_ID = id; // #989 관리형 Claude 훅이 이 세션으로 상태 POST(없으면 훅 no-op = Mustard 밖 claude)
     // 터미널 배경 밝기 힌트(#914) — CLI TUI(claude 등)가 라이트/다크 색을 스스로 고르게. "fg;bg" ANSI 인덱스.
     // 라이트=bg 15(밝음)→"0;15", 다크=bg 0(어두움)→"15;0". OSC11 응답과 병행(env만 보는 도구 커버).
     env.COLORFGBG = dark === false ? "0;15" : "15;0";

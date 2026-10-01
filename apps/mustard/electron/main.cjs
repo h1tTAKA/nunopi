@@ -14,6 +14,7 @@ const {
 const { spawn } = require("node:child_process");
 const { createDaemonClient } = require("./daemon-client.cjs");
 const { removeRepoHooks } = require("./agent-hooks.cjs");
+const { installClaudeHooks } = require("./claude-hooks.cjs");
 const { getProviderUsage } = require("./provider-usage.cjs");
 const { startWatch, stopWatch, stopAll: stopAllWatchers } = require("./repo-watcher.cjs");
 const githubBridge = require("./github-bridge.cjs"); // GitHub 패널(#809/#810) gh CLI 브릿지
@@ -267,12 +268,22 @@ function clearModeTabClaims() {
   if (changed) broadcastModes();
 }
 
+// #989 관리형 Claude 훅 설치(비동기, 실패해도 앱 정상) — appBase 확정 후. 화면 긁기는 안전망으로 유지.
+function setupClaudeHooks(base) {
+  const saved = loadSavedRuntimePaths();
+  const cliPath = saved.claudeCode || process.env.NUNOPI_CLAUDE_COMMAND?.trim() || safeResolve(resolveClaudeCli);
+  installClaudeHooks({ userData: app.getPath("userData"), appBase: base, cliPath })
+    .then((r) => console.log("[claude-hooks]", JSON.stringify(r)))
+    .catch((e) => console.warn("[claude-hooks] failed:", String(e?.message || e)));
+}
+
 async function boot() {
   migrateUserData(); // #900 리브랜딩 — 옛 nunopi userData 1회 이관(창·서버 뜨기 전)
   try { loadRegistry(); } catch { /* #864 재시작 생존 세션 신원 복원 */ }
   if (DEV_URL) {
     // dev: next dev가 자체 임베드(간섭 방지) → main은 SNA 안 띄움.
     appBase = DEV_URL; // #765 버퍼 드라이버 POST 대상
+    setupClaudeHooks(DEV_URL);
     createWindow(DEV_URL);
     return;
   }
@@ -283,6 +294,7 @@ async function boot() {
     SNA_AUTH_TOKEN: snaHandle.connection.authToken,
   });
   appBase = base; // #765 버퍼 드라이버 POST 대상
+  setupClaudeHooks(base);
   createWindow(base);
 }
 
