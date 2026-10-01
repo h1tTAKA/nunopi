@@ -33,7 +33,7 @@ import { type Collection, loadCollections } from "@mustard/nunopi";
 import { useCodeAnalysis, generateAutoTitle } from "@mustard/nunopi";
 import { useCollapsed } from "@mustard/nunopi";
 import { AnalysisProvider } from "@mustard/nunopi";
-import { type LearnProviderMode, type ModeProviders, loadModeProviders, saveModeProviders, resolveModeProvider } from "@mustard/nunopi";
+import { type LearnProviderMode, type ModeModels, type ModeProviders, loadModeModels, loadModeProviders, saveModeModels, saveModeProviders, resolveModeModel, resolveModeProvider, withModel } from "@mustard/nunopi";
 const SETTINGS_STORAGE_KEY = "nunopi:provider-settings";
 const DEFAULT_PROVIDER_ID: AgentProviderKind = "claude-agent";
 
@@ -96,6 +96,15 @@ export default function LearningHome() {
   const [memorizeDue, setMemorizeDue] = useState(0);
   // 모드별 provider(#985). providerId(위)는 코드/글 드롭다운의 "지금 값" — 히스토리 열기로 일시 변경될 수 있음.
   const [modeProviders, setModeProviders] = useState<ModeProviders>({});
+  const [modeModels, setModeModels] = useState<ModeModels>({}); // #987
+  const updateModeModel = useCallback((mode: LearnProviderMode | "default", model: string | undefined) => {
+    setModeModels((prev) => {
+      const next = { ...prev };
+      if (model) next[mode] = model; else delete next[mode]; // undefined = 기본 모델
+      saveModeModels(next);
+      return next;
+    });
+  }, []);
   const updateModeProvider = useCallback((mode: LearnProviderMode | "default", id: AgentProviderKind | undefined) => {
     setModeProviders((prev) => {
       const next = { ...prev };
@@ -103,12 +112,18 @@ export default function LearningHome() {
       saveModeProviders(next);
       return next;
     });
-  }, []);
+    updateModeModel(mode, undefined); // provider가 바뀌면 그 행 모델은 다른 provider 것 → 초기화(#987)
+  }, [updateModeModel]);
 
   // ── 코드/글 분석 로직(훅). 공유 상태를 주입한다. shared는 워크스페이스 탭의 CodeAnalysisView가
   // Context로 받아 같은 저장소를 보게 하는 통로이기도 하다(#773).
-  const shared = useMemo(() => ({ historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, setModeProvider: updateModeProvider }), [historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, updateModeProvider]);
+  const shared = useMemo(() => ({ historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, setModeProvider: updateModeProvider, modeModels }), [historyEntries, setHistoryEntries, collections, setCollections, excludedTerms, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, updateModeProvider, modeModels]);
   const ca = useCodeAnalysis(shared);
+  // 뷰별 요청 providerSettings = 기본 + 그 모드 모델(#987). 참조 안정 위해 memo.
+  const viewPs = useMemo(() => {
+    const ps = (m: LearnProviderMode | "default") => withModel(providerSettings, resolveModeProvider(modeProviders, m), resolveModeModel(modeProviders, modeModels, m));
+    return { ask: ps("ask"), history: ps("history"), memorize: ps("memorize"), default: ps("default") };
+  }, [providerSettings, modeProviders, modeModels]);
   // 왼쪽 패널 접힘 — 헤더 토글이 제어(훅 밖 소유). 코드/글=입력 패널(#781), 질문=세션 패널(#783).
   const [editorCollapsed, toggleEditorCollapsed] = useCollapsed("nunopi:editor-collapsed");
   const [sessionCollapsed, toggleSessionCollapsed] = useCollapsed("nunopi:ask-panel-collapsed");
@@ -142,6 +157,7 @@ export default function LearningHome() {
     // 모드별 provider 로드(옛 암기 키 이관 포함) → 드롭다운 시작값 = 시작 모드 설정값.
     const mp = loadModeProviders();
     setModeProviders(mp);
+    setModeModels(loadModeModels());
     setProviderId(resolveModeProvider(mp, startMode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -250,13 +266,13 @@ export default function LearningHome() {
         onToggleLeftPanel={vm === "ask" ? toggleSessionCollapsed : toggleEditorCollapsed}
         showLeftPanelToggle={vm === "code" || vm === "text" || vm === "ask"}
         memorize={vm === "memorize"}
-        memorizeView={<MemorizeView active={vm === "memorize"} providerId={resolveModeProvider(modeProviders, "memorize")} providerSettings={providerSettings} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} goToCard={memGoTarget} />}
+        memorizeView={<MemorizeView active={vm === "memorize"} providerId={resolveModeProvider(modeProviders, "memorize")} providerSettings={viewPs.memorize} sourceIds={new Set(historyEntries.map((e) => e.id))} onGoToSource={handleGoToSource} onGoToAskSource={handleGoToAskSource} goToCard={memGoTarget} />}
         ask={vm === "ask"}
-        askView={<AskView active={vm === "ask"} providerId={resolveModeProvider(modeProviders, "ask")} providerSettings={providerSettings} goToTarget={askGoTarget} collapsed={sessionCollapsed} />}
+        askView={<AskView active={vm === "ask"} providerId={resolveModeProvider(modeProviders, "ask")} providerSettings={viewPs.ask} goToTarget={askGoTarget} collapsed={sessionCollapsed} />}
         history={vm === "history"}
-        historyView={<HistoryView active={vm === "history"} onNavigate={handleGoToHistory} providerId={resolveModeProvider(modeProviders, "history")} providerSettings={providerSettings} />}
+        historyView={<HistoryView active={vm === "history"} onNavigate={handleGoToHistory} providerId={resolveModeProvider(modeProviders, "history")} providerSettings={viewPs.history} />}
         workspace={vm === "workspace"}
-        workspaceView={<WorkspaceTabs ref={wsRef} active={vm === "workspace"} providerId={resolveModeProvider(modeProviders, "default")} providerSettings={providerSettings} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
+        workspaceView={<WorkspaceTabs ref={wsRef} active={vm === "workspace"} providerId={resolveModeProvider(modeProviders, "default")} providerSettings={viewPs.default} onExitWorkspace={enterQAArea} onOpenMemorize={() => handleViewModeChange("memorize")} onOpenSettings={() => setIsSettingsOpen(true)} />}
         modeToggle={
           <ModeSwapToggle
             viewMode={vm}
@@ -406,6 +422,8 @@ export default function LearningHome() {
         onCardFlyAnimationChange={changeCardFlyAnimation}
         modeProviders={modeProviders}
         onModeProviderChange={handleModeProviderChange}
+        modeModels={modeModels}
+        onModeModelChange={updateModeModel}
         nunopiEnabled={isNunopiEnabled()}
         onNunopiEnabledChange={(on) => { setNunopiEnabled(on); location.reload(); }}
       />

@@ -26,7 +26,7 @@ import {
   newSessionId,
 } from "../lib/historyDB";
 import { saveExclusions } from "../lib/exclusions";
-import { type ModeProviders, resolveModeProvider } from "../lib/modeProviders";
+import { type ModeModels, type ModeProviders, resolveModeModel, resolveModeProvider, withModel } from "../lib/modeProviders";
 import { type Collection, saveCollections } from "../lib/collections";
 
 const DEFAULT_CODE = `const [count, setCount] = useState(0);\n\nreturn <button className="px-4 py-2">{count}</button>;`;
@@ -97,13 +97,23 @@ export interface CodeAnalysisShared {
   // 모드별 provider(#985) — 코드/글 전환 시 그 모드 값, 드롭다운 변경은 그 모드에 저장.
   modeProviders: ModeProviders;
   setModeProvider: (mode: "code" | "text", id: AgentProviderKind) => void;
+  modeModels: ModeModels; // #987 모드별 모델
+
 }
 
 export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: AnalyzeMode = "code") {
-  const { historyEntries, setHistoryEntries, collections, setCollections, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, setModeProvider } = shared;
+  const { historyEntries, setHistoryEntries, collections, setCollections, setExcludedTerms, providerId, setProviderId, providerSettings: baseProviderSettings, setMemorizeDue, modeProviders, setModeProvider, modeModels } = shared;
 
   // 분석 모드(코드/글). 모드별로 입력을 따로 유지해 토글해도 서로 안 지워지게 한다.
   const [mode, setMode] = useState<AnalyzeMode>(initialMode);
+  // 요청 providerSettings = 기본 + 현재 모드 모델(#987). 히스토리 열기로 provider가 일시로 달라졌으면
+  // 그 모드 모델은 다른 provider 것이라 안 넣는다(기본 모델로).
+  const providerSettings = useMemo(() => {
+    const m = mode === "text" ? "text" : "code";
+    return resolveModeProvider(modeProviders, m) === providerId
+      ? withModel(baseProviderSettings, providerId, resolveModeModel(modeProviders, modeModels, m))
+      : baseProviderSettings;
+  }, [mode, modeProviders, modeModels, providerId, baseProviderSettings]);
   const [codeInput, setCodeInput] = useState(DEFAULT_CODE);
   const [textInput, setTextInput] = useState("");
   const code = mode === "text" ? textInput : codeInput;
