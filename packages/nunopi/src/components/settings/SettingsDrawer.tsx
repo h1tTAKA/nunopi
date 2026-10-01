@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useCallback } from "react";
 import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/core";
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
+import { type LearnProviderMode, type ModeProviders, LEARN_PROVIDER_MODES, resolveModeProvider } from "../../lib/modeProviders";
 import { XIcon } from "../learning/icons";
 import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
@@ -36,9 +37,9 @@ interface SettingsDrawerProps {
   // 카드보기 날아오는 애니메이션 on/off (#641). 학습 전용(showLearning=false면 미사용).
   cardFlyAnimation?: boolean;
   onCardFlyAnimationChange?: (next: boolean) => void;
-  // 암기모드 카드 기본 설명 생성에 쓸 provider(분석 provider와 별개). 학습 전용.
-  memorizeProviderId?: AgentProviderKind;
-  onMemorizeProviderChange?: (id: AgentProviderKind) => void;
+  // 학습모듈 모드별 provider(#985). id undefined = 기본값 따라감. 학습 전용.
+  modeProviders?: ModeProviders;
+  onModeProviderChange?: (mode: LearnProviderMode | "default", id: AgentProviderKind | undefined) => void;
   // nunopi 학습 모듈 설치/사용 토글(#924) — 온보딩 외 설정서도. 핸들러 있으면 nunopi 섹션 노출.
   // apps/mustard는 isNunopiEnabled/setNunopiEnabled 주입(변경 시 reload로 게이트 반영). apps/nunopi 스탠드얼론은 미주입.
   nunopiEnabled?: boolean;
@@ -114,8 +115,8 @@ export default function SettingsDrawer({
   showLearning = true,
   cardFlyAnimation = true,
   onCardFlyAnimationChange,
-  memorizeProviderId,
-  onMemorizeProviderChange,
+  modeProviders = {},
+  onModeProviderChange,
   nunopiEnabled,
   onNunopiEnabledChange,
 }: SettingsDrawerProps) {
@@ -729,31 +730,8 @@ export default function SettingsDrawer({
           </section>
           )}
 
-          {/* 암기모드 provider + 제외 목록 — 프로바이더 섹션 안(학습 전용, Mustard-only서 숨김) */}
+          {/* 제외 목록 — 프로바이더 섹션 안(학습 전용, Mustard-only서 숨김). 암기 provider는 nunopi 섹션으로(#985). */}
           {showLearning && activeSection === "set-agents" && (<>
-          {/* 암기모드 카드 설명 provider — 프로바이더 설정 바로 밑 */}
-          <section id="set-learning" className="scroll-mt-4 space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
-            <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-              {t("settings.memorizeProvider")}
-            </h3>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.memorizeProviderHint")}</p>
-            <div className="relative">
-              <select
-                value={memorizeProviderId}
-                onChange={(e) => onMemorizeProviderChange?.(e.target.value as AgentProviderKind)}
-                aria-label={t("settings.memorizeProvider")}
-                className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
-              >
-                {PROVIDER_CATALOG.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {t(`provider.${p.id}`)}
-                  </option>
-                ))}
-              </select>
-              <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
-            </div>
-          </section>
-
           {/* 제외 목록 카드 */}
           <section className="space-y-3 rounded-2xl border border-zinc-200 p-4 dark:border-zinc-800">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
@@ -981,6 +959,37 @@ export default function SettingsDrawer({
               </button>
             </div>
             <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.nunopiModuleApply")}</p>
+            {/* 학습 provider(#985) — 기본 + 모드별 덮어쓰기. 모드 "" = 기본값 따라감. */}
+            {showLearning && onModeProviderChange && (
+              <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{t("settings.learnProviders")}</h4>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">{t("settings.learnProvidersHint")}</p>
+                {(["default", ...LEARN_PROVIDER_MODES] as const).map((m) => {
+                  const label = m === "default" ? t("settings.learnProviderDefault") : t(`mode.${m}`);
+                  return (
+                    <div key={m} className="flex items-center justify-between gap-3">
+                      <span className={`text-sm ${m === "default" ? "font-medium text-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>{label}</span>
+                      <div className="relative w-56 shrink-0">
+                        <select
+                          value={m === "default" ? resolveModeProvider(modeProviders, "default") : (modeProviders[m] ?? "")}
+                          onChange={(e) => onModeProviderChange(m, (e.target.value || undefined) as AgentProviderKind | undefined)}
+                          aria-label={label}
+                          className="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 pr-9 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50 dark:focus:border-zinc-500"
+                        >
+                          {m !== "default" && (
+                            <option value="">{t("settings.followDefault", { name: t(`provider.${resolveModeProvider(modeProviders, "default")}`) })}</option>
+                          )}
+                          {PROVIDER_CATALOG.map((p) => (
+                            <option key={p.id} value={p.id}>{t(`provider.${p.id}`)}</option>
+                          ))}
+                        </select>
+                        <IconChevronDown size={16} stroke={2} aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-zinc-500" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {/* nunopi UI — 학습 UI 옵션(카드 애니 등). nunopi 켜짐 + 학습노출 시. */}
             {showLearning && onCardFlyAnimationChange && (
               <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-800">

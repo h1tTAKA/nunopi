@@ -20,6 +20,7 @@ export * from "./lib/exclusions";
 export * from "./lib/exportHtml";
 export * from "./lib/formatDuration";
 export * from "./lib/highlightTerms";
+export * from "./lib/modeProviders";
 export * from "./lib/historyDB";
 export * from "./lib/isCommentLine";
 export * from "./lib/memSession";

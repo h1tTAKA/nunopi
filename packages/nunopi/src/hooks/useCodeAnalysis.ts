@@ -26,6 +26,7 @@ import {
   newSessionId,
 } from "../lib/historyDB";
 import { saveExclusions } from "../lib/exclusions";
+import { type ModeProviders, resolveModeProvider } from "../lib/modeProviders";
 import { type Collection, saveCollections } from "../lib/collections";
 
 const DEFAULT_CODE = `const [count, setCount] = useState(0);\n\nreturn <button className="px-4 py-2">{count}</button>;`;
@@ -93,10 +94,13 @@ export interface CodeAnalysisShared {
   setProviderId: Dispatch<SetStateAction<AgentProviderKind>>;
   providerSettings: ProviderSettings;
   setMemorizeDue: Dispatch<SetStateAction<number>>;
+  // 모드별 provider(#985) — 코드/글 전환 시 그 모드 값, 드롭다운 변경은 그 모드에 저장.
+  modeProviders: ModeProviders;
+  setModeProvider: (mode: "code" | "text", id: AgentProviderKind) => void;
 }
 
 export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: AnalyzeMode = "code") {
-  const { historyEntries, setHistoryEntries, collections, setCollections, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue } = shared;
+  const { historyEntries, setHistoryEntries, collections, setCollections, setExcludedTerms, providerId, setProviderId, providerSettings, setMemorizeDue, modeProviders, setModeProvider } = shared;
 
   // 분석 모드(코드/글). 모드별로 입력을 따로 유지해 토글해도 서로 안 지워지게 한다.
   const [mode, setMode] = useState<AnalyzeMode>(initialMode);
@@ -118,6 +122,7 @@ export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: Analyze
   const abortRef = useRef<AbortController | null>(null);
   const fillAbortRef = useRef<AbortController | null>(null);
   type AnalysisSnapshot = {
+    providerId: AgentProviderKind; // #985 복귀 시 그 결과를 만든 provider로(히스토리 일시 변경 포함)
     analysisResult: AgentAnalyzeResponse | null;
     currentHistoryId: string | null;
     explainingTokens: string[];
@@ -265,12 +270,14 @@ export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: Analyze
     if (chatLoading) return;
     const fromMode: "code" | "text" = mode === "text" ? "text" : "code";
     analysisSnapshotRef.current[fromMode] = {
-      analysisResult, currentHistoryId, explainingTokens, explainingConcepts,
+      providerId, analysisResult, currentHistoryId, explainingTokens, explainingConcepts,
       chatSessions, activeSessionId, chatStreaming, activeCollectionId,
       errorMessage, resumable, lastElapsedMs, chunkProgress,
     };
     setMode(nextMode);
     const snap = analysisSnapshotRef.current[nextMode];
+    // 결과가 있으면 그 결과를 만든 provider, 없으면 그 모드 설정값(설정 변경이 바로 반영되게).
+    setProviderId(snap?.analysisResult ? snap.providerId : resolveModeProvider(modeProviders, nextMode));
     if (snap) {
       setAnalysisResult(snap.analysisResult);
       setCurrentHistoryId(snap.currentHistoryId);
@@ -303,6 +310,7 @@ export function useCodeAnalysis(shared: CodeAnalysisShared, initialMode: Analyze
   function handleProviderChange(nextProviderId: AgentProviderKind) {
     if (chatLoading) return;
     setProviderId(nextProviderId);
+    setModeProvider(mode === "text" ? "text" : "code", nextProviderId); // #985 드롭다운 = 그 모드 설정 저장
     if (errorMessage) setErrorMessage(null);
     if (analysisResult) setAnalysisResult(null);
     setCurrentHistoryId(null);
