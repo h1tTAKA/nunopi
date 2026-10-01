@@ -357,3 +357,32 @@ export const snaOpenCodeProvider = createSnaProvider({
 
 // 하위 호환 별칭(기존 import 경로 유지).
 export const snaAgentProvider = snaClaudeProvider;
+
+// 모델 목록(#987) — 설정 화면 모델 선택용. SNA agent.listModels(Codex/OpenCode는 CLI 실시간, Claude는 SNA 고정 목록).
+// SNA의 Claude 고정 목록은 구버전(Opus 4.7/Sonnet 4.6)이라 별칭(opus/sonnet/haiku = CLI가 최신으로 해석)을
+// latest로 맨 위에 두고 SNA 별칭 항목(구버전 라벨)은 뺀다. 정식 ID는 그 아래.
+// ponytail: Claude 정식 ID는 SNA 목록 그대로 — SNA 고정 목록 갱신은 SNA 레포 이슈.
+export interface SnaModelOption { id: string; label: string; latest?: boolean }
+const RUNTIME_OF: Partial<Record<AgentProviderKind, SnaRuntime>> = {
+  "claude-agent": "claude-code",
+  "codex-agent": "codex",
+  "opencode-agent": "opencode",
+};
+const CLAUDE_ALIASES: SnaModelOption[] = [
+  { id: "opus", label: "Opus", latest: true },
+  { id: "sonnet", label: "Sonnet", latest: true },
+  { id: "haiku", label: "Haiku", latest: true },
+];
+
+export async function listSnaModels(providerId: AgentProviderKind): Promise<{ models: SnaModelOption[]; defaultModel: string } | null> {
+  const runtime = RUNTIME_OF[providerId];
+  if (!runtime) return null;
+  const client = await getSnaClient();
+  const res = await client.agent.listModels(runtime);
+  let models: SnaModelOption[] = res.models.filter((m) => !m.deprecated).map((m) => ({ id: m.id, label: m.label }));
+  if (runtime === "claude-code") {
+    const aliasIds = new Set(CLAUDE_ALIASES.map((m) => m.id));
+    models = [...CLAUDE_ALIASES, ...models.filter((m) => !aliasIds.has(m.id))];
+  }
+  return { models, defaultModel: defaultSnaModel(runtime) };
+}
