@@ -25,6 +25,16 @@ import {
 
 type SnaRuntime = "claude-code" | "codex" | "opencode";
 
+// 런타임별 기본 모델(#987 이전 하드코딩 그대로). 유저가 모드별 모델을 안 고르면 이걸 쓴다.
+// runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex/opencode엔
+// 그 모델이 가서 실패("not supported"/"Model not found"). 그래서 비-claude는 모델 명시 필수.
+// 환경마다 다르므로 env override(기본은 각 런타임의 합리적 기본).
+export function defaultSnaModel(runtime: SnaRuntime): string {
+  if (runtime === "claude-code") return "sonnet"; // 별칭 = CLI가 최신 sonnet으로 해석
+  if (runtime === "codex") return process.env.NUNOPI_CODEX_MODEL?.trim() || "gpt-5.5";
+  return process.env.NUNOPI_OPENCODE_MODEL?.trim() || "opencode/deepseek-v4-flash-free";
+}
+
 const CODE_SYSTEM_PROMPT = "You are a code analysis assistant. Return JSON only.";
 // 카드 중복 묶기 — 경량. 프롬프트(요청 code)에 규칙·목록이 다 들어 있어 시스템은 출력형식만 강제.
 // 산문·플래시카드 제안 없이 요청한 ```card-dedup 블록만 내게 해 토큰·지연을 최소화한다.
@@ -74,6 +84,7 @@ async function runViaSna(
     onThinking?: (line: string) => void; // 추론(thinking) 누적 — 대기 구간 활동 표시용
     fullProgress?: boolean;
     effort?: boolean; // 분석은 low; 챗은 미강제
+    model?: string; // #987 유저 선택 모델(미지정 = defaultSnaModel)
   },
 ): Promise<RunResult> {
   if (opts.signal?.aborted) throw new Error("분석이 취소되었습니다.");
@@ -83,19 +94,15 @@ async function runViaSna(
 
   // low 기준 reasoningLevel: claude=1, codex=2 (SNA 매핑표). opencode는 미강제(모델별 상이).
   const reasoningLevel = opts.effort && isClaude ? 1 : opts.effort && isCodex ? 2 : undefined;
-  // runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex/opencode엔
-  // 그 모델이 가서 실패("not supported"/"Model not found"). 그래서 비-claude는 모델 명시 필수.
-  // 환경마다 다르므로 env override(기본은 각 런타임의 합리적 기본).
-  const codexModel = process.env.NUNOPI_CODEX_MODEL?.trim() || "gpt-5.5";
-  const openCodeModel = process.env.NUNOPI_OPENCODE_MODEL?.trim() || "opencode/deepseek-v4-flash-free";
+  const model = opts.model?.trim() || defaultSnaModel(opts.runtime);
   const runtimeOpts = isClaude
     ? {
-        model: "sonnet",
+        model,
         // 토큰 최적화: 유저 설정/CLAUDE.md/훅 미로드 + 툴 정의 0(PoC 실측 cacheRead 16143→0).
         providerOptions: { settingSources: [""], strictMcpConfig: true } as Record<string, unknown>,
         extraArgs: ["--tools", ""],
       }
-    : { model: isCodex ? codexModel : openCodeModel }; // codex/opencode: 모델만 명시(claude 플래그 미전달)
+    : { model }; // codex/opencode: 모델만 명시(claude 플래그 미전달)
 
   let full = "";
   let think = ""; // 추론 누적
@@ -288,6 +295,8 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           fullProgress,
           // 덱에이전트는 저추론(그룹핑이라 깊은 추론 불필요) — 챗/카드설명만 고추론 허용.
           effort: !isChatLike,
+          // 모드별 모델(#987) — 클라가 뷰별 providerSettings에 주입.
+          model: (request.providerSettings?.[providerId as "claude-agent" | "codex-agent" | "opencode-agent"])?.model,
         });
 
         return isChatStream || isDedup || isQuiz

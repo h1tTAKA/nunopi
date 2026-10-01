@@ -371,8 +371,9 @@ function isOptionalProviderSettings(value: unknown): boolean {
     const agent = value[key];
     if (agent !== undefined) {
       if (!isRecord(agent)) return false;
-      const { cliPath } = agent as Record<string, unknown>;
+      const { cliPath, model } = agent as Record<string, unknown>;
       if (cliPath !== undefined && typeof cliPath !== "string") return false;
+      if (model !== undefined && typeof model !== "string") return false; // #987
     }
   }
 

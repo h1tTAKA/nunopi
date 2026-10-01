@@ -28,14 +28,18 @@ export interface ProviderSettings {
     model?: string;
     apiKey?: string;
   };
+  // model(#987): SNA가 CLI --model로 그대로 전달. 미지정 = 어댑터 기본 모델.
   "claude-agent"?: {
     cliPath?: string;
+    model?: string;
   };
   "codex-agent"?: {
     cliPath?: string;
+    model?: string;
   };
   "opencode-agent"?: {
     cliPath?: string;
+    model?: string;
   };
 }
 
