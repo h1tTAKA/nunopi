@@ -9,6 +9,9 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request): Promise<Response> {
   const sp = new URL(request.url).searchParams;
+  // 부팅 토큰 검사(#989 리뷰) — 로컬 웹페이지 등이 가짜 상태를 못 넣게. env 없으면(dev) 생략.
+  const expected = process.env.MUSTARD_HOOK_TOKEN;
+  if (expected && sp.get("k") !== expected) return Response.json({ ok: false }, { status: 403 });
   const event = sp.get("event") ?? "";
   const term = sp.get("term") ?? "";
   let payload: Record<string, unknown> = {};

@@ -31,7 +31,8 @@ function parseVersion(out) { const m = String(out || "").match(/\b(\d+\.\d+\.\d+
 const shq = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`; // sh 단일따옴표 이스케이프
 function hookCommand(endpointFile, event) {
   // MUSTARD_TERM_ID 없으면(Mustard 밖 claude) sh 한 번으로 종료. 실패해도 항상 exit 0(claude 방해 금지).
-  return `[ -n "$${MARKER}" ] && curl -sS -m 2 --noproxy 127.0.0.1 -X POST "$(cat ${shq(endpointFile)})?event=${event}&term=$${MARKER}" -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1; exit 0`;
+  // 엔드포인트 파일 = ".../hook?k=<부팅 토큰>" → 뒤에 &event·&term 붙임(토큰은 파일에만, settings.json엔 없음).
+  return `[ -n "$${MARKER}" ] && curl -sS -m 2 --noproxy 127.0.0.1 -X POST "$(cat ${shq(endpointFile)})&event=${event}&term=$${MARKER}" -H 'Content-Type: application/json' --data-binary @- >/dev/null 2>&1; exit 0`;
 }
 
 // 순수 함수 — 기존 settings에서 우리 엔트리만 빼고 버전이 아는 이벤트로 다시 넣는다(다른 키·다른 훅 보존).
@@ -69,14 +70,17 @@ function probeClaudeVersion(cliPath) {
 }
 
 // 부팅 시 1회 — 엔드포인트 기록 + settings.json 병합. 파싱 실패하면 절대 안 건드림(유저 설정 보호).
-async function installClaudeHooks({ userData, appBase, cliPath }) {
+async function installClaudeHooks({ userData, appBase, cliPath, token = "" }) {
   const endpointFile = join(userData, "mustard-hook-endpoint");
-  try { writeFileSync(endpointFile, `${appBase}/api/agent/status/hook`); } catch (e) { return { ok: false, reason: `endpoint: ${e?.message || e}` }; }
+  // 토큰(#989 리뷰): 127.0.0.1 바인딩이어도 브라우저 페이지가 로컬 포트로 POST해 가짜 상태·알림을 만들 수 있음 → 부팅마다 새 토큰.
+  try { writeFileSync(endpointFile, `${appBase}/api/agent/status/hook?k=${encodeURIComponent(token)}`, { mode: 0o600 }); } catch (e) { return { ok: false, reason: `endpoint: ${e?.message || e}` }; }
   const file = settingsPath();
   let current = {};
   if (existsSync(file)) {
     try { current = JSON.parse(readFileSync(file, "utf8")); } catch { return { ok: false, reason: "settings.json parse failed — 미수정" }; }
     if (!current || typeof current !== "object" || Array.isArray(current)) return { ok: false, reason: "settings.json not an object — 미수정" };
+    // hooks가 객체가 아니면(배열 등 비정상) 병합 시 구조가 깨짐 → 손대지 않음(#989 리뷰).
+    if (current.hooks !== undefined && (!current.hooks || typeof current.hooks !== "object" || Array.isArray(current.hooks))) return { ok: false, reason: "settings.hooks not an object — 미수정" };
   }
   const version = await probeClaudeVersion(cliPath);
   const next = mergeHooks(current, endpointFile, version);

@@ -269,10 +269,12 @@ function clearModeTabClaims() {
 }
 
 // #989 관리형 Claude 훅 설치(비동기, 실패해도 앱 정상) — appBase 확정 후. 화면 긁기는 안전망으로 유지.
-function setupClaudeHooks(base) {
+// 부팅 토큰 — standalone 서버 env(MUSTARD_HOOK_TOKEN)와 엔드포인트 파일에만. dev(next dev 별도 기동)는 env가 없어 검사 생략.
+const HOOK_TOKEN = require("node:crypto").randomBytes(16).toString("hex");
+function setupClaudeHooks(base, token) {
   const saved = loadSavedRuntimePaths();
   const cliPath = saved.claudeCode || process.env.NUNOPI_CLAUDE_COMMAND?.trim() || safeResolve(resolveClaudeCli);
-  installClaudeHooks({ userData: app.getPath("userData"), appBase: base, cliPath })
+  installClaudeHooks({ userData: app.getPath("userData"), appBase: base, cliPath, token })
     .then((r) => console.log("[claude-hooks]", JSON.stringify(r)))
     .catch((e) => console.warn("[claude-hooks] failed:", String(e?.message || e)));
 }
@@ -283,7 +285,7 @@ async function boot() {
   if (DEV_URL) {
     // dev: next dev가 자체 임베드(간섭 방지) → main은 SNA 안 띄움.
     appBase = DEV_URL; // #765 버퍼 드라이버 POST 대상
-    setupClaudeHooks(DEV_URL);
+    setupClaudeHooks(DEV_URL, "");
     createWindow(DEV_URL);
     return;
   }
@@ -292,9 +294,10 @@ async function boot() {
   const base = await startStandaloneServer({
     SNA_BASE_URL: snaHandle.connection.baseUrl,
     SNA_AUTH_TOKEN: snaHandle.connection.authToken,
+    MUSTARD_HOOK_TOKEN: HOOK_TOKEN,
   });
   appBase = base; // #765 버퍼 드라이버 POST 대상
-  setupClaudeHooks(base);
+  setupClaudeHooks(base, HOOK_TOKEN);
   createWindow(base);
 }
 

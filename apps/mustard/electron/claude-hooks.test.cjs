@@ -31,4 +31,7 @@ assert.deepStrictEqual(gone.hooks, user.hooks, "우리 훅만 제거");
 
 assert.strictEqual(parseVersion("2.1.286 (Claude Code)"), "2.1.286");
 assert.strictEqual(parseVersion("garbage"), null);
+// 명령: 엔드포인트(?k=토큰) 뒤에 &event·&term — 공백·따옴표 경로도 sh 안전
+const { hookCommand } = require("./claude-hooks.cjs");
+assert.ok(hookCommand("/a b/it's", "Stop").includes(`"$(cat '/a b/it'\\''s')&event=Stop&term=$MUSTARD_TERM_ID"`), "경로 따옴표 이스케이프");
 console.log("claude-hooks ok");
