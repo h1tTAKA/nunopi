@@ -30,6 +30,18 @@ export async function POST(request: Request): Promise<Response> {
     if (removed) emit(cwd);
     return Response.json({ ok: true, cleared: removed });
   }
+  // #989 Ctrl+C 중단 추정(main) — 훅이 working이고 키 입력 이후 새 훅이 없을 때만 알림 없는 done.
+  // 서브에이전트가 돌고 있으면 메인 중단 아님(orca childWorkEvidenced). 조건 안 맞으면 무시.
+  if (typeof body.interruptAt === "number") {
+    const sid = typeof body.sessionId === "string" ? body.sessionId : "";
+    const e = cwd ? get(cwd, sid) : undefined;
+    const t0 = Date.now();
+    if (!e || (e.state !== "working" && e.state !== "waiting") || !e.hookAt || e.hookAt > body.interruptAt || t0 - e.hookAt > HOOK_FRESH_MS) return Response.json({ ok: true, ignored: "interrupt" });
+    if (e.task) { try { if ((await listSubagents(cwd, e.task)).some((s) => s.running)) return Response.json({ ok: true, ignored: "child-work" }); } catch { /* 판정 실패 시 진행 */ } }
+    upsert({ cwd, sessionId: sid, agent: e.agent, state: "done", hook: true, silent: true }, t0);
+    emit(cwd);
+    return Response.json({ ok: true, interrupted: true });
+  }
   const event = typeof body.event === "string" ? body.event : "";
   // 소스 2가지: 훅(event→deriveState) 또는 버퍼 스크레이핑(explicit state, #765). 하나는 있어야 함.
   const VALID: AgentState[] = ["working", "waiting", "blocked", "done"];
@@ -44,14 +56,12 @@ export async function POST(request: Request): Promise<Response> {
   const agentName = typeof body.agent === "string" && body.agent ? body.agent : "claude";
   const taskTitle = typeof body.task === "string" ? body.task : "";
   // #989 훅 권위(orca) — 이 세션에 신선한 Claude 훅이 있으면 화면 상태로 덮지 않는다(제목 등만 갱신).
-  // 예외: 화면 waiting(권한/선택 박스는 화면이 정확 — AskUserQuestion 등 훅 미등록 경로),
-  //       훅 working인데 60s 넘게 훅이 조용하고 화면이 done(esc 중단은 Stop 훅이 안 옴 → 영구 working 방지).
+  // 예외: 화면 waiting(권한/선택 박스는 화면이 정확 — AskUserQuestion 등 훅 미등록 경로), 그리고 훅이 waiting인 동안은
+  //       화면이 바꿀 수 있음(권한 박스를 Esc로 거절하면 훅이 안 옴 → 박스가 사라진 걸 화면이 정확히 봄).
+  // 중단(Ctrl+C)은 위 interruptAt 경로가 처리. Esc 중단은 orca처럼 다음 훅(새 프롬프트·Stop)까지 working 유지.
   const sid = typeof body.sessionId === "string" ? body.sessionId : "";
   const prevEntry = !event ? get(cwd, sid) : undefined;
-  if (prevEntry?.hookAt && now - prevEntry.hookAt < HOOK_FRESH_MS && state !== "waiting") {
-    const interrupted = prevEntry.state === "working" && state === "done" && now - prevEntry.hookAt > 60_000;
-    if (!interrupted) state = prevEntry.state;
-  }
+  if (prevEntry?.hookAt && now - prevEntry.hookAt < HOOK_FRESH_MS && state !== "waiting" && prevEntry.state !== "waiting") state = prevEntry.state;
   if (state === "done" && agentName === "claude" && taskTitle) {
     try { if ((await listSubagents(cwd, taskTitle)).some((s) => s.running)) state = "working"; } catch { /* 판정 실패 시 원 상태 */ }
   }

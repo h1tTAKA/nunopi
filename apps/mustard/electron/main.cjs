@@ -896,7 +896,15 @@ ipcMain.handle("terminal:ensure", async (_e, { id, cwd, cols, rows, dark }) => {
   ensuredIds.add(id); // #864 pty 준비 완료 — launchAgent가 새 탭에 커맨드 주입 전 이걸 대기
   return { ok: true, buffer };
 });
-ipcMain.on("terminal:input", (_e, { id, data }) => { termClient.input({ id, data }); try { detectLaunchFromInput(id, data); } catch { /* 감지 실패가 입력 막지 않게 */ } });
+// #989 중단 추정(orca inferInterrupt) — Claude는 Ctrl+C 중단에 훅을 안 보냄 → 그대로 두면 영원히 working.
+// Ctrl+C 입력 후 0.5s(orca AGENT_INTERRUPT_SETTLE_MS) 지나 서버에 "그 시각 이후 훅 없으면 중단(알림 없는 done)" 요청.
+// Esc는 증거로 안 씀 — Claude TUI에서 오버레이 닫기 등 이동에도 쓰여 구분 불가(orca isNavigationEscapeIntent).
+function inferInterrupt(id, data) {
+  if (data !== "\x03" || !cwdById.has(id)) return;
+  const at = Date.now();
+  setTimeout(() => { void postStatus({ cwd: cwdById.get(id), sessionId: id, interruptAt: at }); }, 500);
+}
+ipcMain.on("terminal:input", (_e, { id, data }) => { termClient.input({ id, data }); try { detectLaunchFromInput(id, data); inferInterrupt(id, data); } catch { /* 감지 실패가 입력 막지 않게 */ } });
 // #864 에이전트 직접 실행 — 신원을 실행 기록에 확정하고 pty 셸에 실행 커맨드 주입. 반환 후 탭 아이콘/이름=이 에이전트.
 // 새 탭은 렌더러가 Terminal 마운트→ensure까지 시간차가 있어, pty 준비(ensuredIds)를 최대 3s 대기 후 주입.
 const ensuredIds = new Set(); // ensure 완료된 세션 id
