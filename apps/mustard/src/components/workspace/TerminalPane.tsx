@@ -33,6 +33,14 @@ function loadTabs(store: string, firstTitle: string): { tabs: Tab[]; activeId: s
   } catch { return fresh(); }
 }
 
+// #989 알림 클릭 → 그 레포의 그 터미널 탭으로. 패널이 이미 떠 있으면 이벤트로, 아직 안 떴으면(첫 방문) 마운트 때 소비.
+const FOCUS_EVENT = "mustard:focus-term";
+const pendingFocus = new Map<string, string>(); // cwd → 터미널 id
+export function requestTerminalFocus(cwd: string, termId: string) {
+  pendingFocus.set(cwd, termId);
+  window.dispatchEvent(new CustomEvent(FOCUS_EVENT, { detail: { cwd } }));
+}
+
 export default function TerminalPane({ cwd }: { cwd: string }) {
   const t = useT();
   const store = `nunopi:ws-terms:${cwd}`;
@@ -50,6 +58,20 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
     setTabs(d.tabs); setActiveId(d.activeId);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- store 변경만
   }, [store]);
+
+  // #989 알림 클릭 포커스 — 마운트 시 + 이벤트 시 대기 요청 소비(그 cwd에 그 탭이 있을 때만).
+  useEffect(() => {
+    const take = () => {
+      const id = pendingFocus.get(cwd);
+      if (!id) return;
+      pendingFocus.delete(cwd);
+      if (tabs.some((x) => x.id === id)) setActiveId(id);
+    };
+    take();
+    const h = (e: Event) => { if ((e as CustomEvent<{ cwd: string }>).detail?.cwd === cwd) take(); };
+    window.addEventListener(FOCUS_EVENT, h);
+    return () => window.removeEventListener(FOCUS_EVENT, h);
+  }, [cwd, tabs]);
 
   // 탭 목록 영속.
   useEffect(() => {

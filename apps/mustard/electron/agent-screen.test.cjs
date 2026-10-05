@@ -68,4 +68,10 @@ assert.strictEqual(st(shellBgText), null, "일반 셸의 bg 문구를 claude로 
 const staleFooter = title(`${idleGlyph} task`) + `◯ general-purpose Scan repo for silent… 30s · ↓ 57.3k tokens\n✻ Brewed for 58s · done 12:19 PM\n❯ 이슈 3개 올리고`;
 assert.strictEqual(st(staleFooter), "claude/idle", "끝난 서브 푸터 잔재로 working 오판: " + st(staleFooter));
 
+// #989 titleHint — 출력이 많아 16KB tail에 타이틀이 없을 때 스트림 추적 타이틀로 판정(실측: 백그라운드 세션 working↔idle 깜빡임)
+const noTitle = "x".repeat(20000) + "? for shortcuts";
+assert.strictEqual((() => { const r = parseAgentScreen(noTitle, `${braille} Fix tests`); return r && `${r.agent}/${r.state}`; })(), "claude/working", "titleHint 스피너 → working");
+assert.strictEqual((() => { const r = parseAgentScreen(noTitle, `${idleGlyph} Fix tests`); return r && `${r.agent}/${r.state}`; })(), "claude/idle", "titleHint ✳ → idle");
+assert.strictEqual((() => { const r = parseAgentScreen(title(`${idleGlyph} new`) + "? for shortcuts", `${braille} old`); return r && r.state; })(), "idle", "tail 타이틀이 hint보다 우선");
+
 console.log("PASS — all assertions");
