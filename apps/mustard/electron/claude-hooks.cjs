@@ -4,7 +4,7 @@
 // - Mustard 터미널에서만 동작: 데몬이 pty env에 MUSTARD_TERM_ID를 넣고, 훅 명령은 그 값이 없으면 바로 끝난다.
 // - 전송: sh + curl(네이티브 claude엔 node가 PATH에 없을 수 있음). 엔드포인트는 파일에서 읽어 포트 변동에 안전.
 // - 버전 게이트: Claude 1.0.23~2.1.100은 모르는 훅 이벤트 하나에 settings.json 전체(권한·다른 훅)를 버린다 → CLI가 아는 이벤트만.
-const { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync } = require("node:fs");
+const { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, chmodSync } = require("node:fs");
 const { execFile } = require("node:child_process");
 const { join, dirname } = require("node:path");
 const { homedir } = require("node:os");
@@ -73,7 +73,10 @@ function probeClaudeVersion(cliPath) {
 async function installClaudeHooks({ userData, appBase, cliPath, token = "" }) {
   const endpointFile = join(userData, "mustard-hook-endpoint");
   // 토큰(#989 리뷰): 127.0.0.1 바인딩이어도 브라우저 페이지가 로컬 포트로 POST해 가짜 상태·알림을 만들 수 있음 → 부팅마다 새 토큰.
-  try { writeFileSync(endpointFile, `${appBase}/api/agent/status/hook?k=${encodeURIComponent(token)}`, { mode: 0o600 }); } catch (e) { return { ok: false, reason: `endpoint: ${e?.message || e}` }; }
+  try {
+    writeFileSync(endpointFile, `${appBase}/api/agent/status/hook?k=${encodeURIComponent(token)}`, { mode: 0o600 });
+    chmodSync(endpointFile, 0o600); // mode는 새 파일에만 적용 — 예전 부팅이 만든 0644 파일도 좁힘(#989 리뷰)
+  } catch (e) { return { ok: false, reason: `endpoint: ${e?.message || e}` }; }
   const file = settingsPath();
   let current = {};
   if (existsSync(file)) {
