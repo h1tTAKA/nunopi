@@ -17,6 +17,7 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex").slice(0,
 const baseDir = () => join(process.env.MUSTARD_STREAM_DIR || join(homedir(), ".nunopi", "stream"));
 const repoDir = (root: string) => join(baseDir(), sha(normPath(root)));
 
+// 로컬 날짜 — 서버(standalone)는 같은 기기에서 앱이 띄우므로 화면(dayOf)과 시간대가 같다(#994 리뷰).
 export function dayKey(ts: number): string {
   const d = new Date(ts);
   const p = (n: number) => String(n).padStart(2, "0");
@@ -37,14 +38,18 @@ export function sanitize(x: unknown): CatchupItem | null {
 function readDayFile(file: string): CatchupItem[] {
   if (!existsSync(file)) return [];
   const out: CatchupItem[] = [];
+  const keys = new Set<string>();
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.trim()) continue;
-    try { const it = sanitize(JSON.parse(line)); if (it) out.push(it); } catch { /* 깨진 줄(쓰다 죽음) 스킵 */ }
+    try { const it = sanitize(JSON.parse(line)); if (it && !keys.has(it.key)) { keys.add(it.key); out.push(it); } } catch { /* 깨진 줄(쓰다 죽음) 스킵 */ }
   }
   return out;
 }
 
 // 같은 날 파일에 이미 있는 key는 스킵(이관·재전송 멱등). 날짜는 항목 ts 기준.
+// 동시성(#994 리뷰): 읽기~append 사이에 await가 없는 동기 함수라 한 서버 프로세스 안에서 요청끼리 끼어들 수 없음.
+// 혹시 생긴 중복(다중 프로세스 등)은 readDayFile이 key로 걸러냄.
+// ponytail: append마다 그날 파일 전체를 읽음(하루 수백 건 수준 OK) — 커지면 파일별 key 캐시.
 export function appendItems(root: string, items: CatchupItem[]): number {
   if (!root || !items.length) return 0;
   const dir = repoDir(root);

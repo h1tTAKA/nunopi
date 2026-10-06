@@ -1,5 +1,7 @@
 // catchupStore 점검 — MUSTARD_STREAM_DIR=<임시> node --experimental-strip-types src/lib/catchupStore.check.ts
 import assert from "node:assert";
+import { appendFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { appendItems, dayKey, listDays, readDay, readRecent, sanitize } from "./catchupStore.ts";
 
 assert.ok(process.env.MUSTARD_STREAM_DIR, "임시 디렉터리 필수(실 기록 보호)");
@@ -18,4 +20,8 @@ assert.deepStrictEqual(readDay(root, "../etc"), [], "날짜 형식 아니면 빈
 assert.strictEqual(sanitize({ key: "x", kind: "evil", target: "t", ts: 1, expl: "e" }), null, "모르는 kind 거부");
 assert.strictEqual(sanitize({ key: "x", kind: "file", target: "t", ts: 1, expl: "  " }), null, "빈 설명 거부");
 assert.deepStrictEqual(listDays("/tmp/none"), [], "없는 레포");
+// 파일에 중복 줄이 생겨도(다중 프로세스 등) 읽을 때 key로 걸러냄
+const dir = join(process.env.MUSTARD_STREAM_DIR!, readdirSync(process.env.MUSTARD_STREAM_DIR!)[0]);
+appendFileSync(join(dir, "2026-10-06.jsonl"), JSON.stringify(it("b", d2)) + "\n");
+assert.deepStrictEqual(readDay(root, "2026-10-06").map((x) => x.key), ["c", "b"], "중복 줄 읽기 dedupe");
 console.log("catchupStore ok");
