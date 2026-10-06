@@ -4,6 +4,7 @@
 import { snaClaudeProvider, snaCodexProvider } from "@mustard/nunopi/server";
 import type { AgentAnalyzeRequest } from "@mustard/core";
 import { emitNarration } from "@/lib/mcpActivity";
+import { appendItems } from "@/lib/catchupStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,7 +101,10 @@ export async function POST(req: Request): Promise<Response> {
     // 모델이 실제 활동 없다고 판단하면 "SKIP" → 카드 방출 안 함(무의미 내레이션·토큰 낭비 방지).
     if (summary && !/^SKIP\b/i.test(summary) && summary.length > 8) {
       const { title, note } = splitNarration(summary);
-      emitNarration(cwd, title, cleanNote(note), Date.now());
+      const now = Date.now();
+      const sent = emitNarration(cwd, title, cleanNote(note), now);
+      // #994 캐치업 날짜별 저장 — 서버에서 바로(패널이 안 열려 있어도 기록). key는 클라 SSE 키와 동일.
+      if (sent) { try { appendItems(cwd, [{ key: `narration|${now}|${sent.target}`, kind: "narration", target: sent.target, tool: "narration", ts: now, expl: sent.note }]); } catch { /* 저장 실패가 내레이션 막지 않게 */ } }
     }
     return Response.json({ ok: true });
   } catch (e) {

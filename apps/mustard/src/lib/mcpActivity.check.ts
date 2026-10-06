@@ -43,9 +43,9 @@ assert.ok(recent("/repo/A/sub", 20).some((e) => e.target === "app/page.tsx"), "�
 // narration(#870) — note 실려 방출, 빈 note 스킵
 const nar: string[] = [];
 const un3 = subscribe((e) => { if (e.kind === "narration") nar.push(`${e.target}|${e.note ?? ""}`); });
-emitNarration("/repo/N", "코드 편집", "App.tsx의 상태 관리를 useReducer로 바꾸는 중", 20);
-emitNarration("/repo/N", "빈", "   ", 21); // 빈 note → 스킵
-emitNarration("/repo/N", "코드 편집", "다른 본문이지만 제목 같음", 22); // 연속 동일 제목 → dedup 스킵
+assert.deepEqual(emitNarration("/repo/N", "코드 편집", "App.tsx의 상태 관리를 useReducer로 바꾸는 중", 20), { target: "코드 편집", note: "App.tsx의 상태 관리를 useReducer로 바꾸는 중" }, "방출 시 내용 반환(#994 저장용)");
+assert.strictEqual(emitNarration("/repo/N", "빈", "   ", 21), null, "빈 note → 스킵(null)");
+assert.strictEqual(emitNarration("/repo/N", "코드 편집", "다른 본문이지만 제목 같음", 22), null, "연속 동일 제목 → dedup 스킵(null)");
 emitNarration("/repo/N", "테스트 실행", "vitest 돌림", 23); // 제목 다름 → 방출
 un3();
 assert.deepEqual(nar, ["코드 편집|App.tsx의 상태 관리를 useReducer로 바꾸는 중", "테스트 실행|vitest 돌림"], "narration 방출 + 빈 note·연속 동일 제목 스킵");
