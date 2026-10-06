@@ -19,7 +19,8 @@ const basename = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 const ago = (ts: number, now: number) => { const s = Math.max(0, Math.round((now - ts) / 1000)); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`; };
 // 생성 시점 절대 날짜·시간(narration 서브라벨용) — "MM-DD HH:MM".
 const fmtDateTime = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-const cKey = (root: string) => `nunopi:ws:${root}:learn-concepts`;
+const MAX_ITEMS = 200; // #994 화면 메모리 상한(서버 로드 100 + 실시간 여유). 전체 기록은 서버 날짜별 파일.
+const cKey = (root: string) => `nunopi:ws:${root}:learn-concepts`; // #994 이전 저장소(1회 이관 후 삭제)
 const gKey = (root: string) => `nunopi:ws:${root}:learn-terms`;
 function load<T>(key: string): T[] { try { const r = typeof localStorage !== "undefined" && localStorage.getItem(key); return r ? (JSON.parse(r) as T[]) : []; } catch { return []; } }
 
@@ -47,6 +48,14 @@ function parseConcept(raw: string): { expl: string; terms: Term[] } {
   return { expl: expl || "—", terms };
 }
 
+// #994 서버 날짜별 저장 — 성공 여부 반환(이관 시 로컬 삭제 판단). 실패해도 화면 흐름은 안 막음.
+async function saveItems(root: string, items: { key: string; kind: ConceptKind; target: string; tool: string; ts: number; expl: string }[]): Promise<boolean> {
+  try {
+    const r = await fetch("/api/repo/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root, items }) });
+    return r.ok && (await r.json())?.ok === true;
+  } catch { return false; }
+}
+
 export default function RepoLearnStream({ root, providerId, providerSettings }: {
   root: string;
   providerId?: AgentProviderKind;
@@ -54,18 +63,20 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
 }) {
   const t = useT();
   const { locale } = useLocale();
-  const [concepts, setConcepts] = useState<Concept[]>(() => load<Concept>(cKey(root)).filter((c) => c.status === "done"));
+  // #994 기록은 서버 날짜별 저장소(~/.nunopi/stream)에서 — 마운트 시 최근 100개 로드(loaded 전엔 빈 안내 숨김).
+  const [concepts, setConcepts] = useState<Concept[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [terms, setTerms] = useState<Term[]>(() => load<Term>(gKey(root)));
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => 0);
   const [autoExplain, setAutoExplain] = useState(true);
   const [termsOpen, setTermsOpen] = useState(true);
 
-  const seenRef = useRef(new Set(concepts.map((c) => c.key)));       // 이미 설명한 개념(dedup)
+  const seenRef = useRef(new Set<string>());                          // 이미 설명한 개념(dedup) — 서버 로드 시 채움
   const termSetRef = useRef(new Set(terms.map((x) => x.term.toLowerCase()))); // 용어 dedup
   const queueRef = useRef<string[]>([]);
   const busyRef = useRef(false);
-  const metaRef = useRef(new Map<string, { kind: ConceptKind; target: string }>());
+  const metaRef = useRef(new Map<string, { kind: ConceptKind; target: string; tool: string }>());
   const cfgRef = useRef({ providerId, providerSettings, locale, autoExplain });
   useEffect(() => { cfgRef.current = { providerId, providerSettings, locale, autoExplain }; }, [providerId, providerSettings, locale, autoExplain]);
 
@@ -85,6 +96,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
       if (streamErr) throw new Error(streamErr);
       const { expl, terms: newTerms } = parseConcept(answer);
       setConcepts((p) => p.map((c) => (c.key === key ? { ...c, status: "done", expl } : c)));
+      saveItems(root, [{ key, kind: meta.kind, target: meta.target, tool: meta.tool, ts: Date.now(), expl }]); // #994 날짜별 저장(내레이션은 서버가 직접)
       if (newTerms.length) setTerms((prev) => { const add = newTerms.filter((x) => { const lk = x.term.toLowerCase(); if (termSetRef.current.has(lk)) return false; termSetRef.current.add(lk); return true; }); return add.length ? [...add, ...prev].slice(0, 80) : prev; });
     } catch { setConcepts((p) => p.map((c) => (c.key === key ? { ...c, status: "error" } : c))); }
   }, [root]);
@@ -110,19 +122,41 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
         if (!ev.note) return;
         const nkey = `narration|${ev.ts}|${ev.target}`;                 // ts+제목 = 고유 키(같은 ms 충돌 방지)
         setConcepts((prev) => (prev.some((c) => c.key === nkey) ? prev  // 이미 있으면 스킵(SSE 재연결 replay 중복 방지)
-          : [{ key: nkey, kind: "narration" as const, target: ev.target, tool: "narration", status: "done" as const, ts: ev.ts, expl: ev.note }, ...prev].slice(0, 80)));
+          : [{ key: nkey, kind: "narration" as const, target: ev.target, tool: "narration", status: "done" as const, ts: ev.ts, expl: ev.note }, ...prev].slice(0, MAX_ITEMS)));
         return;
       }
       const key = `${ev.kind}|${ev.target}`;
-      metaRef.current.set(key, { kind: ev.kind, target: ev.target });
-      setConcepts((prev) => { const found = prev.find((c) => c.key === key); if (found) return [{ ...found, tool: ev.tool, ts: ev.ts }, ...prev.filter((c) => c.key !== key)]; return [{ key, kind: ev.kind, target: ev.target, tool: ev.tool, status: "idle" as const, ts: ev.ts }, ...prev].slice(0, 80); });
+      metaRef.current.set(key, { kind: ev.kind, target: ev.target, tool: ev.tool });
+      setConcepts((prev) => { const found = prev.find((c) => c.key === key); if (found) return [{ ...found, tool: ev.tool, ts: ev.ts }, ...prev.filter((c) => c.key !== key)]; return [{ key, kind: ev.kind, target: ev.target, tool: ev.tool, status: "idle" as const, ts: ev.ts }, ...prev].slice(0, MAX_ITEMS); });
       const cfg = cfgRef.current; if (cfg.autoExplain && cfg.providerId) enqueue(key);
     };
     return () => es.close();
   }, [root, enqueue]);
 
-  // 영구보존 — done 개념 + 용어집.
-  useEffect(() => { try { if (typeof localStorage !== "undefined") localStorage.setItem(cKey(root), JSON.stringify(concepts.filter((c) => c.status === "done").slice(0, 60))); } catch { /* 무시 */ } }, [concepts, root]); // narration 포함 영속(재열람 보존). SSE replay 중복은 key(ts+제목) some-check로 방지
+  // #994 서버 기록 로드 — ① 옛 localStorage 기록 있으면 1회 이관(서버가 key로 멱등) 후 삭제 ② 최근 100개 로드해
+  // SSE로 먼저 들어온 항목과 key 병합(최신순). 이관 실패하면 로컬 키를 남겨 다음 마운트에 재시도.
+  useEffect(() => {
+    if (!root) return;
+    let alive = true;
+    (async () => {
+      const legacy = load<Concept>(cKey(root)).filter((c) => c.status === "done" && c.expl);
+      if (legacy.length) {
+        const ok = await saveItems(root, legacy.map((c) => ({ key: c.key, kind: c.kind, target: c.target, tool: c.tool, ts: c.ts, expl: c.expl ?? "" })));
+        if (ok) { try { localStorage.removeItem(cKey(root)); } catch { /* 무시 */ } }
+      }
+      let items: Concept[] = [];
+      try {
+        const j = await (await fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&limit=100`)).json();
+        if (j?.ok && Array.isArray(j.items)) items = (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const }));
+      } catch { /* 서버 미준비 — 실시간만 */ }
+      if (!alive) return;
+      for (const c of items) seenRef.current.add(c.key);
+      setConcepts((prev) => { const have = new Set(prev.map((c) => c.key)); return [...prev, ...items.filter((c) => !have.has(c.key))].sort((a, b) => b.ts - a.ts); });
+      setLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, [root]);
+  // 용어집은 그대로 localStorage(작고 레포별 누적).
   useEffect(() => { try { if (typeof localStorage !== "undefined") localStorage.setItem(gKey(root), JSON.stringify(terms.slice(0, 80))); } catch { /* 무시 */ } }, [terms, root]);
 
   useEffect(() => {
@@ -145,7 +179,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
         <span className={`flex items-center gap-1 text-[10px] ${live ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-500"}`}><IconPointFilled size={10} stroke={2} aria-hidden /> {live ? t("learn.live") : t("learn.idle")}</span>
       </div>
       <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
-        {!concepts.length && !terms.length ? (
+        {!loaded && !concepts.length ? null : !concepts.length && !terms.length ? (
           <p className="px-4 py-6 text-center text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">{t("learn.empty")}</p>
         ) : (
           <>
