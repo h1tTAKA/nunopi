@@ -1,7 +1,7 @@
 "use client";
 // 캐치업(#992, 구 학습 스트림 #855·#857) — MCP 연결 에이전트가 뭘 하든(그래프 탐색+파일 편집) 실시간 관찰(SSE) +
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast } from "@tabler/icons-react";
 import { useT, useLocale } from "@mustard/core";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
@@ -17,8 +17,12 @@ const KIND_ICON: Record<ConceptKind, typeof IconCode> = { symbol: IconCode, file
 const KIND_VERB: Record<ConceptKind, string> = { symbol: "심볼", file: "파일", query: "주제", repo: "레포 구조", edit: "편집 중인 파일", narration: "실시간" };
 const basename = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 const ago = (ts: number, now: number) => { const s = Math.max(0, Math.round((now - ts) / 1000)); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`; };
-// 생성 시점 절대 날짜·시간(narration 서브라벨용) — "MM-DD HH:MM".
-const fmtDateTime = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+// #994 시각만 "HH:MM" — 날짜는 날짜 구분선이 보여줌.
+const fmtTime = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
+// 로컬 날짜 키(서버 파일명과 같은 규칙) — 구분선 그룹 기준.
+const dayOf = (ts: number) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+// 카톡式 구분선 표기 — locale별 자동(ko "2026년 10월 6일 화요일", ja "2026年10月6日火曜日", en "Tuesday, October 6, 2026").
+const fmtDay = (ts: number, locale: string) => { try { return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(ts); } catch { return new Date(ts).toDateString(); } };
 const MAX_ITEMS = 200; // #994 화면 메모리 상한(서버 로드 100 + 실시간 여유). 전체 기록은 서버 날짜별 파일.
 const cKey = (root: string) => `nunopi:ws:${root}:learn-concepts`; // #994 이전 저장소(1회 이관 후 삭제)
 const gKey = (root: string) => `nunopi:ws:${root}:learn-terms`;
@@ -198,13 +202,22 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
             )}
             {/* 개념 — 등장한 개념 1회씩(중복 없음), 최근 먼저 */}
             <ul className="flex flex-col gap-2 p-2.5">
-              {concepts.map((c) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
-                <li key={c.key} className="rounded-lg border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/40">
+              {concepts.map((c, i) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; const today = dayOf(c.ts) === dayOf(now || Date.now()); return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
+                <Fragment key={c.key}>
+                {/* #994 날짜 구분선(카톡式) — 최신순 목록에서 날짜가 바뀌는 첫 항목 위 */}
+                {(i === 0 || dayOf(concepts[i - 1].ts) !== dayOf(c.ts)) && (
+                  <li role="separator" className="flex items-center gap-2 py-1">
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{fmtDay(c.ts, locale)}</span>
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                  </li>
+                )}
+                <li className="rounded-lg border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/40">
                   <button type="button" onClick={() => toggleExpand(c.key)} className="flex w-full items-start gap-2 px-3 py-2 text-left">
                     <Icon size={14} stroke={2} className="mt-0.5 shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block break-all text-[12px] font-medium text-zinc-700 dark:text-zinc-100">{c.target}</span>
-                      <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">{c.kind === "narration" ? fmtDateTime(c.ts) : `${c.tool.replace(/^katchup_/, "")} · ${ago(c.ts, now || c.ts)}`}</span>
+                      <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">{c.kind === "narration" ? fmtTime(c.ts) : `${c.tool.replace(/^katchup_/, "")} · ${today ? ago(c.ts, now || c.ts) : fmtTime(c.ts)}`}</span>
                     </span>
                     {c.status === "loading" && <IconLoader2 size={12} stroke={2} className="mt-0.5 shrink-0 animate-spin text-zinc-400" aria-hidden />}
                   </button>
@@ -214,6 +227,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
                     </div>
                   )}
                 </li>
+                </Fragment>
               ); })}
             </ul>
           </>
