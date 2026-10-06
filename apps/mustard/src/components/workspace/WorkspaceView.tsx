@@ -74,7 +74,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
   const [treeW, setTreeW] = useState(240);
   const [chatW, setChatW] = useState(320);
   const [chatOpen, setChatOpen] = useState(true);  // 우측 챗 패널 열림(#695)
-  const [rightMode, setRightMode] = useState<"chat" | "github" | "learn">("chat"); // 우측 패널 모드(#811·#855) — 질문 ↔ GitHub ↔ 학습 스트림
+  const [rightMode, setRightMode] = useState<"chat" | "github" | "learn">("chat"); // 우측 패널 모드(#811·#855) — 질문 ↔ GitHub ↔ 캐치업(#992, 구 학습 스트림)
   const [leftOpen, setLeftOpen] = useState(true);  // 좌측 사이드바(폴더/아키텍처/깃/문서트리) 펼침(#758)
   const [collapsed, setCollapsed] = useState<Set<PanelId>>(new Set()); // 접힌 중앙 패널(내용 유지·숨김만, #758)
   const [gitOpen, setGitOpen] = useState(false);   // 좌 하단 깃 그래프 열림
@@ -541,7 +541,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
         {/* 우측 패널 모드 토글(#811) — 순서: 학습스트림 → 질문(Chat) → GitHub(#908). 우측 패널 열려 있을 때만. */}
         {chatOpen && (
           <>
-            {/* 학습 스트림(#855) — MCP 에이전트 활동 실시간 개념 학습. */}
+            {/* 캐치업(#855·#992) — 에이전트 작업 실시간 해설. */}
             <button type="button" onClick={() => pickRightMode("learn")} aria-pressed={rightMode === "learn"} title={t("learn.mode")} aria-label={t("learn.mode")}
               className={`shrink-0 rounded-lg p-1.5 transition ${rightMode === "learn" ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"}`}>
               <IconActivity size={16} stroke={2} aria-hidden />
@@ -662,7 +662,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
           <>
             <div onMouseDown={startDrag("chat", chatW)} className="w-1 shrink-0 cursor-col-resize transition hover:bg-mustard-500/40 dark:hover:bg-mustard-400/40" />
             <aside style={{ width: chatW }} className="flex shrink-0 flex-col border-l border-zinc-200 dark:border-zinc-800">
-              {/* 우측 패널 모드(#811·#855) — 질문(Chat) ↔ GitHub ↔ 학습 스트림 배타 렌더. 토글은 상단 헤더. */}
+              {/* 우측 패널 모드(#811·#855) — 질문(Chat) ↔ GitHub ↔ 캐치업 배타 렌더. 토글은 상단 헤더. */}
               {rightMode === "github" ? (
                 <GithubPanel root={path} ciDot={ciDot} />
               ) : rightMode === "learn" ? (

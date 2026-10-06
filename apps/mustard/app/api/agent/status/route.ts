@@ -77,7 +77,7 @@ export async function POST(request: Request): Promise<Response> {
   }, now);
   prune(now);
   emit(cwd); // SSE 구독자에게 즉시 푸시(폴링 대기 없이)
-  // 편집 활동을 학습 스트림으로도(#857) — 코드 편집·실행 툴일 때만. emit 실패가 응답 막지 않게.
+  // 편집 활동을 캐치업(구 학습 스트림)으로도(#857) — 코드 편집·실행 툴일 때만. emit 실패가 응답 막지 않게.
   try {
     const tool = typeof body.tool === "string" ? body.tool : "";
     const target = shortToolInput(body.toolInput);
