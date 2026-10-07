@@ -2,8 +2,9 @@
 // 캐치업(#992, 구 학습 스트림 #855·#857) — MCP 연결 에이전트가 뭘 하든(그래프 탐색+파일 편집) 실시간 관찰(SSE) +
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast, IconCalendar, IconArrowBarToUp } from "@tabler/icons-react";
+import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast, IconCalendar, IconArrowBarToUp, IconMessageCircle } from "@tabler/icons-react";
 import CatchupCalendar from "@/components/workspace/CatchupCalendar";
+import CatchupAskPanel from "@/components/workspace/CatchupAskPanel";
 import { useT, useLocale } from "@mustard/core";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { Markdown } from "@mustard/core";
@@ -198,11 +199,31 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
       .then((j) => { if (seq === daySeqRef.current) setDayItems(j?.ok && Array.isArray(j.items) ? (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const })) : []); })
       .catch(() => { if (seq === daySeqRef.current) setDayItems([]); });
   }, [root]);
+  // #998 항목 질문 — 💬로 고른 항목 + 항목별 질문 수(배지) + 패널 높이(드래그, 기억).
+  const [askItem, setAskItem] = useState<Concept | null>(null);
+  const [askCounts, setAskCounts] = useState<Record<string, number>>({});
+  const [askH, setAskH] = useState(() => { try { const v = Number(localStorage.getItem("nunopi:catchup-ask-h")); return v >= 140 ? v : 300; } catch { return 300; } });
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!root) return;
+    fetch(`/api/repo/stream/ask?root=${encodeURIComponent(root)}&counts=1`).then((r) => r.json())
+      .then((j) => { if (j?.ok && j.counts) setAskCounts(j.counts as Record<string, number>); }).catch(() => { /* 배지 없이 */ });
+  }, [root]);
+  const onAskCount = useCallback((key: string, n: number) => setAskCounts((p) => (p[key] === n ? p : { ...p, [key]: n })), []);
+  // 경계선 드래그 — 패널 높이 = 컴포넌트 바닥 - 포인터 y. 목록·패널 최소 높이 보장.
+  const startResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const box = rootRef.current?.getBoundingClientRect(); if (!box) return;
+    let h = askH;
+    const move = (ev: PointerEvent) => { h = Math.round(Math.min(box.height - 120, Math.max(140, box.bottom - ev.clientY))); setAskH(h); };
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); try { localStorage.setItem("nunopi:catchup-ask-h", String(h)); } catch { /* 무시 */ } };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }, [askH]);
   const shown = viewDay ? (dayItems ?? []) : concepts;
   const viewLabel = viewDay ? (() => { try { return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(new Date(`${viewDay}T00:00:00`)); } catch { return viewDay; } })() : "";
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-[var(--s-pane)]">
+    <div ref={rootRef} className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-[var(--s-pane)]">
       <div className="relative flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <IconActivity size={14} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
         <span className="mr-auto truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200" title={t("learn.mode")}>{t("learn.title")}</span>
@@ -260,8 +281,15 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
                     <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
                   </li>
                 )}
-                <li className="rounded-lg border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/40">
-                  <button type="button" onClick={() => toggleExpand(c.key)} className="flex w-full items-start gap-2 px-3 py-2 text-left">
+                <li className={`relative rounded-lg border bg-zinc-50/70 dark:bg-zinc-800/40 ${askItem?.key === c.key ? "border-mustard-500/60" : "border-zinc-200 dark:border-zinc-800"}`}>
+                  {/* #998 이 항목에 질문 — 오른쪽 위, 대화 있으면 질문 수 배지 */}
+                  {c.status === "done" && c.expl && (
+                    <button type="button" onClick={() => setAskItem(c)} title={t("learn.ask")} aria-label={t("learn.ask")}
+                      className={`absolute right-1.5 top-1.5 z-10 flex items-center gap-0.5 rounded-md px-1 py-0.5 text-[10px] transition ${askCounts[c.key] || askItem?.key === c.key ? "text-mustard-600 dark:text-mustard-400" : "text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
+                      <IconMessageCircle size={13} stroke={2} aria-hidden />{askCounts[c.key] ? <span className="font-semibold">{askCounts[c.key]}</span> : null}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => toggleExpand(c.key)} className="flex w-full items-start gap-2 py-2 pl-3 pr-9 text-left">
                     <Icon size={14} stroke={2} className="mt-0.5 shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block break-all text-[12px] font-medium text-zinc-700 dark:text-zinc-100">{c.target}</span>
@@ -281,6 +309,17 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
           </>
         )}
       </div>
+      {/* #998 하단 질문 패널 — 경계선 드래그로 높이 조절 */}
+      {askItem && (
+        <>
+          <div role="separator" aria-orientation="horizontal" aria-label={t("learn.askResize")} onPointerDown={startResize}
+            className="h-1.5 shrink-0 cursor-row-resize border-t border-zinc-200 bg-zinc-100 hover:bg-mustard-500/30 dark:border-zinc-800 dark:bg-zinc-900" />
+          <div className="flex shrink-0 flex-col" style={{ height: askH }}>
+            <CatchupAskPanel root={root} item={{ key: askItem.key, target: askItem.target, expl: askItem.expl ?? "", ts: askItem.ts, kind: askItem.kind }}
+              providerId={providerId} providerSettings={providerSettings} onClose={() => setAskItem(null)} onCount={onAskCount} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
