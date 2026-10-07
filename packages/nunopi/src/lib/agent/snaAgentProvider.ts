@@ -85,6 +85,7 @@ async function runViaSna(
     fullProgress?: boolean;
     effort?: boolean; // 분석은 low; 챗은 미강제
     model?: string; // #987 유저 선택 모델(미지정 = defaultSnaModel)
+    workspace?: { cwd: string; addDirs?: string[] }; // #998 읽기 전용 작업 범위(서버 검증값)
   },
 ): Promise<RunResult> {
   if (opts.signal?.aborted) throw new Error("분석이 취소되었습니다.");
@@ -99,10 +100,18 @@ async function runViaSna(
     ? {
         model,
         // 토큰 최적화: 유저 설정/CLAUDE.md/훅 미로드 + 툴 정의 0(PoC 실측 cacheRead 16143→0).
+        // #998 workspace면 읽기 전용 내장 도구만(Read/Grep/Glob) + cwd=레포 + 추가 폴더(캐치업 기록). 쓰기·셸 도구 없음.
         providerOptions: { settingSources: [""], strictMcpConfig: true } as Record<string, unknown>,
-        extraArgs: ["--tools", ""],
+        extraArgs: opts.workspace
+          ? ["--tools", "Read,Grep,Glob", ...(opts.workspace.addDirs ?? []).flatMap((d) => ["--add-dir", d])]
+          : ["--tools", ""],
+        // SNA는 bypassPermissions가 아니면 PreToolUse 권한 훅을 심는데, runOnce엔 승인 주체가 없어 Read/Grep이 거부됨(#998 실측).
+        // 도구 목록 자체가 읽기 전용(--tools Read,Grep,Glob)이라 확인을 건너뛰어도 쓰기·셸 불가. ⚠ codex엔 금지(= 샌드박스 해제).
+        ...(opts.workspace ? { cwd: opts.workspace.cwd, permissionMode: "bypassPermissions" } : {}),
       }
-    : { model }; // codex/opencode: 모델만 명시(claude 플래그 미전달)
+    : isCodex && opts.workspace
+      ? { model, cwd: opts.workspace.cwd } // #998 codex: SNA 기본 permissionMode → read-only 샌드박스
+      : { model }; // codex/opencode: 모델만 명시(claude 플래그 미전달). opencode는 쓰기 제한 불확실 → 도구 범위 미전달
 
   let full = "";
   let think = ""; // 추론 누적
@@ -297,6 +306,7 @@ function createSnaProvider(cfg: SnaProviderConfig): AgentProvider {
           effort: !isChatLike,
           // 모드별 모델(#987) — 클라가 뷰별 providerSettings에 주입.
           model: (request.providerSettings?.[providerId as "claude-agent" | "codex-agent" | "opencode-agent"])?.model,
+          workspace: isChat ? options?.workspace : undefined, // #998 캐치업 질문(chat)만 읽기 전용 도구
         });
 
         return isChatStream || isDedup || isQuiz

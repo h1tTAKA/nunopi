@@ -61,6 +61,10 @@ export interface AgentAnalyzeRequest {
   resumeFrom?: AgentAnalyzeResponse; // 이어서 분석: 이전 부분 결과(outline 재사용 + 이미 된 줄설명 시드). orchestrator 전용.
   detectedLanguage?: SupportedLanguage;
   userIntent?: string;
+  // #998 캐치업 질문 — 레포 루트(서버가 절대·존재 폴더 검증 후 읽기 전용 도구 범위로). chat 모드만.
+  workspaceRoot?: string;
+  // #998 nunopi 학습모듈 꺼짐 → 카드 제안(nunopi-cards) 지시 생략.
+  noCards?: boolean;
   options?: AgentAnalyzeOptions;
   providerSettings?: ProviderSettings;
 }

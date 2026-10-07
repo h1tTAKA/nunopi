@@ -44,6 +44,8 @@ export interface AgentAnalyzeCallOptions {
   onProgress?: (line: string) => void;
   // 모델 추론(reasoning/thinking) 누적을 흘리는 콜백 — 답변과 별개(과정). 대기 구간 활동 표시용.
   onThinking?: (line: string) => void;
+  // #998 서버가 검증한 읽기 전용 작업 범위 — cwd=레포, addDirs=추가로 읽을 폴더(캐치업 기록). 클라 입력 아님.
+  workspace?: { cwd: string; addDirs?: string[] };
   // 누적 부분 결과 콜백(청크 분석 전용) — outline·청크가 완료될 때마다 지금까지의
   // 누적 response를 흘려 화면에 점진 표시한다. 단일 호출 provider는 사용하지 않는다.
   onPartial?: (response: import("./schema").AgentAnalyzeResponse) => void;

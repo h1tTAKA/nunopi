@@ -2,7 +2,7 @@
 import assert from "node:assert";
 import { appendFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { appendItems, dayKey, listDays, readDay, readRecent, sanitize } from "./catchupStore.ts";
+import { appendItems, askCounts, dayKey, listDays, readAsk, readDay, readRecent, sanitize, writeAsk } from "./catchupStore.ts";
 
 assert.ok(process.env.MUSTARD_STREAM_DIR, "임시 디렉터리 필수(실 기록 보호)");
 const root = "/tmp/repo-a";
@@ -24,4 +24,12 @@ assert.deepStrictEqual(listDays("/tmp/none"), [], "없는 레포");
 const dir = join(process.env.MUSTARD_STREAM_DIR!, readdirSync(process.env.MUSTARD_STREAM_DIR!)[0]);
 appendFileSync(join(dir, "2026-10-06.jsonl"), JSON.stringify(it("b", d2)) + "\n");
 assert.deepStrictEqual(readDay(root, "2026-10-06").map((x) => x.key), ["c", "b"], "중복 줄 읽기 dedupe");
+// #998 질문 대화 저장·복원·배지
+assert.strictEqual(readAsk(root, "narration|1|x"), null, "없는 대화 null");
+const saved = writeAsk(root, { key: "narration|1|x", target: "x", messages: [{ role: "user", content: "q1" }, { role: "assistant", content: "a1" }, { role: "evil", content: "z" }, { role: "user", content: "q2" }] }, 99);
+assert.strictEqual(saved?.messages.length, 3, "모르는 role 버림");
+assert.deepStrictEqual(readAsk(root, "narration|1|x")?.messages.map((m) => m.content), ["q1", "a1", "q2"], "복원");
+assert.deepStrictEqual(askCounts(root), { "narration|1|x": 2 }, "유저 질문 수 배지");
+assert.strictEqual(writeAsk(root, { key: "", messages: [] }, 1), null, "빈 key 거부");
+assert.deepStrictEqual(listDays(root), ["2026-10-06", "2026-10-05"], "ask 폴더가 날짜 목록에 안 섞임");
 console.log("catchupStore ok");

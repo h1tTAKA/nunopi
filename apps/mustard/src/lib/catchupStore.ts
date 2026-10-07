@@ -2,7 +2,7 @@
 // ~/.nunopi/stream/<sha(root)>/<YYYY-MM-DD>.jsonl(로컬 날짜). 코드그래프 캐시(~/.nunopi/codegraph)와 같은 루트.
 // 레포 폴더엔 아무것도 안 남김. 하루 단위 파일이라 날짜 되돌아보기(캘린더)는 파일 하나만 읽으면 됨.
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -16,6 +16,8 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex").slice(0,
 // 테스트에서 HOME 바꿔 쓰게 호출 시점 계산.
 const baseDir = () => join(process.env.MUSTARD_STREAM_DIR || join(homedir(), ".nunopi", "stream"));
 const repoDir = (root: string) => join(baseDir(), sha(normPath(root)));
+// #998 캐치업 질문 에이전트가 읽을 기록 폴더(--add-dir).
+export const streamDirFor = (root: string) => repoDir(root);
 
 // 로컬 날짜 — 서버(standalone)는 같은 기기에서 앱이 띄우므로 화면(dayOf)과 시간대가 같다(#994 리뷰).
 export function dayKey(ts: number): string {
@@ -90,4 +92,49 @@ export function readRecent(root: string, limit: number): CatchupItem[] {
     if (out.length >= limit) break;
   }
   return out.slice(0, limit);
+}
+
+// ── 항목 질문 대화(#998) — 항목별 ask/<sha(key)>.json. 기록 폴더 안이라 질문 에이전트가 예전 Q&A도 grep.
+export interface AskMessage { role: "user" | "assistant"; content: string }
+export interface AskThread { key: string; target: string; messages: AskMessage[]; updatedAt: number }
+const askDir = (root: string) => join(repoDir(root), "ask");
+const askFile = (root: string, key: string) => join(askDir(root), `${sha(key)}.json`);
+
+function sanitizeThread(x: unknown): AskThread | null {
+  if (!x || typeof x !== "object") return null;
+  const o = x as Record<string, unknown>;
+  if (typeof o.key !== "string" || !o.key || !Array.isArray(o.messages)) return null;
+  const messages = o.messages.slice(-200).flatMap((m): AskMessage[] => {
+    const r = m as Record<string, unknown>;
+    return (r?.role === "user" || r?.role === "assistant") && typeof r.content === "string" ? [{ role: r.role, content: r.content.slice(0, 20000) }] : [];
+  });
+  return { key: o.key.slice(0, 300), target: typeof o.target === "string" ? o.target.slice(0, 300) : "", messages, updatedAt: typeof o.updatedAt === "number" ? o.updatedAt : 0 };
+}
+
+export function readAsk(root: string, key: string): AskThread | null {
+  try { return sanitizeThread(JSON.parse(readFileSync(askFile(root, key), "utf8"))); } catch { return null; }
+}
+
+// 통째로 교체 저장(대화 전체) — tmp+rename 원자적.
+export function writeAsk(root: string, thread: unknown, now: number): AskThread | null {
+  const t = sanitizeThread(thread);
+  if (!root || !t) return null;
+  mkdirSync(askDir(root), { recursive: true });
+  const file = askFile(root, t.key);
+  const saved = { ...t, updatedAt: now };
+  writeFileSync(`${file}.tmp`, JSON.stringify(saved));
+  renameSync(`${file}.tmp`, file);
+  return saved;
+}
+
+// 카드 배지 — 항목 key별 유저 질문 수.
+export function askCounts(root: string): Record<string, number> {
+  const dir = askDir(root);
+  if (!existsSync(dir)) return {};
+  const out: Record<string, number> = {};
+  for (const f of readdirSync(dir)) {
+    if (!f.endsWith(".json")) continue;
+    try { const t = sanitizeThread(JSON.parse(readFileSync(join(dir, f), "utf8"))); if (t) out[t.key] = t.messages.filter((m) => m.role === "user").length; } catch { /* 깨진 파일 스킵 */ }
+  }
+  return out;
 }
