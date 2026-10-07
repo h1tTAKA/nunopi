@@ -549,7 +549,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
       const ctx = await buildContext(s);
       const res = await fetch("/api/agent/analyze", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId, request: { code: ctx, locale, providerId, mode: "chat", messages: thread, providerSettings, noCards: !cardsOn } }),
+        body: JSON.stringify({ providerId, request: { code: ctx, locale, providerId, mode: "chat", messages: thread, providerSettings, noCards: !cardsOn, workspaceRoot: root } }), // #998 레포 읽기 전용 도구(Read/Grep/Glob) — 서버가 검증
       });
       if (!res.ok || !res.body) { writeSub(sk, subId, [...thread, { role: "assistant", content: "(응답 실패)" }]); return; }
       const reader = res.body.getReader();
