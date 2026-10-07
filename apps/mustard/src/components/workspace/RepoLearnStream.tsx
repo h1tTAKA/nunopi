@@ -1,7 +1,7 @@
 "use client";
 // 캐치업(#992, 구 학습 스트림 #855·#857) — MCP 연결 에이전트가 뭘 하든(그래프 탐색+파일 편집) 실시간 관찰(SSE) +
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast } from "@tabler/icons-react";
 import { useT, useLocale } from "@mustard/core";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
@@ -17,9 +17,14 @@ const KIND_ICON: Record<ConceptKind, typeof IconCode> = { symbol: IconCode, file
 const KIND_VERB: Record<ConceptKind, string> = { symbol: "심볼", file: "파일", query: "주제", repo: "레포 구조", edit: "편집 중인 파일", narration: "실시간" };
 const basename = (p: string) => p.split("/").filter(Boolean).pop() ?? p;
 const ago = (ts: number, now: number) => { const s = Math.max(0, Math.round((now - ts) / 1000)); return s < 60 ? `${s}s` : s < 3600 ? `${Math.round(s / 60)}m` : `${Math.round(s / 3600)}h`; };
-// 생성 시점 절대 날짜·시간(narration 서브라벨용) — "MM-DD HH:MM".
+// 생성 시점 "MM-DD HH:MM" — 구분선이 있어도 카드 단독으로 날짜가 보이게(유저 요청, #994).
 const fmtDateTime = (ts: number) => { const d = new Date(ts); const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-const cKey = (root: string) => `nunopi:ws:${root}:learn-concepts`;
+// 로컬 날짜 키(서버 파일명과 같은 규칙) — 구분선 그룹 기준.
+const dayOf = (ts: number) => { const d = new Date(ts); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+// 카톡式 구분선 표기 — locale별 자동(ko "2026년 10월 6일 화요일", ja "2026年10月6日火曜日", en "Tuesday, October 6, 2026").
+const fmtDay = (ts: number, locale: string) => { try { return new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(ts); } catch { return new Date(ts).toDateString(); } };
+const MAX_ITEMS = 200; // #994 화면 메모리 상한(서버 로드 100 + 실시간 여유). 전체 기록은 서버 날짜별 파일.
+const cKey = (root: string) => `nunopi:ws:${root}:learn-concepts`; // #994 이전 저장소(1회 이관 후 삭제)
 const gKey = (root: string) => `nunopi:ws:${root}:learn-terms`;
 function load<T>(key: string): T[] { try { const r = typeof localStorage !== "undefined" && localStorage.getItem(key); return r ? (JSON.parse(r) as T[]) : []; } catch { return []; } }
 
@@ -47,6 +52,14 @@ function parseConcept(raw: string): { expl: string; terms: Term[] } {
   return { expl: expl || "—", terms };
 }
 
+// #994 서버 날짜별 저장 — 성공 여부 반환(이관 시 로컬 삭제 판단). 실패해도 화면 흐름은 안 막음.
+async function saveItems(root: string, items: { key: string; kind: ConceptKind; target: string; tool: string; ts: number; expl: string }[]): Promise<boolean> {
+  try {
+    const r = await fetch("/api/repo/stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root, items }) });
+    return r.ok && (await r.json())?.ok === true;
+  } catch { return false; }
+}
+
 export default function RepoLearnStream({ root, providerId, providerSettings }: {
   root: string;
   providerId?: AgentProviderKind;
@@ -54,18 +67,20 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
 }) {
   const t = useT();
   const { locale } = useLocale();
-  const [concepts, setConcepts] = useState<Concept[]>(() => load<Concept>(cKey(root)).filter((c) => c.status === "done"));
+  // #994 기록은 서버 날짜별 저장소(~/.nunopi/stream)에서 — 마운트 시 최근 100개 로드(loaded 전엔 빈 안내 숨김).
+  const [concepts, setConcepts] = useState<Concept[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [terms, setTerms] = useState<Term[]>(() => load<Term>(gKey(root)));
   const [live, setLive] = useState(false);
   const [now, setNow] = useState(() => 0);
   const [autoExplain, setAutoExplain] = useState(true);
   const [termsOpen, setTermsOpen] = useState(true);
 
-  const seenRef = useRef(new Set(concepts.map((c) => c.key)));       // 이미 설명한 개념(dedup)
+  const seenRef = useRef(new Set<string>());                          // 이미 설명한 개념(dedup) — 서버 로드 시 채움
   const termSetRef = useRef(new Set(terms.map((x) => x.term.toLowerCase()))); // 용어 dedup
   const queueRef = useRef<string[]>([]);
   const busyRef = useRef(false);
-  const metaRef = useRef(new Map<string, { kind: ConceptKind; target: string }>());
+  const metaRef = useRef(new Map<string, { kind: ConceptKind; target: string; tool: string }>());
   const cfgRef = useRef({ providerId, providerSettings, locale, autoExplain });
   useEffect(() => { cfgRef.current = { providerId, providerSettings, locale, autoExplain }; }, [providerId, providerSettings, locale, autoExplain]);
 
@@ -85,6 +100,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
       if (streamErr) throw new Error(streamErr);
       const { expl, terms: newTerms } = parseConcept(answer);
       setConcepts((p) => p.map((c) => (c.key === key ? { ...c, status: "done", expl } : c)));
+      saveItems(root, [{ key, kind: meta.kind, target: meta.target, tool: meta.tool, ts: Date.now(), expl }]); // #994 날짜별 저장(내레이션은 서버가 직접)
       if (newTerms.length) setTerms((prev) => { const add = newTerms.filter((x) => { const lk = x.term.toLowerCase(); if (termSetRef.current.has(lk)) return false; termSetRef.current.add(lk); return true; }); return add.length ? [...add, ...prev].slice(0, 80) : prev; });
     } catch { setConcepts((p) => p.map((c) => (c.key === key ? { ...c, status: "error" } : c))); }
   }, [root]);
@@ -110,19 +126,41 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
         if (!ev.note) return;
         const nkey = `narration|${ev.ts}|${ev.target}`;                 // ts+제목 = 고유 키(같은 ms 충돌 방지)
         setConcepts((prev) => (prev.some((c) => c.key === nkey) ? prev  // 이미 있으면 스킵(SSE 재연결 replay 중복 방지)
-          : [{ key: nkey, kind: "narration" as const, target: ev.target, tool: "narration", status: "done" as const, ts: ev.ts, expl: ev.note }, ...prev].slice(0, 80)));
+          : [{ key: nkey, kind: "narration" as const, target: ev.target, tool: "narration", status: "done" as const, ts: ev.ts, expl: ev.note }, ...prev].slice(0, MAX_ITEMS)));
         return;
       }
       const key = `${ev.kind}|${ev.target}`;
-      metaRef.current.set(key, { kind: ev.kind, target: ev.target });
-      setConcepts((prev) => { const found = prev.find((c) => c.key === key); if (found) return [{ ...found, tool: ev.tool, ts: ev.ts }, ...prev.filter((c) => c.key !== key)]; return [{ key, kind: ev.kind, target: ev.target, tool: ev.tool, status: "idle" as const, ts: ev.ts }, ...prev].slice(0, 80); });
+      metaRef.current.set(key, { kind: ev.kind, target: ev.target, tool: ev.tool });
+      setConcepts((prev) => { const found = prev.find((c) => c.key === key); if (found) return [{ ...found, tool: ev.tool, ts: ev.ts }, ...prev.filter((c) => c.key !== key)]; return [{ key, kind: ev.kind, target: ev.target, tool: ev.tool, status: "idle" as const, ts: ev.ts }, ...prev].slice(0, MAX_ITEMS); });
       const cfg = cfgRef.current; if (cfg.autoExplain && cfg.providerId) enqueue(key);
     };
     return () => es.close();
   }, [root, enqueue]);
 
-  // 영구보존 — done 개념 + 용어집.
-  useEffect(() => { try { if (typeof localStorage !== "undefined") localStorage.setItem(cKey(root), JSON.stringify(concepts.filter((c) => c.status === "done").slice(0, 60))); } catch { /* 무시 */ } }, [concepts, root]); // narration 포함 영속(재열람 보존). SSE replay 중복은 key(ts+제목) some-check로 방지
+  // #994 서버 기록 로드 — ① 옛 localStorage 기록 있으면 1회 이관(서버가 key로 멱등) 후 삭제 ② 최근 100개 로드해
+  // SSE로 먼저 들어온 항목과 key 병합(최신순). 이관 실패하면 로컬 키를 남겨 다음 마운트에 재시도.
+  useEffect(() => {
+    if (!root) return;
+    let alive = true;
+    (async () => {
+      const legacy = load<Concept>(cKey(root)).filter((c) => c.status === "done" && c.expl);
+      if (legacy.length) {
+        const ok = await saveItems(root, legacy.map((c) => ({ key: c.key, kind: c.kind, target: c.target, tool: c.tool, ts: c.ts, expl: c.expl ?? "" })));
+        if (ok) { try { localStorage.removeItem(cKey(root)); } catch { /* 무시 */ } }
+      }
+      let items: Concept[] = [];
+      try {
+        const j = await (await fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&limit=100`)).json();
+        if (j?.ok && Array.isArray(j.items)) items = (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const }));
+      } catch { /* 서버 미준비 — 실시간만 */ }
+      if (!alive) return;
+      for (const c of items) seenRef.current.add(c.key);
+      setConcepts((prev) => { const have = new Set(prev.map((c) => c.key)); return [...prev, ...items.filter((c) => !have.has(c.key))].sort((a, b) => b.ts - a.ts); });
+      setLoaded(true);
+    })();
+    return () => { alive = false; };
+  }, [root]);
+  // 용어집은 그대로 localStorage(작고 레포별 누적).
   useEffect(() => { try { if (typeof localStorage !== "undefined") localStorage.setItem(gKey(root), JSON.stringify(terms.slice(0, 80))); } catch { /* 무시 */ } }, [terms, root]);
 
   useEffect(() => {
@@ -145,7 +183,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
         <span className={`flex items-center gap-1 text-[10px] ${live ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-500"}`}><IconPointFilled size={10} stroke={2} aria-hidden /> {live ? t("learn.live") : t("learn.idle")}</span>
       </div>
       <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
-        {!concepts.length && !terms.length ? (
+        {!loaded && !concepts.length ? null : !concepts.length && !terms.length ? (
           <p className="px-4 py-6 text-center text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">{t("learn.empty")}</p>
         ) : (
           <>
@@ -164,13 +202,22 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
             )}
             {/* 개념 — 등장한 개념 1회씩(중복 없음), 최근 먼저 */}
             <ul className="flex flex-col gap-2 p-2.5">
-              {concepts.map((c) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
-                <li key={c.key} className="rounded-lg border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/40">
+              {concepts.map((c, i) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; const today = dayOf(c.ts) === dayOf(now || Date.now()); return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
+                <Fragment key={c.key}>
+                {/* #994 날짜 구분선(카톡式) — 최신순 목록에서 날짜가 바뀌는 첫 항목 위 */}
+                {(i === 0 || dayOf(concepts[i - 1].ts) !== dayOf(c.ts)) && (
+                  <li role="separator" className="flex items-center gap-2 py-1">
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                    <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{fmtDay(c.ts, locale)}</span>
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                  </li>
+                )}
+                <li className="rounded-lg border border-zinc-200 bg-zinc-50/70 dark:border-zinc-800 dark:bg-zinc-800/40">
                   <button type="button" onClick={() => toggleExpand(c.key)} className="flex w-full items-start gap-2 px-3 py-2 text-left">
                     <Icon size={14} stroke={2} className="mt-0.5 shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="block break-all text-[12px] font-medium text-zinc-700 dark:text-zinc-100">{c.target}</span>
-                      <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">{c.kind === "narration" ? fmtDateTime(c.ts) : `${c.tool.replace(/^katchup_/, "")} · ${ago(c.ts, now || c.ts)}`}</span>
+                      <span className="block text-[10px] text-zinc-400 dark:text-zinc-500">{c.kind === "narration" ? fmtDateTime(c.ts) : `${c.tool.replace(/^katchup_/, "")} · ${today ? ago(c.ts, now || c.ts) : fmtDateTime(c.ts)}`}</span>
                     </span>
                     {c.status === "loading" && <IconLoader2 size={12} stroke={2} className="mt-0.5 shrink-0 animate-spin text-zinc-400" aria-hidden />}
                   </button>
@@ -180,6 +227,7 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
                     </div>
                   )}
                 </li>
+                </Fragment>
               ); })}
             </ul>
           </>
