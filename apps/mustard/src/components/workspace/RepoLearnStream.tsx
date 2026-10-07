@@ -186,15 +186,17 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
       .then((j) => { if (j?.ok && Array.isArray(j.days)) setDays(new Set(j.days as string[])); }).catch(() => { /* 오늘만 */ });
   }, [root, calOpen]);
   const listRef = useRef<HTMLDivElement>(null);
+  const daySeqRef = useRef(0); // 요청 번호표(#996 리뷰) — 날짜를 빠르게 바꾸면 늦게 온 옛 응답이 새 선택을 덮지 않게
   const pickDay = useCallback((day: string | null) => {
+    const seq = ++daySeqRef.current;
     setCalOpen(false);
     setViewDay(day);
     requestAnimationFrame(() => listRef.current?.scrollTo({ top: 0 })); // 날짜 전환·맨 위로 → 최신(맨 위)부터(유저 요청)
     if (!day) return;
     setDayItems(null);
     fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&day=${day}`).then((r) => r.json())
-      .then((j) => setDayItems(j?.ok && Array.isArray(j.items) ? (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const })) : []))
-      .catch(() => setDayItems([]));
+      .then((j) => { if (seq === daySeqRef.current) setDayItems(j?.ok && Array.isArray(j.items) ? (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const })) : []); })
+      .catch(() => { if (seq === daySeqRef.current) setDayItems([]); });
   }, [root]);
   const shown = viewDay ? (dayItems ?? []) : concepts;
   const viewLabel = viewDay ? (() => { try { return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(new Date(`${viewDay}T00:00:00`)); } catch { return viewDay; } })() : "";
