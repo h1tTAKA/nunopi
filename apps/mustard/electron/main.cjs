@@ -161,6 +161,7 @@ async function startStandaloneServer(extraEnv) {
     ? join(process.resourcesPath, "standalone", "apps", "mustard", "server.js")
     : join(__dirname, "..", ".next", "standalone", "apps", "mustard", "server.js");
   serverProc = spawn(process.execPath, [serverJs], {
+    cwd: dirname(serverJs), // #1000 open/Dock 실행 시 cwd="/" — cwd 기준 resolve가 엉뚱한 곳을 보지 않게(이중 안전)
     env: {
       ...process.env,
       ...extraEnv,
