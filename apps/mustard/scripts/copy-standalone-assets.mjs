@@ -23,6 +23,21 @@ if (existsSync(join(root, "public"))) {
   cpSync(join(root, "public"), join(appOut, "public"), { recursive: true });
 }
 
+// #1000 tree-sitter(코드그래프 심볼 파서) — serverExternalPackages + createRequire 동적 로드라 standalone 추적(NFT)이
+// 못 따라가 패키징 앱에 아예 없었음(코드그래프 전체 500). 레포 루트(hoist)에서 standalone/node_modules로 직접 복사.
+// tree-sitter-wasms는 grammar wasm(out/)과 package.json만(resolve 기준점).
+const nm = join(repoRoot, "node_modules");
+const outNm = join(standalone, "node_modules");
+const copied = [];
+for (const [pkg, parts] of [["web-tree-sitter", null], ["tree-sitter-wasms", ["package.json", "out"]]]) {
+  const src = join(nm, pkg);
+  if (!existsSync(src)) { console.error(`[copy-standalone] ${src} 없음 — npm install 확인(코드그래프가 패키징 앱에서 동작 안 함)`); process.exit(1); }
+  const dst = join(outNm, pkg);
+  rmSync(dst, { recursive: true, force: true });
+  for (const part of parts ?? [""]) cpSync(join(src, part), join(dst, part), { recursive: true, dereference: true });
+  copied.push(pkg);
+}
+
 // 심링크 → 실복사(재귀 순회). electron-builder 패키징 호환.
 let materialized = 0;
 function deref(dir) {
@@ -41,4 +56,4 @@ function deref(dir) {
 }
 deref(standalone);
 
-console.log(`[copy-standalone] ${appSub}: static${existsSync(join(root, "public")) ? " + public" : ""} 복사 + 심링크 ${materialized}개 materialize 완료`);
+console.log(`[copy-standalone] ${appSub}: static${existsSync(join(root, "public")) ? " + public" : ""} 복사 + ${copied.join(", ")} + 심링크 ${materialized}개 materialize 완료`);
