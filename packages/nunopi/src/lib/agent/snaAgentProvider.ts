@@ -105,7 +105,9 @@ async function runViaSna(
         extraArgs: opts.workspace
           ? ["--tools", "Read,Grep,Glob", ...(opts.workspace.addDirs ?? []).flatMap((d) => ["--add-dir", d])]
           : ["--tools", ""],
-        ...(opts.workspace ? { cwd: opts.workspace.cwd } : {}),
+        // SNA는 bypassPermissions가 아니면 PreToolUse 권한 훅을 심는데, runOnce엔 승인 주체가 없어 Read/Grep이 거부됨(#998 실측).
+        // 도구 목록 자체가 읽기 전용(--tools Read,Grep,Glob)이라 확인을 건너뛰어도 쓰기·셸 불가. ⚠ codex엔 금지(= 샌드박스 해제).
+        ...(opts.workspace ? { cwd: opts.workspace.cwd, permissionMode: "bypassPermissions" } : {}),
       }
     : isCodex && opts.workspace
       ? { model, cwd: opts.workspace.cwd } // #998 codex: SNA 기본 permissionMode → read-only 샌드박스
