@@ -13,7 +13,8 @@ import type {
   AgentProvider,
   AgentProviderKind,
 } from "@mustard/core";
-import { existsSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { isAbsolute } from "node:path";
 import { streamDirFor } from "@/lib/catchupStore";
 
@@ -119,7 +120,7 @@ export async function POST(
           onChunkProgress: (done: number, total: number) =>
             send({ type: "chunk-progress", done, total }),
           // #998 캐치업 질문 — 레포 루트가 실제 폴더일 때만 읽기 전용 범위(cwd + 기록 폴더). chat만.
-          workspace: resolveWorkspace(providerRequest),
+          workspace: resolveWorkspace(providerRequest, request.headers.get("sec-fetch-site")),
         };
         // 큰 코드(code 모드 + LLM provider)는 병렬 청크 2단계로 분석해 wall-clock을 줄인다.
         // 글(text)은 호출 1번이 압도적으로 싸고 빠르다(본문 짧음·용어 적음 → 청크 고정비용이 이득 압도).
@@ -210,11 +211,19 @@ function parseAnalyzeHttpRequest(value: unknown): AgentAnalyzeHttpRequest | null
   };
 }
 
-function resolveWorkspace(req: AgentAnalyzeRequest): { cwd: string; addDirs: string[] } | undefined {
-  const root = req.workspaceRoot;
-  if (req.mode !== "chat" || typeof root !== "string" || !isAbsolute(root)) return undefined;
-  try { if (!statSync(root).isDirectory()) return undefined; } catch { return undefined; }
-  const dir = streamDirFor(root);
+// #998 읽기 전용 레포 범위 — 보안 메모(리뷰):
+// - claude는 bypassPermissions라 Read가 절대경로로 cwd 밖도 읽을 수 있음(cwd는 경계가 아니라 시작점). 대신 도구가
+//   Read/Grep/Glob뿐이라 외부로 내보낼 수단(Bash·WebFetch)이 없고, 결과는 이 응답(앱 화면)으로만 감.
+// - 위험 경로 = 다른 사이트 페이지가 127.0.0.1 앱 포트로 위조 요청. 응답은 SOP로 못 읽지만, 그래도 cross-site면 범위 거부.
+// - realpath로 심볼릭 링크 해소, 루트(/)·홈 디렉터리 자체는 레포로 인정 안 함.
+function resolveWorkspace(req: AgentAnalyzeRequest, fetchSite: string | null): { cwd: string; addDirs: string[] } | undefined {
+  const raw = req.workspaceRoot;
+  if (req.mode !== "chat" || typeof raw !== "string" || !isAbsolute(raw)) return undefined;
+  if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return undefined; // cross-site·same-site 타 출처 거부
+  let root: string;
+  try { root = realpathSync(raw); if (!statSync(root).isDirectory()) return undefined; } catch { return undefined; }
+  if (root === "/" || root === realpathSync(homedir())) return undefined;
+  const dir = streamDirFor(raw); // 저장 키는 유저가 연 경로 그대로(클라와 동일 해시)
   return { cwd: root, addDirs: existsSync(dir) ? [dir] : [] };
 }
 

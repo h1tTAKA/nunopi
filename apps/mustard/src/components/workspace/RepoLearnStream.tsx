@@ -211,13 +211,17 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
   }, [root]);
   const onAskCount = useCallback((key: string, n: number) => setAskCounts((p) => (p[key] === n ? p : { ...p, [key]: n })), []);
   // 경계선 드래그 — 패널 높이 = 컴포넌트 바닥 - 포인터 y. 목록·패널 최소 높이 보장.
+  const dragCleanup = useRef<(() => void) | null>(null);
+  useEffect(() => () => dragCleanup.current?.(), []); // 드래그 중 언마운트돼도 리스너 정리(#998 리뷰)
   const startResize = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const box = rootRef.current?.getBoundingClientRect(); if (!box) return;
     let h = askH;
     const move = (ev: PointerEvent) => { h = Math.round(Math.min(box.height - 120, Math.max(140, box.bottom - ev.clientY))); setAskH(h); };
-    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); try { localStorage.setItem("nunopi:catchup-ask-h", String(h)); } catch { /* 무시 */ } };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); dragCleanup.current = null; };
+    const up = () => { stop(); try { localStorage.setItem("nunopi:catchup-ask-h", String(h)); } catch { /* 무시 */ } };
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+    dragCleanup.current = stop;
   }, [askH]);
   const shown = viewDay ? (dayItems ?? []) : concepts;
   const viewLabel = viewDay ? (() => { try { return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(new Date(`${viewDay}T00:00:00`)); } catch { return viewDay; } })() : "";
