@@ -30,7 +30,8 @@ export default function CatchupCalendar({ days, selected, locale, onPick, onClos
 
   // 바깥 클릭·Esc로 닫기.
   useEffect(() => {
-    const down = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
+    // 토글 버튼(data-cal-toggle)은 바깥 클릭으로 안 침 — 안 그러면 닫힘 직후 버튼 클릭이 다시 열어버림.
+    const down = (e: MouseEvent) => { const el = e.target as Element; if (ref.current && !ref.current.contains(el) && !el.closest?.("[data-cal-toggle]")) onClose(); };
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("mousedown", down);
     document.addEventListener("keydown", key);
