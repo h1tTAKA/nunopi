@@ -16,6 +16,8 @@ const sha = (s: string) => createHash("sha256").update(s).digest("hex").slice(0,
 // 테스트에서 HOME 바꿔 쓰게 호출 시점 계산.
 const baseDir = () => join(process.env.MUSTARD_STREAM_DIR || join(homedir(), ".nunopi", "stream"));
 const repoDir = (root: string) => join(baseDir(), sha(normPath(root)));
+// #998 캐치업 질문 에이전트가 읽을 기록 폴더(--add-dir).
+export const streamDirFor = (root: string) => repoDir(root);
 
 // 로컬 날짜 — 서버(standalone)는 같은 기기에서 앱이 띄우므로 화면(dayOf)과 시간대가 같다(#994 리뷰).
 export function dayKey(ts: number): string {

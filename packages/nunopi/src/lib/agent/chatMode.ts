@@ -50,6 +50,13 @@ export function buildChatPrompt(request: AgentAnalyzeRequest): string {
     `Answer the user's last question about the code above in ${name}. Be friendly and to the point,`,
     `and format the answer as clean, scannable markdown per the style guide above (headings, bold, bullets,`,
     `fenced code with a language tag, a table when comparing) — but keep short answers short.`,
+    ...(request.noCards ? ["Tutor:"] : cardInstruction(name)),
+  ].join("\n");
+}
+
+// 카드 제안 지시(nunopi-cards) — nunopi 학습모듈 꺼짐(noCards)이면 생략(#998).
+function cardInstruction(name: string): string[] {
+  return [
     "",
     "After your answer, propose flashcards for the GENERAL programming/IT concepts and terms in your answer that a",
     "beginner would benefit from studying — the reusable knowledge, not this project's specifics. GOOD cards:",
@@ -65,7 +72,7 @@ export function buildChatPrompt(request: AgentAnalyzeRequest): string {
     "just explained; kind = concept(a programming concept) | term(a general IT term). If there is genuinely no",
     "general concept worth learning (e.g. the answer was only about this repo's own files), omit the block entirely.",
     "Tutor:",
-  ].join("\n");
+  ];
 }
 
 // 덱 정리(생성/분류) 전용 시스템 프롬프트 — 챗과 달리 카드 제안(nunopi-cards) 없이,

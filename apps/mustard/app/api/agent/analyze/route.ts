@@ -13,6 +13,9 @@ import type {
   AgentProvider,
   AgentProviderKind,
 } from "@mustard/core";
+import { existsSync, statSync } from "node:fs";
+import { isAbsolute } from "node:path";
+import { streamDirFor } from "@/lib/catchupStore";
 
 interface AgentAnalyzeHttpRequest {
   providerId: AgentProviderKind;
@@ -115,6 +118,8 @@ export async function POST(
           // 청크 진행률(완료/전체) — 막대바용.
           onChunkProgress: (done: number, total: number) =>
             send({ type: "chunk-progress", done, total }),
+          // #998 캐치업 질문 — 레포 루트가 실제 폴더일 때만 읽기 전용 범위(cwd + 기록 폴더). chat만.
+          workspace: resolveWorkspace(providerRequest),
         };
         // 큰 코드(code 모드 + LLM provider)는 병렬 청크 2단계로 분석해 wall-clock을 줄인다.
         // 글(text)은 호출 1번이 압도적으로 싸고 빠르다(본문 짧음·용어 적음 → 청크 고정비용이 이득 압도).
@@ -205,6 +210,14 @@ function parseAnalyzeHttpRequest(value: unknown): AgentAnalyzeHttpRequest | null
   };
 }
 
+function resolveWorkspace(req: AgentAnalyzeRequest): { cwd: string; addDirs: string[] } | undefined {
+  const root = req.workspaceRoot;
+  if (req.mode !== "chat" || typeof root !== "string" || !isAbsolute(root)) return undefined;
+  try { if (!statSync(root).isDirectory()) return undefined; } catch { return undefined; }
+  const dir = streamDirFor(root);
+  return { cwd: root, addDirs: existsSync(dir) ? [dir] : [] };
+}
+
 function isValidAnalyzeRequestPayload(
   value: unknown,
   providerId: AgentProviderKind,
@@ -213,6 +226,8 @@ function isValidAnalyzeRequestPayload(
     return false;
   }
 
+  if (value.workspaceRoot !== undefined && typeof value.workspaceRoot !== "string") return false; // #998
+  if (value.noCards !== undefined && typeof value.noCards !== "boolean") return false;
   // explain-card는 코드/글 입력 없이 용어 하나만 설명하므로 빈 code 허용(대신 targetTerm 필수).
   if (value.mode === "explain-card") {
     if (typeof value.targetTerm !== "string" || value.targetTerm.trim().length === 0) return false;
