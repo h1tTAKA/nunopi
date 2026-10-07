@@ -220,9 +220,9 @@ function resolveWorkspace(req: AgentAnalyzeRequest, fetchSite: string | null): {
   const raw = req.workspaceRoot;
   if (req.mode !== "chat" || typeof raw !== "string" || !isAbsolute(raw)) return undefined;
   if (fetchSite && fetchSite !== "same-origin" && fetchSite !== "none") return undefined; // cross-site·same-site 타 출처 거부
-  let root: string;
-  try { root = realpathSync(raw); if (!statSync(root).isDirectory()) return undefined; } catch { return undefined; }
-  if (root === "/" || root === realpathSync(homedir())) return undefined;
+  let root: string, home: string;
+  try { root = realpathSync(raw); if (!statSync(root).isDirectory()) return undefined; home = realpathSync(homedir()); } catch { return undefined; }
+  if (root === "/" || root === home) return undefined;
   const dir = streamDirFor(raw); // 저장 키는 유저가 연 경로 그대로(클라와 동일 해시)
   return { cwd: root, addDirs: existsSync(dir) ? [dir] : [] };
 }
