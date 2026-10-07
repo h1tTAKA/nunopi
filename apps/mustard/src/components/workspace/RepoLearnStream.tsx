@@ -2,7 +2,8 @@
 // 캐치업(#992, 구 학습 스트림 #855·#857) — MCP 연결 에이전트가 뭘 하든(그래프 탐색+파일 편집) 실시간 관찰(SSE) +
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast } from "@tabler/icons-react";
+import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast, IconCalendar, IconArrowBarToUp } from "@tabler/icons-react";
+import CatchupCalendar from "@/components/workspace/CatchupCalendar";
 import { useT, useLocale } from "@mustard/core";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
 import { Markdown } from "@mustard/core";
@@ -172,23 +173,70 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
 
   const toggleExpand = useCallback((key: string) => { if (!seenRef.current.has(key) && cfgRef.current.providerId) enqueue(key); }, [enqueue]);
 
+  // #996 캘린더 되돌아보기 — 달력 열 때 기록 있는 날짜 로드, 지난 날 고르면 그날 파일만. 실시간(concepts)은 뒤에서 계속 갱신.
+  const [calOpen, setCalOpen] = useState(false);
+  const [days, setDays] = useState<Set<string>>(() => new Set());
+  const [viewDay, setViewDay] = useState<string | null>(null);
+  const [dayItems, setDayItems] = useState<Concept[] | null>(null); // null = 로딩 중
+  const closeCal = useCallback(() => setCalOpen(false), []);
+  const openCal = useCallback(() => {
+    if (calOpen) { setCalOpen(false); return; }
+    setCalOpen(true);
+    fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&days=1`).then((r) => r.json())
+      .then((j) => { if (j?.ok && Array.isArray(j.days)) setDays(new Set(j.days as string[])); }).catch(() => { /* 오늘만 */ });
+  }, [root, calOpen]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const daySeqRef = useRef(0); // 요청 번호표(#996 리뷰) — 날짜를 빠르게 바꾸면 늦게 온 옛 응답이 새 선택을 덮지 않게
+  const pickDay = useCallback((day: string | null) => {
+    const seq = ++daySeqRef.current;
+    setCalOpen(false);
+    setViewDay(day);
+    requestAnimationFrame(() => listRef.current?.scrollTo({ top: 0 })); // 날짜 전환·맨 위로 → 최신(맨 위)부터(유저 요청)
+    if (!day) return;
+    setDayItems(null);
+    fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&day=${day}`).then((r) => r.json())
+      .then((j) => { if (seq === daySeqRef.current) setDayItems(j?.ok && Array.isArray(j.items) ? (j.items as Omit<Concept, "status">[]).map((x) => ({ ...x, status: "done" as const })) : []); })
+      .catch(() => { if (seq === daySeqRef.current) setDayItems([]); });
+  }, [root]);
+  const shown = viewDay ? (dayItems ?? []) : concepts;
+  const viewLabel = viewDay ? (() => { try { return new Intl.DateTimeFormat(locale, { month: "long", day: "numeric" }).format(new Date(`${viewDay}T00:00:00`)); } catch { return viewDay; } })() : "";
+
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-white dark:bg-[var(--s-pane)]">
-      <div className="flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
+      <div className="relative flex shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 py-2 dark:border-zinc-800">
         <IconActivity size={14} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
         <span className="mr-auto truncate text-[13px] font-semibold text-zinc-700 dark:text-zinc-200" title={t("learn.mode")}>{t("learn.title")}</span>
+        <button type="button" data-cal-toggle onClick={openCal} aria-expanded={calOpen} title={t("learn.calendar")} aria-label={t("learn.calendar")}
+          className={`rounded-md p-1 transition ${calOpen || viewDay ? "text-mustard-600 dark:text-mustard-400" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
+          <IconCalendar size={14} stroke={2} aria-hidden />
+        </button>
         <label className="flex cursor-pointer items-center gap-1 text-[10px] text-zinc-500 dark:text-zinc-400" title={t("learn.autoExplain")}>
           <input type="checkbox" checked={autoExplain} onChange={(e) => setAutoExplain(e.target.checked)} /> {t("learn.autoExplain")}
         </label>
         <span className={`flex items-center gap-1 text-[10px] ${live ? "text-emerald-500" : "text-zinc-400 dark:text-zinc-500"}`}><IconPointFilled size={10} stroke={2} aria-hidden /> {live ? t("learn.live") : t("learn.idle")}</span>
+        {calOpen && <CatchupCalendar days={days} selected={viewDay} locale={locale} onPick={pickDay} onClose={closeCal} />}
       </div>
-      <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
-        {!loaded && !concepts.length ? null : !concepts.length && !terms.length ? (
+      {/* 지난 날 보는 중 안내 바 — 오늘로 복귀(그사이 실시간 항목 바로 보임) */}
+      {viewDay && (
+        <div className="flex shrink-0 items-center gap-1.5 border-b border-mustard-500/30 bg-mustard-500/10 px-3 py-1.5 text-[11px] text-mustard-700 dark:text-mustard-400">
+          <IconCalendar size={12} stroke={2} className="shrink-0" aria-hidden />
+          <span className="mr-auto truncate">{t("learn.viewingDay", { date: viewLabel })}</span>
+          <button type="button" onClick={() => pickDay(null)} className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium hover:bg-mustard-500/15">
+            <IconArrowBarToUp size={11} stroke={2} aria-hidden /> {t("learn.backToToday")}
+          </button>
+        </div>
+      )}
+      <div ref={listRef} className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
+        {viewDay && dayItems === null ? (
+          <div className="flex justify-center py-6"><IconLoader2 size={14} stroke={2} className="animate-spin text-zinc-400" aria-hidden /></div>
+        ) : viewDay && !shown.length ? (
+          <p className="px-4 py-6 text-center text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">{t("learn.dayEmpty")}</p>
+        ) : !loaded && !concepts.length ? null : !concepts.length && !terms.length ? (
           <p className="px-4 py-6 text-center text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">{t("learn.empty")}</p>
         ) : (
           <>
             {/* 용어집 — 이해에 필요한 용어 누적(중복 없음) */}
-            {terms.length > 0 && (
+            {terms.length > 0 && !viewDay && ( /* 용어집은 날짜 무관 누적 → 지난 날 보기에선 숨김(#996) */
               <div className="border-b border-zinc-100 dark:border-zinc-800/70">
                 <button type="button" onClick={() => setTermsOpen((v) => !v)} className="flex w-full items-center gap-1.5 px-3 py-2 text-left">
                   <IconBook2 size={13} stroke={2} className="shrink-0 text-mustard-600 dark:text-mustard-400" aria-hidden />
@@ -202,10 +250,10 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
             )}
             {/* 개념 — 등장한 개념 1회씩(중복 없음), 최근 먼저 */}
             <ul className="flex flex-col gap-2 p-2.5">
-              {concepts.map((c, i) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; const today = dayOf(c.ts) === dayOf(now || Date.now()); return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
+              {shown.map((c, i) => { const Icon = KIND_ICON[c.kind] ?? IconActivity; const today = dayOf(c.ts) === dayOf(now || Date.now()); return ( // 미지 kind(구버전/영속 데이터)여도 크래시 안 나게 fallback
                 <Fragment key={c.key}>
                 {/* #994 날짜 구분선(카톡式) — 최신순 목록에서 날짜가 바뀌는 첫 항목 위 */}
-                {(i === 0 || dayOf(concepts[i - 1].ts) !== dayOf(c.ts)) && (
+                {(i === 0 || dayOf(shown[i - 1].ts) !== dayOf(c.ts)) && (
                   <li role="separator" className="flex items-center gap-2 py-1">
                     <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
                     <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">{fmtDay(c.ts, locale)}</span>
