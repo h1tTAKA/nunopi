@@ -21,6 +21,8 @@ import { useConfirm, CKEYS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import type { AgentProviderKind, ChatMessage, ProviderSettings } from "@mustard/core";
 import type { QuizSession } from "@mustard/core";
+import { isNunopiEnabled } from "@/lib/product";
+import { isCardWorthy } from "@/lib/cardWorthy";
 type StreamEvent = { type: "progress"; line: string } | { type: "result"; response: { summary: string } } | { type: "error"; message: string };
 
 type SessionKind = "repo" | "file" | "diff" | "branch" | "worktree" | "arch";
@@ -164,18 +166,10 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
     for (const f of files) { const base = (f.split("/").pop() ?? f).toLowerCase(); set.add(base); set.add(base.replace(/\.[^.]+$/, "")); }
     return set;
   }, [files]);
-  // 카드로 만들 만한가? 파일명·경로·레포 파일 stem·camelCase 심볼(코드 식별자)은 암기카드감 아님 → 제외.
-  const keepCard = useCallback((c: SuggestedCard) => {
-    const term = c.term.trim();
-    if (/[/\\]/.test(term)) return false;                                         // 경로
-    // 파일명(확장자) — 멀티랭 대비 흔한 확장자 폭넓게(웹·백엔드·컴파일 언어).
-    if (/\.(tsx?|jsx?|mjs|cjs|css|scss|less|json|ya?ml|toml|md|html?|vue|svelte|py|rb|go|rs|java|kt|kts|swift|scala|c|cc|cpp|cxx|h|hpp|cs|php|sh|sql)$/i.test(term)) return false;
-    if (fileStems.has(term.toLowerCase())) return false;                          // 레포 파일 basename/stem = 심볼
-    // 코드 식별자(공백 없는 단일 토큰): camelCase/PascalCase 험프 또는 snake_case → 카드감 아님.
-    // (API·REST·HTTP2·S3·v8 같은 약어/버전 개념은 험프·언더스코어가 없어 살아남음 — 숫자만으론 안 버림)
-    if (/^[A-Za-z][A-Za-z0-9_]*$/.test(term) && (/[a-z][A-Z]/.test(term) || /_/.test(term))) return false;
-    return true;
-  }, [fileStems]);
+  // 카드로 만들 만한가? 파일명·경로·레포 파일 stem·코드 식별자 제외(공용 isCardWorthy, #998).
+  // 카드(암기) = nunopi 학습모듈 기능 → 꺼져 있으면 칩 전부 숨김 + 요청에 noCards(#998).
+  const cardsOn = isNunopiEnabled();
+  const keepCard = useCallback((c: SuggestedCard) => cardsOn && isCardWorthy(c.term, fileStems), [fileStems, cardsOn]);
   const messages = activeSub.messages;
 
   // 이 세션에서 추가된 카드(#750) — 전역 카드 풀에서 workspace + 현재 세션 것만. 최신순.
@@ -555,7 +549,7 @@ export default function WorkspaceChat({ root, files, focus, prefill, changedFile
       const ctx = await buildContext(s);
       const res = await fetch("/api/agent/analyze", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerId, request: { code: ctx, locale, providerId, mode: "chat", messages: thread, providerSettings } }),
+        body: JSON.stringify({ providerId, request: { code: ctx, locale, providerId, mode: "chat", messages: thread, providerSettings, noCards: !cardsOn } }),
       });
       if (!res.ok || !res.body) { writeSub(sk, subId, [...thread, { role: "assistant", content: "(응답 실패)" }]); return; }
       const reader = res.body.getReader();
