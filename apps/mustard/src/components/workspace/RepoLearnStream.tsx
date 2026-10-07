@@ -2,7 +2,7 @@
 // 캐치업(#992, 구 학습 스트림 #855·#857) — MCP 연결 에이전트가 뭘 하든(그래프 탐색+파일 편집) 실시간 관찰(SSE) +
 // 등장한 "개념"을 중복 없이 1회씩 설명하고, 이해에 필요한 "용어"를 별도 용어집으로 누적. 반복 없이 정리.
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast, IconCalendar, IconX } from "@tabler/icons-react";
+import { IconCode, IconFile, IconSearch, IconSitemap, IconActivity, IconPointFilled, IconLoader2, IconPencil, IconChevronDown, IconBook2, IconBroadcast, IconCalendar, IconArrowBarToUp } from "@tabler/icons-react";
 import CatchupCalendar from "@/components/workspace/CatchupCalendar";
 import { useT, useLocale } from "@mustard/core";
 import type { AgentProviderKind, ProviderSettings } from "@mustard/core";
@@ -185,9 +185,11 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
     fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&days=1`).then((r) => r.json())
       .then((j) => { if (j?.ok && Array.isArray(j.days)) setDays(new Set(j.days as string[])); }).catch(() => { /* 오늘만 */ });
   }, [root, calOpen]);
+  const listRef = useRef<HTMLDivElement>(null);
   const pickDay = useCallback((day: string | null) => {
     setCalOpen(false);
     setViewDay(day);
+    requestAnimationFrame(() => listRef.current?.scrollTo({ top: 0 })); // 날짜 전환·맨 위로 → 최신(맨 위)부터(유저 요청)
     if (!day) return;
     setDayItems(null);
     fetch(`/api/repo/stream?root=${encodeURIComponent(root)}&day=${day}`).then((r) => r.json())
@@ -218,11 +220,11 @@ export default function RepoLearnStream({ root, providerId, providerSettings }: 
           <IconCalendar size={12} stroke={2} className="shrink-0" aria-hidden />
           <span className="mr-auto truncate">{t("learn.viewingDay", { date: viewLabel })}</span>
           <button type="button" onClick={() => pickDay(null)} className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium hover:bg-mustard-500/15">
-            <IconX size={11} stroke={2} aria-hidden /> {t("learn.backToToday")}
+            <IconArrowBarToUp size={11} stroke={2} aria-hidden /> {t("learn.backToToday")}
           </button>
         </div>
       )}
-      <div className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
+      <div ref={listRef} className="nunopi-scroll min-h-0 flex-1 overflow-y-auto">
         {viewDay && dayItems === null ? (
           <div className="flex justify-center py-6"><IconLoader2 size={14} stroke={2} className="animate-spin text-zinc-400" aria-hidden /></div>
         ) : viewDay && !shown.length ? (
