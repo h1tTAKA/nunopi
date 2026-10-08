@@ -3,6 +3,7 @@
 import { readdirSync, type Dirent } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { SUPPORTED_EXTS } from "./langs.ts"; // .ts 명시 — scan.check(strip-types)가 직접 로드(symbols.ts 관례)
+import { UNITY_ASSET_EXTS } from "./unityAssets.ts";
 
 // 파싱 대상 확장자 — 언어 레지스트리(langs.ts)서 파생(단일 소스).
 const SUPPORTED = SUPPORTED_EXTS;
@@ -36,6 +37,11 @@ const DOTNET_IGNORE = new Set(["obj", "bin"]);
 export function isDotnetProject(entries: Dirent[]): boolean {
   return entries.some((e) => e.isFile() && /[^.]\.(cs|fs|vb)proj$/i.test(e.name));
 }
+
+// Unity 씬·프리팹·데이터 에셋(#1009) — 코드는 아니지만 "어떤 스크립트를 어디서 쓰나"가 여기 있음(graph.ts가 GUID로 연결).
+const UNITY_ASSETS: ReadonlySet<string> = new Set(UNITY_ASSET_EXTS);
+// 게임 에셋은 항상 Assets/ 아래. ProjectSettings/*.asset(엔진 설정 20여 개)은 게임 구조 아님 → 외톨이 노이즈라 제외.
+const inUnityAssets = (rel: string) => rel.split(sep).some((seg) => seg.toLowerCase() === "assets");
 
 // 파일 수 상한 — 초대형 레포 방어(후속 최적화 전까지).
 export const MAX_FILES = 3000;
@@ -78,7 +84,7 @@ export function scanRepo(root: string): ScanResult {
         if (engine && ENGINE_IGNORE[engine].has(name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
         if (dotnet && DOTNET_IGNORE.has(name.toLowerCase())) continue; // .NET obj/bin(#1007)
         walk(full);
-      } else if (e.isFile() && SUPPORTED.has(ext(name))) {
+      } else if (e.isFile() && (SUPPORTED.has(ext(name)) || (UNITY_ASSETS.has(ext(name)) && inUnityAssets(relative(root, full))))) {
         files.push(relative(root, full).split(sep).join("/"));
         if (files.length >= MAX_FILES) { capped = true; return; }
       }

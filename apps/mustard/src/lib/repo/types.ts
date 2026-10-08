@@ -3,7 +3,8 @@
 
 export type RepoNodeKind = "file" | "function" | "component" | "class" | "type";
 // references(#1005): C# 등 파일 import가 없는 언어의 타입 사용 → 정의 파일(파일→파일, imports와 같은 연결로 셈).
-export type RepoRelation = "imports" | "calls" | "contains" | "extends" | "implements" | "references";
+export type RepoRelation = "imports" | "calls" | "contains" | "extends" | "implements" | "references" | "uses" | "instantiates";
+// uses·instantiates(#1009): Unity 씬/프리팹/에셋 → 스크립트·데이터 에셋(uses), → 프리팹·씬(instantiates). 에셋 GUID로 연결.
 
 export interface RepoNode {
   id: string;        // 레포 루트 기준 상대경로(파일 노드) — 고유 키

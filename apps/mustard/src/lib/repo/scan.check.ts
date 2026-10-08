@@ -52,4 +52,12 @@ assert.ok(r3.files.includes("tools/bin/run.py"), "csproj 없는 bin은 유지");
 assert.ok(!scanAllFiles(root).files.some((f) => f.startsWith("sim/Core/obj/")), "파일 트리도 obj 제외");
 put("tmpl/.csproj", ""); put("tmpl/bin/keep.py", "print(1)"); // 이름 없는 ".csproj"(템플릿 등)는 프로젝트 아님(#1008 리뷰)
 assert.ok(scanRepo(root).files.includes("tmpl/bin/keep.py"), "이름 없는 .csproj는 .NET 표식 아님");
+// Unity 에셋(#1009) — Assets/ 아래 씬·프리팹·데이터 에셋만 스캔, ProjectSettings/*.asset·머티리얼은 제외
+put("client/Assets/Scenes/Main.unity", "%YAML 1.1"); put("client/Assets/Prefabs/Cat.prefab", "%YAML 1.1");
+put("client/Assets/Data/Balance.asset", "%YAML 1.1"); put("client/Assets/Art/cat.mat", "%YAML 1.1");
+put("client/ProjectSettings/QualitySettings.asset", "%YAML 1.1");
+const r4 = scanRepo(root).files;
+for (const f of ["client/Assets/Scenes/Main.unity", "client/Assets/Prefabs/Cat.prefab", "client/Assets/Data/Balance.asset"]) assert.ok(r4.includes(f), `Unity 에셋 포함 ${f}`);
+assert.ok(!r4.includes("client/ProjectSettings/QualitySettings.asset"), "ProjectSettings 설정 에셋 제외");
+assert.ok(!r4.includes("client/Assets/Art/cat.mat"), "머티리얼 제외");
 console.log("scan.check OK");
