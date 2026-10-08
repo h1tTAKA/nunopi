@@ -9,7 +9,7 @@ import { extractSymbols, resolveCalls, type SymbolInfo, type RawCall } from "./s
 import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
-import { resolveImport, loadAliases } from "./imports";
+import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
 
 // 파일명(경로 마지막) — 노드 label용.
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
@@ -44,7 +44,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
       let specs: string[] = [];
       try { specs = lang.extract(text); } catch { specs = []; }
       for (const spec of specs) {
-        const target = resolveImport(spec, file, fileSet, alias ?? undefined);
+        const target = resolveImport(spec, file, fileSet, alias ?? undefined) ?? (file.endsWith(".py") ? resolvePythonBare(spec, file, fileSet) : null);
         if (target && target !== file) { importEdges.push({ source: file, target, relation: "imports" }); targets.push(target); }
       }
       importTargetsByFile.set(file, targets);
