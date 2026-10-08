@@ -50,4 +50,6 @@ assert.ok(!r3.files.some((f) => f.startsWith("sim/Core/obj/") || f.startsWith("s
 assert.ok(r3.files.includes("sim/Core/Models/obj/Real.cs"), "csproj 바로 아래가 아닌 obj는 유지");
 assert.ok(r3.files.includes("tools/bin/run.py"), "csproj 없는 bin은 유지");
 assert.ok(!scanAllFiles(root).files.some((f) => f.startsWith("sim/Core/obj/")), "파일 트리도 obj 제외");
+put("tmpl/.csproj", ""); put("tmpl/bin/keep.py", "print(1)"); // 이름 없는 ".csproj"(템플릿 등)는 프로젝트 아님(#1008 리뷰)
+assert.ok(scanRepo(root).files.includes("tmpl/bin/keep.py"), "이름 없는 .csproj는 .NET 표식 아님");
 console.log("scan.check OK");
