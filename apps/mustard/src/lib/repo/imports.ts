@@ -39,6 +39,21 @@ export function resolveImport(spec: string, fromFile: string, fileSet: Set<strin
   return null; // 패키지/외부
 }
 
+// Python bare import(#1005) — `import _health_route` / `from pkg.mod import x`(지정자 "pkg/mod"). 스크립트 폴더가
+// sys.path에 들어가는 Python 동작 근사: 파일 폴더 → 상위 폴더들 → 레포 루트 순으로 a/b(.py|/__init__.py) 탐색.
+// (상대 import는 resolveImport가 처리. 외부 패키지면 레포에 없으니 null.)
+export function resolvePythonBare(spec: string, fromFile: string, fileSet: Set<string>): string | null {
+  if (!spec || spec.startsWith(".")) return null;
+  let dir = posix.dirname(fromFile);
+  for (;;) {
+    const hit = tryResolve(dir === "." ? spec : posix.join(dir, spec), fileSet);
+    if (hit) return hit;
+    if (dir === "." || dir === "") return null;
+    const up = posix.dirname(dir);
+    dir = up === dir ? "." : up;
+  }
+}
+
 // JSONC(주석·후행쉼표) 관대 파싱.
 function parseJsonc<T = unknown>(text: string): T | null {
   try { return JSON.parse(text) as T; } catch { /* strip 후 재시도 */ }

@@ -68,6 +68,7 @@ function signatureOf(node: Parser.SyntaxNode, name: string): string | undefined 
 // member=true면 this/self.x() → resolve서 caller의 소속 클래스 메서드로만 한정(#843 scope-aware).
 function calleeNameOf(fn: Parser.SyntaxNode): { name: string; member: boolean } | null {
   if (fn.type === "identifier") return { name: fn.text, member: false };
+  if (fn.type === "generic_name") { const id = fn.namedChild(0); return id ? { name: id.text, member: false } : null; } // C# Gen<int>()
   const obj = fn.childForFieldName("object") ?? fn.childForFieldName("receiver") ?? fn.namedChild(0);
   const prop = fn.childForFieldName("property") ?? fn.childForFieldName("field") ?? fn.childForFieldName("name");
   if (obj && /^(this|self)$/.test(obj.text) && prop?.text) return { name: prop.text, member: true }; // this.x / self.x
@@ -134,13 +135,22 @@ export async function extractSymbols(text: string, file: string): Promise<{ symb
   const calls: RawCall[] = [];
   const seenCall = new Set<string>();
   const walkCalls = (node: Parser.SyntaxNode) => {
-    if (node.type === "call_expression" || node.type === "call" || node.type === "call_expression_statement") {
+    if (node.type === "call_expression" || node.type === "call" || node.type === "call_expression_statement" || node.type === "invocation_expression") { // invocation_expression=C#(#1005)
       const fn = node.childForFieldName("function") ?? node.childForFieldName("method") ?? node.namedChild(0);
       const callee = fn ? calleeNameOf(fn) : null;
       const caller = containerOf(node.startIndex);
       if (callee && caller) {
         const key = `${caller}|${callee.name}|${callee.member ? 1 : 0}`;
         if (!seenCall.has(key)) { seenCall.add(key); calls.push({ callerId: caller, calleeName: callee.name, member: callee.member }); }
+      }
+    } else if (node.type === "object_creation_expression") {
+      // C# new Player() — 생성자 호출 = 그 클래스 사용(#1005). 타입 이름만(Foo·Foo<T>), 점 붙은 건 JSX처럼 건너뜀.
+      const t = node.childForFieldName("type");
+      const callee = t ? calleeNameOf(t) : null;
+      const caller = containerOf(node.startIndex);
+      if (callee && caller) {
+        const key = `${caller}|${callee.name}|0`;
+        if (!seenCall.has(key)) { seenCall.add(key); calls.push({ callerId: caller, calleeName: callee.name, member: false }); }
       }
     } else if (node.type === "jsx_opening_element" || node.type === "jsx_self_closing_element") {
       // JSX 컴포넌트 사용(<Logo/>)도 호출로 — React서 컴포넌트는 함수호출과 동등(#857). 대문자 태그만(div 등 html 제외), 점 없는 것만(네임스페이스 오연결 회피).
@@ -178,6 +188,13 @@ export async function extractSymbols(text: string, file: string): Promise<{ symb
     pushBases(node.childForFieldName("superclass"), "extends");        // Java extends / Python bases(field 없으면 아래)
     pushBases(node.childForFieldName("interfaces") ?? node.childForFieldName("super_interfaces"), "implements"); // Java
     if (!heritageNode) pushBases(node.namedChildren.find((c) => c?.type === "argument_list"), "extends"); // Python bases
+    // C# base_list(#1005) — `: MonoBehaviour, IFoo, Base<T>, NS.IBar`. 문법상 클래스/인터페이스 구분이 없어 관례(I+대문자=인터페이스)로 나눔.
+    const baseList = node.namedChildren.find((c) => c?.type === "base_list");
+    for (const c of baseList?.namedChildren ?? []) {
+      if (!c || !/^(identifier|generic_name|qualified_name)$/.test(c.type)) continue;
+      const baseName = c.text.replace(/<[^]*$/, "").split(".").pop()!.trim();
+      if (baseName) heritage.push({ classId: s.id, baseName, relation: /^I[A-Z]/.test(baseName) ? "implements" : "extends" });
+    }
   }
 
   parsed.tree.delete(); // heritage 추출까지 끝 — 이제 WASM tree 해제(노드 접근 불가, freed 메모리).

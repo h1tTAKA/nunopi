@@ -9,7 +9,8 @@ import { extractSymbols, resolveCalls, type SymbolInfo, type RawCall } from "./s
 import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
-import { resolveImport, loadAliases } from "./imports";
+import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
+import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
 
 // 파일명(경로 마지막) — 노드 label용.
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
@@ -30,6 +31,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   const callsByFile = new Map<string, RawCall[]>();
   const heritageByFile = new Map<string, { classId: string; baseName: string; relation: "extends" | "implements" }[]>();
   const importTargetsByFile = new Map<string, string[]>(); // fromFile → 해석된 대상 파일들
+  const csText = new Map<string, string>(); // #1005 C# 본문(타입 참조 2패스용)
 
   let reparsed = 0;
   for (const file of scan.files) {
@@ -44,12 +46,13 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
       let specs: string[] = [];
       try { specs = lang.extract(text); } catch { specs = []; }
       for (const spec of specs) {
-        const target = resolveImport(spec, file, fileSet, alias ?? undefined);
+        const target = resolveImport(spec, file, fileSet, alias ?? undefined) ?? (file.endsWith(".py") ? resolvePythonBare(spec, file, fileSet) : null);
         if (target && target !== file) { importEdges.push({ source: file, target, relation: "imports" }); targets.push(target); }
       }
       importTargetsByFile.set(file, targets);
     }
 
+    if (file.endsWith(".cs")) csText.set(file, text);
     // 심볼 노드 + contains + 원시호출(tree-sitter). 미지원 언어면 빈 결과.
     const ex = await extractSymbols(text, file);
     if (ex.symbols.length) reparsed++;
@@ -58,6 +61,29 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
     symbolsByFile.set(file, ex.symbols);
     callsByFile.set(file, ex.calls);
     heritageByFile.set(file, ex.heritage);
+  }
+
+  // #1005 C# 타입 참조(1.5패스) — using이 네임스페이스라 import 엣지가 없음 → 레포 타입 인덱스(class/type 심볼 + 선언 ns)로
+  // 본문에서 쓴 타입의 정의 파일에 references 엣지. 참조 파일을 import 대상처럼 취급 → 아래 calls·상속 해석이 파일을 넘나듦.
+  if (csText.size) {
+    const index = new Map<string, TypeDef[]>();
+    for (const [file, text] of csText) {
+      const clean = stripCsharp(text);
+      if (isEngineStub(clean)) continue; // 엔진 흉내 스텁은 레포 밖 엔진 취급 — 인덱스 제외(파일 노드·자체 심볼은 유지)
+      const nsAt = csharpNamespaceAt(clean); // 한 파일 여러 namespace — 심볼 행 기준(#1006 리뷰)
+      for (const s of symbolsByFile.get(file) ?? []) {
+        if (s.kind !== "class" && s.kind !== "type") continue;
+        const a = index.get(s.name) ?? [];
+        if (!a.some((d) => d.file === file)) a.push({ name: s.name, file, namespace: nsAt(s.startRow) });
+        index.set(s.name, a);
+      }
+    }
+    for (const [file, text] of csText) {
+      const refs = csharpTypeRefs(file, text, index);
+      if (!refs.length) continue;
+      for (const target of refs) importEdges.push({ source: file, target, relation: "references" });
+      importTargetsByFile.set(file, [...(importTargetsByFile.get(file) ?? []), ...refs]);
+    }
   }
 
   // calls 해석(2패스) — 파일별 로컬 심볼 + import한 파일들의 심볼 테이블로 대상 매칭.

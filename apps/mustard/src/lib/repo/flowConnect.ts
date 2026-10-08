@@ -23,14 +23,14 @@ export function connectionsAmong(graph: RepoGraph, files: string[]): FlowConnect
   const set = new Set(files);
   const map = new Map<string, Set<"imports" | "calls">>(); // "from|to" → 관계들
   for (const e of graph.edges) {
-    if (e.relation !== "imports" && e.relation !== "calls") continue; // contains/extends/implements는 흐름 연결 아님
+    if (e.relation !== "imports" && e.relation !== "calls" && e.relation !== "references") continue; // contains/extends/implements는 흐름 연결 아님
     const from = fileOf(e.source), to = fileOf(e.target);
     if (from === to) continue;               // 파일 내부 연결은 흐름 아님
     if (!set.has(from) || !set.has(to)) continue; // 플로우 노드 파일들 사이만
     const key = `${from}|${to}`;
     let s = map.get(key);
     if (!s) { s = new Set(); map.set(key, s); }
-    s.add(e.relation);
+    s.add(e.relation === "references" ? "imports" : e.relation); // #1005 C# 타입 참조 = 의존(imports와 같은 뜻으로 표시)
   }
   const out: FlowConnection[] = [];
   for (const [key, rels] of map) {

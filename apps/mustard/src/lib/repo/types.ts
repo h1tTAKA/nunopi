@@ -2,7 +2,8 @@
 // 자식 #590은 파일 노드 + import 엣지까지. 심볼(function/component)·calls는 후속.
 
 export type RepoNodeKind = "file" | "function" | "component" | "class" | "type";
-export type RepoRelation = "imports" | "calls" | "contains" | "extends" | "implements";
+// references(#1005): C# 등 파일 import가 없는 언어의 타입 사용 → 정의 파일(파일→파일, imports와 같은 연결로 셈).
+export type RepoRelation = "imports" | "calls" | "contains" | "extends" | "implements" | "references";
 
 export interface RepoNode {
   id: string;        // 레포 루트 기준 상대경로(파일 노드) — 고유 키
