@@ -16,16 +16,17 @@ const IGNORE_DIRS = new Set([
 // 3000 상한 중 2904를 먹어 게임 코드가 밀려날 뻔.
 export type Engine = "unity" | "unreal" | "godot";
 const ENGINE_IGNORE: Record<Engine, Set<string>> = {
-  unity: new Set(["Library", "Temp", "Obj", "obj", "Logs", "UserSettings", "Build", "Builds", "MemoryCaptures"]),
-  unreal: new Set(["Binaries", "Intermediate", "Saved", "DerivedDataCache"]),
+  // 소문자로 비교(리뷰) — Windows·macOS는 대소문자 무시 FS라 "library" 같은 폴더도 있을 수 있음.
+  unity: new Set(["library", "temp", "obj", "logs", "usersettings", "build", "builds", "memorycaptures"]),
+  unreal: new Set(["binaries", "intermediate", "saved", "deriveddatacache"]),
   godot: new Set([".godot", ".import"]),
 };
 // 한 폴더의 엔트리로 엔진 판별 — Unity: Assets/ + ProjectSettings/ 형제, Unreal: *.uproject, Godot: project.godot.
 export function detectEngine(entries: Dirent[]): Engine | null {
-  const dirs = new Set(entries.filter((e) => e.isDirectory()).map((e) => e.name));
-  if (dirs.has("Assets") && dirs.has("ProjectSettings")) return "unity";
-  if (entries.some((e) => e.isFile() && e.name.endsWith(".uproject"))) return "unreal";
-  if (entries.some((e) => e.isFile() && e.name === "project.godot")) return "godot";
+  const dirs = new Set(entries.filter((e) => e.isDirectory()).map((e) => e.name.toLowerCase()));
+  if (dirs.has("assets") && dirs.has("projectsettings")) return "unity";
+  if (entries.some((e) => e.isFile() && e.name.toLowerCase().endsWith(".uproject"))) return "unreal";
+  if (entries.some((e) => e.isFile() && e.name.toLowerCase() === "project.godot")) return "godot";
   return null;
 }
 
@@ -66,7 +67,7 @@ export function scanRepo(root: string): ScanResult {
       const full = join(dir, name);
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(name) || name.startsWith(".")) continue; // 숨김·무시 폴더 스킵
-        if (engine && ENGINE_IGNORE[engine].has(name)) continue;      // 엔진 자동 생성 폴더(#1003)
+        if (engine && ENGINE_IGNORE[engine].has(name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
         walk(full);
       } else if (e.isFile() && SUPPORTED.has(ext(name))) {
         files.push(relative(root, full).split(sep).join("/"));
@@ -95,7 +96,7 @@ export function scanAllFiles(root: string): ScanResult {
       const full = join(dir, e.name);
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(e.name) || e.name.startsWith(".")) continue;
-        if (engine && ENGINE_IGNORE[engine].has(e.name)) continue; // 엔진 자동 생성 폴더(#1003)
+        if (engine && ENGINE_IGNORE[engine].has(e.name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
         walk(full);
       } else if (e.isFile()) {
         files.push(relative(root, full).split(sep).join("/"));

@@ -33,4 +33,8 @@ assert.deepStrictEqual([...r.engines].sort(), ["unity", "unreal"], "엔진 감�
 const all = scanAllFiles(root);
 assert.ok(!all.files.some((f) => f.startsWith("client/Library/")), "파일 트리도 Library 제외");
 assert.ok(all.files.includes("client/ProjectSettings/ProjectVersion.txt"), "파일 트리는 ProjectSettings 유지");
+// 대소문자 무시(리뷰) — 소문자 폴더명 Unity
+put("lower/assets/a.cs", "class A {}"); put("lower/projectsettings/x.txt", "v"); put("lower/library/z.cs", "class Z {}");
+const r2 = scanRepo(root);
+assert.ok(r2.files.includes("lower/assets/a.cs") && !r2.files.includes("lower/library/z.cs"), "소문자 Unity 폴더도 감지·제외");
 console.log("scan.check OK");
