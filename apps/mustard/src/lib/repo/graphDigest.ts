@@ -38,11 +38,11 @@ export function graphDigest(graph: RepoGraph, opts: DigestOpts = {}): string {
   const modEdge = new Map<string, number>();
   const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
   for (const e of graph.edges) {
-    if (e.relation !== "imports" && e.relation !== "calls" && e.relation !== "references") continue; // references(#1005)=C# 타입 사용
+    if (e.relation !== "imports" && e.relation !== "calls" && e.relation !== "references" && e.relation !== "uses" && e.relation !== "instantiates") continue; // uses·instantiates(#1009)=Unity 에셋→스크립트 // references(#1005)=C# 타입 사용
     const fa = fileOf(e.source), fb = fileOf(e.target);
     if (fa === fb) continue;
     bump(deg, fa); bump(deg, fb);
-    if (e.relation === "imports" || e.relation === "references") {
+    if (e.relation === "imports" || e.relation === "references" || e.relation === "uses" || e.relation === "instantiates") {
       const ma = moduleOf(fa, o.moduleDepth), mb = moduleOf(fb, o.moduleDepth);
       if (ma !== mb) bump(modEdge, `${ma}${SEP}${mb}`);
     }

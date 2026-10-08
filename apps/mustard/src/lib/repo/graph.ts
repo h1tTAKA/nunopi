@@ -10,6 +10,7 @@ import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
 import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
+import { isUnityAsset, underUnityAssets, unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets";
 import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
 
 // 파일명(경로 마지막) — 노드 label용.
@@ -32,6 +33,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   const heritageByFile = new Map<string, { classId: string; baseName: string; relation: "extends" | "implements" }[]>();
   const importTargetsByFile = new Map<string, string[]>(); // fromFile → 해석된 대상 파일들
   const csText = new Map<string, string>(); // #1005 C# 본문(타입 참조 2패스용)
+  const unityText = new Map<string, string>(); // #1009 Unity 에셋 YAML(GUID 패스용)
 
   let reparsed = 0;
   for (const file of scan.files) {
@@ -53,6 +55,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
     }
 
     if (file.endsWith(".cs")) csText.set(file, text);
+    if (isUnityAsset(file)) { unityText.set(file, text); continue; } // 에셋 YAML — 심볼·import 없음(GUID 패스에서 연결)
     // 심볼 노드 + contains + 원시호출(tree-sitter). 미지원 언어면 빈 결과.
     const ex = await extractSymbols(text, file);
     if (ex.symbols.length) reparsed++;
@@ -83,6 +86,26 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
       if (!refs.length) continue;
       for (const target of refs) importEdges.push({ source: file, target, relation: "references" });
       importTargetsByFile.set(file, [...(importTargetsByFile.get(file) ?? []), ...refs]);
+    }
+  }
+
+  // #1009 Unity 구조 — 스캔된 파일 옆 .meta로 GUID → 파일 사전, 씬/프리팹/에셋이 참조한 GUID를 파일로 풀어 uses·instantiates.
+  // 레포 밖 GUID(Unity 내장·패키지)는 사전에 없어 자연히 빠짐. Unity 에셋이 없는 레포는 .meta를 읽지 않음.
+  if (unityText.size) {
+    const byGuid = new Map<string, string>();
+    for (const file of scan.files) {
+      if (!underUnityAssets(file)) continue;
+      let meta: string;
+      try { meta = readFileSync(join(root, `${file}.meta`), "utf8"); } catch { continue; }
+      const guid = unityMetaGuid(meta);
+      if (guid && !byGuid.has(guid)) byGuid.set(guid, file);
+    }
+    for (const [file, text] of unityText) {
+      for (const guid of unityGuidRefs(text)) {
+        const target = byGuid.get(guid);
+        const relation = target && target !== file ? unityRelation(target) : null;
+        if (relation) importEdges.push({ source: file, target: target!, relation });
+      }
     }
   }
 
