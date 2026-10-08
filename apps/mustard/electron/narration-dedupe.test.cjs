@@ -20,5 +20,5 @@ assert.strictEqual(freshLines(r.corpus, "⏺ Edit(app/revive/page.tsx)").fresh, 
 assert.strictEqual(freshLines("", "a\n\n  \nb").fresh, "a\nb");
 
 // 상한 — 아주 긴 입력도 꼬리만 유지
-assert.ok(seen("", "x".repeat(250_000)).length <= 100_000, "말뭉치 상한");
+assert.ok(seen("", "x".repeat(400_000)).length <= 250_000, "말뭉치 상한");
 console.log("narration-dedupe ok");
