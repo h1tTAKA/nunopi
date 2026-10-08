@@ -94,8 +94,9 @@ function gameStructure(graph: RepoGraph, o: Required<DigestOpts>): string[] {
     if ((r !== "scene" && r !== "prefab") || (e.relation !== "uses" && e.relation !== "instantiates")) continue;
     let b = out.get(e.source);
     if (!b) { b = { scripts: new Set(), assets: new Set(), places: new Set() }; out.set(e.source, b); }
-    if (e.relation === "instantiates") b.places.add(e.target);
-    else if (role.get(e.target) === "asset") b.assets.add(e.target);
+    const tr = role.get(e.target);
+    if (e.relation === "instantiates" || tr === "scene" || tr === "prefab") b.places.add(e.target); // 대상 역할 우선(#1014 리뷰)
+    else if (tr === "asset") b.assets.add(e.target);
     else b.scripts.add(e.target);
   }
   const size = (b: { scripts: Set<string>; assets: Set<string>; places: Set<string> }) => b.scripts.size + b.assets.size + b.places.size;

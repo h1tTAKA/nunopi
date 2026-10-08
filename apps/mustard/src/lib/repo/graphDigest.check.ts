@@ -43,5 +43,7 @@ assert.ok(gout.includes("[게임 구조"), "게임 구조 헤더");
 assert.ok(gout.includes("A/Main.unity (scene) → 스크립트 2: P.cs (+1) · 배치 1: Cat.prefab · 에셋 1: Bal.asset"), "씬: 스크립트(상한+나머지)·배치·에셋");
 assert.ok(gout.indexOf("A/Main.unity (scene)") < gout.indexOf("A/Cat.prefab (prefab) → 스크립트 1: P.cs"), "씬이 프리팹보다 먼저");
 assert.ok(!out.includes("[게임 구조"), "게임 에셋 없는 레포엔 섹션 없음");
+const g2 = graphDigest({ root: "/g", nodes: [gnode("B/S.unity", "scene"), gnode("B/L.prefab", "prefab")], edges: [{ source: "B/S.unity", target: "B/L.prefab", relation: "uses" }] });
+assert.ok(g2.includes("B/S.unity (scene) → 배치 1: L.prefab"), "프리팹 대상은 관계와 무관하게 배치(스크립트로 오분류 X)");
 
 console.log("graphDigest.check OK\n---\n" + out);
