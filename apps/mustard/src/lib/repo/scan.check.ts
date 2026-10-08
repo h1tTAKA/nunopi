@@ -37,4 +37,19 @@ assert.ok(all.files.includes("client/ProjectSettings/ProjectVersion.txt"), "파�
 put("lower/assets/a.cs", "class A {}"); put("lower/projectsettings/x.txt", "v"); put("lower/library/z.cs", "class Z {}");
 const r2 = scanRepo(root);
 assert.ok(r2.files.includes("lower/assets/a.cs") && !r2.files.includes("lower/library/z.cs"), "소문자 Unity 폴더도 감지·제외");
+// .NET 프로젝트(#1007) — csproj 옆 obj/·bin/ 제외, csproj 없는 bin/은 진짜 코드라 유지, 하위 폴더 obj는 영향 없음
+put("sim/Core/Core.csproj", "<Project/>");
+put("sim/Core/Sim.cs", "class Sim {}");
+put("sim/Core/obj/Debug/net8.0/Core.AssemblyInfo.cs", "// gen");
+put("sim/Core/BIN/Debug/x.cs", "// gen");
+put("sim/Core/Models/obj/Real.cs", "class Real {}");
+put("tools/bin/run.py", "print(1)");
+const r3 = scanRepo(root);
+assert.ok(r3.files.includes("sim/Core/Sim.cs"), ".NET 소스 포함");
+assert.ok(!r3.files.some((f) => f.startsWith("sim/Core/obj/") || f.startsWith("sim/Core/BIN/")), "csproj 옆 obj·bin(대소문자 무시) 제외");
+assert.ok(r3.files.includes("sim/Core/Models/obj/Real.cs"), "csproj 바로 아래가 아닌 obj는 유지");
+assert.ok(r3.files.includes("tools/bin/run.py"), "csproj 없는 bin은 유지");
+assert.ok(!scanAllFiles(root).files.some((f) => f.startsWith("sim/Core/obj/")), "파일 트리도 obj 제외");
+put("tmpl/.csproj", ""); put("tmpl/bin/keep.py", "print(1)"); // 이름 없는 ".csproj"(템플릿 등)는 프로젝트 아님(#1008 리뷰)
+assert.ok(scanRepo(root).files.includes("tmpl/bin/keep.py"), "이름 없는 .csproj는 .NET 표식 아님");
 console.log("scan.check OK");

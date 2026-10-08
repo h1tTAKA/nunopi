@@ -30,6 +30,13 @@ export function detectEngine(entries: Dirent[]): Engine | null {
   return null;
 }
 
+// .NET 프로젝트 빌드 산출물(#1007, 에픽 #1002-1c) — *.csproj/fsproj/vbproj 옆의 obj/·bin/만 제외. 엔진 루트 밖 순수 .NET
+// 프로젝트(cooing sim/·tools/loadtest)도 대상. bin/은 다른 레포에선 실행 스크립트(진짜 코드)라 전역 무시 X.
+const DOTNET_IGNORE = new Set(["obj", "bin"]);
+export function isDotnetProject(entries: Dirent[]): boolean {
+  return entries.some((e) => e.isFile() && /[^.]\.(cs|fs|vb)proj$/i.test(e.name));
+}
+
 // 파일 수 상한 — 초대형 레포 방어(후속 최적화 전까지).
 export const MAX_FILES = 3000;
 
@@ -61,6 +68,7 @@ export function scanRepo(root: string): ScanResult {
     }
     const engine = detectEngine(entries);
     if (engine) engines.add(engine);
+    const dotnet = isDotnetProject(entries);
     for (const e of entries) {
       if (capped) return;
       const name = e.name;
@@ -68,6 +76,7 @@ export function scanRepo(root: string): ScanResult {
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(name) || name.startsWith(".")) continue; // 숨김·무시 폴더 스킵
         if (engine && ENGINE_IGNORE[engine].has(name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
+        if (dotnet && DOTNET_IGNORE.has(name.toLowerCase())) continue; // .NET obj/bin(#1007)
         walk(full);
       } else if (e.isFile() && SUPPORTED.has(ext(name))) {
         files.push(relative(root, full).split(sep).join("/"));
@@ -91,12 +100,14 @@ export function scanAllFiles(root: string): ScanResult {
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     const engine = detectEngine(entries);
     if (engine) engines.add(engine);
+    const dotnet = isDotnetProject(entries);
     for (const e of entries) {
       if (capped) return;
       const full = join(dir, e.name);
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(e.name) || e.name.startsWith(".")) continue;
         if (engine && ENGINE_IGNORE[engine].has(e.name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
+        if (dotnet && DOTNET_IGNORE.has(e.name.toLowerCase())) continue; // .NET obj/bin(#1007)
         walk(full);
       } else if (e.isFile()) {
         files.push(relative(root, full).split(sep).join("/"));
