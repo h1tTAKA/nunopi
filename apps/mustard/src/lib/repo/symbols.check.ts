@@ -95,4 +95,14 @@ assert.ok(jsxEdges.some((e) => e.source === "app.tsx#App" && e.target === "logo.
 assert.ok(jsx.calls.some((c) => c.calleeName === "Logo"), "jsx_element name 필드 추출됨");
 assert.ok(!jsx.calls.some((c) => c.calleeName === "div"), "html 소문자 태그(div)는 호출 아님");
 
+// --- C#(#1005): invocation_expression·new·base_list ---
+const cs = await extractSymbols(`class A : MonoBehaviour, IFoo, Base<int>, X.IBar { void M() { Foo(); this.Bar(); Other.Baz(); Gen<int>(); var p = new Player(); } void Bar() {} }`, "a.cs");
+const csCalls = cs.calls.map((c) => `${c.calleeName}:${c.member ? 1 : 0}`);
+for (const k of ["Foo:0", "Bar:1", "Gen:0", "Player:0"]) assert.ok(csCalls.includes(k), `C# 호출 ${k}`);
+assert.ok(!csCalls.some((k) => k.startsWith("Baz")), "Other.Baz()(임의 객체 멤버)는 호출 아님");
+const csHer = cs.heritage.map((h) => `${h.baseName}:${h.relation}`).sort();
+assert.deepStrictEqual(csHer, ["Base:extends", "IBar:implements", "IFoo:implements", "MonoBehaviour:extends"], "C# base_list 상속");
+const csEdges = resolveCalls(cs.calls, cs.symbols, new Map([["p.cs", (await extractSymbols(`class Player {}`, "p.cs")).symbols]]));
+assert.ok(csEdges.some((e) => e.source === "a.cs#M" && e.target === "p.cs#Player"), "new Player() → 다른 파일 클래스 calls");
+
 console.log("symbols.check OK");
