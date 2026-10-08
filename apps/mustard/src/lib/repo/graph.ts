@@ -10,6 +10,7 @@ import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
 import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
+import { godotEdges, isGodotFile } from "./godotAssets";
 import { isUnityAsset, underUnityAssets, unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets";
 import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
 
@@ -34,6 +35,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   const importTargetsByFile = new Map<string, string[]>(); // fromFile → 해석된 대상 파일들
   const csText = new Map<string, string>(); // #1005 C# 본문(타입 참조 2패스용)
   const unityText = new Map<string, string>(); // #1009 Unity 에셋 YAML(GUID 패스용)
+  const godotText = new Map<string, string>(); // #1011 Godot .gd/.tscn/.tres(res:// 패스용)
 
   let reparsed = 0;
   for (const file of scan.files) {
@@ -56,6 +58,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
 
     if (file.endsWith(".cs")) csText.set(file, text);
     if (isUnityAsset(file)) { unityText.set(file, text); continue; } // 에셋 YAML — 심볼·import 없음(GUID 패스에서 연결)
+    if (isGodotFile(file)) { godotText.set(file, text); continue; } // GDScript 문법 없음 — 파일 단위 연결만(res:// 패스)
     // 심볼 노드 + contains + 원시호출(tree-sitter). 미지원 언어면 빈 결과.
     const ex = await extractSymbols(text, file);
     if (ex.symbols.length) reparsed++;
@@ -108,6 +111,9 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
       }
     }
   }
+
+  // #1011 Godot 구조 — res:// 경로로 직접 참조(GUID 불필요). 씬/리소스 → uses·instantiates, GDScript → imports.
+  if (godotText.size) for (const e of godotEdges(godotText, fileSet, scan.godotRoots)) importEdges.push(e);
 
   // calls 해석(2패스) — 파일별 로컬 심볼 + import한 파일들의 심볼 테이블로 대상 매칭.
   for (const file of scan.files) {
