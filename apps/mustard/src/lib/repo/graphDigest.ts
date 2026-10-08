@@ -9,8 +9,10 @@ export interface DigestOpts {
   perModuleHubs?: number; // 모듈별 허브 파일 수
   topHubs?: number;       // 전체 핵심 허브 수
   topModuleEdges?: number;// 모듈간 의존 나열 상한
+  maxGameAssets?: number; // 게임 구조(#1013) 씬·프리팹 나열 상한
+  namesPerAsset?: number; // 씬·프리팹별 스크립트·프리팹 이름 나열 상한
 }
-const DEF: Required<DigestOpts> = { moduleDepth: 3, maxModules: 40, perModuleHubs: 3, topHubs: 15, topModuleEdges: 30 };
+const DEF: Required<DigestOpts> = { moduleDepth: 3, maxModules: 40, perModuleHubs: 3, topHubs: 15, topModuleEdges: 30, maxGameAssets: 20, namesPerAsset: 8 };
 const SEP = "\u0000"; // 모듈쌍 키 구분자 — 경로에 절대 없는 NUL(공백 포함 경로도 안전, cavecrew 🔴)
 
 const fileOf = (id: string) => { const h = id.indexOf("#"); return h < 0 ? id : id.slice(0, h); };
@@ -70,10 +72,47 @@ export function graphDigest(graph: RepoGraph, opts: DigestOpts = {}): string {
     if (edges.length > o.topModuleEdges) lines.push(`(+${edges.length - o.topModuleEdges} more)`);
   }
 
+  // 게임 구조(#1013) — 씬·프리팹이 실제로 쓰는 스크립트·배치하는 프리팹. 코드엔 없는 "이 스크립트 어디서 쓰여?"의 답(에이전트용).
+  const game = gameStructure(graph, o);
+  if (game.length) lines.push("", "[게임 구조 — 씬·프리팹이 쓰는 스크립트·배치하는 프리팹]", ...game);
+
   const hubs = [...deg.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, o.topHubs);
   if (hubs.length) {
     lines.push("", "[핵심 허브 파일(연결 많음)]");
     hubs.forEach(([f, d], i) => lines.push(`${i + 1}. ${f} (deg ${d})`));
   }
   return lines.join("\n");
+}
+
+// 씬 먼저, 연결 많은 순. 대상은 스크립트(역할 없는 uses 대상)·데이터 에셋(asset)·프리팹/하위 씬(instantiates)로 나눠 이름 나열(상한 + 나머지 수).
+function gameStructure(graph: RepoGraph, o: Required<DigestOpts>): string[] {
+  const role = new Map(graph.nodes.filter((n) => n.role).map((n) => [n.id, n.role!]));
+  if (!role.size) return [];
+  const out = new Map<string, { scripts: Set<string>; assets: Set<string>; places: Set<string> }>();
+  for (const e of graph.edges) {
+    const r = role.get(e.source);
+    if ((r !== "scene" && r !== "prefab") || (e.relation !== "uses" && e.relation !== "instantiates")) continue;
+    let b = out.get(e.source);
+    if (!b) { b = { scripts: new Set(), assets: new Set(), places: new Set() }; out.set(e.source, b); }
+    const tr = role.get(e.target);
+    if (e.relation === "instantiates" || tr === "scene" || tr === "prefab") b.places.add(e.target); // 대상 역할 우선(#1014 리뷰)
+    else if (tr === "asset") b.assets.add(e.target);
+    else b.scripts.add(e.target);
+  }
+  const size = (b: { scripts: Set<string>; assets: Set<string>; places: Set<string> }) => b.scripts.size + b.assets.size + b.places.size;
+  const items = [...out.entries()].sort((a, b) =>
+    (role.get(a[0]) === "scene" ? 0 : 1) - (role.get(b[0]) === "scene" ? 0 : 1) || size(b[1]) - size(a[1]) || a[0].localeCompare(b[0]));
+  const names = (s: Set<string>) => {
+    const all = [...s].map(baseOf).sort();
+    return all.slice(0, o.namesPerAsset).join(", ") + (all.length > o.namesPerAsset ? ` (+${all.length - o.namesPerAsset})` : "");
+  };
+  const lines = items.slice(0, o.maxGameAssets).map(([f, b]) => {
+    const parts: string[] = [];
+    if (b.scripts.size) parts.push(`스크립트 ${b.scripts.size}: ${names(b.scripts)}`);
+    if (b.places.size) parts.push(`배치 ${b.places.size}: ${names(b.places)}`);
+    if (b.assets.size) parts.push(`에셋 ${b.assets.size}: ${names(b.assets)}`);
+    return `${f} (${role.get(f)}) → ${parts.join(" · ")}`;
+  });
+  if (items.length > o.maxGameAssets) lines.push(`(+${items.length - o.maxGameAssets} scenes/prefabs)`);
+  return lines;
 }

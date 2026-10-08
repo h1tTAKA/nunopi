@@ -6,11 +6,15 @@ export type RepoNodeKind = "file" | "function" | "component" | "class" | "type";
 export type RepoRelation = "imports" | "calls" | "contains" | "extends" | "implements" | "references" | "uses" | "instantiates";
 // uses·instantiates(#1009): Unity 씬/프리팹/에셋 → 스크립트·데이터 에셋(uses), → 프리팹·씬(instantiates). 에셋 GUID로 연결.
 
+// 게임 에셋 파일의 역할(#1013) — kind는 file 유지(MCP가 kind!=="file"을 심볼로 봄), 뷰어 색·digest 게임 구조용.
+export type RepoAssetRole = "scene" | "prefab" | "asset";
+
 export interface RepoNode {
   id: string;        // 레포 루트 기준 상대경로(파일 노드) — 고유 키
   label: string;     // 표시명(파일명)
   file: string;      // 상대경로(파일)
   kind: RepoNodeKind;
+  role?: RepoAssetRole; // 게임 에셋 파일(.unity/.tscn=scene, .prefab, .asset/.tres=asset)만
   owner?: string;    // 메서드/멤버가 속한 클래스 이름(#843 scope-aware 해석용, Graft owner 기법)
   signature?: string; // 함수/메서드 시그니처(파라미터+반환타입) — 표시·검색용(#843)
   line?: number;     // 심볼 정의 시작 줄(1-based) — MCP find_code 등 위치용(#853)
