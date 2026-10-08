@@ -52,3 +52,39 @@ export function godotRelation(target: string): "uses" | "instantiates" | null {
 }
 
 export const GODOT_FILE_EXTS = [".gd", ".tscn", ".tres"] as const;
+export const isGodotFile = (file: string) => GODOT_FILE_EXTS.some((e) => file.toLowerCase().endsWith(e));
+
+export interface GodotEdge { source: string; target: string; relation: "imports" | "uses" | "instantiates" }
+
+// Godot 파일 본문들 → 파일 간 엣지(중복 제거). graph.ts가 호출, check가 픽스처로 끝까지 검증.
+// .tscn/.tres: ext_resource → uses/instantiates. .gd: preload·load·경로 extends → imports, extends ClassName → class_name 정의 파일 imports.
+export function godotEdges(texts: Map<string, string>, fileSet: Set<string>): GodotEdge[] {
+  const byClass = new Map<string, string>();
+  const gd = new Map<string, GdscriptRefs>();
+  for (const [file, text] of texts) {
+    if (!file.toLowerCase().endsWith(".gd")) continue;
+    const r = gdscriptRefs(text);
+    gd.set(file, r);
+    if (r.className && !byClass.has(r.className)) byClass.set(r.className, file);
+  }
+  const out: GodotEdge[] = [];
+  const seen = new Set<string>();
+  const add = (source: string, target: string | null | undefined, relation: GodotEdge["relation"] | null) => {
+    if (!target || !relation || target === source) return;
+    const k = `${source}|${target}|${relation}`;
+    if (!seen.has(k)) { seen.add(k); out.push({ source, target, relation }); }
+  };
+  for (const [file, text] of texts) {
+    const r = gd.get(file);
+    if (r) {
+      for (const p of r.paths) add(file, resolveRes(p, file, fileSet), "imports");
+      if (r.extendsName) add(file, byClass.get(r.extendsName), "imports"); // 엔진 클래스(Node2D 등)는 인덱스에 없어 탈락
+    } else {
+      for (const res of godotExtResources(text)) {
+        const target = resolveRes(res.path, file, fileSet);
+        add(file, target, target ? godotRelation(target) : null);
+      }
+    }
+  }
+  return out;
+}

@@ -1,6 +1,10 @@
 // godotAssets 점검(#1011) — 실행: node --experimental-strip-types src/lib/repo/godotAssets.check.ts
 import assert from "node:assert";
-import { gdscriptRefs, godotExtResources, godotRelation, resolveRes } from "./godotAssets.ts";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { gdscriptRefs, godotEdges, godotExtResources, godotRelation, resolveRes } from "./godotAssets.ts";
+import { scanRepo } from "./scan.ts";
 
 // Godot 4 + Godot 3 형식, 속성 순서 무관, res:// 아닌 것 제외
 const tscn = `[gd_scene load_steps=4 format=3 uid="uid://abc"]
@@ -35,4 +39,29 @@ assert.strictEqual(godotRelation("a/p.gd"), "uses");
 assert.strictEqual(godotRelation("a/x.tres"), "uses");
 assert.strictEqual(godotRelation("a/e.tscn"), "instantiates");
 assert.strictEqual(godotRelation("a/cat.png"), null);
+// --- 픽스처 끝까지: Godot 루트가 레포 하위(game/), 스캔 → godotEdges ---
+const root = mkdtempSync(join(tmpdir(), "godot-check-"));
+const put = (rel: string, body: string) => { const p = join(root, rel); mkdirSync(join(p, ".."), { recursive: true }); writeFileSync(p, body); };
+put("game/project.godot", "config_version=5");
+put("game/main.tscn", `[ext_resource type="Script" path="res://main.gd" id="1"]\n[ext_resource type="PackedScene" path="res://enemy/enemy.tscn" id="2"]\n[ext_resource type="Texture2D" path="res://icon.png" id="3"]`);
+put("game/main.gd", `extends Node\nconst Bullet = preload("res://bullet.gd")`);
+put("game/bullet.gd", `class_name Bullet\nextends Area2D`);
+put("game/enemy/enemy.tscn", `[ext_resource type="Script" path="res://enemy/enemy.gd" id="1"]\n[ext_resource type="Resource" path="res://enemy/stats.tres" id="2"]`);
+put("game/enemy/enemy.gd", `extends Actor`);
+put("game/actor.gd", `class_name Actor\nextends CharacterBody2D`);
+put("game/enemy/stats.tres", `[gd_resource type="Resource" format=3]`);
+put("game/.godot/imported/cache.gd", "extends Node"); // #1003 엔진 캐시 — 스캔 제외
+put("web/theme.tres", "x"); // Godot 루트 밖 — 스캔 제외
+const scanned = scanRepo(root).files;
+assert.ok(!scanned.some((f) => f.includes(".godot/")) && !scanned.includes("web/theme.tres"), "Godot 캐시·루트 밖 파일 제외");
+const texts = new Map(scanned.filter((f) => f.startsWith("game/")).map((f) => [f, readFileSync(join(root, f), "utf8")] as [string, string]));
+const got = godotEdges(texts, new Set(scanned)).map((e) => `${e.source} -${e.relation}-> ${e.target}`).sort();
+assert.deepStrictEqual(got, [
+  "game/enemy/enemy.gd -imports-> game/actor.gd",
+  "game/enemy/enemy.tscn -uses-> game/enemy/enemy.gd",
+  "game/enemy/enemy.tscn -uses-> game/enemy/stats.tres",
+  "game/main.gd -imports-> game/bullet.gd",
+  "game/main.tscn -instantiates-> game/enemy/enemy.tscn",
+  "game/main.tscn -uses-> game/main.gd",
+], "씬→스크립트·하위 씬·리소스, gd→preload·class_name extends(엔진 클래스·텍스처 제외)");
 console.log("godotAssets.check OK");

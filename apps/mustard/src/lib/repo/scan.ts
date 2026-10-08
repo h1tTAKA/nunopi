@@ -4,6 +4,7 @@ import { readdirSync, type Dirent } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { SUPPORTED_EXTS } from "./langs.ts"; // .ts 명시 — scan.check(strip-types)가 직접 로드(symbols.ts 관례)
 import { UNITY_ASSET_EXTS } from "./unityAssets.ts";
+import { GODOT_FILE_EXTS } from "./godotAssets.ts";
 
 // 파싱 대상 확장자 — 언어 레지스트리(langs.ts)서 파생(단일 소스).
 const SUPPORTED = SUPPORTED_EXTS;
@@ -43,6 +44,9 @@ const UNITY_ASSETS: ReadonlySet<string> = new Set(UNITY_ASSET_EXTS);
 // 게임 에셋은 항상 "Unity 루트의 Assets/" 아래 — walk가 감지된 Unity 루트에서 Assets로 들어갈 때만 플래그를 켬(#1010 리뷰: 웹 레포
 // src/assets/*.asset 오인 방지). ProjectSettings/*.asset(엔진 설정 20여 개)은 게임 구조 아님 → 제외.
 
+// Godot 스크립트·씬·리소스(#1011) — project.godot 있는 폴더(Godot 루트)와 그 아래에서만(다른 레포 오인 방지, Unity와 같은 플래그 전파).
+const GODOT_FILES: ReadonlySet<string> = new Set(GODOT_FILE_EXTS);
+
 // 파일 수 상한 — 초대형 레포 방어(후속 최적화 전까지).
 export const MAX_FILES = 3000;
 
@@ -64,7 +68,7 @@ export function scanRepo(root: string): ScanResult {
   const engines = new Set<Engine>();
   let capped = false;
 
-  const walk = (dir: string, inUnityAssets = false) => {
+  const walk = (dir: string, inUnityAssets = false, inGodot = false) => {
     if (capped) return;
     let entries: Dirent[];
     try {
@@ -75,6 +79,7 @@ export function scanRepo(root: string): ScanResult {
     const engine = detectEngine(entries);
     if (engine) engines.add(engine);
     const dotnet = isDotnetProject(entries);
+    const godot = inGodot || engine === "godot";
     for (const e of entries) {
       if (capped) return;
       const name = e.name;
@@ -83,8 +88,8 @@ export function scanRepo(root: string): ScanResult {
         if (IGNORE_DIRS.has(name) || name.startsWith(".")) continue; // 숨김·무시 폴더 스킵
         if (engine && ENGINE_IGNORE[engine].has(name.toLowerCase())) continue; // 엔진 자동 생성 폴더(#1003)
         if (dotnet && DOTNET_IGNORE.has(name.toLowerCase())) continue; // .NET obj/bin(#1007)
-        walk(full, inUnityAssets || (engine === "unity" && name.toLowerCase() === "assets"));
-      } else if (e.isFile() && (SUPPORTED.has(ext(name)) || (inUnityAssets && UNITY_ASSETS.has(ext(name))))) {
+        walk(full, inUnityAssets || (engine === "unity" && name.toLowerCase() === "assets"), godot);
+      } else if (e.isFile() && (SUPPORTED.has(ext(name)) || (inUnityAssets && UNITY_ASSETS.has(ext(name))) || (godot && GODOT_FILES.has(ext(name))))) {
         files.push(relative(root, full).split(sep).join("/"));
         if (files.length >= MAX_FILES) { capped = true; return; }
       }
