@@ -113,7 +113,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   }
 
   // #1011 Godot 구조 — res:// 경로로 직접 참조(GUID 불필요). 씬/리소스 → uses·instantiates, GDScript → imports.
-  if (godotText.size) for (const e of godotEdges(godotText, fileSet)) importEdges.push(e);
+  if (godotText.size) for (const e of godotEdges(godotText, fileSet, scan.godotRoots)) importEdges.push(e);
 
   // calls 해석(2패스) — 파일별 로컬 심볼 + import한 파일들의 심볼 테이블로 대상 매칭.
   for (const file of scan.files) {

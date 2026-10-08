@@ -55,7 +55,8 @@ put("web/theme.tres", "x"); // Godot 루트 밖 — 스캔 제외
 const scanned = scanRepo(root).files;
 assert.ok(!scanned.some((f) => f.includes(".godot/")) && !scanned.includes("web/theme.tres"), "Godot 캐시·루트 밖 파일 제외");
 const texts = new Map(scanned.filter((f) => f.startsWith("game/")).map((f) => [f, readFileSync(join(root, f), "utf8")] as [string, string]));
-const got = godotEdges(texts, new Set(scanned)).map((e) => `${e.source} -${e.relation}-> ${e.target}`).sort();
+assert.deepStrictEqual(scanRepo(root).godotRoots, ["game"], "Godot 루트 수집");
+const got = godotEdges(texts, new Set(scanned), scanRepo(root).godotRoots).map((e) => `${e.source} -${e.relation}-> ${e.target}`).sort();
 assert.deepStrictEqual(got, [
   "game/enemy/enemy.gd -imports-> game/actor.gd",
   "game/enemy/enemy.tscn -uses-> game/enemy/enemy.gd",
@@ -64,4 +65,12 @@ assert.deepStrictEqual(got, [
   "game/main.tscn -instantiates-> game/enemy/enemy.tscn",
   "game/main.tscn -uses-> game/main.gd",
 ], "씬→스크립트·하위 씬·리소스, gd→preload·class_name extends(엔진 클래스·텍스처 제외)");
+// res:// = 프로젝트 루트 기준(#1012 리뷰) — 하위 폴더 동명 파일 말고 루트의 것, 다른 Godot 프로젝트로 새지 않음
+const fs2 = new Set(["g1/levels/player.gd", "g1/player.gd", "g1/levels/a.tscn", "g2/enemy.gd", "enemy.gd"]);
+assert.strictEqual(resolveRes("res://player.gd", "g1/levels/a.tscn", fs2, ["g1", "g2"]), "g1/player.gd", "res://는 프로젝트 루트 기준");
+assert.strictEqual(resolveRes("res://enemy.gd", "g1/levels/a.tscn", fs2, ["g1", "g2"]), null, "다른 프로젝트·레포 루트로 새지 않음");
+assert.strictEqual(resolveRes("res://enemy.gd", "g2/main.tscn", fs2, ["", "g2"]), "g2/enemy.gd", "중첩 루트는 가장 가까운 것");
+// Godot C#: 씬이 .cs 스크립트를 쓰면 uses
+const csEdges = godotEdges(new Map([["c/main.tscn", '[ext_resource type="Script" path="res://Player.cs" id="1"]']]), new Set(["c/main.tscn", "c/Player.cs"]), ["c"]);
+assert.deepStrictEqual(csEdges, [{ source: "c/main.tscn", target: "c/Player.cs", relation: "uses" }], "Godot C# 스크립트 연결");
 console.log("godotAssets.check OK");

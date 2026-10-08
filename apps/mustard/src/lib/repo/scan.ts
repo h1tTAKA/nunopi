@@ -59,6 +59,7 @@ export interface ScanResult {
   root: string;
   files: string[];   // 레포 루트 기준 상대경로(POSIX 구분자 "/")
   capped: boolean;   // 상한에 걸려 잘렸으면 true
+  godotRoots?: string[]; // project.godot 있는 폴더들(레포 상대, 루트=""). res://의 기준(#1012 리뷰) — scanRepo만 채움
   engines: Engine[]; // 감지된 게임 엔진(#1003) — 레포 요약 등에 사용
 }
 
@@ -66,6 +67,7 @@ export interface ScanResult {
 export function scanRepo(root: string): ScanResult {
   const files: string[] = [];
   const engines = new Set<Engine>();
+  const godotRoots: string[] = [];
   let capped = false;
 
   const walk = (dir: string, inUnityAssets = false, inGodot = false) => {
@@ -80,6 +82,7 @@ export function scanRepo(root: string): ScanResult {
     if (engine) engines.add(engine);
     const dotnet = isDotnetProject(entries);
     const godot = inGodot || engine === "godot";
+    if (engine === "godot") godotRoots.push(relative(root, dir).split(sep).join("/"));
     for (const e of entries) {
       if (capped) return;
       const name = e.name;
@@ -96,7 +99,7 @@ export function scanRepo(root: string): ScanResult {
     }
   };
   walk(root);
-  return { root, files, capped, engines: [...engines] };
+  return { root, files, capped, engines: [...engines], godotRoots };
 }
 
 // 전체 파일(확장자 무관) — 워크스페이스 파일트리용(#647). IGNORE_DIRS·숨김 폴더는 제외하되

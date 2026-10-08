@@ -32,9 +32,13 @@ export function gdscriptRefs(text: string): GdscriptRefs {
   };
 }
 
-// res://p → 레포 파일. project.godot 위치를 몰라도 되게 파일 폴더 → 상위 → 루트로 올라가며 <dir>/p가 있는 첫 것.
-export function resolveRes(resPath: string, fromFile: string, fileSet: Set<string>): string | null {
+// res://p → 레포 파일. res://는 "그 파일이 속한 Godot 프로젝트 루트" 기준 절대경로 — roots(project.godot 폴더들)를 알면
+// 가장 깊은(가까운) 루트 + p만 본다(#1012 리뷰: 위로 올라가기는 game/levels/player.gd 같은 하위 동명 파일을 잘못 고름).
+// roots를 모르면(외부 호출) 파일 폴더 → 상위 → 루트로 올라가며 첫 일치(근사).
+export function resolveRes(resPath: string, fromFile: string, fileSet: Set<string>, roots?: string[]): string | null {
   const p = resPath.slice("res://".length).replace(/^\/+/, "");
+  const own = roots?.filter((r) => r === "" || fromFile.startsWith(`${r}/`)).sort((a, b) => b.length - a.length)[0];
+  if (own !== undefined) { const cand = own ? `${own}/${p}` : p; return fileSet.has(cand) ? cand : null; }
   const parts = fromFile.split("/").slice(0, -1);
   for (let i = parts.length; i >= 0; i--) {
     const cand = [...parts.slice(0, i), p].join("/");
@@ -58,7 +62,7 @@ export interface GodotEdge { source: string; target: string; relation: "imports"
 
 // Godot 파일 본문들 → 파일 간 엣지(중복 제거). graph.ts가 호출, check가 픽스처로 끝까지 검증.
 // .tscn/.tres: ext_resource → uses/instantiates. .gd: preload·load·경로 extends → imports, extends ClassName → class_name 정의 파일 imports.
-export function godotEdges(texts: Map<string, string>, fileSet: Set<string>): GodotEdge[] {
+export function godotEdges(texts: Map<string, string>, fileSet: Set<string>, roots?: string[]): GodotEdge[] {
   const byClass = new Map<string, string>();
   const gd = new Map<string, GdscriptRefs>();
   for (const [file, text] of texts) {
@@ -77,11 +81,11 @@ export function godotEdges(texts: Map<string, string>, fileSet: Set<string>): Go
   for (const [file, text] of texts) {
     const r = gd.get(file);
     if (r) {
-      for (const p of r.paths) add(file, resolveRes(p, file, fileSet), "imports");
+      for (const p of r.paths) add(file, resolveRes(p, file, fileSet, roots), "imports");
       if (r.extendsName) add(file, byClass.get(r.extendsName), "imports"); // 엔진 클래스(Node2D 등)는 인덱스에 없어 탈락
     } else {
       for (const res of godotExtResources(text)) {
-        const target = resolveRes(res.path, file, fileSet);
+        const target = resolveRes(res.path, file, fileSet, roots);
         add(file, target, target ? godotRelation(target) : null);
       }
     }
