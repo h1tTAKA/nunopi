@@ -25,6 +25,14 @@ export function csharpNamespaces(text: string): { declared: string | null; using
   return { declared, usings };
 }
 
+// 엔진 API를 흉내 낸 스텁 파일(라이선스 없이 컴파일 검사용 등) — 진짜 엔진은 DLL이라 레포 밖. 스텁 타입을 인덱스에 넣으면
+// MonoBehaviour·GameObject 쓰는 모든 스크립트가 스텁 한 파일로 몰림(#1005 cooing: 상속 39개 전부·calls 227개). 선언 ns 하나라도 엔진 ns면 스텁.
+const ENGINE_NS = /^(UnityEngine|UnityEditor|Godot)(\.|$)/;
+export function isEngineStub(text: string): boolean {
+  for (const m of text.matchAll(/^\s*namespace\s+([\w.]+)/gm)) if (ENGINE_NS.test(m[1])) return true;
+  return false;
+}
+
 const commonPrefixLen = (a: string, b: string) => { const x = a.split("/"), y = b.split("/"); let i = 0; while (i < x.length && i < y.length && x[i] === y[i]) i++; return i; };
 
 // 같은 이름 타입이 여러 파일에 있으면: 보이는 네임스페이스(같은 ns·부모 ns·using) 우선 → 경로 공통 접두 긴 순 → 경로순.

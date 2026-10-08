@@ -10,7 +10,7 @@ import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
 import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
-import { csharpNamespaces, csharpTypeRefs, stripCsharp, type TypeDef } from "./typeRefs";
+import { csharpNamespaces, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
 
 // 파일명(경로 마지막) — 노드 label용.
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
@@ -68,7 +68,9 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   if (csText.size) {
     const index = new Map<string, TypeDef[]>();
     for (const [file, text] of csText) {
-      const ns = csharpNamespaces(stripCsharp(text)).declared;
+      const clean = stripCsharp(text);
+      if (isEngineStub(clean)) continue; // 엔진 흉내 스텁은 레포 밖 엔진 취급 — 인덱스 제외(파일 노드·자체 심볼은 유지)
+      const ns = csharpNamespaces(clean).declared;
       for (const s of symbolsByFile.get(file) ?? []) {
         if (s.kind !== "class" && s.kind !== "type") continue;
         const a = index.get(s.name) ?? [];

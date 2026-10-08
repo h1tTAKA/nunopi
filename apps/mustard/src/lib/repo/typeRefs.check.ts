@@ -1,6 +1,6 @@
 // typeRefs 점검(#1005) — 실행: node --experimental-strip-types src/lib/repo/typeRefs.check.ts
 import assert from "node:assert";
-import { csharpNamespaces, csharpTypeRefs, stripCsharp, type TypeDef } from "./typeRefs.ts";
+import { csharpNamespaces, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs.ts";
 
 const defs: TypeDef[] = [
   { name: "EntityView", file: "Assets/Scripts/View/EntityView.cs", namespace: "NyanDash.EntityView" },
@@ -30,4 +30,8 @@ assert.ok(!stripCsharp('var s = @"a ""Player"" b";').includes("Player"), "verbat
 // 다른 ns 파일에서 Config → using으로 Shop만 보이면 Shop 쪽
 const shopUser = `using NyanDash.Shop;\nnamespace NyanDash.UI { class Panel { Config c; } }`;
 assert.deepStrictEqual(csharpTypeRefs("Assets/Scripts/UI/Panel.cs", shopUser, index), ["Assets/Scripts/Shop/Config.cs"], "using한 ns 우선");
+// 엔진 스텁 판별 — 선언 ns가 엔진(하위 ns 포함)이면 스텁, 이름만 비슷한 ns는 아님
+assert.ok(isEngineStub("// stub\nnamespace Game {}\nnamespace UnityEngine.UI { class Button {} }"), "두 번째 ns가 UnityEngine.UI여도 스텁");
+assert.ok(isEngineStub("namespace Godot { class Node {} }"), "Godot 스텁");
+assert.ok(!isEngineStub("namespace UnityEngineExtras { class X {} }\nusing UnityEngine;"), "UnityEngineExtras·using은 스텁 아님");
 console.log("typeRefs.check OK");
