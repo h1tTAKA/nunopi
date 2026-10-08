@@ -19,7 +19,7 @@ const KIND_LABEL: Record<RepoNodeKind, string> = {
   file: "file", function: "function", component: "component", class: "class", type: "type",
 };
 // 게임 에셋 역할 색(#1013) — 역할이 있으면 kind(file) 색 대신. 범례엔 그래프에 실제 있는 역할만.
-const ROLE_COLOR: Record<RepoAssetRole, string> = { scene: "#fb923c", prefab: "#ef4444", asset: "#a5b4fc" };
+const ROLE_COLOR: Record<RepoAssetRole, string> = { scene: "#fb923c", prefab: "#a3e635", asset: "#a5b4fc" };
 const NODE_R = 4, DRAG_THRESHOLD = 4; // 노드 반경(그래프 좌표), 클릭/드래그 판별 이동 임계(px)
 const BIG_GRAPH = 5000;               // 이 이상이면 무거움 배너(silent 캡 금지)
 
