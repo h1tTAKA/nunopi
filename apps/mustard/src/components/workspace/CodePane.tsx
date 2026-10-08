@@ -1,8 +1,8 @@
 "use client";
 // 워크스페이스 코드칸(#647) — 파일 클릭 시 소스 읽어 shiki로 하이라이트(읽기전용). 다크 전환 대응.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { codeToHtml } from "shiki";
-import { IconLoader2, IconAlertTriangle, IconFileOff } from "@tabler/icons-react";
+import { IconLoader2, IconAlertTriangle, IconFileOff, IconZoomIn, IconZoomOut, IconArrowsMinimize } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 
 // 확장자 → shiki 언어. 없으면 text.
@@ -66,13 +66,7 @@ export default function CodePane({ root, file }: { root: string; file: string })
 
   if (bin) {
     // 이미지면 가운데 미리보기 + 파일명·크기, 그 외(바이너리·비UTF-8·큰 이미지)는 안내 한 줄.
-    if (bin.kind === "image" && bin.dataUrl) return (
-      <div className="nunopi-scroll flex h-full flex-col items-center justify-center gap-2 overflow-auto bg-white p-3 dark:bg-[var(--s-pane)]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- data URL 미리보기라 next/image 최적화 불필요 */}
-        <img src={bin.dataUrl} alt={file} className="max-h-[85%] max-w-full object-contain" />
-        <span className="text-[11px] text-zinc-400 dark:text-zinc-500">{file.split("/").pop()} · {fmtSize(bin.size)}</span>
-      </div>
-    );
+    if (bin.kind === "image" && bin.dataUrl) return <ImageView key={file} src={bin.dataUrl} name={file.split("/").pop() ?? file} size={bin.size} />;
     const key = bin.kind === "non-utf8" ? "code.nonUtf8" : bin.kind === "image" ? "code.imageTooBig" : "code.binary";
     return <div className="flex h-full items-center justify-center gap-1.5 text-[12px] text-zinc-400 dark:text-zinc-500"><IconFileOff size={14} stroke={2} aria-hidden /> {t(key, { size: fmtSize(bin.size) })}</div>;
   }
@@ -80,6 +74,52 @@ export default function CodePane({ root, file }: { root: string; file: string })
   return (
     <div className="nunopi-scroll h-full overflow-auto bg-white p-3 text-[12px] dark:bg-[var(--s-pane)] [&_pre]:!m-0 [&_pre]:!bg-transparent">
       {html ? <div dangerouslySetInnerHTML={{ __html: html }} /> : <pre className="text-zinc-700 dark:text-zinc-200">{raw}</pre>}
+    </div>
+  );
+}
+
+// 이미지 미리보기(#657) — 처음엔 칸에 맞춤(작은 이미지는 최대 8배까지 키움, 16px 아이콘이 점처럼 보이던 문제), +/− 버튼·⌘/Ctrl+휠(트랙패드 핀치)로 확대/축소,
+// 확대 시 스크롤로 이동. 1배 초과는 픽셀 그대로(pixelated) 확대해 픽셀 아트·아이콘이 흐려지지 않게.
+const ZMIN = 0.05, ZMAX = 32, ZSTEP = 1.25;
+function ImageView({ src, name, size }: { src: string; name: string; size: number }) {
+  const t = useT();
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const clamp = (z: number) => Math.min(ZMAX, Math.max(ZMIN, z));
+  const fit = (w: number, h: number) => {
+    const box = boxRef.current;
+    if (!box || !w || !h) return 1;
+    return clamp(Math.min((box.clientWidth - 24) / w, (box.clientHeight - 24) / h, 8));
+  };
+  // ⌘/Ctrl+휠 = 확대/축소. React onWheel은 passive라 preventDefault(페이지 줌 막기)가 안 돼 직접 등록.
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setZoom((z) => clamp(e.deltaY < 0 ? z * 1.1 : z / 1.1));
+    };
+    box.addEventListener("wheel", onWheel, { passive: false });
+    return () => box.removeEventListener("wheel", onWheel);
+  }, []);
+  const btn = "rounded p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100";
+  return (
+    <div className="flex h-full flex-col bg-white dark:bg-[var(--s-pane)]">
+      <div ref={boxRef} className="nunopi-scroll flex min-h-0 flex-1 overflow-auto p-3">
+        {/* eslint-disable-next-line @next/next/no-img-element -- data URL 미리보기라 next/image 최적화 불필요 */}
+        <img src={src} alt={name} draggable={false} className="m-auto max-w-none"
+          style={nat ? { width: nat.w * zoom, height: nat.h * zoom, imageRendering: zoom > 1 ? "pixelated" : "auto" } : { visibility: "hidden" }}
+          onLoad={(e) => { const w = e.currentTarget.naturalWidth, h = e.currentTarget.naturalHeight; setNat({ w, h }); setZoom(fit(w, h)); }} />
+      </div>
+      <div className="flex shrink-0 items-center justify-center gap-1 border-t border-zinc-200 px-2 py-1 text-[11px] text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+        <span className="mr-2 truncate">{name}{nat ? ` · ${nat.w}×${nat.h}` : ""} · {fmtSize(size)}</span>
+        <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z / ZSTEP))} title={t("code.zoomOut")} aria-label={t("code.zoomOut")}><IconZoomOut size={14} stroke={2} /></button>
+        <span className="w-11 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+        <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z * ZSTEP))} title={t("code.zoomIn")} aria-label={t("code.zoomIn")}><IconZoomIn size={14} stroke={2} /></button>
+        <button type="button" className={btn} onClick={() => nat && setZoom(fit(nat.w, nat.h))} title={t("code.zoomFit")} aria-label={t("code.zoomFit")}><IconArrowsMinimize size={14} stroke={2} /></button>
+      </div>
     </div>
   );
 }
