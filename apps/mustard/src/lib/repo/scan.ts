@@ -2,7 +2,7 @@
 // 무시 디렉터리 제외 + 파일 수 상한(폭주 방지). import 파싱은 graph.ts에서.
 import { readdirSync, type Dirent } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { SUPPORTED_EXTS } from "./langs";
+import { SUPPORTED_EXTS } from "./langs.ts"; // .ts 명시 — scan.check(strip-types)가 직접 로드(symbols.ts 관례)
 
 // 파싱 대상 확장자 — 언어 레지스트리(langs.ts)서 파생(단일 소스).
 const SUPPORTED = SUPPORTED_EXTS;
@@ -11,6 +11,24 @@ const IGNORE_DIRS = new Set([
   "node_modules", ".git", ".next", "dist", "build", "out", "coverage",
   ".turbo", ".vercel", ".cache", "graphify-out", ".idea", ".vscode",
 ]);
+// 게임 엔진 자동 생성 폴더(#1003, 에픽 #1002) — 그 폴더가 엔진 프로젝트일 때만 바로 아래 이름을 제외.
+// (Library/ 같은 이름은 다른 레포에선 진짜 코드일 수 있어 전역 무시 X.) 실측: Unity Library/PackageCache가
+// 3000 상한 중 2904를 먹어 게임 코드가 밀려날 뻔.
+export type Engine = "unity" | "unreal" | "godot";
+const ENGINE_IGNORE: Record<Engine, Set<string>> = {
+  unity: new Set(["Library", "Temp", "Obj", "obj", "Logs", "UserSettings", "Build", "Builds", "MemoryCaptures"]),
+  unreal: new Set(["Binaries", "Intermediate", "Saved", "DerivedDataCache"]),
+  godot: new Set([".godot", ".import"]),
+};
+// 한 폴더의 엔트리로 엔진 판별 — Unity: Assets/ + ProjectSettings/ 형제, Unreal: *.uproject, Godot: project.godot.
+export function detectEngine(entries: Dirent[]): Engine | null {
+  const dirs = new Set(entries.filter((e) => e.isDirectory()).map((e) => e.name));
+  if (dirs.has("Assets") && dirs.has("ProjectSettings")) return "unity";
+  if (entries.some((e) => e.isFile() && e.name.endsWith(".uproject"))) return "unreal";
+  if (entries.some((e) => e.isFile() && e.name === "project.godot")) return "godot";
+  return null;
+}
+
 // 파일 수 상한 — 초대형 레포 방어(후속 최적화 전까지).
 export const MAX_FILES = 3000;
 
@@ -23,11 +41,13 @@ export interface ScanResult {
   root: string;
   files: string[];   // 레포 루트 기준 상대경로(POSIX 구분자 "/")
   capped: boolean;   // 상한에 걸려 잘렸으면 true
+  engines: Engine[]; // 감지된 게임 엔진(#1003) — 레포 요약 등에 사용
 }
 
 // root 아래 지원 파일을 재귀 수집. IGNORE_DIRS·숨김폴더 제외, MAX_FILES 상한.
 export function scanRepo(root: string): ScanResult {
   const files: string[] = [];
+  const engines = new Set<Engine>();
   let capped = false;
 
   const walk = (dir: string) => {
@@ -38,12 +58,15 @@ export function scanRepo(root: string): ScanResult {
     } catch {
       return; // 권한 등 — 그 폴더만 건너뜀
     }
+    const engine = detectEngine(entries);
+    if (engine) engines.add(engine);
     for (const e of entries) {
       if (capped) return;
       const name = e.name;
       const full = join(dir, name);
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(name) || name.startsWith(".")) continue; // 숨김·무시 폴더 스킵
+        if (engine && ENGINE_IGNORE[engine].has(name)) continue;      // 엔진 자동 생성 폴더(#1003)
         walk(full);
       } else if (e.isFile() && SUPPORTED.has(ext(name))) {
         files.push(relative(root, full).split(sep).join("/"));
@@ -52,23 +75,27 @@ export function scanRepo(root: string): ScanResult {
     }
   };
   walk(root);
-  return { root, files, capped };
+  return { root, files, capped, engines: [...engines] };
 }
 
 // 전체 파일(확장자 무관) — 워크스페이스 파일트리용(#647). IGNORE_DIRS·숨김 폴더는 제외하되
 // 숨김 파일(.gitignore·.env 등)은 포함(에디터 트리 관례). MAX_FILES 상한.
 export function scanAllFiles(root: string): ScanResult {
   const files: string[] = [];
+  const engines = new Set<Engine>();
   let capped = false;
   const walk = (dir: string) => {
     if (capped) return;
     let entries: Dirent[];
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    const engine = detectEngine(entries);
+    if (engine) engines.add(engine);
     for (const e of entries) {
       if (capped) return;
       const full = join(dir, e.name);
       if (e.isDirectory()) {
         if (IGNORE_DIRS.has(e.name) || e.name.startsWith(".")) continue;
+        if (engine && ENGINE_IGNORE[engine].has(e.name)) continue; // 엔진 자동 생성 폴더(#1003)
         walk(full);
       } else if (e.isFile()) {
         files.push(relative(root, full).split(sep).join("/"));
@@ -77,5 +104,5 @@ export function scanAllFiles(root: string): ScanResult {
     }
   };
   walk(root);
-  return { root, files, capped };
+  return { root, files, capped, engines: [...engines] };
 }
