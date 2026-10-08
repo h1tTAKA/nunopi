@@ -6,13 +6,61 @@
 export interface TypeDef { name: string; file: string; namespace: string | null }
 
 // 주석·문자열·문자 리터럴 제거 — 문자열 안 단어("Player")를 타입 참조로 오인하지 않게.
+// 한 번에 앞에서부터 훑는 스캐너(#1006 리뷰): 정규식 체인은 $"{f("x")}"(보간 안 따옴표)에서 일찍 끊기고, "http://x"의 //를 주석으로 오인.
+// 지운 구간의 줄바꿈은 남김 → 줄 번호 유지(네임스페이스↔심볼 행 매칭에 씀).
 export function stripCsharp(text: string): string {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/\/\/[^\n]*/g, " ")
-    .replace(/@"(?:[^"]|"")*"/g, '""')
-    .replace(/\$?"(?:\\.|[^"\\\n])*"/g, '""')
-    .replace(/'(?:\\.|[^'\\\n])'/g, "''");
+  let out = "";
+  let i = 0;
+  const keepNl = (from: number, to: number) => text.slice(from, to).replace(/[^\n]/g, "");
+  while (i < text.length) {
+    const c = text[i], d = text[i + 1];
+    if (c === "/" && d === "/") { const e = text.indexOf("\n", i); i = e < 0 ? text.length : e; out += " "; continue; }
+    if (c === "/" && d === "*") { const e = text.indexOf("*/", i + 2); const end = e < 0 ? text.length : e + 2; out += " " + keepNl(i, end); i = end; continue; }
+    if (c === "'") { const end = skipChar(text, i); if (end > 0) { out += "''"; i = end; continue; } }
+    if (c === '"' || ((c === "$" || c === "@") && /^[$@]*"/.test(text.slice(i, i + 5)))) {
+      const end = skipString(text, i); out += '""' + keepNl(i, end); i = end; continue;
+    }
+    out += c; i++;
+  }
+  return out;
+}
+// 'a' '\n' '\u0041' — 닫는 따옴표 끝 위치, 문자 리터럴 아니면 -1.
+function skipChar(t: string, i: number): number {
+  const e = t.indexOf("'", t[i + 1] === "\\" ? i + 3 : i + 2);
+  return e > i && e - i <= 10 && !t.slice(i, e).includes("\n") ? e + 1 : -1;
+}
+// i = 접두($·@) 또는 여는 따옴표. 반환 = 문자열 끝 다음 위치. 일반·verbatim(@)·보간($, {..} 중첩)·raw(""") 처리.
+function skipString(t: string, i: number): number {
+  let k = i, interp = false, verbatim = false;
+  while (t[k] === "$" || t[k] === "@") { if (t[k] === "$") interp = true; else verbatim = true; k++; }
+  if (t.startsWith('"""', k)) { // raw string: 여는 따옴표 개수만큼 닫는 따옴표
+    let q = 0; while (t[k + q] === '"') q++;
+    const e = t.indexOf('"'.repeat(q), k + q);
+    return e < 0 ? t.length : e + q;
+  }
+  let j = k + 1;
+  while (j < t.length) {
+    const ch = t[j];
+    if (ch === '"') { if (verbatim && t[j + 1] === '"') { j += 2; continue; } return j + 1; }
+    if (ch === "\\" && !verbatim) { j += 2; continue; }
+    if (ch === "\n" && !verbatim) return j; // 닫히지 않은 일반 문자열 — 줄에서 끊음
+    if (ch === "{" && interp) { if (t[j + 1] === "{") { j += 2; continue; } j = skipBraces(t, j); continue; }
+    j++;
+  }
+  return j;
+}
+// 보간 {..} — 중첩 중괄호·안쪽 문자열·문자 리터럴 건너뜀.
+function skipBraces(t: string, j: number): number {
+  let depth = 0;
+  while (j < t.length) {
+    const ch = t[j];
+    if (ch === "{") depth++;
+    else if (ch === "}") { if (--depth === 0) return j + 1; }
+    else if (ch === '"' || ((ch === "$" || ch === "@") && /^[$@]*"/.test(t.slice(j, j + 5)))) { j = skipString(t, j); continue; }
+    else if (ch === "'") { const e = skipChar(t, j); if (e > 0) { j = e; continue; } }
+    j++;
+  }
+  return j;
 }
 
 // 선언 네임스페이스(블록·파일 범위 `namespace X;` 첫 것) + using 네임스페이스들.
@@ -23,6 +71,17 @@ export function csharpNamespaces(text: string): { declared: string | null; using
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) usings.push(m[1]);
   return { declared, usings };
+}
+
+// 행(0-based) → 그 행에 적용되는 선언 네임스페이스. 한 파일에 namespace 블록이 여럿이면(#1006 리뷰) 첫 것만 쓰면 오분류.
+// ponytail: "그 행 이전 마지막 namespace 선언" 근사 — 중첩 namespace(A { namespace B })·블록 닫힌 뒤 전역 타입은 부정확.
+export function csharpNamespaceAt(stripped: string): (row: number) => string | null {
+  const decls: { row: number; ns: string }[] = [];
+  for (const m of stripped.matchAll(/^\s*namespace\s+([\w.]+)/gm)) {
+    const at = m.index! + m[0].length - m[1].length;
+    decls.push({ row: stripped.slice(0, at).split("\n").length - 1, ns: m[1] });
+  }
+  return (row) => { let ns: string | null = null; for (const d of decls) { if (d.row > row) break; ns = d.ns; } return ns; };
 }
 
 // 엔진 API를 흉내 낸 스텁 파일(라이선스 없이 컴파일 검사용 등) — 진짜 엔진은 DLL이라 레포 밖. 스텁 타입을 인덱스에 넣으면

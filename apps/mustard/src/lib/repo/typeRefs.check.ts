@@ -1,6 +1,6 @@
 // typeRefs 점검(#1005) — 실행: node --experimental-strip-types src/lib/repo/typeRefs.check.ts
 import assert from "node:assert";
-import { csharpNamespaces, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs.ts";
+import { csharpNamespaceAt, csharpNamespaces, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs.ts";
 
 const defs: TypeDef[] = [
   { name: "EntityView", file: "Assets/Scripts/View/EntityView.cs", namespace: "NyanDash.EntityView" },
@@ -34,4 +34,14 @@ assert.deepStrictEqual(csharpTypeRefs("Assets/Scripts/UI/Panel.cs", shopUser, in
 assert.ok(isEngineStub("// stub\nnamespace Game {}\nnamespace UnityEngine.UI { class Button {} }"), "두 번째 ns가 UnityEngine.UI여도 스텁");
 assert.ok(isEngineStub("namespace Godot { class Node {} }"), "Godot 스텁");
 assert.ok(!isEngineStub("namespace UnityEngineExtras { class X {} }\nusing UnityEngine;"), "UnityEngineExtras·using은 스텁 아님");
+// 스캐너(#1006 리뷰): 보간 안 따옴표·중첩 중괄호, URL 속 //, raw string, 줄 수 유지
+assert.strictEqual(stripCsharp('var s = $"Hi {foo("Player")} {{x}}"; Enemy e;').includes("Player"), false, "보간 안 문자열 제거");
+assert.ok(stripCsharp('var s = $"Hi {foo("x")}"; Enemy e;').includes("Enemy e;"), "보간 뒤 코드 보존");
+assert.ok(stripCsharp('var u = "http://a"; Enemy e;').includes("Enemy e;"), "문자열 속 // 는 주석 아님");
+assert.ok(!stripCsharp('var r = """\n Player "q" \n"""; Enemy e;').includes("Player") && stripCsharp('var r = """\n Player \n"""; Enemy e;').includes("Enemy"), "raw string");
+assert.ok(stripCsharp("char c = '\\''; Enemy e;").includes("Enemy e;"), "이스케이프 문자 리터럴");
+const multi = "/* a\nb */\nnamespace A { class X {} }\nnamespace B {\n class Y {} }";
+assert.strictEqual(stripCsharp(multi).split("\n").length, multi.split("\n").length, "줄 수 유지");
+const at = csharpNamespaceAt(stripCsharp(multi));
+assert.strictEqual(at(2), "A", "2행 X → A"); assert.strictEqual(at(4), "B", "4행 Y → B"); assert.strictEqual(at(0), null, "선언 전 → null");
 console.log("typeRefs.check OK");
