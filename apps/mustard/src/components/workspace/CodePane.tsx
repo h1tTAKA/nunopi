@@ -84,14 +84,27 @@ const ZMIN = 0.05, ZMAX = 32, ZSTEP = 1.25;
 function ImageView({ src, name, size }: { src: string; name: string; size: number }) {
   const t = useT();
   const boxRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const clamp = (z: number) => Math.min(ZMAX, Math.max(ZMIN, z));
-  const fit = (w: number, h: number) => {
+  // 칸 맞춤 배율. 칸이 아직 배치 전(0 크기, 숨김 패널)이면 null → 현재 배율 유지(#1018 리뷰: 0 크기로 최소 배율 되던 것).
+  const fit = (w: number, h: number): number | null => {
     const box = boxRef.current;
-    if (!box || !w || !h) return 1;
-    return clamp(Math.min((box.clientWidth - 24) / w, (box.clientHeight - 24) / h, 8));
+    const bw = (box?.clientWidth ?? 0) - 24, bh = (box?.clientHeight ?? 0) - 24;
+    if (!w || !h || bw <= 0 || bh <= 0) return null;
+    return clamp(Math.min(bw / w, bh / h, 8));
   };
+  const measure = (img: HTMLImageElement) => { if (img.naturalWidth) setNat({ w: img.naturalWidth, h: img.naturalHeight }); };
+  // 캐시된 이미지는 마운트 전에 로드가 끝나 onLoad가 안 올 수 있음 → 마운트 시 complete면 직접 측정(#1018 리뷰).
+  useEffect(() => { const img = imgRef.current; if (img?.complete) measure(img); }, []);
+  // 크기 알게 된 뒤 레이아웃이 잡힌 다음 프레임에 맞춤(onLoad 시점엔 칸 크기가 아직 0일 수 있음).
+  useEffect(() => {
+    if (!nat) return;
+    const id = requestAnimationFrame(() => { const z = fit(nat.w, nat.h); if (z !== null) setZoom(z); });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fit은 ref만 읽는 순수 계산, nat 바뀔 때만 1회
+  }, [nat]);
   // ⌘/Ctrl+휠 = 확대/축소. React onWheel은 passive라 preventDefault(페이지 줌 막기)가 안 돼 직접 등록.
   useEffect(() => {
     const box = boxRef.current;
@@ -109,16 +122,16 @@ function ImageView({ src, name, size }: { src: string; name: string; size: numbe
     <div className="flex h-full flex-col bg-white dark:bg-[var(--s-pane)]">
       <div ref={boxRef} className="nunopi-scroll flex min-h-0 flex-1 overflow-auto p-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- data URL 미리보기라 next/image 최적화 불필요 */}
-        <img src={src} alt={name} draggable={false} className="m-auto max-w-none"
+        <img ref={imgRef} src={src} alt={name} draggable={false} className="m-auto max-w-none"
           style={nat ? { width: nat.w * zoom, height: nat.h * zoom, imageRendering: zoom > 1 ? "pixelated" : "auto" } : { visibility: "hidden" }}
-          onLoad={(e) => { const w = e.currentTarget.naturalWidth, h = e.currentTarget.naturalHeight; setNat({ w, h }); setZoom(fit(w, h)); }} />
+          onLoad={(e) => measure(e.currentTarget)} />
       </div>
       <div className="flex shrink-0 items-center justify-center gap-1 border-t border-zinc-200 px-2 py-1 text-[11px] text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         <span className="mr-2 truncate">{name}{nat ? ` · ${nat.w}×${nat.h}` : ""} · {fmtSize(size)}</span>
         <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z / ZSTEP))} title={t("code.zoomOut")} aria-label={t("code.zoomOut")}><IconZoomOut size={14} stroke={2} /></button>
         <span className="w-11 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
         <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z * ZSTEP))} title={t("code.zoomIn")} aria-label={t("code.zoomIn")}><IconZoomIn size={14} stroke={2} /></button>
-        <button type="button" className={btn} onClick={() => nat && setZoom(fit(nat.w, nat.h))} title={t("code.zoomFit")} aria-label={t("code.zoomFit")}><IconArrowsMinimize size={14} stroke={2} /></button>
+        <button type="button" className={btn} onClick={() => { const z = nat && fit(nat.w, nat.h); if (z) setZoom(z); }} title={t("code.zoomFit")} aria-label={t("code.zoomFit")}><IconArrowsMinimize size={14} stroke={2} /></button>
       </div>
     </div>
   );
