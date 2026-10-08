@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { scanRepo, type ScanResult } from "./scan";
 import { detectLang } from "./langs";
 import { extractSymbols, resolveCalls, type SymbolInfo, type RawCall } from "./symbols";
-import type { RepoGraph, RepoNode, RepoEdge } from "./types";
+import type { RepoGraph, RepoNode, RepoEdge, RepoAssetRole } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
 import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
@@ -18,6 +18,15 @@ import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type Type
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 
 /** 레포 루트 → RepoGraph. 파일 노드 + import 엣지 + 심볼 노드 + contains + calls. */
+// 게임 에셋 역할(#1013) — Godot .tscn은 프리팹 역할도 하지만 형식상 씬.
+function assetRole(file: string): RepoAssetRole | undefined {
+  const f = file.toLowerCase();
+  if (f.endsWith(".unity") || f.endsWith(".tscn")) return "scene";
+  if (f.endsWith(".prefab")) return "prefab";
+  if (f.endsWith(".asset") || f.endsWith(".tres")) return "asset";
+  return undefined;
+}
+
 export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<RepoGraph> {
   const scan = pre ?? scanRepo(root); // 라우트가 이미 스캔했으면 재사용(이중 스캔 방지, #845 🟡)
   const fileSet = new Set(scan.files);
@@ -39,7 +48,8 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
 
   let reparsed = 0;
   for (const file of scan.files) {
-    fileNodes.push({ id: file, label: baseName(file), file, kind: "file" });
+    const role = assetRole(file);
+    fileNodes.push({ id: file, label: baseName(file), file, kind: "file", ...(role ? { role } : {}) });
     let text: string;
     try { text = readFileSync(join(root, file), "utf8"); } catch { continue; }
 

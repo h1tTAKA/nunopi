@@ -6,9 +6,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { forceSimulation, forceManyBody, forceLink, forceCenter, forceCollide, type Simulation, type SimulationNodeDatum } from "d3-force";
 import { IconX, IconLoader2, IconFocus2 } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-import type { RepoGraph, RepoNodeKind } from "@/lib/repo/types";
+import type { RepoAssetRole, RepoGraph, RepoNodeKind } from "@/lib/repo/types";
 
-type SimNode = SimulationNodeDatum & { id: string; label: string; file: string; kind: RepoNodeKind };
+type SimNode = SimulationNodeDatum & { id: string; label: string; file: string; kind: RepoNodeKind; role?: RepoAssetRole };
 type SimLink = { source: SimNode | string; target: SimNode | string; relation: string };
 
 // 노드 종류별 색(다크 배경서 잘 보이는 톤). 엣지는 연한 회색.
@@ -18,6 +18,8 @@ const KIND_COLOR: Record<RepoNodeKind, string> = {
 const KIND_LABEL: Record<RepoNodeKind, string> = {
   file: "file", function: "function", component: "component", class: "class", type: "type",
 };
+// 게임 에셋 역할 색(#1013) — 역할이 있으면 kind(file) 색 대신. 범례엔 그래프에 실제 있는 역할만.
+const ROLE_COLOR: Record<RepoAssetRole, string> = { scene: "#fb923c", prefab: "#2dd4bf", asset: "#a5b4fc" };
 const NODE_R = 4, DRAG_THRESHOLD = 4; // 노드 반경(그래프 좌표), 클릭/드래그 판별 이동 임계(px)
 const BIG_GRAPH = 5000;               // 이 이상이면 무거움 배너(silent 캡 금지)
 
@@ -102,7 +104,7 @@ export default function RepoGraphViewer({ root, onOpenFile, onClose }: {
     for (const n of nodesRef.current) {
       ctx.beginPath();
       ctx.arc(n.x ?? 0, n.y ?? 0, NODE_R, 0, Math.PI * 2);
-      ctx.fillStyle = KIND_COLOR[n.kind] ?? "#9ca3af";
+      ctx.fillStyle = (n.role && ROLE_COLOR[n.role]) || (KIND_COLOR[n.kind] ?? "#9ca3af");
       ctx.fill();
     }
     // 라벨 — 확대(k>1.6) 시 또는 호버 노드만(클러터 방지)
@@ -120,7 +122,7 @@ export default function RepoGraphViewer({ root, onOpenFile, onClose }: {
   // 2) 그래프 생겼을 때 시뮬 구성 + rAF 루프.
   useEffect(() => {
     if (!graph) return;
-    const nodes: SimNode[] = graph.nodes.map((n) => ({ id: n.id, label: n.label, file: n.file, kind: n.kind }));
+    const nodes: SimNode[] = graph.nodes.map((n) => ({ id: n.id, label: n.label, file: n.file, kind: n.kind, role: n.role }));
     const byId = new Map(nodes.map((n) => [n.id, n]));
     const links: SimLink[] = graph.edges
       .filter((e) => byId.has(e.source) && byId.has(e.target))
@@ -235,6 +237,11 @@ export default function RepoGraphViewer({ root, onOpenFile, onClose }: {
               {(Object.keys(KIND_COLOR) as RepoNodeKind[]).map((k) => (
                 <span key={k} className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: KIND_COLOR[k] }} aria-hidden /> {KIND_LABEL[k]}
+                </span>
+              ))}
+              {(Object.keys(ROLE_COLOR) as RepoAssetRole[]).filter((r) => graph?.nodes.some((n) => n.role === r)).map((r) => (
+                <span key={r} className="flex items-center gap-1.5 text-zinc-500 dark:text-zinc-400">
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: ROLE_COLOR[r] }} aria-hidden /> {r}
                 </span>
               ))}
             </div>
