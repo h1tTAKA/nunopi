@@ -7,11 +7,12 @@ const CAP = 250_000; // 말뭉치 꼬리 상한(세션당) — 데몬 버퍼(200
 
 const norm = (line) => String(line).replace(/\s+/g, "");
 
-// 이미 본 텍스트를 말뭉치에 추가해 새 말뭉치를 반환.
+// 이미 본 텍스트를 말뭉치에 추가해 새 말뭉치를 반환. 이미 들어 있는 줄은 다시 안 넣음(#1020 리뷰: 시딩 두 번에 말뭉치 중복 증식).
 function seen(corpus, text) {
-  const add = String(text || "").split("\n").map(norm).filter(Boolean).join("\n");
-  if (!add) return corpus || "";
-  const next = (corpus ? corpus + "\n" : "") + add;
+  const c = corpus || "";
+  const add = String(text || "").split("\n").map(norm).filter((n) => n && !c.includes(n)).join("\n");
+  if (!add) return c;
+  const next = (c ? c + "\n" : "") + add;
   return next.length > CAP ? next.slice(-CAP) : next;
 }
 

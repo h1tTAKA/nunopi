@@ -21,4 +21,7 @@ assert.strictEqual(freshLines("", "a\n\n  \nb").fresh, "a\nb");
 
 // 상한 — 아주 긴 입력도 꼬리만 유지
 assert.ok(seen("", "x".repeat(400_000)).length <= 250_000, "말뭉치 상한");
+// 같은 화면을 두 번 시딩(목록 루프 + 탭 붙이기)해도 말뭉치가 불어나지 않음(#1020 리뷰)
+const once = seen("", screen);
+assert.strictEqual(seen(once, screen), once, "중복 시딩 무증식");
 console.log("narration-dedupe ok");
