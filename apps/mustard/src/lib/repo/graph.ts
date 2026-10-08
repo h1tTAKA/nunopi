@@ -10,15 +10,13 @@ import type { RepoGraph, RepoNode, RepoEdge } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
 import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
-import { unityGuidRefs, unityMetaGuid, unityRelation, UNITY_ASSET_EXTS } from "./unityAssets";
+import { isUnityAsset, underUnityAssets, unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets";
 import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
 
 // 파일명(경로 마지막) — 노드 label용.
 const baseName = (p: string) => p.slice(p.lastIndexOf("/") + 1);
 
 /** 레포 루트 → RepoGraph. 파일 노드 + import 엣지 + 심볼 노드 + contains + calls. */
-const isUnityAsset = (file: string) => (UNITY_ASSET_EXTS as readonly string[]).some((e) => file.toLowerCase().endsWith(e));
-
 export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<RepoGraph> {
   const scan = pre ?? scanRepo(root); // 라우트가 이미 스캔했으면 재사용(이중 스캔 방지, #845 🟡)
   const fileSet = new Set(scan.files);
@@ -96,6 +94,7 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   if (unityText.size) {
     const byGuid = new Map<string, string>();
     for (const file of scan.files) {
+      if (!underUnityAssets(file)) continue;
       let meta: string;
       try { meta = readFileSync(join(root, `${file}.meta`), "utf8"); } catch { continue; }
       const guid = unityMetaGuid(meta);

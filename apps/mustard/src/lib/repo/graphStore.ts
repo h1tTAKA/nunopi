@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, mkdirSync, statSync, renameSync } from "no
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { scanRepo } from "./scan";
+import { isUnityAsset, underUnityAssets } from "./unityAssets";
 import type { RepoGraph } from "./types";
 
 const CACHE_DIR = join(homedir(), ".nunopi", "codegraph");
@@ -19,6 +20,13 @@ export function fingerprintFromScan(root: string, files: string[]): string {
     let mt = 0;
     try { mt = statSync(join(root, rel)).mtimeMs; } catch { /* 삭제 레이스 — 0 */ }
     parts.push(`${rel}:${mt}`);
+  }
+  // Unity(#1010 리뷰): 그래프가 .meta GUID로 연결되므로 .meta 변경(GUID 재생성 등)도 재빌드 사유. Unity 에셋 있는 레포만.
+  if (files.some(isUnityAsset)) {
+    for (const rel of files) {
+      if (!underUnityAssets(rel)) continue;
+      try { parts.push(`${rel}.meta:${statSync(join(root, `${rel}.meta`)).mtimeMs}`); } catch { /* meta 없음 */ }
+    }
   }
   parts.sort();
   return sha(parts.join("\n"));

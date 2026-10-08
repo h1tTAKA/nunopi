@@ -1,6 +1,6 @@
 // unityAssets 점검(#1009) — 실행: node --experimental-strip-types src/lib/repo/unityAssets.check.ts
 import assert from "node:assert";
-import { unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets.ts";
+import { isUnityAsset, underUnityAssets, unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets.ts";
 
 const G1 = "4e29b1a8efbd4b44bb3f3716e73f07ff", G2 = "fe87c0e1cc204ed48ad3b37840f39efc", P = "9de6787eaa964fe3b3a28ddf286c939c";
 assert.strictEqual(unityMetaGuid(`fileFormatVersion: 2\nguid: ${G1}\nMonoImporter:\n  externalObjects: {}`), G1, "meta guid");
@@ -26,4 +26,6 @@ assert.strictEqual(unityRelation("Assets/Data/Balance.asset"), "uses");
 assert.strictEqual(unityRelation("Assets/Prefabs/Cat.prefab"), "instantiates");
 assert.strictEqual(unityRelation("Assets/Scenes/Lobby.unity"), "instantiates");
 assert.strictEqual(unityRelation("Assets/Art/cat.mat"), null, "머티리얼은 연결 안 함");
+assert.ok(isUnityAsset("a/Main.UNITY") && !isUnityAsset("a/x.cs"), "에셋 확장자(대소문자 무시)");
+assert.ok(underUnityAssets("client/Assets/Scripts/P.cs") && underUnityAssets("Assets/P.cs") && !underUnityAssets("ProjectSettings/Q.asset"), "Assets/ 아래 판별");
 console.log("unityAssets.check OK");

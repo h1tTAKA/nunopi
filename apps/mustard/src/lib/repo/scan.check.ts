@@ -60,4 +60,6 @@ const r4 = scanRepo(root).files;
 for (const f of ["client/Assets/Scenes/Main.unity", "client/Assets/Prefabs/Cat.prefab", "client/Assets/Data/Balance.asset"]) assert.ok(r4.includes(f), `Unity 에셋 포함 ${f}`);
 assert.ok(!r4.includes("client/ProjectSettings/QualitySettings.asset"), "ProjectSettings 설정 에셋 제외");
 assert.ok(!r4.includes("client/Assets/Art/cat.mat"), "머티리얼 제외");
+put("web/src/assets/data.asset", "x"); // 엔진 루트 밖 assets/ — Unity 에셋 아님(#1010 리뷰)
+assert.ok(!scanRepo(root).files.includes("web/src/assets/data.asset"), "Unity 루트 밖 assets/*.asset 제외");
 console.log("scan.check OK");

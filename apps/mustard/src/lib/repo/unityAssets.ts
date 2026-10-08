@@ -24,3 +24,6 @@ export function unityRelation(target: string): "uses" | "instantiates" | null {
 }
 
 export const UNITY_ASSET_EXTS = [".unity", ".prefab", ".asset"] as const;
+export const isUnityAsset = (file: string) => UNITY_ASSET_EXTS.some((e) => file.toLowerCase().endsWith(e));
+// GUID 사전 후보 — Unity가 참조하는 스크립트·에셋은 Assets/ 아래(#1010 리뷰: 레포 전 파일 .meta 읽기 방지). 거짓양성은 stat 1회 낭비뿐.
+export const underUnityAssets = (file: string) => /(^|\/)assets\//i.test(file);
