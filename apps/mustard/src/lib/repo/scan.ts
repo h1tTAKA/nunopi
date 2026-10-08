@@ -34,7 +34,7 @@ export function detectEngine(entries: Dirent[]): Engine | null {
 // 프로젝트(cooing sim/·tools/loadtest)도 대상. bin/은 다른 레포에선 실행 스크립트(진짜 코드)라 전역 무시 X.
 const DOTNET_IGNORE = new Set(["obj", "bin"]);
 export function isDotnetProject(entries: Dirent[]): boolean {
-  return entries.some((e) => e.isFile() && /.\.(cs|fs|vb)proj$/i.test(e.name));
+  return entries.some((e) => e.isFile() && /[^.]\.(cs|fs|vb)proj$/i.test(e.name));
 }
 
 // 파일 수 상한 — 초대형 레포 방어(후속 최적화 전까지).
