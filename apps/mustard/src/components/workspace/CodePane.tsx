@@ -2,7 +2,7 @@
 // 워크스페이스 코드칸(#647) — 파일 클릭 시 소스 읽어 shiki로 하이라이트(읽기전용). 다크 전환 대응.
 import { useEffect, useRef, useState } from "react";
 import { codeToHtml } from "shiki";
-import { IconLoader2, IconAlertTriangle, IconFileOff, IconZoomIn, IconZoomOut, IconArrowsMinimize } from "@tabler/icons-react";
+import { IconLoader2, IconAlertTriangle, IconFileOff, IconZoomIn, IconZoomOut, IconArrowsMinimize, IconArrowsMaximize } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
 
 // 확장자 → shiki 언어. 없으면 text.
@@ -87,6 +87,13 @@ function ImageView({ src, name, size }: { src: string; name: string; size: numbe
   const imgRef = useRef<HTMLImageElement>(null);
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [fitted, setFitted] = useState(false); // 지금 배율이 "칸 맞춤"인지 — 맞춤 버튼을 맞춤↔100% 전환으로
+  const zoomBy = (f: number) => { setFitted(false); setZoom((z) => clamp(z * f)); };
+  const toggleFit = () => {
+    if (fitted) { setFitted(false); setZoom(1); return; }
+    const z = nat && fit(nat.w, nat.h);
+    if (z) { setZoom(z); setFitted(true); }
+  };
   const clamp = (z: number) => Math.min(ZMAX, Math.max(ZMIN, z));
   // 칸 맞춤 배율. 칸이 아직 배치 전(0 크기, 숨김 패널)이면 null → 현재 배율 유지(#1018 리뷰: 0 크기로 최소 배율 되던 것).
   const fit = (w: number, h: number): number | null => {
@@ -101,7 +108,7 @@ function ImageView({ src, name, size }: { src: string; name: string; size: numbe
   // 크기 알게 된 뒤 레이아웃이 잡힌 다음 프레임에 맞춤(onLoad 시점엔 칸 크기가 아직 0일 수 있음).
   useEffect(() => {
     if (!nat) return;
-    const id = requestAnimationFrame(() => { const z = fit(nat.w, nat.h); if (z !== null) setZoom(z); });
+    const id = requestAnimationFrame(() => { const z = fit(nat.w, nat.h); if (z !== null) { setZoom(z); setFitted(true); } });
     return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fit은 ref만 읽는 순수 계산, nat 바뀔 때만 1회
   }, [nat]);
@@ -112,6 +119,7 @@ function ImageView({ src, name, size }: { src: string; name: string; size: numbe
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+      setFitted(false);
       setZoom((z) => clamp(e.deltaY < 0 ? z * 1.1 : z / 1.1));
     };
     box.addEventListener("wheel", onWheel, { passive: false });
@@ -128,10 +136,13 @@ function ImageView({ src, name, size }: { src: string; name: string; size: numbe
       </div>
       <div className="flex shrink-0 items-center justify-center gap-1 border-t border-zinc-200 px-2 py-1 text-[11px] text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
         <span className="mr-2 truncate">{name}{nat ? ` · ${nat.w}×${nat.h}` : ""} · {fmtSize(size)}</span>
-        <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z / ZSTEP))} title={t("code.zoomOut")} aria-label={t("code.zoomOut")}><IconZoomOut size={14} stroke={2} /></button>
+        <button type="button" className={btn} onClick={() => zoomBy(1 / ZSTEP)} title={t("code.zoomOut")} aria-label={t("code.zoomOut")}><IconZoomOut size={14} stroke={2} /></button>
         <span className="w-11 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-        <button type="button" className={btn} onClick={() => setZoom((z) => clamp(z * ZSTEP))} title={t("code.zoomIn")} aria-label={t("code.zoomIn")}><IconZoomIn size={14} stroke={2} /></button>
-        <button type="button" className={btn} onClick={() => { const z = nat && fit(nat.w, nat.h); if (z) setZoom(z); }} title={t("code.zoomFit")} aria-label={t("code.zoomFit")}><IconArrowsMinimize size={14} stroke={2} /></button>
+        <button type="button" className={btn} onClick={() => zoomBy(ZSTEP)} title={t("code.zoomIn")} aria-label={t("code.zoomIn")}><IconZoomIn size={14} stroke={2} /></button>
+        {/* 맞춤 ↔ 원래 크기(100%) 전환 — 맞춤 상태에서 눌러도 항상 변화가 있게(유저: 열자마자 누르면 무반응이라 고장 같음). */}
+        <button type="button" className={btn} onClick={toggleFit} title={t(fitted ? "code.zoomActual" : "code.zoomFit")} aria-label={t(fitted ? "code.zoomActual" : "code.zoomFit")}>
+          {fitted ? <IconArrowsMaximize size={14} stroke={2} /> : <IconArrowsMinimize size={14} stroke={2} />}
+        </button>
       </div>
     </div>
   );
