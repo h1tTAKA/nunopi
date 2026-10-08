@@ -27,4 +27,21 @@ assert.ok(!/src\/a → src\/a/.test(out), "같은 모듈 의존 없음");
 assert.ok(out.includes("[핵심 허브 파일(연결 많음)]"), "허브 헤더");
 assert.ok(/1\. lib\/util\.ts \(deg 3\)/.test(out), "util이 최상위 허브(deg 3)");
 
+// --- 게임 구조(#1013) ---
+const gnode = (id: string, role?: "scene" | "prefab" | "asset") => ({ id, label: id.split("/").pop()!, file: id, kind: "file" as const, ...(role ? { role } : {}) });
+const game: RepoGraph = {
+  root: "/g",
+  nodes: [gnode("A/Main.unity", "scene"), gnode("A/Cat.prefab", "prefab"), gnode("A/Bal.asset", "asset"), gnode("A/P.cs"), gnode("A/Q.cs")],
+  edges: [
+    { source: "A/Main.unity", target: "A/P.cs", relation: "uses" }, { source: "A/Main.unity", target: "A/Q.cs", relation: "uses" },
+    { source: "A/Main.unity", target: "A/Cat.prefab", relation: "instantiates" }, { source: "A/Main.unity", target: "A/Bal.asset", relation: "uses" },
+    { source: "A/Cat.prefab", target: "A/P.cs", relation: "uses" },
+  ],
+};
+const gout = graphDigest(game, { namesPerAsset: 1 });
+assert.ok(gout.includes("[게임 구조"), "게임 구조 헤더");
+assert.ok(gout.includes("A/Main.unity (scene) → 스크립트 2: P.cs (+1) · 배치 1: Cat.prefab · 에셋 1: Bal.asset"), "씬: 스크립트(상한+나머지)·배치·에셋");
+assert.ok(gout.indexOf("A/Main.unity (scene)") < gout.indexOf("A/Cat.prefab (prefab) → 스크립트 1: P.cs"), "씬이 프리팹보다 먼저");
+assert.ok(!out.includes("[게임 구조"), "게임 에셋 없는 레포엔 섹션 없음");
+
 console.log("graphDigest.check OK\n---\n" + out);

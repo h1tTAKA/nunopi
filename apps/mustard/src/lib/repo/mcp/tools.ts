@@ -54,7 +54,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: "katchup_find_all",
-    description: "심볼/파일 이름의 모든 그래프 참조(imports/calls/contains/extends/implements) 나열.",
+    description: "심볼/파일 이름의 모든 그래프 참조(imports/calls/contains/extends/implements/references/uses/instantiates) 나열. uses·instantiates = 게임 씬·프리팹 → 스크립트·프리팹.",
     inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
     handler: async (root, args) => {
       const q = str(args.name); if (!q) return { text: "name required", isError: true };
