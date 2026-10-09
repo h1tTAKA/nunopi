@@ -1,0 +1,26 @@
+import { existsSync, statSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { isSafeRef } from "@/lib/repo/gitBranches";
+
+// 브랜치 전환(#1025) — 로컬: git switch <name> / 원격 전용: git switch --track <remote/name>(같은 이름 로컬 추적 브랜치 생성).
+// 더티 워킹트리는 자동 stash 안 함(유저 변경 유실 위험) — git이 막으면 stderr를 그대로 돌려줘 토스트로 보여줌.
+export const runtime = "nodejs";
+const pexecFile = promisify(execFile);
+
+export async function POST(request: Request): Promise<Response> {
+  let rawPath: unknown, branch: unknown, remote: unknown;
+  try { ({ path: rawPath, branch, remote } = await request.json()); } catch { return Response.json({ ok: false, error: "invalid body" }, { status: 400 }); }
+  if (typeof rawPath !== "string" || !rawPath.trim()) return Response.json({ ok: false, error: "path required" }, { status: 400 });
+  const path = rawPath.trim();
+  if (!existsSync(path) || !statSync(path).isDirectory()) return Response.json({ ok: false, error: "not a directory" }, { status: 400 });
+  if (typeof branch !== "string" || !isSafeRef(branch)) return Response.json({ ok: false, error: "invalid branch" }, { status: 400 });
+  try {
+    const args = remote === true ? ["switch", "--track", branch] : ["switch", branch];
+    await pexecFile("git", args, { cwd: path, maxBuffer: 20_000_000, timeout: 20000 });
+    return Response.json({ ok: true });
+  } catch (e) {
+    const err = e as { stderr?: string; message?: string };
+    return Response.json({ ok: false, error: (err.stderr || err.message || "git failed").trim().slice(0, 500) });
+  }
+}
