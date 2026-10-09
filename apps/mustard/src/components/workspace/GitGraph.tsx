@@ -524,15 +524,23 @@ function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const boxRef = useRef<HTMLSpanElement>(null);
+  const reqRef = useRef(0); // 목록 요청 번호 — 늦게 온 옛 응답(다른 레포·닫힌 뒤) 무시(#1026 리뷰)
+
+  // 레포가 바뀌면 닫고 진행 중 요청 무효화.
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- root 변경 시 드롭다운 리셋(이 파일의 다른 root 리셋 effect와 같은 패턴)
+  useEffect(() => { reqRef.current++; setOpen(false); }, [root]);
 
   const toggle = useCallback(async () => {
-    if (open) { setOpen(false); return; }
+    if (open) { reqRef.current++; setOpen(false); return; }
+    const id = ++reqRef.current;
     setOpen(true); setQ(""); setList(null);
+    let next = { local: [] as string[], remote: [] as string[] };
     try {
       const r = await fetch("/api/repo/git-branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root }) });
       const d = await r.json();
-      setList(d.ok ? { local: d.local ?? [], remote: d.remote ?? [] } : { local: [], remote: [] });
-    } catch { setList({ local: [], remote: [] }); }
+      if (d.ok) next = { local: d.local ?? [], remote: d.remote ?? [] };
+    } catch { /* 빈 목록 */ }
+    if (id === reqRef.current) setList(next);
   }, [open, root]);
 
   // 바깥 클릭·Esc로 닫기
