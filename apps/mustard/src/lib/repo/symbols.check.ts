@@ -99,10 +99,28 @@ assert.ok(!jsx.calls.some((c) => c.calleeName === "div"), "html 소문자 태그
 const cs = await extractSymbols(`class A : MonoBehaviour, IFoo, Base<int>, X.IBar { void M() { Foo(); this.Bar(); Other.Baz(); Gen<int>(); var p = new Player(); } void Bar() {} }`, "a.cs");
 const csCalls = cs.calls.map((c) => `${c.calleeName}:${c.member ? 1 : 0}`);
 for (const k of ["Foo:0", "Bar:1", "Gen:0", "Player:0"]) assert.ok(csCalls.includes(k), `C# 호출 ${k}`);
-assert.ok(!csCalls.some((k) => k.startsWith("Baz")), "Other.Baz()(임의 객체 멤버)는 호출 아님");
+assert.ok(cs.calls.some((c) => c.calleeName === "Baz" && c.qualifier === "Other"), "Other.Baz()는 한정 호출(qualifier)로 추출(#1023)");
 const csHer = cs.heritage.map((h) => `${h.baseName}:${h.relation}`).sort();
 assert.deepStrictEqual(csHer, ["Base:extends", "IBar:implements", "IFoo:implements", "MonoBehaviour:extends"], "C# base_list 상속");
 const csEdges = resolveCalls(cs.calls, cs.symbols, new Map([["p.cs", (await extractSymbols(`class Player {}`, "p.cs")).symbols]]));
 assert.ok(csEdges.some((e) => e.source === "a.cs#M" && e.target === "p.cs#Player"), "new Player() → 다른 파일 클래스 calls");
 
+// --- 한정 호출(#1023): Type.m() / Go pkg.F() / Java·Kotlin 호출 추출 ---
+const utilSyms = (await extractSymbols(`class Util { static String format(int x) { return ""; } }`, "u.java")).symbols;
+const jv = await extractSymbols(`class A { void m() { Util.format(1); helper(); this.x(); list.add(2); } void x() {} void helper() {} }`, "a.java");
+const jvCalls = jv.calls.map((c) => `${c.qualifier ?? ""}.${c.calleeName}:${c.member ? 1 : 0}`);
+for (const k of ["Util.format:0", ".helper:0", ".x:1", "list.add:0"]) assert.ok(jvCalls.includes(k), `Java 호출 ${k}`);
+const jvEdges = resolveCalls(jv.calls, jv.symbols, new Map([["u.java", utilSyms]]));
+assert.ok(jvEdges.some((e) => e.target === "u.java#format"), "Util.format() → Util 클래스의 format");
+assert.ok(!jvEdges.some((e) => e.target.endsWith("#add")), "list.add()는 못 찾으면 버림");
+const kt = await extractSymbols(`class A { fun m() { Util.format(1); helper(); this.x() } fun x() {} fun helper() {} }`, "a.kt");
+const ktCalls = kt.calls.map((c) => `${c.qualifier ?? ""}.${c.calleeName}:${c.member ? 1 : 0}`);
+for (const k of ["Util.format:0", ".helper:0", ".x:1"]) assert.ok(ktCalls.includes(k), `Kotlin 호출 ${k}`);
+const goDoc = (await extractSymbols(`package doc\nfunc GenMan() {}`, "doc/man.go")).symbols;
+const goMain = await extractSymbols(`package main\nfunc run() { doc.GenMan(); helper(); s.x() }\nfunc helper() {}`, "main.go");
+const goEdges = resolveCalls(goMain.calls, goMain.symbols, new Map([["doc/man.go", goDoc]]));
+assert.ok(goEdges.some((e) => e.source === "main.go#run" && e.target === "doc/man.go#GenMan"), "Go doc.GenMan() → doc 패키지");
+assert.ok(goEdges.some((e) => e.target === "main.go#helper"), "Go bare 호출");
+const tsq = await extractSymbols(`function m() { Util.format(1); }`, "a.ts");
+assert.ok(tsq.calls.some((c) => c.qualifier === "Util" && c.calleeName === "format"), "TS Util.format() 한정 호출");
 console.log("symbols.check OK");
