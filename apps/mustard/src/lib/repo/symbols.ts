@@ -35,7 +35,7 @@ export interface SymbolInfo {
 
 // 원시 호출 — 아직 대상 미해결. callerId=이 호출을 감싼 심볼(없으면 null=모듈레벨, 버림).
 // member=this/self.x() 형태(대상이 caller의 소속 클래스 메서드) vs bare foo()(#843 Graft owner 기법).
-export interface RawCall { callerId: string; calleeName: string; member: boolean }
+export interface RawCall { callerId: string; calleeName: string; member: boolean; qualifier?: string } // qualifier: Q.x()의 Q(#1023)
 
 // 원시 상속 — classId(하위 클래스 심볼 id) → baseName(상위 이름, 미해결). relation=extends|implements(#843).
 export interface RawHeritage { classId: string; baseName: string; relation: "extends" | "implements" }
@@ -66,13 +66,25 @@ function signatureOf(node: Parser.SyntaxNode, name: string): string | undefined 
 // 호출식의 대상 — bare identifier(foo()) 또는 this/self 멤버(this.bar())만.
 // 임의 객체 멤버(arr.push, xs.map)는 null — 빌트인/타 객체 메서드가 동명 로컬 심볼로 오연결되는 노이즈 차단(리뷰).
 // member=true면 this/self.x() → resolve서 caller의 소속 클래스 메서드로만 한정(#843 scope-aware).
-function calleeNameOf(fn: Parser.SyntaxNode): { name: string; member: boolean } | null {
-  if (fn.type === "identifier") return { name: fn.text, member: false };
-  if (fn.type === "generic_name") { const id = fn.namedChild(0); return id ? { name: id.text, member: false } : null; } // C# Gen<int>()
-  const obj = fn.childForFieldName("object") ?? fn.childForFieldName("receiver") ?? fn.namedChild(0);
-  const prop = fn.childForFieldName("property") ?? fn.childForFieldName("field") ?? fn.childForFieldName("name");
-  if (obj && /^(this|self)$/.test(obj.text) && prop?.text) return { name: prop.text, member: true }; // this.x / self.x
+type Callee = { name: string; member: boolean; qualifier?: string };
+// 대상 객체·이름 → 호출 분류. this/self.x = 소속 클래스 멤버, Q.x(Q가 단순 이름) = 한정 호출(#1023: Type.method / Go pkg.Func),
+// 그 외(list.add, a.b.c() 등 식)는 null — 해석은 resolveCalls가 qualifier로 좁혀서만(동명 오연결 방지).
+function classifyCall(obj: Parser.SyntaxNode | null, prop: Parser.SyntaxNode | null | undefined): Callee | null {
+  if (!obj || !prop?.text) return null;
+  if (/^(this|self)$/.test(obj.text) || obj.type === "this_expression") return { name: prop.text, member: true };
+  if (/^(identifier|simple_identifier|type_identifier|package_identifier)$/.test(obj.type)) return { name: prop.text, member: false, qualifier: obj.text };
   return null;
+}
+function calleeNameOf(fn: Parser.SyntaxNode): Callee | null {
+  if (fn.type === "identifier" || fn.type === "simple_identifier") return { name: fn.text, member: false }; // simple_identifier=Kotlin(#1023)
+  if (fn.type === "generic_name") { const id = fn.namedChild(0); return id ? { name: id.text, member: false } : null; } // C# Gen<int>()
+  if (fn.type === "navigation_expression") { // Kotlin a.b — [대상, navigation_suffix(.b)]
+    const suf = fn.namedChildren.find((c) => c?.type === "navigation_suffix");
+    return classifyCall(fn.namedChild(0), suf?.namedChildren.find((c) => !!c && /identifier/.test(c.type)));
+  }
+  const obj = fn.childForFieldName("object") ?? fn.childForFieldName("receiver") ?? fn.childForFieldName("operand") ?? fn.childForFieldName("expression") ?? fn.namedChild(0);
+  const prop = fn.childForFieldName("property") ?? fn.childForFieldName("field") ?? fn.childForFieldName("name") ?? fn.childForFieldName("attribute");
+  return classifyCall(obj, prop);
 }
 
 // 소스+파일 → 심볼 목록 + 노드 + contains 엣지(file→symbol) + 원시 호출. 미지원 언어면 빈 결과.
@@ -134,15 +146,20 @@ export async function extractSymbols(text: string, file: string): Promise<{ symb
 
   const calls: RawCall[] = [];
   const seenCall = new Set<string>();
+  const pushCall = (callee: Callee | null, at: number) => {
+    const caller = containerOf(at);
+    if (!callee || !caller) return;
+    const key = `${caller}|${callee.qualifier ?? ""}|${callee.name}|${callee.member ? 1 : 0}`;
+    if (!seenCall.has(key)) { seenCall.add(key); calls.push({ callerId: caller, calleeName: callee.name, member: callee.member, ...(callee.qualifier ? { qualifier: callee.qualifier } : {}) }); }
+  };
   const walkCalls = (node: Parser.SyntaxNode) => {
     if (node.type === "call_expression" || node.type === "call" || node.type === "call_expression_statement" || node.type === "invocation_expression") { // invocation_expression=C#(#1005)
       const fn = node.childForFieldName("function") ?? node.childForFieldName("method") ?? node.namedChild(0);
-      const callee = fn ? calleeNameOf(fn) : null;
-      const caller = containerOf(node.startIndex);
-      if (callee && caller) {
-        const key = `${caller}|${callee.name}|${callee.member ? 1 : 0}`;
-        if (!seenCall.has(key)) { seenCall.add(key); calls.push({ callerId: caller, calleeName: callee.name, member: callee.member }); }
-      }
+      pushCall(fn ? calleeNameOf(fn) : null, node.startIndex);
+    } else if (node.type === "method_invocation") {
+      // Java(#1023) — object·name 필드. 전엔 이 노드를 안 봐 Java 호출이 0건이었음.
+      const obj = node.childForFieldName("object"), name = node.childForFieldName("name");
+      pushCall(obj ? classifyCall(obj, name) : name ? { name: name.text, member: false } : null, node.startIndex);
     } else if (node.type === "object_creation_expression") {
       // C# new Player() — 생성자 호출 = 그 클래스 사용(#1005). 타입 이름만(Foo·Foo<T>), 점 붙은 건 JSX처럼 건너뜀.
       const t = node.childForFieldName("type");
@@ -224,12 +241,25 @@ export function resolveCalls(
   for (const s of localSymbols) {
     if (s.owner) { ownerOfId.set(s.id, s.owner); const k = `${s.owner}.${s.name}`; if (!byOwnerName.has(k)) byOwnerName.set(k, s.id); }
   }
+  // #1023 한정 호출 Q.x() — Q가 타입이면 "Q.x"(로컬 우선 + import), Go면 import한 파일 중 폴더명=Q(패키지)의 x.
+  const anyOwnerName = new Map(byOwnerName);
+  const goPkgName = new Map<string, string>(); // "pkg|name" → id
+  for (const [file, syms] of importedSymbols) {
+    const pkg = file.endsWith(".go") ? (file.includes("/") ? file.slice(0, file.lastIndexOf("/")).split("/").pop()! : "") : "";
+    for (const s of syms) {
+      if (s.owner) { const k = `${s.owner}.${s.name}`; if (!anyOwnerName.has(k)) anyOwnerName.set(k, s.id); }
+      if (pkg) { const k = `${pkg}|${s.name}`; if (!goPkgName.has(k)) goPkgName.set(k, s.id); }
+    }
+  }
 
   const edges: RepoEdge[] = [];
   const seen = new Set<string>();
   for (const c of calls) {
     let target: string | undefined;
-    if (c.member) {
+    if (c.qualifier) {
+      // 못 찾으면 버림 — list.add() 같은 변수 메서드를 동명 함수로 잇지 않게(기존 노이즈 정책 유지).
+      target = c.callerId.split("#")[0].endsWith(".go") ? goPkgName.get(`${c.qualifier}|${c.calleeName}`) : anyOwnerName.get(`${c.qualifier}.${c.calleeName}`);
+    } else if (c.member) {
       // this/self.x() — caller의 소속 클래스 메서드로만. 없으면 미해결(bare 이름 추측 금지, Graft 원칙).
       const owner = ownerOfId.get(c.callerId);
       target = owner ? byOwnerName.get(`${owner}.${c.calleeName}`) : undefined;

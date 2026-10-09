@@ -9,7 +9,7 @@ import { extractSymbols, resolveCalls, type SymbolInfo, type RawCall } from "./s
 import type { RepoGraph, RepoNode, RepoEdge, RepoAssetRole } from "./types";
 
 // import 해석(상대 + tsconfig 별칭 + baseUrl)은 경량 모듈 imports.ts로 분리.
-import { resolveImport, resolvePythonBare, loadAliases } from "./imports";
+import { resolveImport, resolvePythonBare, loadAliases, dirIndex, resolveJvmImport, resolveGoImport, goModulePath, JVM_RE, GO_RE } from "./imports";
 import { godotEdges, isGodotFile } from "./godotAssets";
 import { isUnityAsset, underUnityAssets, unityGuidRefs, unityMetaGuid, unityRelation } from "./unityAssets";
 import { csharpNamespaceAt, csharpTypeRefs, isEngineStub, stripCsharp, type TypeDef } from "./typeRefs";
@@ -31,6 +31,11 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
   const scan = pre ?? scanRepo(root); // 라우트가 이미 스캔했으면 재사용(이중 스캔 방지, #845 🟡)
   const fileSet = new Set(scan.files);
   const alias = loadAliases(root); // tsconfig paths(@/* 등) 별칭 해석 — Next 앱 엣지 확보
+  // #1023 JVM·Go — 패키지 경로 import 해석용 폴더 인덱스 + go.mod 모듈 경로(루트). 같은 폴더 = 같은 패키지.
+  const jvmDirs = dirIndex(scan.files, JVM_RE);
+  const goDirs = dirIndex(scan.files, GO_RE);
+  let goModule: string | null = null;
+  if (goDirs.size) { try { goModule = goModulePath(readFileSync(join(root, "go.mod"), "utf8")); } catch { /* go.mod 없음 */ } }
 
   const fileNodes: RepoNode[] = [];
   const symbolNodes: RepoNode[] = [];
@@ -59,9 +64,23 @@ export async function buildRepoGraph(root: string, pre?: ScanResult): Promise<Re
       const targets: string[] = [];
       let specs: string[] = [];
       try { specs = lang.extract(text); } catch { specs = []; }
+      const isJvm = JVM_RE.test(file), isGo = GO_RE.test(file);
+      const seenT = new Set<string>();
       for (const spec of specs) {
-        const target = resolveImport(spec, file, fileSet, alias ?? undefined) ?? (file.endsWith(".py") ? resolvePythonBare(spec, file, fileSet) : null);
-        if (target && target !== file) { importEdges.push({ source: file, target, relation: "imports" }); targets.push(target); }
+        const one = resolveImport(spec, file, fileSet, alias ?? undefined) ?? (file.endsWith(".py") ? resolvePythonBare(spec, file, fileSet) : null);
+        // #1023 상대·별칭으로 못 풀면 JVM FQN / Go 모듈 경로(패키지=폴더 → 여러 파일)
+        const ts = one ? [one] : isJvm ? resolveJvmImport(spec, jvmDirs) : isGo ? resolveGoImport(spec, goModule, goDirs) : [];
+        for (const target of ts) {
+          if (target === file || seenT.has(target)) continue;
+          seenT.add(target);
+          importEdges.push({ source: file, target, relation: "imports" });
+          targets.push(target);
+        }
+      }
+      // #1023 같은 패키지(같은 폴더, JVM은 java+kt) 형제는 import 없이 서로 씀 → 엣지 없이 해석 대상에만(calls·상속이 패키지 안 파일을 넘게).
+      if (isJvm || isGo) {
+        const dir = file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "";
+        for (const sib of (isJvm ? jvmDirs : goDirs).get(dir) ?? []) if (sib !== file && !seenT.has(sib)) targets.push(sib);
       }
       importTargetsByFile.set(file, targets);
     }
