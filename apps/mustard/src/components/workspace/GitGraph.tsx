@@ -59,6 +59,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
   const [model, setModel] = useState<GitGraphModel | null>(null);
   const [isGit, setIsGit] = useState(true);
   const [branch, setBranch] = useState("");
+  const [detached, setDetached] = useState<{ sha: string; label: string } | null>(null); // #1025 분리 HEAD 표시
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState<null | "fetch" | "pull">(null); // #946 최신화 진행
   const [commitMsg, setCommitMsg] = useState(""); // #947 커밋 메시지
@@ -86,7 +87,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
     try {
       const r = await fetch("/api/repo/git-log", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root }) });
       const d = await r.json();
-      if (r.ok && d.isGit) { setIsGit(true); setBranch(d.branch ?? ""); setModel(assignLanes(parseGitLog(d.log ?? ""))); }
+      if (r.ok && d.isGit) { setIsGit(true); setBranch(d.branch ?? ""); setDetached(d.detached ?? null); setModel(assignLanes(parseGitLog(d.log ?? ""))); }
       else { setIsGit(false); setModel(null); }
     } catch { setIsGit(false); setModel(null); }
     finally { setLoading(false); }
@@ -284,7 +285,7 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
         ) : isGit && branch ? (
           <>
             {/* #1025 칩 = 전환 드롭다운 버튼(모양 그대로 + ▾) */}
-            <BranchMenu root={root} branch={branch} onSwitched={() => void load()} />
+            <BranchMenu root={root} branch={branch} detached={detached} onSwitched={() => void load()} />
             <span className="group/nb relative flex items-center">
               <button type="button" onClick={() => setCreatingBranch(true)} aria-label={t("workspace.gitNewBranch")} className="rounded p-0.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
                 <IconPlus size={12} stroke={2} aria-hidden />
@@ -516,11 +517,11 @@ export default function GitGraph({ root, onOpenDiff, onFocusBranch, onOpenChange
 
 // 브랜치 전환 드롭다운(#1025) — 현재 브랜치 칩을 누르면 로컬(최근 순, 현재 ✓) + 원격 전용 목록. 검색으로 좁힘.
 // 더티 워킹트리는 자동 stash 안 함 — git이 막으면 그 메시지를 토스트로(유저 변경 보호).
-function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string; onSwitched: () => void }) {
+function BranchMenu({ root, branch, detached, onSwitched }: { root: string; branch: string; detached: { sha: string; label: string } | null; onSwitched: () => void }) {
   const t = useT();
   const toast = useToast();
   const [open, setOpen] = useState(false);
-  const [list, setList] = useState<{ local: string[]; remote: string[] } | null>(null);
+  const [list, setList] = useState<{ local: string[]; remote: string[]; previous?: { label: string; detached: boolean } } | null>(null);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const boxRef = useRef<HTMLSpanElement>(null);
@@ -534,11 +535,11 @@ function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string
     if (open) { reqRef.current++; setOpen(false); return; }
     const id = ++reqRef.current;
     setOpen(true); setQ(""); setList(null);
-    let next = { local: [] as string[], remote: [] as string[] };
+    let next: { local: string[]; remote: string[]; previous?: { label: string; detached: boolean } } = { local: [], remote: [] };
     try {
       const r = await fetch("/api/repo/git-branches", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root }) });
       const d = await r.json();
-      if (d.ok) next = { local: d.local ?? [], remote: d.remote ?? [] };
+      if (d.ok) next = { local: d.local ?? [], remote: d.remote ?? [], ...(d.previous ? { previous: d.previous } : {}) };
     } catch { /* 빈 목록 */ }
     if (id === reqRef.current) setList(next);
   }, [open, root]);
@@ -552,11 +553,12 @@ function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const switchTo = useCallback(async (name: string, remote: boolean) => {
-    if (busy || (!remote && name === branch)) { setOpen(false); return; }
+  // prev: "이전 위치로"(git checkout -) — name은 토스트 표시용 라벨.
+  const switchTo = useCallback(async (name: string, remote: boolean, prev = false) => {
+    if (busy || (!prev && !remote && name === branch)) { setOpen(false); return; }
     setBusy(true);
     try {
-      const r = await fetch("/api/repo/git-switch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: root, branch: name, remote }) });
+      const r = await fetch("/api/repo/git-switch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(prev ? { path: root, prev: true } : { path: root, branch: name, remote }) });
       const d = await r.json();
       if (d.ok) { toast(t("workspace.gitSwitched", { branch: remote ? name.slice(name.indexOf("/") + 1) : name }), "success"); setOpen(false); onSwitched(); }
       else toast(t("workspace.gitSwitchFailed") + (d.error ? ` (${d.error})` : ""), "error");
@@ -570,9 +572,12 @@ function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string
   const row = "flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left text-[11px] text-zinc-700 hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-200 dark:hover:bg-zinc-800";
   return (
     <span ref={boxRef} className="relative min-w-0">
-      <button type="button" onClick={() => void toggle()} aria-haspopup="listbox" aria-expanded={open} title={t("workspace.gitSwitchBranch")}
-        className="inline-flex min-w-0 max-w-full items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-mustard-700 ring-1 ring-inset ring-mustard-500/60 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-mustard-400 dark:ring-mustard-400/50 dark:hover:bg-zinc-800">
-        <span className="truncate">{branch}</span>
+      {/* 분리 HEAD면 "HEAD" 대신 가리키는 ref(origin/develop 등)·해시 + "(분리)" + 점선 테두리 — 브랜치 위가 아님을 한눈에(커밋이 어느 브랜치에도 안 쌓임) */}
+      <button type="button" onClick={() => void toggle()} aria-haspopup="listbox" aria-expanded={open}
+        title={detached ? t("workspace.gitDetachedHint", { sha: detached.sha }) : t("workspace.gitSwitchBranch")}
+        className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-semibold text-mustard-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-mustard-400 dark:hover:bg-zinc-800 ${detached ? "outline outline-1 -outline-offset-1 outline-dashed outline-mustard-500/70 dark:outline-mustard-400/60" : "ring-1 ring-inset ring-mustard-500/60 dark:ring-mustard-400/50"}`}>
+        <span className="truncate">{detached ? detached.label : branch}</span>
+        {detached && <span className="shrink-0 font-normal text-zinc-400 dark:text-zinc-500">{t("workspace.gitDetached")}</span>}
         <IconChevronDown size={11} stroke={2.5} className="shrink-0 opacity-70" aria-hidden />
       </button>
       {open && (
@@ -584,6 +589,13 @@ function BranchMenu({ root, branch, onSwitched }: { root: string; branch: string
               <div className="flex justify-center py-3 text-zinc-400"><IconLoader2 size={14} className="animate-spin" aria-hidden /></div>
             ) : (
               <>
+                {detached && <div className="mb-1 rounded bg-zinc-50 px-1.5 py-1 text-[10px] leading-snug text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">{t("workspace.gitDetachedHint", { sha: detached.sha })}</div>}
+                {list.previous && !ql && (
+                  <button type="button" disabled={busy} onClick={() => void switchTo(list.previous!.label, false, true)} className={`${row} mb-1 border-b border-zinc-200 pb-1.5 dark:border-zinc-700`}>
+                    <span className="w-3 shrink-0 text-zinc-400">↩</span>
+                    <span className="truncate">{t("workspace.gitPrevious")}: <span className="font-semibold">{list.previous.label}</span>{list.previous.detached ? ` ${t("workspace.gitDetached")}` : ""}</span>
+                  </button>
+                )}
                 {local.map((b) => (
                   <button key={b} type="button" role="option" aria-selected={b === branch} disabled={busy} onClick={() => void switchTo(b, false)} className={row}>
                     <span className="w-3 shrink-0">{b === branch && <IconCheck size={11} stroke={2.5} className="text-mustard-600 dark:text-mustard-400" aria-hidden />}</span>

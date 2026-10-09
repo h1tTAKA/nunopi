@@ -9,14 +9,15 @@ export const runtime = "nodejs";
 const pexecFile = promisify(execFile);
 
 export async function POST(request: Request): Promise<Response> {
-  let rawPath: unknown, branch: unknown, remote: unknown;
-  try { ({ path: rawPath, branch, remote } = await request.json()); } catch { return Response.json({ ok: false, error: "invalid body" }, { status: 400 }); }
+  let rawPath: unknown, branch: unknown, remote: unknown, prev: unknown;
+  try { ({ path: rawPath, branch, remote, prev } = await request.json()); } catch { return Response.json({ ok: false, error: "invalid body" }, { status: 400 }); }
   if (typeof rawPath !== "string" || !rawPath.trim()) return Response.json({ ok: false, error: "path required" }, { status: 400 });
   const path = rawPath.trim();
   if (!existsSync(path) || !statSync(path).isDirectory()) return Response.json({ ok: false, error: "not a directory" }, { status: 400 });
-  if (typeof branch !== "string" || !isSafeRef(branch)) return Response.json({ ok: false, error: "invalid branch" }, { status: 400 });
+  if (prev !== true && (typeof branch !== "string" || !isSafeRef(branch))) return Response.json({ ok: false, error: "invalid branch" }, { status: 400 });
   try {
-    const args = remote === true ? ["switch", "--track", branch] : ["switch", branch];
+    // prev: 이전 위치로(#1025) — `git checkout -`는 직전이 브랜치가 아닌 커밋(분리 HEAD)이어도 돌아감(switch -는 브랜치만).
+    const args = prev === true ? ["checkout", "-"] : remote === true ? ["switch", "--track", branch as string] : ["switch", branch as string];
     await pexecFile("git", args, { cwd: path, maxBuffer: 20_000_000, timeout: 20000 });
     return Response.json({ ok: true });
   } catch (e) {

@@ -27,3 +27,11 @@ export function parseBranchList(out: string): BranchList {
 
 // git ref 이름 안전 문자(영숫자 . _ / -), 선행 '-'(옵션 오해석)·'..' 차단. git이 최종 판정.
 export const isSafeRef = (b: string) => /^[A-Za-z0-9._/-]+$/.test(b) && !b.startsWith("-") && !b.includes("..");
+
+// 분리 HEAD(브랜치 아닌 커밋) 표시 라벨(#1025) — 그 커밋을 가리키는 ref가 있으면 그 이름(유저가 아는 이름: origin/develop 등),
+// 없으면 짧은 해시. 원격 > 태그 > 로컬 순(분리 상태는 보통 "원격 브랜치를 그대로 체크아웃"해서 생김).
+export function detachedLabel(sha: string, pointing: string[]): string {
+  const refs = pointing.map((r) => r.trim()).filter((r) => r && !r.endsWith("/HEAD") && r !== "HEAD");
+  const pick = refs.find((r) => r.startsWith("refs/remotes/")) ?? refs.find((r) => r.startsWith("refs/tags/")) ?? refs.find((r) => r.startsWith("refs/heads/"));
+  return pick ? pick.replace(/^refs\/(remotes|tags|heads)\//, "") : sha;
+}
