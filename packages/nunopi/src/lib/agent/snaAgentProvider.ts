@@ -13,6 +13,10 @@ import { buildExplainTokenPrompt, normalizeExplainTokenOutput, tokenModeResponse
 import { buildExplainConceptPrompt, normalizeExplainConceptOutput, conceptModeResponse } from "./conceptMode";
 import { buildChatPrompt, chatSystemPrompt, normalizeChatOutput, chatModeResponse, buildDeckAgentPrompt, deckAgentSystemPrompt } from "./chatMode";
 import { buildCardExplainPrompt } from "./cardExplainMode";
+import { codexConfigModel, mergeClaudeModels, type SnaModelOption } from "./modelCatalog";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import {
   buildClaudePrompt,
   normalizeClaudeOutput,
@@ -29,9 +33,22 @@ type SnaRuntime = "claude-code" | "codex" | "opencode";
 // runOnce는 model 미지정 시 SNA 글로벌 기본(claude-sonnet-4-6)을 주입한다 → codex/opencode엔
 // 그 모델이 가서 실패("not supported"/"Model not found"). 그래서 비-claude는 모델 명시 필수.
 // 환경마다 다르므로 env override(기본은 각 런타임의 합리적 기본).
+// 유저 Codex 기본 모델(#1021) — $CODEX_HOME|~/.codex/config.toml의 최상위 model. 하드코딩(gpt-5.5)은 Codex 목록에서 이미 숨겨진
+// 구버전이 됐던 것처럼 또 낡으므로 Codex 자신의 설정을 따른다. 없거나 못 읽으면 null → 폴백.
+// 분석 요청마다 디스크를 읽지 않게 60초 캐시(#1022 리뷰) — 유저가 Codex 설정을 바꾸면 최대 1분 뒤 반영.
+let codexModelCache: { at: number; model: string | null } | null = null;
+function userCodexModel(): string | null {
+  if (codexModelCache && Date.now() - codexModelCache.at < 60_000) return codexModelCache.model;
+  let model: string | null = null;
+  try { model = codexConfigModel(readFileSync(join(process.env.CODEX_HOME?.trim() || join(homedir(), ".codex"), "config.toml"), "utf8")); }
+  catch { /* 없음·권한 — 폴백 */ }
+  codexModelCache = { at: Date.now(), model };
+  return model;
+}
+
 export function defaultSnaModel(runtime: SnaRuntime): string {
   if (runtime === "claude-code") return "sonnet"; // 별칭 = CLI가 최신 sonnet으로 해석
-  if (runtime === "codex") return process.env.NUNOPI_CODEX_MODEL?.trim() || "gpt-5.5";
+  if (runtime === "codex") return process.env.NUNOPI_CODEX_MODEL?.trim() || userCodexModel() || "gpt-5.6-sol";
   return process.env.NUNOPI_OPENCODE_MODEL?.trim() || "opencode/deepseek-v4-flash-free";
 }
 
@@ -369,20 +386,13 @@ export const snaOpenCodeProvider = createSnaProvider({
 export const snaAgentProvider = snaClaudeProvider;
 
 // 모델 목록(#987) — 설정 화면 모델 선택용. SNA agent.listModels(Codex/OpenCode는 CLI 실시간, Claude는 SNA 고정 목록).
-// SNA의 Claude 고정 목록은 구버전(Opus 4.7/Sonnet 4.6)이라 별칭(opus/sonnet/haiku = CLI가 최신으로 해석)을
-// latest로 맨 위에 두고 SNA 별칭 항목(구버전 라벨)은 뺀다. 정식 ID는 그 아래.
-// ponytail: Claude 정식 ID는 SNA 목록 그대로 — SNA 고정 목록 갱신은 SNA 레포 이슈.
-export interface SnaModelOption { id: string; label: string; latest?: boolean }
+// SNA의 Claude 고정 목록은 구버전이라 별칭(fable/opus/sonnet/haiku)·최신 정식 ID를 우리 쪽에서 덧댐(#1021, modelCatalog.ts).
+export type { SnaModelOption };
 const RUNTIME_OF: Partial<Record<AgentProviderKind, SnaRuntime>> = {
   "claude-agent": "claude-code",
   "codex-agent": "codex",
   "opencode-agent": "opencode",
 };
-const CLAUDE_ALIASES: SnaModelOption[] = [
-  { id: "opus", label: "Opus", latest: true },
-  { id: "sonnet", label: "Sonnet", latest: true },
-  { id: "haiku", label: "Haiku", latest: true },
-];
 
 export async function listSnaModels(providerId: AgentProviderKind): Promise<{ models: SnaModelOption[]; defaultModel: string } | null> {
   const runtime = RUNTIME_OF[providerId];
@@ -390,9 +400,6 @@ export async function listSnaModels(providerId: AgentProviderKind): Promise<{ mo
   const client = await getSnaClient();
   const res = await client.agent.listModels(runtime);
   let models: SnaModelOption[] = res.models.filter((m) => !m.deprecated).map((m) => ({ id: m.id, label: m.label }));
-  if (runtime === "claude-code") {
-    const aliasIds = new Set(CLAUDE_ALIASES.map((m) => m.id));
-    models = [...CLAUDE_ALIASES, ...models.filter((m) => !aliasIds.has(m.id))];
-  }
+  if (runtime === "claude-code") models = mergeClaudeModels(models);
   return { models, defaultModel: defaultSnaModel(runtime) };
 }

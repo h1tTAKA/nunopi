@@ -54,10 +54,11 @@ export const AKEYS = {
 } as const;
 
 // 알림(#928)
-export const NOTIF_DEFAULTS = { agentDone: true, suppressWhileFocused: true, terminalBell: false, master: true, silent: false };
+// suppressWhileWatching(#1021, 옛 suppressWhileFocused): "지금 보고 있는 레포 탭"의 에이전트 완료 알림만 억제(#973~). 다른 레포는 포커스여도 알림.
+export const NOTIF_DEFAULTS = { agentDone: true, suppressWhileWatching: true, terminalBell: false, master: true, silent: false };
 export const NKEYS = {
   agentDone: "notif.agentDone",
-  suppressWhileFocused: "notif.suppressWhileFocused",
+  suppressWhileWatching: "notif.suppressWhileWatching",
   terminalBell: "notif.terminalBell",
   master: "notif.master",   // #939 알림 전체 on/off
   silent: "notif.silent",   // #939 소리 없이(무음 알림)
@@ -95,6 +96,22 @@ const KEY = "mustard:settings";
 type Listener = () => void;
 const listeners = new Set<Listener>();
 
+// 이름 바뀐 설정 키(옛 → 새). 옛 값이 있고 새 키가 없으면 옮기고 옛 키 삭제 — 유저가 고른 값 유지.
+export const RENAMED_KEYS: Record<string, string> = {
+  "notif.suppressWhileFocused": "notif.suppressWhileWatching", // #1021 의미가 '보고 있는 레포 억제'로 바뀜(#973)
+};
+// 순수 이관 — 바뀌었으면 true(호출 측이 저장).
+export function migrateRenamed(obj: Record<string, unknown>): boolean {
+  let changed = false;
+  for (const [from, to] of Object.entries(RENAMED_KEYS)) {
+    if (!(from in obj)) continue;
+    if (!(to in obj)) obj[to] = obj[from];
+    delete obj[from];
+    changed = true;
+  }
+  return changed;
+}
+
 function readAll(): Record<string, unknown> {
   try {
     const raw = localStorage.getItem(KEY);
@@ -102,6 +119,15 @@ function readAll(): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+// 이관은 모듈 로드 시 1회(브라우저만) — 렌더 중 getSnapshot에서 저장소를 쓰지 않게(#1022 리뷰: 스냅샷은 부수효과 금지).
+if (typeof window !== "undefined") {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const obj = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    if (obj && migrateRenamed(obj)) localStorage.setItem(KEY, JSON.stringify(obj));
+  } catch { /* 저장소 불가 — 이관 생략 */ }
 }
 
 function writeAll(obj: Record<string, unknown>): void {
