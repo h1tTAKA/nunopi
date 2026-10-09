@@ -2,7 +2,7 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { IconFiles, IconFolderOpen, IconPlus, IconX, IconCircleCheck, IconLoader2, IconQuestionMark, IconAlertTriangle, IconMessages, IconFileCode, IconFileText, IconCards, IconBell, IconBellOff } from "@tabler/icons-react";
-import { useT } from "@mustard/core";
+import { useT, useShortcut } from "@mustard/core";
 import { getSetting, setSetting, subscribeSettings, NKEYS, NOTIF_DEFAULTS, CKEYS, desktopNotify, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 import { useToast } from "@mustard/core";
 import { useConfirm } from "@mustard/core";
@@ -286,6 +286,16 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
       if (sessionId) requestTerminalFocus(repoPath, sessionId);
     });
   }, [mounted, desktop]);
+
+  // #1027 레포 탭 단축키 — ⌘⌥] / ⌘⌥[ / ⌘⌥1~9(9=마지막). 탭 줄 순서 그대로.
+  useShortcut(["repo.next", "repo.prev", ...Array.from({ length: 9 }, (_, i) => `repo.goto${i + 1}`)], (d) => {
+    if (!active || !tabs.length) return false;
+    const keys = tabs.map(tabKey);
+    const i = Math.max(0, keys.indexOf(activeKey ?? ""));
+    const k = d.id === "repo.next" ? keys[(i + 1) % keys.length] : d.id === "repo.prev" ? keys[(i - 1 + keys.length) % keys.length]
+      : d.arg === 9 ? keys[keys.length - 1] : keys[(d.arg ?? 1) - 1] ?? keys[keys.length - 1];
+    activate(k);
+  });
 
   function activate(key: string) {
     setVisited((prev) => (prev.has(key) ? prev : new Set(prev).add(key))); // keep-alive 대상 등록

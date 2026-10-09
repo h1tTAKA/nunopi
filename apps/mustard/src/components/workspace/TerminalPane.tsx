@@ -3,7 +3,7 @@
 // 활성 탭만 렌더(전환 시 remount → scrollback 재생). 탭 목록은 레포별 localStorage 영속.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IconPlus, IconX, IconTerminal2 } from "@tabler/icons-react";
-import { useT, getTerminalThemePref, isTerminalDark, getSetting, AKEYS, AGENT_DEFAULTS, CKEYS, useConfirm } from "@mustard/core";
+import { useShortcut, useT, getTerminalThemePref, isTerminalDark, getSetting, AKEYS, AGENT_DEFAULTS, CKEYS, useConfirm } from "@mustard/core";
 import Terminal from "@/components/workspace/Terminal";
 import { AgentLogo, AGENT_META, type AgentId } from "@/components/workspace/AgentLogo";
 
@@ -41,7 +41,7 @@ export function requestTerminalFocus(cwd: string, termId: string) {
   window.dispatchEvent(new CustomEvent(FOCUS_EVENT, { detail: { cwd } }));
 }
 
-export default function TerminalPane({ cwd }: { cwd: string }) {
+export default function TerminalPane({ cwd, active: paneActive = true }: { cwd: string; active?: boolean }) {
   const t = useT();
   const store = `nunopi:ws-terms:${cwd}`;
   const initial = useMemo(() => loadTabs(store, t("workspace.terminalTab", { n: 1 })), []); // eslint-disable-line react-hooks/exhaustive-deps -- 마운트 1회 복원(cwd 변경은 아래 이펙트)
@@ -183,6 +183,18 @@ export default function TerminalPane({ cwd }: { cwd: string }) {
   };
   // 기본 에이전트(#927) 빠른 실행 — 설정의 agent.default.
   const launchDefaultAgent = () => launchInNewTab(getSetting<string>(AKEYS.default, AGENT_DEFAULTS.default) as AgentId);
+
+  // #1027 터미널 탭 단축키 — 보이는(활성) 레포의 터미널 패널만 처리, 아니면 false로 다른 레포에 넘김.
+  useShortcut(["term.new", "term.newAgent", "term.close", "term.next", "term.prev", ...Array.from({ length: 9 }, (_, i) => `term.goto${i + 1}`)], (d) => {
+    if (!paneActive || !tabs.length) return false;
+    const i = Math.max(0, tabs.findIndex((x) => x.id === activeId));
+    if (d.id === "term.new") addTab();
+    else if (d.id === "term.newAgent") launchDefaultAgent();
+    else if (d.id === "term.close") void closeTab(activeId);
+    else if (d.id === "term.next") setActiveId(tabs[(i + 1) % tabs.length].id);
+    else if (d.id === "term.prev") setActiveId(tabs[(i - 1 + tabs.length) % tabs.length].id);
+    else if (d.arg) setActiveId((d.arg === 9 ? tabs[tabs.length - 1] : tabs[d.arg - 1] ?? tabs[tabs.length - 1]).id); // ⌘9 = 마지막(Ghostty 관례)
+  });
 
   return (
     <div className="flex h-full min-h-0 flex-col">

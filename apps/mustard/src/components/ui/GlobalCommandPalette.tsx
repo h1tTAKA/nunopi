@@ -7,7 +7,7 @@ import {
   IconCode, IconFileText, IconMessage2, IconLayoutDashboard, IconCards, IconHome, IconSettings,
   IconFiles, IconFileCode, IconMessages,
 } from "@tabler/icons-react";
-import { useT } from "@mustard/core";
+import { useT, useShortcut, installShortcutDispatcher } from "@mustard/core";
 import { CommandPalette, type Command } from "@mustard/nunopi";
 import { isNunopiEnabled } from "@/lib/product";
 import type { ViewMode } from "@mustard/core";
@@ -53,17 +53,10 @@ export default function GlobalCommandPalette({
   const [open, setOpen] = useState(false);
   const [tabCmds, setTabCmds] = useState<Command[]>([]);
 
-  // ⌘K(맥) / Ctrl+K — 전역 토글. input 포커스 중에도 열리게 preventDefault.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  // #1027 단축키 실행기 설치(앱 전역 1개) + 팔레트(⌘K 터미널 밖·⇧⌘P)·설정(⌘,). input 포커스 중에도 동작.
+  useEffect(() => installShortcutDispatcher(), []);
+  useShortcut(["palette"], () => setOpen((o) => !o));
+  useShortcut(["settings"], () => { setOpen(false); onOpenSettings(); });
 
   // 워크스페이스 탭 명령은 팔레트 열 때 스냅샷 — ref는 effect서만 읽음(렌더 중 접근 금지).
   // run 클로저는 workspaceRef.current를 직접 호출(캡처 stale 회피).
