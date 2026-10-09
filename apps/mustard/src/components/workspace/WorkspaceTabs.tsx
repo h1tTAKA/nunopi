@@ -195,7 +195,7 @@ const WorkspaceTabs = forwardRef<WorkspaceTabsHandle, WorkspaceTabsProps>(functi
               const focused = typeof document !== "undefined" && document.hasFocus();
               const at = tabsRef.current.find((x) => tabKey(x) === activeKeyRef.current);
               const watching = focused && !!at && at.type === "repo" && at.path === p; // 지금 이 레포를 보고 있음
-              if (getSetting<boolean>(NKEYS.suppressWhileFocused, NOTIF_DEFAULTS.suppressWhileFocused) && watching) return;
+              if (getSetting<boolean>(NKEYS.suppressWhileWatching, NOTIF_DEFAULTS.suppressWhileWatching) && watching) return;
               const now = Date.now();
               if (now - (lastNotifyAt.current[p] ?? 0) < 5000) return; // 레포별 5s 쿨다운(세션 여러 개 동시 완료 등)
               lastNotifyAt.current[p] = now;
