@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { detachedLabel } from "@/lib/repo/gitBranches";
 
 // 워크스페이스 깃 그래프(#649) — 레포 cwd에서 git log 실행. 서버 전용(child_process).
 // execFile(인자 배열, shell 미경유)로 인젝션 차단. 비-git 폴더면 isGit:false(에러 아님).
@@ -24,7 +25,16 @@ export async function POST(request: Request): Promise<Response> {
     // 현재 브랜치(detached면 "HEAD"). 실패해도 로그는 반환.
     let branch = "";
     try { branch = (await pexecFile("git", ["rev-parse", "--abbrev-ref", "HEAD"], opts)).stdout.trim(); } catch { /* ignore */ }
-    return Response.json({ ok: true, isGit: true, log: stdout, branch });
+    // #1025 분리 HEAD — "HEAD" 대신 가리키는 ref 이름(origin/develop 등) 또는 짧은 해시를 칩에 보여주려고.
+    let detached: { sha: string; label: string } | undefined;
+    if (branch === "HEAD") {
+      try {
+        const sha = (await pexecFile("git", ["rev-parse", "--short", "HEAD"], opts)).stdout.trim();
+        const pts = (await pexecFile("git", ["for-each-ref", "--points-at", "HEAD", "--format=%(refname)"], opts)).stdout.split("\n");
+        detached = { sha, label: detachedLabel(sha, pts) };
+      } catch { /* ignore */ }
+    }
+    return Response.json({ ok: true, isGit: true, log: stdout, branch, ...(detached ? { detached } : {}) });
   } catch {
     // git 없음 / .git 아님 / 빈 레포 등 — 저장소 아님으로 처리(앱 에러 아님).
     return Response.json({ ok: true, isGit: false, log: "" });
