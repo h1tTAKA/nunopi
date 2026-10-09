@@ -31,7 +31,8 @@ export function useShortcut(ids: string[], handler: ShortcutHandler) {
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 function builtin(def: ShortcutDef): boolean {
   const font = (n: number) => setSetting(TKEYS.fontSize, clamp(n, 8, 32));
-  const zoom = (f: number) => { const z = Math.round(clamp(f, 0.5, 2) * 100) / 100; setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
+  // 앱 확대 범위·단위는 설정 화면(0.8~1.4, 0.1 단위)과 같게.
+  const zoom = (f: number) => { const z = Math.round(clamp(f, 0.8, 1.4) * 10) / 10; setSetting(APKEYS.uiZoom, z); applyUiZoom(z); };
   const curFont = getSetting<number>(TKEYS.fontSize, TERMINAL_DEFAULTS.fontSize);
   const curZoom = getSetting<number>(APKEYS.uiZoom, APPEARANCE_DEFAULTS.uiZoom);
   switch (def.id) {
