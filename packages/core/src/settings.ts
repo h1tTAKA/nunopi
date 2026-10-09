@@ -112,16 +112,22 @@ export function migrateRenamed(obj: Record<string, unknown>): boolean {
   return changed;
 }
 
-let migrated = false; // 이관은 앱 실행당 1회만 확인(읽기마다 쓰기 방지)
 function readAll(): Record<string, unknown> {
   try {
     const raw = localStorage.getItem(KEY);
-    const obj = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-    if (!migrated) { migrated = true; if (migrateRenamed(obj)) localStorage.setItem(KEY, JSON.stringify(obj)); }
-    return obj;
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
   } catch {
     return {};
   }
+}
+
+// 이관은 모듈 로드 시 1회(브라우저만) — 렌더 중 getSnapshot에서 저장소를 쓰지 않게(#1022 리뷰: 스냅샷은 부수효과 금지).
+if (typeof window !== "undefined") {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const obj = raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+    if (obj && migrateRenamed(obj)) localStorage.setItem(KEY, JSON.stringify(obj));
+  } catch { /* 저장소 불가 — 이관 생략 */ }
 }
 
 function writeAll(obj: Record<string, unknown>): void {

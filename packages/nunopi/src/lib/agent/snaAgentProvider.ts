@@ -35,9 +35,15 @@ type SnaRuntime = "claude-code" | "codex" | "opencode";
 // 환경마다 다르므로 env override(기본은 각 런타임의 합리적 기본).
 // 유저 Codex 기본 모델(#1021) — $CODEX_HOME|~/.codex/config.toml의 최상위 model. 하드코딩(gpt-5.5)은 Codex 목록에서 이미 숨겨진
 // 구버전이 됐던 것처럼 또 낡으므로 Codex 자신의 설정을 따른다. 없거나 못 읽으면 null → 폴백.
+// 분석 요청마다 디스크를 읽지 않게 60초 캐시(#1022 리뷰) — 유저가 Codex 설정을 바꾸면 최대 1분 뒤 반영.
+let codexModelCache: { at: number; model: string | null } | null = null;
 function userCodexModel(): string | null {
-  try { return codexConfigModel(readFileSync(join(process.env.CODEX_HOME?.trim() || join(homedir(), ".codex"), "config.toml"), "utf8")); }
-  catch { return null; }
+  if (codexModelCache && Date.now() - codexModelCache.at < 60_000) return codexModelCache.model;
+  let model: string | null = null;
+  try { model = codexConfigModel(readFileSync(join(process.env.CODEX_HOME?.trim() || join(homedir(), ".codex"), "config.toml"), "utf8")); }
+  catch { /* 없음·권한 — 폴백 */ }
+  codexModelCache = { at: Date.now(), model };
+  return model;
 }
 
 export function defaultSnaModel(runtime: SnaRuntime): string {
