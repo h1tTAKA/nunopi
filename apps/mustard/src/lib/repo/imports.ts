@@ -84,3 +84,52 @@ export function loadAliases(root: string): AliasConf | null {
   }
   return null;
 }
+
+// ── JVM(Java·Kotlin)·Go import(#1023) ──────────────────────────────────────────
+// 둘 다 상대경로가 아니라 "패키지 경로"로 import → resolveImport(상대·tsconfig)로는 0건이었음(gson 264·cobra 36 전부 외톨이).
+// 폴더 → 그 폴더 파일들 인덱스(언어별 정규식). 그래프 빌드당 1회.
+export function dirIndex(files: string[], re: RegExp): Map<string, string[]> {
+  const m = new Map<string, string[]>();
+  for (const f of files) {
+    if (!re.test(f)) continue;
+    const d = posix.dirname(f) === "." ? "" : posix.dirname(f);
+    const a = m.get(d);
+    if (a) a.push(f); else m.set(d, [f]);
+  }
+  return m;
+}
+export const JVM_RE = /\.(java|kt|kts)$/i;
+export const GO_RE = /\.go$/i;
+const noExt = (f: string) => f.replace(/\.[^./]+$/, "");
+
+// Java/Kotlin `import com.x.Foo`(지정자 "com/x/Foo") → 경로가 /com/x/Foo.(java|kt)로 끝나는 파일(src/main/java 등 소스 루트 무관).
+// static import `com.x.Foo.bar` → 마지막 조각 떼고 재시도. 와일드카드 `com.x.*`(지정자 "com/x/") → 그 패키지 폴더 파일들.
+export function resolveJvmImport(spec: string, jvmDirs: Map<string, string[]>): string[] {
+  const s = spec.replace(/\/+$/, "");
+  if (!s) return [];
+  // 같은 패키지가 여러 소스 루트에 있을 수 있음(src/main·src/test) → 일치하는 폴더 전부.
+  const pkgFiles = (pkg: string) => {
+    const out: string[] = [];
+    for (const [d, fs] of jvmDirs) if (d === pkg || d.endsWith(`/${pkg}`)) out.push(...fs);
+    return out;
+  };
+  if (spec.endsWith("/")) return pkgFiles(s); // com.x.* (추출기가 * 앞 "com.x."까지 잡음)
+  const segs = s.split("/");
+  for (let n = segs.length; n >= 2; n--) {
+    const cls = segs.slice(0, n).join("/");
+    const dir = segs.slice(0, n - 1).join("/");
+    const hit = pkgFiles(dir).find((f) => noExt(f) === cls || noExt(f).endsWith(`/${cls}`));
+    if (hit) return [hit];
+  }
+  return [];
+}
+
+// go.mod `module github.com/x/y` → 모듈 경로.
+export function goModulePath(gomod: string): string | null {
+  return /^\s*module\s+(\S+)/m.exec(gomod)?.[1] ?? null;
+}
+// Go `import "github.com/x/y/sub"` → 모듈 경로를 뗀 폴더(sub)의 .go 파일 전부(Go 패키지 = 폴더). 외부 모듈이면 [].
+export function resolveGoImport(spec: string, module: string | null, goDirs: Map<string, string[]>): string[] {
+  if (!module || (spec !== module && !spec.startsWith(`${module}/`))) return [];
+  return goDirs.get(spec === module ? "" : spec.slice(module.length + 1)) ?? [];
+}
