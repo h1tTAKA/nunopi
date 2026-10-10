@@ -5,7 +5,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { IconSearch } from "@tabler/icons-react";
 import { useT } from "@mustard/core";
-export type Command = { id: string; label: string; section?: string; icon?: ReactNode; run: () => void };
+export type Command = { id: string; label: string; section?: string; icon?: ReactNode; shortcut?: string; run: () => void }; // shortcut: 표시용(⌘,) — #1029
 
 export default function CommandPalette({ open, commands, onClose }: { open: boolean; commands: Command[]; onClose: () => void }) {
   const t = useT();
@@ -64,6 +64,7 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
                   className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] transition ${i === cur ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
                   {c.icon ? <span className="flex w-4 shrink-0 items-center justify-center text-zinc-400">{c.icon}</span> : null}
                   {c.label}
+                  {c.shortcut ? <span className="ml-auto shrink-0 pl-3 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{c.shortcut}</span> : null}
                 </button>
               </li>
             );

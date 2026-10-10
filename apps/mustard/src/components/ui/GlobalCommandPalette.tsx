@@ -7,7 +7,7 @@ import {
   IconCode, IconFileText, IconMessage2, IconLayoutDashboard, IconCards, IconHome, IconSettings,
   IconFiles, IconFileCode, IconMessages,
 } from "@tabler/icons-react";
-import { useT, useShortcut, installShortcutDispatcher } from "@mustard/core";
+import { useT, useShortcut, useShortcutHint, shortcutHint, installShortcutDispatcher } from "@mustard/core";
 import { CommandPalette, type Command } from "@mustard/nunopi";
 import { isNunopiEnabled } from "@/lib/product";
 import type { ViewMode } from "@mustard/core";
@@ -57,6 +57,7 @@ export default function GlobalCommandPalette({
   useEffect(() => installShortcutDispatcher(), []);
   useShortcut(["palette"], () => setOpen((o) => !o));
   useShortcut(["settings"], () => { setOpen(false); onOpenSettings(); });
+  const settingsHint = useShortcutHint("settings");
 
   // 워크스페이스 탭 명령은 팔레트 열 때 스냅샷 — ref는 effect서만 읽음(렌더 중 접근 금지).
   // run 클로저는 workspaceRef.current를 직접 호출(캡처 stale 회피).
@@ -64,8 +65,9 @@ export default function GlobalCommandPalette({
     const ws = open && vm === "workspace" ? workspaceRef.current : null;
     let next: Command[] = [];
     if (ws) {
-      const switchTabs: Command[] = ws.listTabs().map((tb) => ({
+      const switchTabs: Command[] = ws.listTabs().map((tb, i) => ({
         id: `tab:${tb.key}`, section: t("palette.section.tab"), label: tb.label, icon: TAB_ICON[tb.kind],
+        shortcut: i < 8 ? shortcutHint(`repo.goto${i + 1}`) : undefined, // #1029 ⌘⌥1~8(9는 "마지막"이라 생략)
         run: () => workspaceRef.current?.activate(tb.key),
       }));
       const newKinds: AddKind[] = ["repo", ...(isNunopiEnabled() ? NUNOPI_TAB_KINDS : [])];
@@ -84,14 +86,14 @@ export default function GlobalCommandPalette({
     // Mustard 섹션 — 워크스페이스 + 설정(항상).
     const mustard: Command[] = [
       ...MUSTARD_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.mustard"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) })),
-      { id: "settings", section: t("palette.section.mustard"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, run: onOpenSettings },
+      { id: "settings", section: t("palette.section.mustard"), label: t("header.settings"), icon: <IconSettings size={16} stroke={2} aria-hidden />, shortcut: settingsHint, run: onOpenSettings },
     ];
     // nunopi 학습 섹션 — 모듈 설치 시에만. Mustard-only 빌드면 숨김.
     const nunopiNav: Command[] = isNunopiEnabled()
       ? NUNOPI_VIEWS.map((v) => ({ id: `view:${v}`, section: t("palette.section.nunopi"), label: t(`mode.${v}`), icon: VIEW_ICON[v], run: () => onNavigate(v) }))
       : [];
     return [...mustard, ...nunopiNav, ...tabCmds];
-  }, [t, onNavigate, onOpenSettings, tabCmds]);
+  }, [t, onNavigate, onOpenSettings, tabCmds, settingsHint]);
 
   return <CommandPalette open={open} commands={commands} onClose={() => setOpen(false)} />;
 }
