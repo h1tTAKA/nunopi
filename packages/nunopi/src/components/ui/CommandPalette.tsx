@@ -63,8 +63,8 @@ export default function CommandPalette({ open, commands, onClose }: { open: bool
                 <button type="button" onMouseEnter={() => setSel(i)} onClick={() => run(c)}
                   className={`flex w-full items-center gap-2.5 px-4 py-2 text-left text-[13px] transition ${i === cur ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300"}`}>
                   {c.icon ? <span className="flex w-4 shrink-0 items-center justify-center text-zinc-400">{c.icon}</span> : null}
-                  {c.label}
-                  {c.shortcut ? <span className="ml-auto shrink-0 pl-3 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{c.shortcut}</span> : null}
+                  <span className="min-w-0">{c.label}</span>
+                  {c.shortcut ? <span aria-hidden className="ml-auto shrink-0 pl-3 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{c.shortcut}</span> : null}
                 </button>
               </li>
             );
