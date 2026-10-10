@@ -3,7 +3,7 @@
 // 골격(커밋1): 4존 셸 [파일트리 | 터미널 | 코드 | 챗]. 각 존은 후속 커밋서 채움(트리·코드·챗·pty터미널).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconFolderOpen, IconFiles, IconFileCode, IconFileText, IconLoader2, IconGitBranch, IconGitCommit, IconX, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconMessages, IconCards, IconSettings, IconSitemap, IconTerminal2, IconBrandGithub, IconMessageCircle, IconActivity } from "@tabler/icons-react";
-import { useShortcut, useT, getSetting, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
+import { useShortcut, useShortcutHint, withShortcutHint, useT, getSetting, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 import { useFullscreen } from "@mustard/nunopi";
 import { isNunopiEnabled } from "@/lib/product";
 import FileTree from "@/components/workspace/FileTree";
@@ -260,6 +260,8 @@ export default function WorkspaceView({ path, active = true, providerId, provide
   const ciDot = useBranchCi(path); // 현재 브랜치 CI 상태 도트(#812) — GitHub 토글 아이콘 배지
   const toggleLeft = () => setLeftOpen((v) => { const n = !v; try { localStorage.setItem("nunopi:ws-left-open", n ? "1" : "0"); } catch { /* ignore */ } return n; }); // 좌측 사이드바 접기/펴기(#758)
   // #1027 패널 단축키 — 보이는 레포만. git은 접힌 사이드바면 사이드바부터 열고 git 섹션 표시.
+  // #1029 기존 툴팁 끝에 단축키 병기(aria-label은 그대로)
+  const hintLeft = useShortcutHint("view.left"), hintRight = useShortcutHint("view.right"), hintGit = useShortcutHint("view.git");
   useShortcut(["view.left", "view.right", "view.git"], (d) => {
     if (!active) return false;
     if (d.id === "view.left") toggleLeft();
@@ -505,7 +507,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
       <header className={`titlebar-drag flex h-10 shrink-0 items-center gap-2 border-b border-zinc-200 pr-2 dark:border-zinc-800 ${fullscreen ? "" : "pl-[78px]"}`}>
         {/* 좌측 도크 툴바(#758) — 왼쪽 사이드바 토글 | (커밋2: 중앙 패널 접기/펴기 토글들). */}
         <div className="flex shrink-0 items-center gap-0.5 pl-1.5">
-          <button type="button" onClick={toggleLeft} title={leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand")} aria-label={leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand")} aria-pressed={leftOpen}
+          <button type="button" onClick={toggleLeft} title={withShortcutHint(leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand"), hintLeft)} aria-label={leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand")} aria-pressed={leftOpen}
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
             {leftOpen ? <IconLayoutSidebarLeftCollapse size={18} stroke={2} aria-hidden /> : <IconLayoutSidebarLeftExpand size={18} stroke={2} aria-hidden />}
           </button>
@@ -568,7 +570,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
           </>
         )}
         {/* 우측 챗 패널 접기/펴기(#716·#695) — 헤더 토글. 열림=collapse 아이콘, 접힘=expand 아이콘. */}
-        <button type="button" onClick={toggleChat} title={chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand")} aria-label={chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand")}
+        <button type="button" onClick={toggleChat} title={withShortcutHint(chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand"), hintRight)} aria-label={chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand")}
           className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
           {chatOpen ? <IconLayoutSidebarRightCollapse size={16} stroke={2} aria-hidden /> : <IconLayoutSidebarRightExpand size={16} stroke={2} aria-hidden />}
         </button>
@@ -639,7 +641,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
               className={`rounded-md p-1 transition ${analyzeOpen ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
               <IconSitemap size={14} stroke={2} aria-hidden />
             </button>
-            <button type="button" onClick={toggleGit} title="git" aria-label="git" aria-pressed={gitOpen}
+            <button type="button" onClick={toggleGit} title={withShortcutHint("git", hintGit)} aria-label="git" aria-pressed={gitOpen}
               className={`rounded-md p-1 transition ${gitOpen ? "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100" : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"}`}>
               <IconGitBranch size={14} stroke={2} aria-hidden />
             </button>
