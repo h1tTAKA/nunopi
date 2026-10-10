@@ -17,7 +17,7 @@ const { removeRepoHooks } = require("./agent-hooks.cjs");
 const { installClaudeHooks } = require("./claude-hooks.cjs");
 const { getProviderUsage } = require("./provider-usage.cjs");
 const { startWatch, stopWatch, stopAll: stopAllWatchers } = require("./repo-watcher.cjs");
-const { seen: seenText, freshLines } = require("./narration-dedupe.cjs"); // #1019 재그리기 중복 내레이션 방지
+const { seen: seenText, freshLines, emptyState: emptySeen } = require("./narration-dedupe.cjs"); // #1019 재그리기 중복 내레이션 방지
 const githubBridge = require("./github-bridge.cjs"); // GitHub 패널(#809/#810) gh CLI 브릿지
 const { join, dirname } = require("node:path");
 
@@ -762,7 +762,7 @@ function seedSeen(id, buffer) {
   const raw = String(buffer || "");
   const p = narrPending.get(id) || "";
   const base = p && raw.endsWith(p) ? raw.slice(0, raw.length - p.length) : raw;
-  narrSeen.set(id, seenText(narrSeen.get(id) || "", stripNoise(stripAnsi(base))));
+  narrSeen.set(id, seenText(narrSeen.get(id) || emptySeen(), stripNoise(stripAnsi(base))));
 }
 const NARR_INTERVAL = 8000;   // 세션당 최소 간격(더 촘촘히 — 노이즈 필터+SKIP가 무의미 호출 걸러 낭비 안 늘어남)
 const NARR_MIN_DELTA = 150;   // 노이즈 제거 후 이만큼 알맹이 있어야 내레이션(스피너-only 스킵)
@@ -781,7 +781,7 @@ async function observeActivity(id) {
   if (!raw) return;                                                                 // 지난 내레이션 이후 새 출력 없음
   const cleaned = stripNoise(stripAnsi(raw));                                       // 스피너·상태줄 노이즈 제거 → 알맹이만
   narrPending.set(id, "");                                                          // 소비(비움)
-  const { fresh: delta, corpus } = freshLines(narrSeen.get(id) || "", cleaned);     // #1019 이미 본 줄(재그리기) 제거 → 진짜 새 줄만
+  const { fresh: delta, state: corpus } = freshLines(narrSeen.get(id) || emptySeen(), cleaned);     // #1019 이미 본 줄(재그리기) 제거 → 진짜 새 줄만
   narrSeen.set(id, corpus);
   if (delta.length < NARR_MIN_DELTA || !/[a-zA-Z가-힣]/.test(delta)) return;         // 알맹이 없으면 스킵(토큰 낭비 방지)
   // 실제 코드 변경(diff)을 재료로 — 코드가 바뀌었으면 그 diff로 코드 학습. 안 바뀌었으면 diff 없이 탐색/개념 학습.
