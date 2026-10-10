@@ -507,10 +507,14 @@ export default function WorkspaceView({ path, active = true, providerId, provide
       <header className={`titlebar-drag flex h-10 shrink-0 items-center gap-2 border-b border-zinc-200 pr-2 dark:border-zinc-800 ${fullscreen ? "" : "pl-[78px]"}`}>
         {/* 좌측 도크 툴바(#758) — 왼쪽 사이드바 토글 | (커밋2: 중앙 패널 접기/펴기 토글들). */}
         <div className="flex shrink-0 items-center gap-0.5 pl-1.5">
-          <button type="button" onClick={toggleLeft} title={withShortcutHint(leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand"), hintLeft)} aria-label={leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand")} aria-pressed={leftOpen}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-            {leftOpen ? <IconLayoutSidebarLeftCollapse size={18} stroke={2} aria-hidden /> : <IconLayoutSidebarLeftExpand size={18} stroke={2} aria-hidden />}
-          </button>
+          {/* 제목 줄(창 드래그 영역)은 Electron이 기본 title 툴팁을 안 띄움 → 앱의 기존 말풍선 방식(GitGraph 헤더와 동일)(#1029) */}
+          <span className="group/lt relative flex">
+            <button type="button" onClick={toggleLeft} aria-label={leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand")} aria-pressed={leftOpen}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+              {leftOpen ? <IconLayoutSidebarLeftCollapse size={18} stroke={2} aria-hidden /> : <IconLayoutSidebarLeftExpand size={18} stroke={2} aria-hidden />}
+            </button>
+            <span className="pointer-events-none absolute top-full z-50 mt-1 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-white opacity-0 shadow transition dark:bg-zinc-700 left-0 group-hover/lt:opacity-100">{withShortcutHint(leftOpen ? t("workspace.leftCollapse") : t("workspace.leftExpand"), hintLeft)}</span>
+          </span>
           <span className="mx-0.5 h-4 w-px shrink-0 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
           {/* 중앙 패널 접기/펴기(#758) — 없는 패널은 비활성(회색), 있으면 클릭해 접기/펴기(펼침=강조). */}
           {([
@@ -570,10 +574,13 @@ export default function WorkspaceView({ path, active = true, providerId, provide
           </>
         )}
         {/* 우측 챗 패널 접기/펴기(#716·#695) — 헤더 토글. 열림=collapse 아이콘, 접힘=expand 아이콘. */}
-        <button type="button" onClick={toggleChat} title={withShortcutHint(chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand"), hintRight)} aria-label={chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand")}
-          className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
-          {chatOpen ? <IconLayoutSidebarRightCollapse size={16} stroke={2} aria-hidden /> : <IconLayoutSidebarRightExpand size={16} stroke={2} aria-hidden />}
-        </button>
+        <span className="group/rt relative flex shrink-0">
+          <button type="button" onClick={toggleChat} aria-label={chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand")}
+            className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200">
+            {chatOpen ? <IconLayoutSidebarRightCollapse size={16} stroke={2} aria-hidden /> : <IconLayoutSidebarRightExpand size={16} stroke={2} aria-hidden />}
+          </button>
+          <span className="pointer-events-none absolute top-full z-50 mt-1 whitespace-nowrap rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] text-white opacity-0 shadow transition dark:bg-zinc-700 right-0 group-hover/rt:opacity-100">{withShortcutHint(chatOpen ? t("workspace.chatCollapse") : t("workspace.chatExpand"), hintRight)}</span>
+        </span>
       </header>
       <div className="relative flex min-h-0 flex-1">
         {/* 좌: 파일트리(위) + 깃 그래프(아래, 접기·세로 리사이즈). leftOpen=false면 통째로 접힘(#758). */}
