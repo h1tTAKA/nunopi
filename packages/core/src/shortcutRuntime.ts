@@ -4,9 +4,9 @@
 // "내 일 아님"(비활성 레포 등)으로 다음 핸들러에 넘김. 처리되면 preventDefault+stopPropagation → 터미널(xterm)·셸로 안 감.
 // 글자 크기·앱 확대는 화면 상관없이 여기서 직접 처리(설정 저장 + 적용).
 import { useEffect, useRef } from "react";
-import { getSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS } from "./settings";
+import { getSetting, setSetting, useSetting, TKEYS, TERMINAL_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS } from "./settings";
 import { applyUiZoom } from "./appearance";
-import { chordFromEvent, matchShortcut, type ShortcutDef, type ShortcutOverrides } from "./shortcuts";
+import { SHORTCUTS, bindingsOf, chordFromEvent, formatChord, matchShortcut, type ShortcutDef, type ShortcutOverrides } from "./shortcuts";
 
 export const SHORTCUT_OVERRIDES_KEY = "shortcuts.overrides";
 export type ShortcutHandler = (def: ShortcutDef) => boolean | void;
@@ -27,6 +27,19 @@ export function useShortcut(ids: string[], handler: ShortcutHandler) {
   const key = ids.join("|");
   useEffect(() => registerShortcut(key.split("|"), (d) => ref.current(d)), [key]);
 }
+
+// 힌트(#1029) — 팔레트·툴팁에 붙일 유효 단축키(사용자 덮어쓰기 반영) 첫 조합. 없거나 껐으면 "". 설정 바뀌면 즉시 반영.
+function hintOf(id: string, overrides: ShortcutOverrides): string {
+  const def = SHORTCUTS.find((d) => d.id === id);
+  const first = def ? bindingsOf(def, overrides)[0] : undefined;
+  return first ? formatChord(first, isMac()) : "";
+}
+export function useShortcutHint(id: string): string {
+  return hintOf(id, useSetting<ShortcutOverrides>(SHORTCUT_OVERRIDES_KEY, {}));
+}
+// 렌더 밖(이펙트·목록 생성)용 — 그 순간의 설정으로.
+export const shortcutHint = (id: string) => hintOf(id, getSetting<ShortcutOverrides>(SHORTCUT_OVERRIDES_KEY, {}));
+export const withShortcutHint = (label: string, hint: string) => (hint ? `${label} (${hint})` : label);
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 function builtin(def: ShortcutDef): boolean {
