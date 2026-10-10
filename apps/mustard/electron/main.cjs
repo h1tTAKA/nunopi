@@ -913,9 +913,12 @@ const termClient = createDaemonClient({
     if (np.length > 14000) {
       // #1031 꼬리 14000자 밖으로 밀려나는 출력은 해설 안 하고 버려짐 — 그래도 "본 것"으로 기억해야 함. 안 그러면 `--resume`이
       // 예전 대화를 쏟아낼 때마다 매번 다른 조각이 꼬리에 걸려 재해설됨(유저 재현: resume마다 다른 해설). 목록 루프에서 흡수.
-      const ov = (narrOverflow.get(id) || "") + np.slice(0, np.length - 14000);
-      narrOverflow.set(id, ov.length > 1_000_000 ? ov.slice(-1_000_000) : ov);
-      np = np.slice(-14000);
+      // 자르는 위치는 줄바꿈 바로 뒤로(#1032 리뷰) — 14000 지점이 ANSI 제어 코드 한가운데면 양쪽 줄이 깨져 같은 줄로 못 알아봄.
+      const nl = np.indexOf("\n", np.length - 14000);
+      const cut = nl >= 0 ? nl + 1 : np.length - 14000;
+      const ov = (narrOverflow.get(id) || "") + np.slice(0, cut);
+      narrOverflow.set(id, ov.length > 1_000_000 ? ov.slice(ov.indexOf("\n", ov.length - 1_000_000) + 1 || ov.length - 1_000_000) : ov);
+      np = np.slice(cut);
     }
     narrPending.set(id, np);
     broadcast("terminal:data", { id, data });
