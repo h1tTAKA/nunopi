@@ -762,6 +762,10 @@ const narrSeenByRepo = new Map(); // cwd → 상태(첫 사용 시 파일에서 
 const narrSeenDirty = new Set();  // 저장 대기 레포
 const narrSeeded = new Set();     // 기존 화면을 이미 시딩한 세션 id(목록 루프 1회)
 const narrOverflow = new Map();   // id → 대기 칸(14000자)에서 밀려난 출력(해설 안 함 → 본 것으로만 흡수)
+// #1031 해설 게이트 — 에이전트가 "작업 중"이거나 끝난 지 NARR_WORK_GRACE 이내일 때만 해설. 그 밖의 출력(`--resume`이 다시 찍는
+// 예전 대화, 탭 전환 재그리기 등)은 에이전트가 입력 대기 중이라 해설하지 않고 "본 것"으로만 흡수(기억 유무와 무관하게 막힘).
+const narrWorkingAt = new Map();  // id → 마지막 "작업 중" 시각(화면 판정)
+const NARR_WORK_GRACE = 15000;
 function absorbOverflow(id) {
   const raw = narrOverflow.get(id);
   if (!raw) return;
@@ -811,6 +815,7 @@ async function observeActivity(id) {
   if (!raw) return;                                                                 // 지난 내레이션 이후 새 출력 없음
   const cleaned = stripNoise(stripAnsi(raw));                                       // 스피너·상태줄 노이즈 제거 → 알맹이만
   narrPending.set(id, "");                                                          // 소비(비움)
+  if (now - (narrWorkingAt.get(id) || 0) > NARR_WORK_GRACE) { setRepoSeen(cwd, seenText(repoSeen(cwd), cleaned)); return; } // 작업 중 아님 → 기억만
   const { fresh: delta, state: seenNext } = freshLines(repoSeen(cwd), cleaned);   // #1019·#1031 이미 본 줄(재그리기·resume 재출력) 제거 → 진짜 새 줄만
   setRepoSeen(cwd, seenNext);
   if (delta.length < NARR_MIN_DELTA || !/[a-zA-Z가-힣]/.test(delta)) return;         // 알맹이 없으면 스킵(토큰 낭비 방지)
@@ -865,6 +870,7 @@ async function pushScreenState(id, screen) {
   const changed = !prev || prev.state !== state || prev.agent !== agent || (!!prev.task !== !!task);
   if (!changed && prev && now - prev.at < 30000) return; // 같은 상태·제목유무면 30s마다만 재POST(TTL 유지, 과POST 억제)
   lastScreen.set(id, { state, agent, at: now, task });
+  if (state === "working") narrWorkingAt.set(id, now); // #1031 해설 게이트용 — 마지막으로 "작업 중"이던 시각
   await postStatus({ cwd, agent, state, sessionId: id, source: "screen", task });
 }
 function scheduleScreenParse(id) {
@@ -926,7 +932,7 @@ const termClient = createDaemonClient({
   },
   onExit: (id) => {
     liveBuffers.delete(id); delete savedBuffers[id];
-    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); narrSeeded.delete(id); narrOverflow.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); // #765·#803·#864·#870·#970 정리
+    cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); narrSeeded.delete(id); narrOverflow.delete(id); narrWorkingAt.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); // #765·#803·#864·#870·#970 정리
     const tm = screenTimers.get(id); if (tm) { clearTimeout(tm); screenTimers.delete(id); }
     broadcast("terminal:exit", { id });
   },
@@ -984,7 +990,7 @@ ipcMain.handle("terminal:launchAgent", async (_e, { id, agent, dark, extraArgs }
   return { ok: true };
 });
 ipcMain.on("terminal:resize", (_e, { id, cols, rows }) => termClient.resize({ id, cols, rows }));
-ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); narrSeeded.delete(id); narrOverflow.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); lastTitleRawById.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
+ipcMain.on("terminal:kill", (_e, { id }) => { termClient.kill({ id }); liveBuffers.delete(id); delete savedBuffers[id]; cwdById.delete(id); lastScreen.delete(id); agentSticky.delete(id); launchRegistry.delete(id); inputBuf.delete(id); ensuredIds.delete(id); narrPending.delete(id); lastNarr.delete(id); narrInFlight.delete(id); narrSeeded.delete(id); narrOverflow.delete(id); narrWorkingAt.delete(id); lastDiffHash.delete(id); lastTaskById.delete(id); lastTitleRawById.delete(id); }); // 탭 닫기 시 데몬 pty·저장분·상태·실행기록 정리
 // 세션의 실행 중 에이전트 id | null(#803) — 터미널 탭 자동 이름·아이콘용.
 // 프로세스명만으론 node 래퍼 CLI(codex 등: 네이티브 자식을 spawn해 foreground pgrp 리더가 "node")를 못 잡아,
 // 버퍼 스크레이핑(parseAgentScreen)을 1순위로. 셸이면 종료로 간주(null). 버퍼 미판정이면 프로세스명 폴백.
