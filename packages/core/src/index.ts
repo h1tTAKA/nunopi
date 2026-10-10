@@ -17,3 +17,5 @@ export * from "./theme";
 export * from "./settings";
 export * from "./appearance";
 export * from "./notify";
+export * from "./shortcuts";
+export * from "./shortcutRuntime";

@@ -3,7 +3,8 @@ import type { AgentProviderKind, AnalyzeMode, ProviderSettings } from "@mustard/
 import { PROVIDER_CATALOG } from "../../lib/agent/catalog";
 import { type LearnProviderMode, type ModeModels, type ModeProviders, LEARN_PROVIDER_MODES, resolveModeModel, resolveModeProvider } from "../../lib/modeProviders";
 import { XIcon } from "../learning/icons";
-import { IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
+import ShortcutsSection from "./ShortcutsSection";
+import { IconKeyboard, IconArrowLeft, IconPalette, IconLanguage, IconRobot, IconSparkles, IconTerminal2, IconChevronDown, IconBell, IconShieldHalf, IconFolder, IconGitBranch, IconPlug, IconBrandGithub, IconLoader2, IconBrandGitlab, IconBrandBitbucket, IconBrandAzure } from "@tabler/icons-react";
 import { useSetting, setSetting, TKEYS, TERMINAL_DEFAULTS, type TerminalCursorStyle, AKEYS, AGENT_DEFAULTS, NKEYS, NOTIF_DEFAULTS, CKEYS, CONFIRM_DEFAULTS, APKEYS, APPEARANCE_DEFAULTS, type UiFontPref, applyUiZoom, applyUiFont, WKEYS, WORKSPACE_DEFAULTS, GKEYS, GIT_DEFAULTS } from "@mustard/core";
 // 에이전트 런치(#927) — 기본 에이전트 후보. AGENT_META/AgentLogo는 apps 소유(패키지 경계)라 여기선 id 목록만.
 const LAUNCH_AGENTS = ["claude", "codex", "grok", "opencode", "omp", "antigravity", "cursor", "hermes"];
@@ -290,6 +291,7 @@ export default function SettingsDrawer({
     { id: "set-terminal", label: t("settings.terminalSection"), Icon: IconTerminal2, show: true, group: t("settings.groupEnvironment") },
     { id: "set-workspace", label: t("settings.workspaceSection"), Icon: IconFolder, show: true, group: t("settings.groupEnvironment") },
     { id: "set-git", label: t("settings.gitSection"), Icon: IconGitBranch, show: true, group: t("settings.groupEnvironment") },
+    { id: "set-shortcuts", label: t("settings.shortcutsSection"), Icon: IconKeyboard, show: true, group: t("settings.groupEnvironment") }, // #1027
     { id: "set-agents", label: t("settings.provider"), Icon: IconRobot, show: true, group: t("settings.groupAgents") },
     { id: "set-integrations", label: t("settings.integrations"), Icon: IconPlug, show: true, group: t("settings.groupAgents") },
     { id: "set-nunopi", label: t("settings.nunopiModule"), Icon: IconSparkles, show: !!onNunopiEnabledChange, group: t("settings.groupAgents") },
@@ -876,6 +878,9 @@ export default function SettingsDrawer({
             ))}
           </section>
           )}
+
+          {/* 단축키(#1027) */}
+          {activeSection === "set-shortcuts" && <ShortcutsSection />}
 
           {/* 연동(#958) — 소스 호스트 연결. 현재 GitHub(gh CLI + PAT). */}
           {activeSection === "set-integrations" && (

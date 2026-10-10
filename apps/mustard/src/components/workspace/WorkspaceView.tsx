@@ -3,7 +3,7 @@
 // 골격(커밋1): 4존 셸 [파일트리 | 터미널 | 코드 | 챗]. 각 존은 후속 커밋서 채움(트리·코드·챗·pty터미널).
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { IconFolderOpen, IconFiles, IconFileCode, IconFileText, IconLoader2, IconGitBranch, IconGitCommit, IconX, IconLayoutSidebarRightCollapse, IconLayoutSidebarRightExpand, IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand, IconMessages, IconCards, IconSettings, IconSitemap, IconTerminal2, IconBrandGithub, IconMessageCircle, IconActivity } from "@tabler/icons-react";
-import { useT, getSetting, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
+import { useShortcut, useT, getSetting, WKEYS, WORKSPACE_DEFAULTS } from "@mustard/core";
 import { useFullscreen } from "@mustard/nunopi";
 import { isNunopiEnabled } from "@/lib/product";
 import FileTree from "@/components/workspace/FileTree";
@@ -259,6 +259,14 @@ export default function WorkspaceView({ path, active = true, providerId, provide
   const pickRightMode = (m: "chat" | "github" | "learn") => setRightMode(() => { try { localStorage.setItem("nunopi:ws-right-mode", m); } catch { /* ignore */ } return m; }); // 우측 모드 전환(#811·#855)
   const ciDot = useBranchCi(path); // 현재 브랜치 CI 상태 도트(#812) — GitHub 토글 아이콘 배지
   const toggleLeft = () => setLeftOpen((v) => { const n = !v; try { localStorage.setItem("nunopi:ws-left-open", n ? "1" : "0"); } catch { /* ignore */ } return n; }); // 좌측 사이드바 접기/펴기(#758)
+  // #1027 패널 단축키 — 보이는 레포만. git은 접힌 사이드바면 사이드바부터 열고 git 섹션 표시.
+  useShortcut(["view.left", "view.right", "view.git"], (d) => {
+    if (!active) return false;
+    if (d.id === "view.left") toggleLeft();
+    else if (d.id === "view.right") toggleChat();
+    else if (!leftOpen) { toggleLeft(); if (!gitOpen) toggleGit(); }
+    else toggleGit();
+  });
   // 중앙 패널 접기/펴기(#758) — 콘텐츠는 유지하고 dock 표시만. 존재하는 패널만 대상.
   const panelExists = (p: PanelId) => p === "terminal" || (p === "code" && hasCode) || (p === "doc" && hasDoc) || (p === "flow" && flowFeature !== null);
   const panelVisible = (p: PanelId) => panelExists(p) && !collapsed.has(p);
@@ -483,7 +491,7 @@ export default function WorkspaceView({ path, active = true, providerId, provide
   ) : null;
   // 도킹 트리에 넘길 패널 3종(존재하는 것만 트리 리프로 렌더됨). 기존 컴포넌트 그대로.
   const dockPanels: Record<PanelId, ReactNode> = {
-    terminal: <TerminalPane cwd={path} />,
+    terminal: <TerminalPane cwd={path} active={active} />,
     code: codeNode,
     doc: docNode,
     // 기능별 아키텍처 플로우(#743) — flowFeature 있을 때만 dock에 삽입됨. 노드 클릭 → 코드 탭 열기.

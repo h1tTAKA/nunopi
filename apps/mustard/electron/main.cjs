@@ -3,7 +3,7 @@
 // prod: .next/standalone/server.js를 동적 포트로 spawn 후 그 localhost 로드.
 // #981 다른 require·spawn보다 먼저 — 이후 모든 자식(데몬·서버·SNA)이 정리된 env를 상속.
 require("./claude-env.cjs").stripParentClaudeEnv(process.env);
-const { app, BrowserWindow, shell, ipcMain, Notification, dialog, clipboard, safeStorage } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, Notification, dialog, clipboard, safeStorage } = require("electron");
 const { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync, cpSync } = require("node:fs");
 const {
   startSnaServer,
@@ -1065,7 +1065,20 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
-  app.whenReady().then(boot).catch((e) => { console.error("[electron] boot failed", e); app.quit(); });
+  // #1027 앱 메뉴 직접 구성 — Electron 기본 메뉴엔 ⌘W(창 닫기=앱 꺼짐)·⌘R(새로고침)·⌘+/−(설정과 따로 노는 확대)가 숨어 있어
+// 렌더러 단축키(⌘W 터미널 탭 닫기·⌘=/− 터미널 글자 크기)와 충돌. 입력창에 꼭 필요한 편집(⌘C/V/Z/A)·앱(숨기기·종료)·창(최소화)만 남김.
+function installAppMenu() {
+  const mac = process.platform === "darwin";
+  const template = [
+    ...(mac ? [{ role: "appMenu" }] : [{ label: "File", submenu: [{ role: "quit" }] }]),
+    { role: "editMenu" },
+    { label: "View", submenu: [{ role: "toggleDevTools" }] }, // ⌥⌘I — 단축키 충돌 없음, 디버깅용
+    { label: "Window", submenu: [{ role: "minimize" }, ...(mac ? [{ role: "zoom" }, { type: "separator" }, { role: "front" }] : [])] },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+app.whenReady().then(installAppMenu).catch(() => {});
+app.whenReady().then(boot).catch((e) => { console.error("[electron] boot failed", e); app.quit(); });
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) boot(); });
   app.on("window-all-closed", () => { if (process.platform !== "darwin") app.quit(); });
   app.on("before-quit", () => {
