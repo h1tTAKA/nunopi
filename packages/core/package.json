@@ -1,0 +1,13 @@
+{
+  "name": "@mustard/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./sna": "./src/sna/client.ts",
+    "./sna/server": "./src/sna/server.ts",
+    "./messages": "./src/i18n/messages.ts"
+  }
+}

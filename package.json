@@ -1,0 +1,21 @@
+{
+  "name": "nunopi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Learn the code your AI agents write — analyze, explain and memorize code and tech text.",
+  "workspaces": [
+    "apps/nunopi",
+    "packages/core",
+    "packages/nunopi"
+  ],
+  "overrides": {
+    "monaco-editor": "0.55.1"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace apps/nunopi",
+    "build": "npm run build --workspace apps/nunopi",
+    "lint": "npm run lint --workspace apps/nunopi",
+    "electron:dev": "npm run electron:dev --workspace apps/nunopi",
+    "electron:dist": "npm run electron:dist --workspace apps/nunopi"
+  }
+}
